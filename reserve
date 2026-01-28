@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>常用地址:預約叫車</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 強制防止 iOS 縮放，並設定基礎字體大小 */
+        input, select, textarea { font-size: 17px !important; } 
+        .hidden { display: none !important; }
+        .loader { border: 3px solid #f3f3f3; border-top: 3px solid #3b82f6; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        /* 自定義選單箭頭 */
+        select {
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+            background-position: right 0.5rem center;
+            background-repeat: no-repeat;
+            background-size: 1.5em 1.5em;
+            padding-right: 2.5rem;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+        }
+        ::placeholder { color: #9ca3af; opacity: 1; }
+        .swal2-container { z-index: 10000 !important; }
+        /* 優化選單捲動體驗 */
+        .location-grid {
+            max-height: 60vh;
+            overflow-y: auto;
+            padding: 4px;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans antialiased text-gray-800">
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="fixed inset-0 bg-white z-50 flex flex-col items-center justify-center">
+        <div class="loader mb-4 w-12 h-12 border-4 text-blue-500"></div>
+        <p id="loading-text" class="text-gray-500 font-bold text-lg">系統連線中...</p>
+    </div>
+
+    <div id="app" class="hidden min-h-screen flex justify-center p-0 md:p-4">
+        <div class="w-full max-w-md bg-white shadow-2xl rounded-none md:rounded-3xl overflow-hidden min-h-screen md:min-h-0 flex flex-col">
+            
+            <!-- Header -->
+            <header class="bg-blue-600 text-white p-6 pb-8 rounded-b-[2.5rem] shadow-lg z-10 relative">
+                <div class="text-center">
+                    <h1 class="text-3xl font-extrabold tracking-wide">🚕 預約叫車</h1>
+                    <p id="user-display" class="text-blue-100 text-base mt-2 font-medium">載入使用者...</p>
+                </div>
+                <div class="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 bg-white opacity-10 rounded-full"></div>
+                <div class="absolute bottom-0 left-0 -ml-8 -mb-8 w-24 h-24 bg-white opacity-10 rounded-full"></div>
+            </header>
+
+            <!-- Form Container -->
+            <div class="flex-1 overflow-y-auto p-6 -mt-6 relative z-20">
+                <form id="booking-form" class="bg-white rounded-3xl shadow-md border border-gray-100 p-6 space-y-5">
+                    <input type="hidden" id="name">
+                    
+                    <!-- 聯絡電話 -->
+                    <div>
+                        <label class="block font-bold text-gray-700 mb-2 text-lg">📞 聯絡電話</label>
+                        <input type="tel" id="phone" required placeholder="09xx-xxx-xxx" inputmode="tel" class="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-lg shadow-sm placeholder-gray-400">
+                    </div>
+
+                    <!-- 日期與時間 (Grid) -->
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="relative">
+                            <label class="block font-bold text-gray-700 mb-2 text-lg">📅 日期</label>
+                            <!-- ★★★ 視覺層：只顯示 01/18，長輩看這個 ★★★ -->
+                            <input type="text" id="date-display" readonly class="w-full p-4 bg-white border border-gray-200 rounded-2xl text-lg shadow-sm focus:ring-2 focus:ring-blue-500 outline-none text-center font-bold text-gray-700">
+                            
+                            <!-- ★★★ 邏輯層：真正的日期選單，透明覆蓋在上面 ★★★ -->
+                            <!-- 修改：onchange 只負責更新文字顯示，不做任何檢查 -->
+                            <input type="date" id="date" required onchange="syncDateDisplay()" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer top-8 z-10">
+                        </div>
+                        <div>
+                            <label class="block font-bold text-gray-700 mb-2 text-lg">🕒 時間</label>
+                            <!-- ★★★ 修改：移除 onchange 事件，完全手動，送出時才檢查 ★★★ -->
+                            <input type="time" id="time" required class="w-full p-4 bg-white border border-gray-200 rounded-2xl text-center text-lg shadow-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                        </div>
+                    </div>
+                    <!-- 提示文字 -->
+                    <div class="text-xs text-center text-gray-400 -mt-2">
+                        ⚠️ 建議預約 25 分鐘後的時間
+                    </div>
+
+                    <!-- 地點區塊 -->
+                    <div class="border-l-4 border-gray-100 pl-4 space-y-5 py-2">
+                        
+                        <!-- 上車地點 -->
+                        <div>
+                            <div class="flex justify-between items-center mb-2">
+                                <label class="block text-lg font-bold text-green-600">🟢 上車地點</label>
+                                <button type="button" onclick="openLocationPicker('pickup')" class="flex items-center space-x-1 px-3 py-1 bg-green-50 text-green-700 text-sm font-bold rounded-full border border-green-200 active:scale-95 transition-transform">
+                                    <span>📍 選地點</span>
+                                </button>
+                            </div>
+                            <input type="text" id="pickup" required placeholder="請輸入上車處" class="w-full p-4 border border-gray-200 rounded-2xl text-lg shadow-sm focus:ring-2 focus:ring-green-500 outline-none placeholder-gray-400">
+                        </div>
+
+                        <!-- 下車地點 -->
+                        <div>
+                            <div class="flex justify-between items-center mb-2">
+                                <label class="block text-lg font-bold text-red-600">🔴 下車地點</label>
+                                <button type="button" onclick="openLocationPicker('dropoff')" class="flex items-center space-x-1 px-3 py-1 bg-red-50 text-red-700 text-sm font-bold rounded-full border border-red-200 active:scale-95 transition-transform">
+                                    <span>📍 選地點</span>
+                                </button>
+                            </div>
+                            <input type="text" id="dropoff" required placeholder="請輸入目的地" class="w-full p-4 border border-gray-200 rounded-2xl text-lg shadow-sm focus:ring-2 focus:ring-red-500 outline-none placeholder-gray-400">
+                        </div>
+                    </div>
+
+                    <!-- 付款方式 -->
+                    <div class="pt-2 border-t border-gray-100">
+                        <label class="block font-bold text-gray-700 mb-2 text-lg">💰 付款方式</label>
+                        <select id="payment" class="w-full p-4 bg-yellow-50 border border-yellow-200 rounded-2xl text-lg font-medium text-gray-800 shadow-sm focus:ring-2 focus:ring-yellow-400 outline-none cursor-pointer">
+                            <option value="現金">💵 現金</option>
+                            <option value="敬老卡">🧓 敬老卡 (65歲+)</option>
+                            <option value="愛心卡">❤️ 愛心卡 (身障)</option>
+                            <option value="乘車券">🎫 乘車券</option>
+                            <option value="TWRQ">📲 TWRQ</option>
+                            <option value="LINE PAY">💳 LINE PAY</option>
+                            <option value="APPLE PAY">🍎 APPLE PAY</option>
+                        </select>
+                    </div>
+
+                </form>
+            </div>
+
+            <!-- Footer Action -->
+            <div class="p-6 bg-white border-t border-gray-100 z-30">
+                <button id="submitBtn" onclick="confirmAndSubmit()" class="w-full py-4 rounded-2xl bg-gradient-to-r from-green-500 to-emerald-600 text-white text-xl font-bold shadow-lg hover:shadow-xl active:scale-[0.98] transition-all flex justify-center items-center">
+                    確認預約
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const MY_LIFF_ID = "2008907691-v0O7W8d3";
+
+        const dom = {
+            loading: document.getElementById('loading-overlay'),
+            app: document.getElementById('app'),
+            userDisplay: document.getElementById('user-display'),
+            btn: document.getElementById('submitBtn'),
+            inputs: {
+                name: document.getElementById('name'),
+                phone: document.getElementById('phone'),
+                date: document.getElementById('date'),
+                dateDisplay: document.getElementById('date-display'),
+                time: document.getElementById('time'),
+                pickup: document.getElementById('pickup'),
+                dropoff: document.getElementById('dropoff'),
+                payment: document.getElementById('payment')
+            }
+        };
+
+        const PRESET_LOCATIONS = [
+            { name: '常用地址 A', icon: '⭐', value: 'FAV_ADDR_A' },
+            { name: '常用地址 B', icon: '⭐', value: 'FAV_ADDR_B' },
+            { name: '花蓮前站', icon: '🚉' },
+            { name: '花蓮後站', icon: '🚉' },
+            { name: '吉安車站', icon: '🚉' },
+            { name: '北埔車站', icon: '🚉' },
+            { name: '慈濟門診', icon: '🏥' },
+            { name: '慈濟急診', icon: '🏥' },
+            { name: '門諾門診', icon: '🏥' },
+            { name: '門諾急診', icon: '🏥' },
+            { name: '花蓮醫院', icon: '🏥' },
+            { name: '805醫院', icon: '🏥' },
+            { name: '地方法院', icon: '⚖️' },
+            { name: '簡易法庭', icon: '⚖️' },
+            { name: '花蓮縣政府', icon: '🏢' },
+            { name: '花蓮市公所', icon: '🏢' },
+            { name: '戶政事務所', icon: '🏢' },
+            { name: '地政事務所', icon: '🏢' }
+        ];
+
+        let currentTargetInputId = '';
+
+        // ★★★ 日期顯示同步 (單純顯示，不檢查) ★★★
+        function syncDateDisplay() {
+            const val = dom.inputs.date.value;
+            if (val) {
+                const parts = val.split('-');
+                dom.inputs.dateDisplay.value = `${parts[1]}/${parts[2]}`;
+            }
+        }
+
+        // ★★★ 25分鐘緩衝檢查 (只在送出時呼叫) ★★★
+        function validateTimeBeforeSubmit() {
+            const inputDateStr = dom.inputs.date.value;
+            const inputTimeStr = dom.inputs.time.value;
+            
+            if (!inputDateStr || !inputTimeStr) return true; // 沒填完交給 required 屬性擋
+
+            const selectedDateTime = new Date(`${inputDateStr}T${inputTimeStr}`);
+            const now = new Date();
+            // 只要大於 25 分鐘前就給過
+            const minTime = new Date(now.getTime() + 25 * 60 * 1000); 
+
+            if (selectedDateTime < minTime) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: '時間太趕囉！',
+                    text: '為了確保司機趕得到，請預約 25 分鐘後的時間 🙏',
+                    confirmButtonText: '好的，我改一下',
+                    confirmButtonColor: '#3b82f6'
+                });
+                return false; // 驗證失敗
+            }
+            return true; // 驗證通過
+        }
+
+        function openLocationPicker(inputId) {
+            currentTargetInputId = inputId;
+            let buttonsHtml = '<div class="grid grid-cols-2 gap-3 mt-2 location-grid">';
+            PRESET_LOCATIONS.forEach(loc => {
+                const val = loc.value !== undefined ? loc.value : loc.name;
+                let bgClass = 'bg-gray-50 hover:bg-blue-50';
+                
+                if(val === 'FAV_ADDR_A' || val === 'FAV_ADDR_B') bgClass = 'bg-yellow-50 hover:bg-yellow-100 border-yellow-200';
+
+                buttonsHtml += `
+                    <button onclick="selectLocation('${val}')" 
+                        class="flex flex-col items-center justify-center p-4 border border-gray-200 rounded-xl transition-all active:scale-95 ${bgClass}">
+                        <span class="text-2xl mb-1">${loc.icon}</span>
+                        <span class="text-base font-bold text-gray-700">${loc.name}</span>
+                    </button>
+                `;
+            });
+            buttonsHtml += '</div>';
+
+            Swal.fire({
+                title: '請選擇地點',
+                html: buttonsHtml,
+                showConfirmButton: false,
+                showCloseButton: true,
+                customClass: { popup: 'rounded-3xl', content: 'p-0' }
+            });
+        }
+
+        window.selectLocation = function(value) {
+            const input = document.getElementById(currentTargetInputId);
+            
+            if (value === 'FAV_ADDR_A' || value === 'FAV_ADDR_B') {
+                const storageKey = value === 'FAV_ADDR_A' ? 'taxi_fav_addr_a' : 'taxi_fav_addr_b';
+                const labelName = value === 'FAV_ADDR_A' ? '常用地址 A' : '常用地址 B';
+
+                const savedAddr = localStorage.getItem(storageKey);
+                
+                if (savedAddr) {
+                    Swal.fire({
+                        title: `📍 這是您的${labelName}嗎？`,
+                        text: savedAddr,
+                        icon: 'question',
+                        showDenyButton: true,
+                        confirmButtonText: '是的，填入',
+                        denyButtonText: '不，我要修改',
+                        confirmButtonColor: '#10b981', 
+                        denyButtonColor: '#ef4444',    
+                        reverseButtons: true
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            input.value = savedAddr;
+                            flashInput(input);
+                        } else if (result.isDenied) {
+                            promptSetFavAddress(input, storageKey, labelName);
+                        }
+                    });
+                } else {
+                    promptSetFavAddress(input, storageKey, labelName);
+                }
+                return;
+            }
+
+            Swal.close();
+            input.value = value;
+            flashInput(input);
+        };
+
+        function promptSetFavAddress(input, storageKey, labelName) {
+            Swal.fire({
+                title: `⭐ 設定${labelName}`,
+                input: 'text',
+                inputLabel: '輸入一次，以後自動帶入',
+                inputPlaceholder: '例如：花蓮市中正路100號',
+                showCancelButton: true,
+                confirmButtonText: '儲存並填入',
+                cancelButtonText: '取消',
+                confirmButtonColor: '#fbbf24'
+            }).then((result) => {
+                if (result.isConfirmed && result.value) {
+                    localStorage.setItem(storageKey, result.value);
+                    input.value = result.value;
+                    flashInput(input);
+                    
+                    Swal.fire({
+                        icon: 'success',
+                        title: '已記憶！',
+                        text: `下次點「${labelName}」就會自動帶入囉`,
+                        timer: 1500,
+                        showConfirmButton: false
+                    });
+                }
+            });
+        }
+
+        function flashInput(input) {
+            input.classList.add('bg-blue-50', 'border-blue-300');
+            setTimeout(() => input.classList.remove('bg-blue-50', 'border-blue-300'), 500);
+        }
+
+        function loadSDK(callback) {
+            const script = document.createElement('script');
+            script.src = 'https://static.line-scdn.net/liff/edge/2/sdk.js';
+            script.onload = callback;
+            document.head.appendChild(script);
+        }
+
+        window.onload = function() {
+            const savedPhone = localStorage.getItem('taxi_user_phone');
+            if (savedPhone) {
+                if (savedPhone.length === 9 && !savedPhone.startsWith('0')) {
+                    dom.inputs.phone.value = '0' + savedPhone;
+                } else {
+                    dom.inputs.phone.value = savedPhone;
+                }
+            }
+
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            
+            dom.inputs.date.value = `${year}-${month}-${day}`;
+            syncDateDisplay();
+
+            // 預設時間：現在 + 30 分鐘 (這只是預設值，之後使用者隨便改)
+            now.setMinutes(now.getMinutes() + 30);
+            dom.inputs.time.value = now.toTimeString().substring(0,5);
+
+            loadSDK(() => {
+                liff.init({ liffId: MY_LIFF_ID }).then(() => {
+                    if (!liff.isLoggedIn()) {
+                        liff.login();
+                        return;
+                    }
+                    liff.getProfile().then(profile => {
+                        dom.userDisplay.innerText = `Hi, ${profile.displayName}`;
+                        dom.inputs.name.value = profile.displayName;
+                        dom.loading.classList.add('hidden');
+                        dom.app.classList.remove('hidden');
+                    });
+                });
+            });
+        };
+
+        function getDateForMessage() {
+            return dom.inputs.dateDisplay.value; 
+        }
+
+        async function confirmAndSubmit() {
+            const form = document.getElementById('booking-form');
+            if (!form.checkValidity()) {
+                form.reportValidity();
+                return;
+            }
+            
+            // ★★★ 送出前才檢查，如果驗證不過，直接 Return ★★★
+            if (!validateTimeBeforeSubmit()) {
+                return;
+            }
+
+            const friendlyDate = getDateForMessage();
+
+            const data = {
+                pickup: dom.inputs.pickup.value,
+                dropoff: dom.inputs.dropoff.value,
+                date: dom.inputs.date.value,
+                friendlyDate: friendlyDate,
+                time: dom.inputs.time.value,
+                name: dom.inputs.name.value,
+                phone: dom.inputs.phone.value,
+                payment: dom.inputs.payment.value
+            };
+
+            const result = await Swal.fire({
+                title: '請確認預約資料',
+                html: `
+                    <div class="text-left bg-gray-50 p-4 rounded-lg text-sm space-y-2">
+                        <p><span class="font-bold text-gray-500">📅 時間：</span>${data.friendlyDate} ${data.time}</p>
+                        <p><span class="font-bold text-green-600">🟢 上車：</span>${data.pickup}</p>
+                        <p><span class="font-bold text-red-600">🔴 下車：</span>${data.dropoff}</p>
+                        <p><span class="font-bold text-yellow-600">💰 付款：</span>${data.payment}</p>
+                        <p><span class="font-bold text-gray-500">📞 電話：</span>${data.phone}</p>
+                    </div>
+                `,
+                icon: 'info',
+                showCancelButton: true,
+                confirmButtonText: '✅ 確認預約',
+                cancelButtonText: '❌ 修改',
+                confirmButtonColor: '#10b981',
+                cancelButtonColor: '#d1d5db',
+                reverseButtons: true
+            });
+
+            if (!result.isConfirmed) return;
+
+            executeSubmission(data);
+        }
+
+        async function executeSubmission(data) {
+            localStorage.setItem('taxi_user_phone', data.phone);
+
+            dom.btn.disabled = true;
+            dom.btn.innerHTML = `<div class="loader mr-3"></div> 資料傳送中...`;
+            dom.btn.classList.remove('from-green-500', 'to-emerald-600');
+            dom.btn.classList.add('bg-gray-400', 'cursor-not-allowed');
+
+            const msgText = `🗓️ 預約叫車\n👤 乘客：${data.name}\n📞 電話：${data.phone}\n📅 時間：${data.friendlyDate} ${data.time}\n💰 付款：${data.payment}\n🟢 上車：${data.pickup}\n🔴 下車：${data.dropoff}`;
+
+            try {
+                if (liff.isInClient()) {
+                    await liff.sendMessages([{ type: 'text', text: msgText }]);
+                }
+
+                const startDateTime = new Date(`${data.date}T${data.time}`).toISOString().replace(/-|:|\.\d\d\d/g, "");
+                const endDateTime = new Date(new Date(`${data.date}T${data.time}`).getTime() + 3600000).toISOString().replace(/-|:|\.\d\d\d/g, "");
+                const calTitle = encodeURIComponent(`🚕 計程車預約 (${data.pickup} -> ${data.dropoff})`);
+                const calDetails = encodeURIComponent(`司機電話：(請待確認)\n付款方式：${data.payment}`);
+                const calLocation = encodeURIComponent(data.pickup);
+                const googleCalUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${calTitle}&dates=${startDateTime}/${endDateTime}&details=${calDetails}&location=${calLocation}`;
+
+                Swal.fire({
+                    icon: 'success',
+                    title: '預約成功！',
+                    html: `
+                        <p class="mb-4 text-gray-600">司機將盡快與您聯繫</p>
+                        <a href="${googleCalUrl}" target="_blank" class="inline-flex items-center px-4 py-2 bg-blue-100 text-blue-700 rounded-lg font-bold hover:bg-blue-200 transition-colors">
+                            📅 加入行事曆
+                        </a>
+                    `,
+                    confirmButtonText: '關閉視窗',
+                    confirmButtonColor: '#10b981'
+                }).then(() => {
+                    liff.closeWindow();
+                });
+
+            } catch (err) {
+                console.error(err);
+                if (!liff.isInClient()) {
+                     alert("請在 LINE App 內開啟此頁面以傳送訊息。\n\n" + msgText);
+                } else {
+                     alert("❌ 發生錯誤：" + err.message);
+                }
+                
+                dom.btn.disabled = false;
+                dom.btn.innerHTML = "確認叫車";
+                dom.btn.classList.add('from-green-500', 'to-emerald-600');
+                dom.btn.classList.remove('bg-gray-400', 'cursor-not-allowed');
+            }
+        }
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</body>
+</html>
+
+
+
