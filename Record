@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>花蓮愛心計程車 (IoT 打卡版)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background-color: #f3f4f6; touch-action: manipulation; -webkit-tap-highlight-color: transparent; overscroll-behavior-y: none; }
+    .btn-main { transition: all 0.2s; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); }
+    .btn-main:active { transform: scale(0.95); }
+    .btn-main:disabled { opacity: 0.5; filter: grayscale(1); cursor: not-allowed; }
+    #loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.9); z-index: 50; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+    .spinner { width: 50px; height: 50px; border: 5px solid #e5e7eb; border-top: 5px solid #3b82f6; border-radius: 50%; animation: spin 1s linear infinite; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    .swal2-input, .swal2-select { margin: 0.5em auto !important; width: 100% !important; font-size: 1rem !important; }
+    .form-group { text-align: left; margin-bottom: 10px; }
+    .form-label { font-size: 0.9rem; color: #666; font-weight: bold; margin-bottom: 4px; display: block; }
+    .address-box-pulse { animation: pulse-green 2s infinite; }
+    @keyframes pulse-green { 0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(34, 197, 94, 0); } 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); } }
+  </style>
+</head>
+<body class="pb-20">
+
+  <div id="loading-overlay">
+    <div class="spinner mb-4"></div>
+    <div id="loading-text" class="text-gray-600 font-medium">連線中...</div>
+  </div>
+
+  <div class="bg-white shadow-sm sticky top-0 z-40">
+    <div class="px-4 py-3 flex justify-between items-center">
+      <div class="flex items-center">
+        <h1 class="text-lg font-bold text-gray-800 mr-2">花蓮愛心計程車</h1>
+        <span id="header-status-badge" class="bg-gray-200 text-gray-600 text-xs px-2 py-1 rounded-full">未連線</span>
+      </div>
+      <div class="flex space-x-2">
+         <button onclick="handleOffDuty()" class="bg-gray-500 text-white px-3 py-2 rounded-lg text-sm font-bold shadow hover:bg-gray-600 active:scale-95 flex items-center transition"><i class="fas fa-moon mr-1"></i> 休息</button>
+         <button onclick="handleCheckIn()" class="bg-blue-600 text-white px-3 py-2 rounded-lg text-sm font-bold shadow hover:bg-blue-700 active:scale-95 flex items-center transition"><i class="fas fa-map-marker-alt mr-1"></i> 排班</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="container mx-auto px-4 mt-4 max-w-md">
+    <div id="address-card" class="bg-white border-l-4 border-gray-300 rounded-r-lg shadow-sm p-3 mb-6 flex items-start transition-all duration-300">
+        <div class="mr-3 mt-1"><i class="fas fa-street-view text-gray-400 text-xl"></i></div>
+        <div class="flex-1">
+            <div class="text-xs text-gray-500 font-bold mb-1">目前所在位置</div>
+            <div id="current-address-text" class="text-gray-800 text-lg font-bold leading-tight">尚未定位</div>
+            <div id="last-update-time" class="text-xs text-gray-400 mt-1">請點擊右上方「排班」</div>
+        </div>
+    </div>
+
+    <div id="last-record-container" class="mb-6 hidden">
+      <div class="flex items-center justify-between mb-2">
+        <div class="flex items-center"><i class="fas fa-history text-slate-500 mr-2"></i><span class="text-sm font-bold text-slate-600">最後一筆記錄</span></div>
+      </div>
+      <div class="p-4 shadow-lg rounded-xl bg-slate-800 text-white relative overflow-hidden">
+        <div id="lr-seq-badge" class="absolute top-0 right-0 bg-blue-600 text-white px-3 py-1 rounded-bl-xl font-mono font-bold text-lg shadow-md z-10 border-b border-l border-blue-400">#--</div>
+        <i class="fas fa-check-circle absolute -right-4 -bottom-4 text-6xl text-white opacity-5"></i>
+        <div class="grid grid-cols-2 gap-3">
+          <div><div class="text-xs text-slate-400">時間</div><div id="lr-time" class="text-lg font-bold">--:--</div></div>
+          <div><div class="text-xs text-slate-400">卡別</div><div id="lr-type" class="text-lg font-bold text-yellow-400">--</div></div>
+          <div class="col-span-2 border-t border-slate-600 my-1 pt-2">
+            <div class="text-xs text-slate-400">行程</div>
+            <div class="flex items-center mt-1"><span id="lr-pickup" class="font-bold">--</span><i class="fas fa-arrow-right mx-2 text-slate-400 text-sm"></i><span id="lr-dropoff" class="font-bold text-green-300">--</span></div>
+            <div id="lr-remarks-container" class="hidden mt-1 text-xs text-gray-400"><i class="fas fa-map-pin mr-1"></i> <span id="lr-remarks"></span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="action-area" class="grid gap-4">
+      <div id="idle-controls">
+        <button id="btn-pickup" onclick="handlePickup()" class="btn-main w-full bg-blue-600 hover:bg-blue-700 text-white rounded-2xl py-8 flex flex-col items-center justify-center">
+          <i class="fas fa-taxi text-4xl mb-2"></i><span class="text-2xl font-bold">乘客上車</span><span id="pickup-subtext" class="text-sm opacity-80 mt-1">記錄 GPS 與開始時間</span>
+        </button>
+      </div>
+      <div id="driving-controls" class="hidden space-y-4">
+        <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 text-center mb-2">
+           <div class="text-sm text-blue-600 mb-1">正在前往</div><div id="current-pickup-loc" class="text-xl font-bold text-gray-800">--</div>
+        </div>
+        <button onclick="handleDropoff('敬老卡')" class="btn-main w-full bg-green-600 hover:bg-green-700 text-white rounded-xl py-5 flex items-center justify-between px-8"><div class="flex items-center"><i class="fas fa-user-clock text-2xl mr-4"></i><div class="text-left"><div class="text-xl font-bold">敬老卡 下車</div><div class="text-xs opacity-80">一般老人 65歲以上</div></div></div><i class="fas fa-chevron-right"></i></button>
+        <button onclick="handleDropoff('愛心卡')" class="btn-main w-full bg-rose-500 hover:bg-rose-600 text-white rounded-xl py-5 flex items-center justify-between px-8"><div class="flex items-center"><i class="fas fa-heart text-2xl mr-4"></i><div class="text-left"><div class="text-xl font-bold">愛心卡 下車</div><div class="text-xs opacity-80">身心障礙者</div></div></div><i class="fas fa-chevron-right"></i></button>
+        <button onclick="handleStopover()" class="btn-main w-full bg-slate-600 hover:bg-slate-700 text-white rounded-xl py-4 flex items-center justify-center"><i class="fas fa-pause-circle mr-2"></i><span>記錄中途停靠</span></button>
+        <div class="text-center mt-4"><button onclick="handleDelete()" class="text-gray-400 underline text-sm py-2">乘客未搭乘 (刪除此筆)</button></div>
+      </div>
+    </div>
+    
+    <div class="mt-8 grid grid-cols-2 gap-3">
+        <a id="sheet-link" href="#" target="_blank" class="bg-white border border-gray-300 text-gray-700 py-3 rounded-lg text-center shadow-sm font-medium text-sm flex items-center justify-center"><i class="fas fa-table mr-2 text-green-600"></i>開啟報表</a>
+        <button onclick="openToolsModal()" class="bg-white border border-gray-300 text-gray-700 py-3 rounded-lg text-center shadow-sm font-medium text-sm flex items-center justify-center"><i class="fas fa-tools mr-2 text-orange-500"></i>補單 / 刪除</button>
+    </div>
+    <div class="mt-8 text-center text-xs text-gray-400">System v23.4 | Fix: Delete Action Sync</div>
+  </div>
+
+  <script>
+    const GAS_API_URL = "https://script.google.com/macros/s/AKfycbwajwJgO5rOEh0KRRYLlJ8XsFS1_EuZQU4vHydQMNDSA3uA_sL-X8ph44crSZeyRjY/exec"; 
+    const DRIVER_ID = 'U467348846c6b1fa433990d7b75c935b5'; 
+
+    let state = { row: 0, isDriving: false, pickupAddress: '', lastCompletedData: null, currentStatus: '下班' };
+
+    window.onload = function() { initSystem(); };
+
+    async function callApi(action, payload = {}) {
+        const params = new URLSearchParams();
+        params.append('action', action);
+        params.append('driverId', DRIVER_ID);
+        
+        if (action === 'handleRecord') {
+             params.append('recordAction', payload.action);
+             for (const key in payload) {
+                 if(key !== 'action') params.append(key, payload[key]);
+             }
+        } else {
+             for (const key in payload) {
+                 params.append(key, payload[key]);
+             }
+        }
+        params.append('_t', new Date().getTime());
+        const url = `${GAS_API_URL}?${params.toString()}`;
+        
+        try {
+            const response = await fetch(url);
+            const text = await response.text();
+            try { return JSON.parse(text); } 
+            catch (e) { console.error("Non-JSON Response:", text); throw new Error("伺服器回應格式錯誤"); }
+        } catch (e) { console.error("Network Error:", e); throw e; }
+    }
+
+    function initSystem() {
+        showLoading('同步資料中...');
+        callApi('getPreviewData').then(onInitSuccess).catch(onFailure);
+    }
+
+    function onInitSuccess(response) {
+        hideLoading();
+        if (!response.success) { Swal.fire('錯誤', response.error, 'error'); return; }
+        
+        state.row = response.nextRow;
+        state.isDriving = response.isDriving;
+        state.lastCompletedData = response.lastCompleted;
+        state.currentStatus = response.driverStatus || '下班';
+        document.getElementById('sheet-link').href = response.spreadsheetUrl;
+        
+        if (response.lastCompleted) {
+            document.getElementById('last-record-container').classList.remove('hidden'); 
+            updateLastRecordCard(response.lastCompleted);
+        } else {
+            document.getElementById('last-record-container').classList.add('hidden');
+        }
+        
+        updateStatusBadge(state.currentStatus);
+        if (response.lastKnownAddress && response.lastKnownAddress !== '尚未定位') updateAddressDisplay(response.lastKnownAddress);
+        
+        if (state.isDriving) {
+            setDrivingMode(true);
+            if (response.lastRecord) {
+                document.getElementById('current-pickup-loc').innerText = response.lastRecord.pickup;
+                state.pickupAddress = response.lastRecord.pickup;
+                state.row = response.activeRow;
+            }
+            updateStatusBadge('載客中');
+        } else {
+            setDrivingMode(false);
+        }
+    }
+
+    // --- Action Handlers ---
+    function handleCheckIn() {
+        showLoading('定位與打卡中...');
+        getLocation((lat, lng) => {
+            callApi('driverCheckIn', { lat, lng }).then(res => {
+                hideLoading();
+                if(res.success) {
+                    updateAddressDisplay(res.address, true);
+                    updateStatusBadge(res.status);
+                    Swal.fire({ icon: 'success', title: '打卡成功', text: '位置已更新', timer: 1500, showConfirmButton: false });
+                } else Swal.fire('失敗', res.error, 'error');
+            }).catch(onFailure);
+        }, () => { hideLoading(); Swal.fire('定位失敗', '請檢查 GPS', 'error'); });
+    }
+
+    function handleOffDuty() {
+        Swal.fire({ title: '確定要休息嗎？', icon: 'question', showCancelButton: true, confirmButtonText: '休息' }).then((result) => {
+            if (result.isConfirmed) {
+                showLoading('狀態更新中...');
+                callApi('driverOffDuty').then(res => {
+                    hideLoading();
+                    if(res.success) {
+                        updateStatusBadge(res.status);
+                        document.getElementById('address-card').classList.remove('border-green-500');
+                        document.getElementById('address-card').classList.add('border-gray-400');
+                        Swal.fire({ icon: 'success', title: '已切換為下班', timer: 1500, showConfirmButton: false });
+                    } else Swal.fire('失敗', res.error, 'error');
+                }).catch(onFailure);
+            }
+        });
+    }
+
+    function handlePickup() {
+        showLoading('定位中...');
+        getLocation((lat, lng) => performAction('pickup', { lat, lng }), () => performAction('pickup', { address: 'GPS定位失敗' }));
+    }
+    
+    function handleDropoff(type) {
+        Swal.fire({ title: `確認${type}下車？`, showCancelButton: true, confirmButtonText: '確定' }).then((result) => {
+            if (result.isConfirmed) {
+                showLoading('結算中...');
+                getLocation((lat, lng) => performAction('dropoff', { lat, lng, passengerType: type }), () => performAction('dropoff', { address: 'GPS定位失敗', passengerType: type }));
+            }
+        });
+    }
+
+    function performAction(actionType, data) {
+        let targetRow = state.row;
+        if (data && data.seq) targetRow = null;
+        if (data && data.row) targetRow = data.row;
+        const payload = { row: targetRow, action: actionType, ...data };
+        callApi('handleRecord', payload).then(res => handleActionSuccess(res, actionType, data)).catch(onFailure);
+    }
+
+    function handleActionSuccess(res, actionType, reqData) {
+        if (actionType !== 'delete') hideLoading();
+        
+        if (!res.success) { 
+            hideLoading(); 
+            Swal.fire('錯誤', res.error, 'error'); 
+            return; 
+        }
+
+        if (actionType === 'pickup') {
+            document.getElementById('current-pickup-loc').innerText = res.pickupAddress;
+            state.pickupAddress = res.pickupAddress;
+            setDrivingMode(true);
+            updateStatusBadge('載客中');
+            Swal.fire({ icon: 'success', title: '上車已記錄', text: res.pickupAddress, timer: 1500, showConfirmButton: false });
+        } else if (actionType === 'dropoff') {
+            setDrivingMode(false);
+            if (res.completedRecord) {
+                updateLastRecordCard(res.completedRecord);
+                state.lastCompletedData = res.completedRecord;
+                state.row += 1;
+            }
+            updateStatusBadge('空車');
+            Swal.fire({ icon: 'success', title: '行程完成', text: `時間：${res.completedRecord.time}`, timer: 2000, showConfirmButton: false });
+        } else if (actionType === 'delete') {
+            // ★★★ 核心修正：延長緩衝時間，確保資料寫入後再讀取 ★★★
+            showLoading('資料更新中...');
+            setTimeout(() => {
+                initSystem();
+            }, 1500); // 延長至 1.5 秒
+        } else if (actionType === 'manual_insert') {
+            Swal.fire('補單成功', '資料已寫入', 'success');
+            setTimeout(initSystem, 1000);
+        } else if (actionType === 'stopover') {
+            Swal.fire('成功', res.message, 'success');
+        }
+    }
+
+    // --- Helpers ---
+    function updateAddressDisplay(address, animate = false) {
+        document.getElementById('current-address-text').innerText = address;
+        const now = new Date();
+        document.getElementById('last-update-time').innerText = `更新於 ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
+        const card = document.getElementById('address-card');
+        card.classList.remove('border-gray-300', 'border-gray-400');
+        card.classList.add('border-green-500');
+        if(animate) { card.classList.add('address-box-pulse'); setTimeout(() => card.classList.remove('address-box-pulse'), 2000); }
+    }
+    function updateStatusBadge(status) {
+        state.currentStatus = status;
+        const badge = document.getElementById('header-status-badge');
+        if (status === '載客中') { badge.innerText = '載客中'; badge.className = 'bg-orange-100 text-orange-600 text-xs px-2 py-1 rounded-full border border-orange-200'; }
+        else if (status === '空車') { badge.innerText = '空車 (已打卡)'; badge.className = 'bg-green-100 text-green-600 text-xs px-2 py-1 rounded-full border border-green-200'; }
+        else { badge.innerText = '下班'; badge.className = 'bg-gray-200 text-gray-600 text-xs px-2 py-1 rounded-full'; }
+    }
+    function updateLastRecordCard(record) {
+        document.getElementById('last-record-container').classList.remove('hidden');
+        document.getElementById('lr-time').innerText = record.time || '--:--';
+        document.getElementById('lr-type').innerText = record.type || '未填';
+        document.getElementById('lr-pickup').innerText = record.pickup || '??';
+        document.getElementById('lr-dropoff').innerText = record.dropoff || '??';
+        if (record.seq) document.getElementById('lr-seq-badge').innerText = '#' + record.seq;
+        document.getElementById('lr-type').className = (record.type === '愛心卡') ? 'text-lg font-bold text-rose-400' : 'text-lg font-bold text-yellow-400';
+        if (record.remarks) { document.getElementById('lr-remarks-container').classList.remove('hidden'); document.getElementById('lr-remarks').innerText = record.remarks; }
+        else { document.getElementById('lr-remarks-container').classList.add('hidden'); }
+    }
+    function setDrivingMode(isDriving) {
+        state.isDriving = isDriving;
+        if (isDriving) { document.getElementById('idle-controls').classList.add('hidden'); document.getElementById('driving-controls').classList.remove('hidden'); }
+        else { document.getElementById('idle-controls').classList.remove('hidden'); document.getElementById('driving-controls').classList.add('hidden'); }
+    }
+    function showLoading(text) { document.getElementById('loading-text').innerText = text; document.getElementById('loading-overlay').style.display = 'flex'; }
+    function hideLoading() { document.getElementById('loading-overlay').style.display = 'none'; }
+    function onFailure(e) { hideLoading(); Swal.fire('系統錯誤', e.message || '無法連線到伺服器', 'error'); }
+    
+    // Tools & GPS
+    function handleStopover() { showLoading('記錄停靠點...'); getLocation((lat, lng) => performAction('stopover', { lat, lng }), () => Swal.fire('定位失敗', '', 'error')); }
+    function handleDelete() { 
+        Swal.fire({ title: '確定取消？', showCancelButton: true, confirmButtonColor: '#d33' }).then(r => { 
+            if(r.isConfirmed) { 
+                showLoading('刪除中...'); 
+                performAction('delete', { 
+                    row: state.row, 
+                }); 
+            }
+        }); 
+    }
+    function getLocation(cb, errCb) { if (!navigator.geolocation) { if(errCb) errCb(); return; } navigator.geolocation.getCurrentPosition(p => cb(p.coords.latitude, p.coords.longitude), e => { console.error(e); if(errCb) errCb(); }, { enableHighAccuracy: true, timeout: 10000 }); }
+    
+    function openToolsModal() {
+       Swal.fire({ title: '工具箱', showCancelButton: true, showDenyButton: true, confirmButtonText: '補單', denyButtonText: '刪除', cancelButtonText: '取消' }).then(r => { if (r.isConfirmed) openManualInsertModal(); else if (r.isDenied) openManualDeleteModal(); });
+    }
+    function openManualDeleteModal() {
+        // ★★★ 修正點：將 action 從 delete_by_seq 改為 delete，讓後端能聽懂 ★★★
+        Swal.fire({ title: '刪除資料', input: 'number', inputValue: state.lastCompletedData?.seq, showCancelButton: true }).then(r => { if(r.value) { showLoading('刪除中...'); performAction('delete', { seq: parseInt(r.value) }); }});
+    }
+    function openManualInsertModal() {
+        const now = new Date();
+        const defaultTime = `${String(now.getMonth()+1).padStart(2,'0')}/${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+        Swal.fire({
+            title: '補單', html: `<input id="m-time" class="swal2-input" value="${defaultTime}"><select id="m-type" class="swal2-select"><option>敬老卡</option><option>愛心卡</option></select><input id="m-pickup" class="swal2-input" placeholder="上車"><input id="m-dropoff" class="swal2-input" placeholder="下車"><input id="m-remarks" class="swal2-input" placeholder="備註">`,
+            showCancelButton: true, preConfirm: () => ({ customTime: document.getElementById('m-time').value, passengerType: document.getElementById('m-type').value, pickup: document.getElementById('m-pickup').value, dropoff: document.getElementById('m-dropoff').value, remarks: document.getElementById('m-remarks').value })
+        }).then(r => { if(r.isConfirmed) { if(!r.value.customTime || !r.value.pickup) return Swal.fire('欄位未填','','warning'); showLoading('補單中...'); performAction('manual_insert', r.value); }});
+    }
+  </script>
+</body>
+</html>
