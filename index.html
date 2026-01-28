@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>我的位置通話叫車</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        /* 隱藏 Google Maps 預設控制項，保持介面極簡 */
+        .gmnoprint, .gm-control-active { display: none !important; }
+        /* 司機模式控制台 */
+        #driver-console { display: none; } 
+        body { overflow: hidden; } /* 防止捲動 */
+
+        /* 按鈕激活狀態的光暈效果 */
+        .btn-active {
+            filter: brightness(1.1);
+            transform: scale(1.05);
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
+            border: 3px solid white;
+        }
+        /* 非激活狀態變暗 */
+        .btn-inactive {
+            opacity: 0.4;
+            transform: scale(0.95);
+        }
+
+        /* 通話按鈕的呼吸效果，吸引注意力 */
+        @keyframes pulse-green {
+            0% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(255, 255, 255, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); }
+        }
+        .call-btn-pulse {
+            animation: pulse-green 2s infinite;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 h-screen flex flex-col font-sans">
+
+    <!-- 頂部狀態列 (隨狀態變色) -->
+    <!-- 改用 justify-between 讓左邊資訊與右邊按鈕分開 -->
+    <div id="status-bar" class="bg-gray-800 text-white p-4 shadow-md z-50 flex items-center justify-between transition-all duration-500">
+        
+        <!-- 左側：頭像與文字資訊 -->
+        <div class="flex items-center flex-grow cursor-pointer" id="status-info-area">
+            <img id="user-avatar" src="https://via.placeholder.com/40" class="w-12 h-12 rounded-full border-2 border-white mr-3 hidden">
+            <div>
+                <h2 id="welcome-text" class="text-lg font-bold">資料同步中...</h2>
+                <p id="status-text" class="text-sm opacity-90">正在取得車輛最新位置</p>
+            </div>
+        </div>
+
+        <!-- 右側：動態通話按鈕 (預設隱藏) -->
+        <!-- 使用 text-nowrap 防止文字折行 -->
+        <a id="call-btn" href="https://lin.ee/9Davl6e" target="_blank" class="hidden items-center gap-2 bg-white text-gray-800 px-4 py-2 rounded-full font-bold shadow-lg active:scale-95 transition-transform border-2 border-transparent hover:bg-gray-50 ml-2 whitespace-nowrap">
+            <i class="fa-solid fa-phone text-green-600"></i>
+            <span>通話</span>
+        </a>
+
+    </div>
+
+    <!-- 地圖區域：佔滿剩餘空間 (原下方UI已移除) -->
+    <div id="map" class="flex-grow w-full relative"></div>
+
+    <!-- 司機控制台 (紅綠燈互動版) -->
+    <div id="driver-console" class="fixed inset-0 bg-black/95 z-[60] text-white flex flex-col items-center justify-center p-6 transition-opacity duration-300">
+        <h2 id="console-title" class="text-3xl font-bold mb-2 text-gray-400">司機控制台</h2>
+        <div class="text-center mb-8 bg-gray-800 rounded-lg p-4 w-full max-w-xs">
+            <p class="text-sm text-gray-300">目前顯示狀態</p>
+            <p id="console-status-text" class="text-2xl font-bold mt-1 text-red-500">休息中 (未分享)</p>
+            <div class="flex justify-between text-xs text-gray-500 mt-2 border-t border-gray-700 pt-2">
+                <span>GPS: <span id="gps-accuracy">--</span> m</span>
+                <span id="update-timer">待機</span>
+            </div>
+        </div>
+        
+        <!-- 狀態按鈕群組 -->
+        <div class="grid grid-cols-2 gap-6 w-full max-w-xs mb-8">
+            <!-- 空車 (綠) -->
+            <button id="btn-available" onclick="changeDriverState('available')" class="btn-inactive h-32 rounded-2xl flex flex-col items-center justify-center bg-green-600 transition-all duration-300">
+                <i class="fa-solid fa-taxi text-4xl mb-2"></i>
+                <span class="text-xl font-bold">空車</span>
+            </button>
+
+            <!-- 載客 (黃) -->
+            <button id="btn-busy" onclick="changeDriverState('busy')" class="btn-inactive h-32 rounded-2xl flex flex-col items-center justify-center bg-yellow-500 text-black transition-all duration-300">
+                <i class="fa-solid fa-user-group text-4xl mb-2"></i>
+                <span class="text-xl font-bold">載客中</span>
+            </button>
+        </div>
+        
+        <!-- 休息/停止 (紅) -->
+        <button id="btn-offline" onclick="changeDriverState('offline')" class="btn-inactive w-full max-w-xs p-4 bg-red-600 rounded-xl font-bold text-lg flex items-center justify-center mb-4 transition-all duration-300">
+            <i class="fa-solid fa-power-off mr-2"></i>
+            休息中 / 停止分享
+        </button>
+
+        <button onclick="closeConsole()" class="text-gray-400 text-sm underline mt-4 hover:text-white">關閉控制台 (背景執行)</button>
+    </div>
+
+    <script>
+        // ========= CONFIG 設定區 =========
+        const GAS_URL = 'https://script.google.com/macros/s/AKfycbzsbd_NGCL835zkoICn71CtH7q5bH5E8Dpp5lYAFyAcoIZ7isNZ4bcqO9Qncd8UjunG/exec';
+        const LIFF_ID = '2008907691-jxgYfAqx'; 
+        const GOOGLE_MAPS_API_KEY = 'AIzaSyAlTcoOPEZeeMNwTGTap39VPsW85Ux8NHo';
+        // ====================================================
+
+        let map, carMarker;
+        let watchId = null;
+        let isSharing = false;
+        
+        // 預設值 init
+        let currentStatus = 'init'; 
+
+        let clickCount = 0;
+        let hasInitialCentered = false; 
+        
+        let lastLocation = { lat: 0, lng: 0, heading: 0, speed: 0 };
+        let uploadIntervalId = null;
+
+        // 載入 Google Maps
+        function loadGoogleMaps() {
+            const script = document.createElement('script');
+            script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&callback=initMap`;
+            script.defer = true;
+            document.body.appendChild(script);
+        }
+
+        // 初始化地圖
+        function initMap() {
+            // 花蓮車站 fallback
+            const hualienStation = { lat: 23.9933, lng: 121.6011 };
+            
+            map = new google.maps.Map(document.getElementById("map"), {
+                zoom: 14,
+                center: hualienStation,
+                disableDefaultUI: true, // 極簡模式
+                styles: [ { "featureType": "poi", "stylers": [{ "visibility": "off" }] } ]
+            });
+
+            // 建立計程車圖標
+            const carSvg = {
+                path: "M17.402,0H5.643C2.526,0,0,3.467,0,6.584v34.804c0,3.116,2.526,5.644,5.643,5.644h11.759c3.116,0,5.644-2.527,5.644-5.644 V6.584C23.044,3.467,20.518,0,17.402,0z M22.057,14.188v11.665l-2.729,0.351v-4.806L22.057,14.188z M20.625,10.773 c-1.016,3.9-2.219,8.51-2.219,8.51H4.638l-2.222-8.51C2.417,10.773,11.3,7.755,20.625,10.773z M3.748,21.713v4.492l-2.73-0.349 V14.502L3.748,21.713z M23.044,41.388c0,2.571-2.085,4.656-4.656,4.656H5.643c-2.571,0-4.656-2.085-4.656-4.656v-9.522h12.753h9.3 V41.388z",
+                fillColor: "#FFD700",
+                fillOpacity: 1,
+                scale: 0.8,
+                strokeWeight: 1,
+                strokeColor: "black",
+                anchor: new google.maps.Point(11.5, 23)
+            };
+
+            carMarker = new google.maps.Marker({
+                position: hualienStation,
+                map: map,
+                icon: carSvg,
+                title: "司機位置"
+            });
+
+            fetchDriverDataAndRender();
+            setInterval(fetchDriverDataAndRender, 5000);
+        }
+
+        // 統一的資料抓取與渲染函式
+        function fetchDriverDataAndRender() {
+            if (isSharing) return; 
+
+            fetch(GAS_URL)
+                .then(res => res.json())
+                .then(data => {
+                    const newPos = { lat: parseFloat(data.lat), lng: parseFloat(data.lng) };
+                    
+                    carMarker.setPosition(newPos);
+                    
+                    const icon = carMarker.getIcon();
+                    icon.rotation = parseInt(data.heading || 0);
+                    carMarker.setIcon(icon);
+
+                    if (!hasInitialCentered) {
+                        map.setCenter(newPos); 
+                        map.setZoom(15); 
+                        hasInitialCentered = true; 
+                    } else {
+                        const center = map.getCenter();
+                        const dist = Math.abs(center.lat() - newPos.lat) + Math.abs(center.lng() - newPos.lng);
+                        if (dist > 0.05) { 
+                            map.panTo(newPos);
+                        }
+                    }
+
+                    if (currentStatus !== data.status) {
+                        updateStatusUI(data.status);
+                    }
+                })
+                .catch(err => console.error("Polling Error", err));
+        }
+
+        async function initLiff() {
+            try {
+                await liff.init({ liffId: LIFF_ID });
+                if (liff.isLoggedIn()) {
+                    const profile = await liff.getProfile();
+                    updateTopBarUser(profile);
+                } else {
+                    liff.login();
+                }
+            } catch (err) {
+                console.error('LIFF Init Error', err);
+                document.getElementById('welcome-text').innerText = "歡迎搭乘";
+            }
+        }
+
+        function updateTopBarUser(profile) {
+            const avatar = document.getElementById('user-avatar');
+            avatar.src = profile.pictureUrl;
+            avatar.style.display = 'block';
+            window.userName = profile.displayName;
+            updateStatusUI(currentStatus);
+        }
+
+        // V3.2 狀態 UI 邏輯 - 包含通話按鈕控制
+        function updateStatusUI(status) {
+            currentStatus = status; 
+            
+            const bar = document.getElementById('status-bar');
+            const welcome = document.getElementById('welcome-text');
+            const sub = document.getElementById('status-text');
+            const name = window.userName || "乘客";
+            const callBtn = document.getElementById('call-btn'); // 通話按鈕
+
+            // 司機控制台元素
+            const consoleTitle = document.getElementById('console-title');
+            const consoleStatusText = document.getElementById('console-status-text');
+            const btnAvailable = document.getElementById('btn-available');
+            const btnBusy = document.getElementById('btn-busy');
+            const btnOffline = document.getElementById('btn-offline');
+
+            // 重置所有按鈕樣式
+            [btnAvailable, btnBusy, btnOffline].forEach(btn => {
+                if(btn) {
+                    btn.classList.remove('btn-active');
+                    btn.classList.add('btn-inactive');
+                }
+            });
+
+            if (status === 'available') {
+                // === 空車 (綠色) ===
+                // UI: 綠底白字
+                bar.className = "bg-green-600 text-white p-4 shadow-md z-50 flex items-center justify-between transition-colors duration-500";
+                welcome.innerText = `你好，${name}`;
+                sub.innerText = "🚕 目前空車，歡迎搭乘！";
+                
+                // 通話按鈕：顯示 + 呼吸效果
+                callBtn.classList.remove('hidden');
+                callBtn.classList.add('flex', 'call-btn-pulse');
+
+                // 控制台更新
+                consoleTitle.className = "text-3xl font-bold mb-2 text-green-400";
+                consoleStatusText.innerText = "我是空車 (分享中)";
+                consoleStatusText.className = "text-2xl font-bold mt-1 text-green-400";
+                btnAvailable.classList.add('btn-active');
+                btnAvailable.classList.remove('btn-inactive');
+
+            } else if (status === 'busy') {
+                // === 載客 (黃色) ===
+                // UI: 黃底黑字
+                bar.className = "bg-yellow-500 text-black p-4 shadow-md z-50 flex items-center justify-between transition-colors duration-500";
+                welcome.innerText = `你好，${name}`;
+                sub.innerText = "🚫 載客中，請稍候。";
+
+                // 通話按鈕：顯示 (但移除呼吸效果，比較低調)
+                callBtn.classList.remove('hidden', 'call-btn-pulse');
+                callBtn.classList.add('flex');
+
+                // 控制台更新
+                consoleTitle.className = "text-3xl font-bold mb-2 text-yellow-400";
+                consoleStatusText.innerText = "載客中 (分享中)";
+                consoleStatusText.className = "text-2xl font-bold mt-1 text-yellow-400";
+                btnBusy.classList.add('btn-active');
+                btnBusy.classList.remove('btn-inactive');
+
+            } else {
+                // === 休息/離線 (紅色) ===
+                // UI: 紅底白字
+                bar.className = "bg-red-700 text-white p-4 shadow-md z-50 flex items-center justify-between transition-colors duration-500";
+                welcome.innerText = `你好，${name}`;
+                sub.innerText = "💤 司機休息中。";
+
+                // 通話按鈕：隱藏！
+                callBtn.classList.add('hidden');
+                callBtn.classList.remove('flex', 'call-btn-pulse');
+
+                // 控制台更新
+                consoleTitle.className = "text-3xl font-bold mb-2 text-gray-400";
+                consoleStatusText.innerText = "休息中 (已停止)";
+                consoleStatusText.className = "text-2xl font-bold mt-1 text-red-500";
+                btnOffline.classList.add('btn-active');
+                btnOffline.classList.remove('btn-inactive');
+            }
+        }
+
+        // ========= 司機端邏輯 =========
+
+        // 隱藏入口 (綁定在左側資訊區)
+        document.getElementById('status-info-area').addEventListener('click', handleSecretTrigger);
+
+        function handleSecretTrigger() {
+            clickCount++;
+            if (clickCount >= 5) {
+                const pwd = prompt("請輸入司機密碼:");
+                if (pwd === "400788") { 
+                    document.getElementById('driver-console').style.display = 'flex';
+                    updateStatusUI(currentStatus);
+                }
+                clickCount = 0;
+            }
+            if (window.clickTimer) clearTimeout(window.clickTimer);
+            window.clickTimer = setTimeout(() => { clickCount = 0; }, 2000);
+        }
+
+        function closeConsole() {
+            document.getElementById('driver-console').style.display = 'none';
+        }
+
+        function changeDriverState(newStatus) {
+            if (newStatus === 'offline') {
+                stopSharing();
+                return; 
+            }
+
+            if (!isSharing) {
+                startSharing();
+            }
+
+            currentStatus = newStatus;
+            updateStatusUI(newStatus);
+            
+            if (lastLocation.lat !== 0) {
+                uploadLocation(lastLocation);
+            }
+        }
+
+        function startSharing() {
+            if (isSharing) return;
+
+            if (navigator.geolocation) {
+                watchId = navigator.geolocation.watchPosition(
+                    (position) => {
+                        const { latitude, longitude, heading, speed, accuracy } = position.coords;
+                        
+                        lastLocation = {
+                            lat: latitude,
+                            lng: longitude,
+                            heading: heading || 0,
+                            speed: speed || 0
+                        };
+
+                        const newPos = { lat: latitude, lng: longitude };
+                        carMarker.setPosition(newPos);
+                        const icon = carMarker.getIcon();
+                        icon.rotation = parseInt(heading || 0);
+                        carMarker.setIcon(icon);
+                        
+                        document.getElementById('gps-accuracy').innerText = Math.round(accuracy);
+                    },
+                    (err) => console.error(err),
+                    { enableHighAccuracy: true, maximumAge: 0 }
+                );
+
+                uploadIntervalId = setInterval(() => {
+                    if (lastLocation.lat !== 0) {
+                        uploadLocation(lastLocation);
+                        const time = new Date().toLocaleTimeString('zh-TW', { hour12: false, hour: "numeric", minute: "numeric", second: "numeric" });
+                        document.getElementById('update-timer').innerText = `已上傳 ${time}`;
+                    }
+                }, 10000);
+
+                isSharing = true;
+            } else {
+                alert("瀏覽器不支援 GPS");
+            }
+        }
+
+        function stopSharing() {
+            if (!isSharing) return;
+
+            navigator.geolocation.clearWatch(watchId);
+            clearInterval(uploadIntervalId);
+            isSharing = false;
+
+            updateStatusUI('offline');
+            uploadLocation(lastLocation);
+            
+            document.getElementById('update-timer').innerText = "已停止上傳";
+        }
+
+        function uploadLocation(locData) {
+            const payload = {
+                lat: locData.lat,
+                lng: locData.lng,
+                status: currentStatus,
+                heading: locData.heading,
+                speed: locData.speed
+            };
+
+            fetch(GAS_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            }).catch(e => console.error("Upload failed", e));
+        }
+
+        loadGoogleMaps();
+        initLiff();
+
+    </script>
+</body>
+</html>
