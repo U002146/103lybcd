@@ -11,66 +11,110 @@
     body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; overflow: hidden; background: #f0f0f0; }
     #map { width: 100vw; height: 100vh; z-index: 1; }
     
-    /* 乘客資訊卡 HUD (左上角) */
+    /* === 乘客資訊卡 HUD (左上角) === */
     #hud {
       position: absolute; top: 15px; left: 15px; z-index: 999;
       background: rgba(30, 30, 30, 0.85); color: white; padding: 10px 15px;
       border-radius: 30px; font-size: 14px; font-weight: bold;
       backdrop-filter: blur(5px); box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-      display: flex; align-items: center; gap: 8px; pointer-events: none; /* 讓點擊穿透 */
+      display: flex; align-items: center; gap: 8px; pointer-events: none;
     }
     .status-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
     
-    /* 司機控制面板容器 (右上角) */
+    /* === 司機控制面板容器 (右上角 - 司機專用) === */
     #driver-controls {
-      display: none; /* 預設隱藏，司機登入才顯示 */
+      display: none; /* 預設隱藏 */
       position: absolute; top: 15px; right: 15px; z-index: 1000;
       flex-direction: column; align-items: center; gap: 15px;
     }
-
-    /* 圓形按鈕通用樣式 */
     .circle-btn {
       border: none; border-radius: 50%; color: white;
       font-weight: bold; cursor: pointer;
       box-shadow: 0 4px 15px rgba(0,0,0,0.3);
       display: flex; flex-direction: column; justify-content: center; align-items: center;
-      transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* 彈性動畫 */
+      transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
       text-shadow: 0 1px 2px rgba(0,0,0,0.2);
     }
     .circle-btn:active { transform: scale(0.9); box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
-
-    /* 主開關按鈕 (大) */
-    #btn-power {
-      width: 75px; height: 75px; font-size: 18px;
-    }
+    #btn-power { width: 75px; height: 75px; font-size: 18px; }
+    #btn-status { width: 60px; height: 60px; font-size: 14px; opacity: 0; transform: translateY(-20px) scale(0.5); pointer-events: none; }
+    #btn-status.show { opacity: 1; transform: translateY(0) scale(1); pointer-events: auto; }
     
-    /* 狀態按鈕 (小) */
-    #btn-status {
-      width: 60px; height: 60px; font-size: 14px;
-      opacity: 0; transform: translateY(-20px) scale(0.5); pointer-events: none; /* 預設隱藏 */
+    /* === 乘客底部滑動卡片列 (乘客專用) === */
+    #passenger-carousel {
+      display: none; /* 預設隱藏，確認是乘客才顯示 */
+      position: absolute; bottom: 20px; left: 0; width: 100%;
+      z-index: 1000;
+      display: flex; 
+      overflow-x: auto; 
+      gap: 12px; 
+      padding: 0 15px 10px 15px; /* 底部留點空間給陰影 */
+      box-sizing: border-box;
+      scroll-snap-type: x mandatory; /* 滑動時會自動對齊 */
+      -webkit-overflow-scrolling: touch; /* iOS 滑動順暢 */
+      /* 隱藏捲軸 */
+      scrollbar-width: none; -ms-overflow-style: none;
     }
-    /* 狀態按鈕顯示時的樣式 */
-    #btn-status.show {
-      opacity: 1; transform: translateY(0) scale(1); pointer-events: auto;
+    #passenger-carousel::-webkit-scrollbar { display: none; }
+
+    /* 卡片樣式 */
+    .driver-card {
+      flex: 0 0 85%; /* 手機上一張卡片佔 85% 寬度，讓使用者知道旁邊還有 */
+      max-width: 320px;
+      background: white;
+      border-radius: 16px;
+      padding: 15px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+      scroll-snap-align: center;
+      display: flex; align-items: center; justify-content: space-between;
+      transition: transform 0.2s;
+      position: relative;
+    }
+    .driver-card:active { transform: scale(0.98); }
+    
+    .card-info { flex: 1; }
+    .card-name { font-size: 16px; font-weight: bold; color: #333; margin-bottom: 4px; }
+    .card-status { font-size: 12px; font-weight: bold; display: flex; align-items: center; gap: 5px; }
+    .card-dist { font-size: 12px; color: #666; margin-top: 4px; display: block; }
+    
+    /* 撥號按鈕 (卡片右側) */
+    .card-call-btn {
+      background: #2ecc71; color: white; border: none;
+      width: 45px; height: 45px; border-radius: 50%;
+      display: flex; justify-content: center; align-items: center;
+      font-size: 20px; text-decoration: none;
+      box-shadow: 0 3px 8px rgba(46, 204, 113, 0.4);
+      margin-left: 10px;
+    }
+
+    /* 空狀態提示卡 */
+    .empty-card {
+      flex: 0 0 100%; text-align: center; background: rgba(255,255,255,0.9);
+      padding: 15px; border-radius: 12px; color: #666; font-size: 14px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
     }
 
     /* 顏色定義 */
-    .bg-green { background: linear-gradient(135deg, #2ecc71, #27ae60); } /* 上線/空車 */
-    .bg-red   { background: linear-gradient(135deg, #e74c3c, #c0392b); } /* 下線/載客 */
-    .bg-gray  { background: linear-gradient(135deg, #95a5a6, #7f8c8d); } /* 離線灰 */
+    .bg-green { background: linear-gradient(135deg, #2ecc71, #27ae60); }
+    .bg-red   { background: linear-gradient(135deg, #e74c3c, #c0392b); }
+    .bg-gray  { background: linear-gradient(135deg, #95a5a6, #7f8c8d); }
+    .text-green { color: #27ae60; }
+    .text-red { color: #c0392b; }
 
     .sub-text { font-size: 10px; opacity: 0.8; font-weight: normal; margin-top: 2px; }
 
-    /* 司機名片 Popup */
-    .driver-popup { text-align: center; font-size: 15px; min-width: 150px; }
-    .call-btn {
-      display: block; margin-top: 8px; padding: 10px 0;
+    /* 地圖 Popup 樣式 */
+    .driver-popup { text-align: center; font-size: 14px; min-width: 160px; }
+    .popup-call-btn {
+      display: block; margin-top: 8px; padding: 8px 0;
       background: #2ecc71; color: white; text-decoration: none;
-      border-radius: 20px; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+      border-radius: 20px; font-weight: bold;
     }
     
-    /* Leaflet 控制項位置調整 (避免擋到按鈕) */
+    /* Leaflet 控制項位置調整 */
     .leaflet-top.leaflet-right { top: 120px; } 
+    /* 避免 Google Logo 被卡片擋住 */
+    .leaflet-bottom { bottom: 120px !important; }
 
   </style>
 </head>
@@ -78,24 +122,27 @@
 
   <!-- 左上角資訊 HUD -->
   <div id="hud">
-    <span class="status-dot" style="background:gray;"></span> 連線中...
+    <span class="status-dot" style="background:gray;"></span> 定位中...
   </div>
 
   <!-- 地圖 -->
   <div id="map"></div>
 
-  <!-- 右上角司機控制台 -->
+  <!-- === 司機控制面板 (僅司機可見) === -->
   <div id="driver-controls">
-    <!-- 1. 主開關 (上線/下線) -->
     <button id="btn-power" class="circle-btn bg-gray" onclick="togglePower()">
       <span>上線</span>
       <span class="sub-text">OFF</span>
     </button>
-    
-    <!-- 2. 狀態開關 (空車/載客) - 預設隱藏 -->
     <button id="btn-status" class="circle-btn bg-green" onclick="toggleStatus()">
       <span>空車</span>
     </button>
+  </div>
+
+  <!-- === 乘客底部卡片列 (僅乘客可見) === -->
+  <div id="passenger-carousel" style="display: none;">
+    <!-- 這裡會由 JS 動態插入卡片 -->
+    <div class="empty-card">搜尋附近司機中...</div>
   </div>
 
   <!-- 程式邏輯 -->
@@ -109,12 +156,15 @@
 
     var map, markers = {};
     var currentUser = null;
-    var isDriver = false;
+    var isDriver = false; // 身分標記
     
+    // 位置變數
+    var myLat = null, myLng = null; // 乘客自己的位置 (計算距離用)
+
     // 司機狀態變數
-    var isOnline = false; // 是否上班
-    var isBusy = false;   // 是否載客
-    var updateTimer = null; // 上傳位置的計時器
+    var isOnline = false;
+    var isBusy = false;
+    var updateTimer = null;
 
     // 自定義 Icon
     const iconEmpty = L.divIcon({ html: '<div style="font-size:32px; filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.4));">🚕</div>', className: '', iconSize: [32, 32], iconAnchor: [16, 16] });
@@ -126,16 +176,11 @@
     };
 
     function initMap() {
-      // 1. 初始化地圖 (花蓮市中心，縮放 13 適合市區導航)
       map = L.map('map', { zoomControl: false }).setView([23.99000, 121.60684], 13);
-      
-      // 將縮放按鈕移到右下角，避免跟我們的按鈕打架
       L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-      // 2. Google Maps 標準街道圖 (免費方式)
       L.tileLayer('https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
-        maxZoom: 20,
-        subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+        maxZoom: 20, subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
         attribution: 'Map data &copy; Google'
       }).addTo(map);
     }
@@ -143,67 +188,72 @@
     async function initLiff() {
       try {
         await liff.init({ liffId: LIFF_ID });
-        if (!liff.isLoggedIn()) {
-          liff.login();
-          return;
-        }
-        const profile = await liff.getProfile();
-        currentUser = profile;
+        if (!liff.isLoggedIn()) { liff.login(); return; }
         
-        checkRole(profile.userId);
+        currentUser = await liff.getProfile();
+        
+        // 1. 取得自己位置 (計算距離用)
+        startTrackingLocation();
+
+        // 2. 檢查身分
+        checkRole(currentUser.userId);
+
+        // 3. 啟動地圖更新
         fetchDrivers();
         setInterval(fetchDrivers, 10000);
 
       } catch (err) {
-        // 如果在瀏覽器測試可以忽略 LIFF 錯誤
-        console.log("LIFF Init Error (Dev Mode):", err);
+        console.log("LIFF Error:", err);
       }
     }
 
-    // --- 身分驗證 ---
+    function startTrackingLocation() {
+      if (navigator.geolocation) {
+        navigator.geolocation.watchPosition(
+          (pos) => {
+            myLat = pos.coords.latitude;
+            myLng = pos.coords.longitude;
+            // 如果是初次定位，可以移動地圖到自己位置(可選)
+            // if (!isDriver) map.panTo([myLat, myLng]);
+          },
+          (err) => console.error(err),
+          { enableHighAccuracy: true }
+        );
+      }
+    }
+
+    // --- 身分驗證與 UI 切換 ---
     function checkRole(uid) {
       fetch(`${GAS_URL}?op=check_role&uid=${uid}`)
         .then(res => res.json())
         .then(data => {
           if (data.role === 'driver') {
             isDriver = true;
-            // 顯示右上角控制台
             document.getElementById('driver-controls').style.display = 'flex';
-            // 歡迎訊息
-            // alert(`運將 ${data.name} 歡迎開工！`);
+            document.getElementById('passenger-carousel').style.display = 'none'; // 司機不看卡片
+          } else {
+            isDriver = false;
+            document.getElementById('driver-controls').style.display = 'none';
+            document.getElementById('passenger-carousel').style.display = 'flex'; // 乘客看卡片
           }
         });
     }
 
-    // --- 司機端功能 (UI 更新邏輯) ---
+    // --- 司機功能 (省略修改，維持原樣) ---
     function togglePower() {
       isOnline = !isOnline;
       const btnPower = document.getElementById('btn-power');
       const btnStatus = document.getElementById('btn-status');
-
       if (isOnline) {
-        // == 變為上線狀態 ==
-        // 1. 主按鈕變紅色 (顯示為可下線)
         btnPower.className = "circle-btn bg-red";
         btnPower.innerHTML = `<span>下線</span><span class="sub-text">ON</span>`;
-        
-        // 2. 顯示狀態子按鈕 (滑入動畫)
         btnStatus.classList.add('show');
-        
-        // 3. 開始傳送 GPS
         uploadLocation();
         updateTimer = setInterval(uploadLocation, 30000); 
-
       } else {
-        // == 變為下線狀態 ==
-        // 1. 主按鈕變灰色/綠色 (顯示為可上線)
-        btnPower.className = "circle-btn bg-green"; // 這裡改成綠色引導上線
+        btnPower.className = "circle-btn bg-green";
         btnPower.innerHTML = `<span>上線</span><span class="sub-text">OFF</span>`;
-        
-        // 2. 隱藏狀態子按鈕
         btnStatus.classList.remove('show');
-        
-        // 3. 停止 GPS 並傳送下線訊號
         clearInterval(updateTimer);
         postData('offline', isBusy ? 'busy' : 'empty', 0, 0);
       }
@@ -212,64 +262,66 @@
     function toggleStatus() {
       isBusy = !isBusy;
       const btnStatus = document.getElementById('btn-status');
-      
       if (isBusy) {
-        // 變為載客中 (紅)
         btnStatus.className = "circle-btn bg-red show";
         btnStatus.innerHTML = `<span>載客</span>`;
       } else {
-        // 變為空車 (綠)
         btnStatus.className = "circle-btn bg-green show";
         btnStatus.innerHTML = `<span>空車</span>`;
       }
-      // 狀態變更立刻上傳一次
       uploadLocation();
     }
 
     function uploadLocation() {
       if (!isOnline) return;
-      
       navigator.geolocation.getCurrentPosition(pos => {
         const lat = pos.coords.latitude;
         const lng = pos.coords.longitude;
-        // 司機自己地圖跟隨 (可選)
-        // map.panTo([lat, lng]);
-        
         postData('online', isBusy ? 'busy' : 'empty', lat, lng);
-      }, err => {
-        console.error("GPS Error");
       });
     }
 
     function postData(status, work, lat, lng) {
-      const payload = {
-        userId: currentUser.userId,
-        status: status,
-        work: work,
-        lat: lat,
-        lng: lng
-      };
-      // 這裡使用 no-cors 模式避免部分跨域問題，但 GAS 必須正確處理 doPost
+      const payload = { userId: currentUser.userId, status: status, work: work, lat: lat, lng: lng };
       fetch(GAS_URL, {
-        method: 'POST',
-        mode: 'no-cors', // 如果遇到 CORS 錯誤可以加這行，但通常建議 GAS 端處理好 header
+        method: 'POST', mode: 'no-cors',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       }).catch(e => console.log(e));
     }
 
-    // --- 乘客端 (地圖顯示) ---
+    // --- 乘客端 (地圖與卡片) ---
     function fetchDrivers() {
       fetch(`${GAS_URL}?op=get_drivers`)
         .then(res => res.json())
         .then(drivers => {
+          // 算出每個司機的距離
+          drivers.forEach(d => {
+            d.distance = calculateDistance(myLat, myLng, d.lat, d.lng);
+          });
+
+          // 排序：近 -> 遠
+          drivers.sort((a, b) => a.distance - b.distance);
+
           updateMap(drivers);
+          if (!isDriver) renderCarousel(drivers); // 只有乘客更新卡片
           updateHUD(drivers.length);
         });
     }
 
+    // 計算距離 (Haversine Formula) 單位: 公里
+    function calculateDistance(lat1, lon1, lat2, lon2) {
+      if (!lat1 || !lon1 || !lat2 || !lon2) return 9999; // 無法計算時設為很遠
+      const R = 6371; // 地球半徑 km
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+      const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon/2) * Math.sin(dLon/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      return R * c;
+    }
+
     function updateMap(drivers) {
-      // 為了效能，這裡先全清再全畫 (車隊規模小於100台時沒問題)
       for (let id in markers) { map.removeLayer(markers[id]); }
       markers = {};
 
@@ -277,19 +329,62 @@
         let icon = d.workStatus === 'busy' ? iconBusy : iconEmpty;
         let marker = L.marker([d.lat, d.lng], {icon: icon}).addTo(map);
         
-        // 名片內容
+        // 距離文字
+        let distText = (d.distance < 100) ? `(約 ${d.distance.toFixed(1)} km)` : '';
+
+        // Popup 內容
         let popupContent = `
           <div class="driver-popup">
             <b style="font-size:16px;">🚕 ${d.name}</b><br>
             <span style="color:${d.workStatus==='busy'?'red':'green'}; font-size:12px; font-weight:bold;">
-              ● ${d.workStatus === 'busy' ? '載客中' : '目前空車'}
+              ● ${d.workStatus === 'busy' ? '載客中' : '目前空車'} ${distText}
             </span><br>
-            <a href="tel:${d.phone}" class="call-btn">📞 直接叫車</a>
+            <a href="tel:${d.phone}" class="popup-call-btn">📞 直接叫車</a>
           </div>
         `;
         marker.bindPopup(popupContent);
         markers[d.id] = marker;
       });
+    }
+
+    // 渲染底部滑動卡片 (只取最近5位)
+    function renderCarousel(drivers) {
+      const container = document.getElementById('passenger-carousel');
+      
+      // 如果沒有司機
+      if (drivers.length === 0) {
+        container.style.display = 'flex'; // 顯示容器
+        container.innerHTML = '<div class="empty-card">🔴 目前附近無司機服務<br>請稍後再試</div>';
+        return;
+      }
+
+      container.style.display = 'flex'; // 確保顯示
+      let html = '';
+      
+      // 取前 5 名 (nearest 5)
+      const topDrivers = drivers.slice(0, 5);
+
+      topDrivers.forEach(d => {
+        const statusText = d.workStatus === 'busy' ? '載客中' : '目前空車';
+        const statusClass = d.workStatus === 'busy' ? 'text-red' : 'text-green';
+        const distText = (d.distance < 100) ? `${d.distance.toFixed(1)} km` : '計算中...';
+
+        // 點擊卡片可以將地圖移到該司機 (onclick事件)
+        html += `
+          <div class="driver-card" onclick="map.setView([${d.lat}, ${d.lng}], 15)">
+            <div class="card-info">
+              <div class="card-name">🚕 ${d.name}</div>
+              <div class="card-status ${statusClass}">
+                ● ${statusText}
+              </div>
+              <span class="card-dist">📍 距離 ${distText}</span>
+            </div>
+            <a href="tel:${d.phone}" class="card-call-btn">📞</a>
+          </div>
+        `;
+      });
+
+      container.innerHTML = html;
     }
 
     function updateHUD(count) {
