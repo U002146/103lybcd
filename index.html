@@ -1,15 +1,258 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-TW">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>車隊大廳</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>花蓮地圖叫車</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    /* CSS 樣式區 */
+    body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; overflow: hidden; }
+    #map { width: 100vw; height: 100vh; z-index: 1; }
+    
+    /* 乘客資訊卡 HUD */
+    #hud {
+      position: absolute; top: 15px; left: 15px; z-index: 999;
+      background: rgba(0,0,0,0.7); color: white; padding: 10px 15px;
+      border-radius: 30px; font-size: 14px; font-weight: bold;
+      backdrop-filter: blur(5px); box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      display: flex; align-items: center; gap: 8px;
+    }
+    .status-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+    
+    /* 司機控制面板 */
+    #driver-panel {
+      display: none; /* 預設隱藏 */
+      position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
+      z-index: 999; width: 90%; max-width: 400px;
+      background: rgba(255,255,255,0.95); padding: 15px; border-radius: 20px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+      flex-direction: column; gap: 10px;
+    }
+    .panel-title { text-align: center; font-size: 14px; color: #666; margin-bottom: 5px; }
+    .btn-group { display: flex; gap: 10px; }
+    .btn {
+      flex: 1; padding: 15px; border: none; border-radius: 12px;
+      font-size: 16px; font-weight: bold; cursor: pointer; color: white;
+      transition: all 0.2s; display: flex; justify-content: center; align-items: center;
+    }
+    .btn:active { transform: scale(0.95); }
+    
+    /* 按鈕顏色 */
+    .btn-off { background: #95a5a6; color: #eee; }
+    .btn-on { background: #2ecc71; box-shadow: 0 4px 10px rgba(46, 204, 113, 0.4); }
+    .btn-empty { background: #27ae60; } 
+    .btn-busy { background: #e74c3c; }
+
+    /* 司機名片 Popup */
+    .driver-popup { text-align: center; font-size: 15px; }
+    .call-btn {
+      display: block; margin-top: 8px; padding: 8px 0;
+      background: #2ecc71; color: white; text-decoration: none;
+      border-radius: 5px; font-weight: bold;
+    }
+  </style>
 </head>
 <body>
-    <h1>請選擇服務</h1>
-    <a href="call.html"><button style="font-size:24px; width:100%; margin:10px 0;">📞 電話叫車</button></a>
-    <a href="reserve.html"><button style="font-size:24px; width:100%; margin:10px 0;">📅 預約叫車</button></a>
-    <a href="position.html"><button style="font-size:24px; width:100%; margin:10px 0;">📍 傳送定位</button></a>
-    <a href="record.html"><button style="font-size:24px; width:100%; margin:10px 0;">📝 歷史紀錄</button></a>
+
+  <div id="hud">
+    <span class="status-dot" style="background:gray;"></span> 系統連線中...
+  </div>
+
+  <div id="map"></div>
+
+  <div id="driver-panel">
+    <div class="panel-title">👋 運將 <span id="driver-name"></span> 的控制台</div>
+    <div class="btn-group">
+      <button id="btn-power" class="btn btn-off" onclick="togglePower()">🔴 已下線</button>
+    </div>
+    <div class="btn-group" style="margin-top:10px; display:none;" id="status-row">
+      <button id="btn-status" class="btn btn-empty" onclick="toggleStatus()">🟢 目前空車</button>
+    </div>
+  </div>
+
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    // ========= 設定區 (請修改這裡) =========
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbznQ9lfruitWXA7D4uzwZ4Aq2cGCPq88mC9yn5HzgMYWah-PVJVgm9u14Laj1IZZ_g/exec"; 
+    const LIFF_ID = "2008907691-7ntMtfbA"; 
+    // =====================================
+
+    var map, markers = {};
+    var currentUser = null;
+    var isDriver = false;
+    
+    // 司機狀態變數
+    var isOnline = false; // 是否上班
+    var isBusy = false;   // 是否載客
+    var updateTimer = null; // 上傳位置的計時器
+
+    // 自定義 Icon (使用 Emoji 省去圖檔)
+    const iconEmpty = L.divIcon({ html: '<div style="font-size:30px;">🚕</div>', className: '', iconSize: [30, 30], iconAnchor: [15, 15] });
+    const iconBusy = L.divIcon({ html: '<div style="font-size:30px;">🟥</div>', className: '', iconSize: [30, 30], iconAnchor: [15, 15] });
+
+    window.onload = async function() {
+      initMap();
+      await initLiff();
+    };
+
+    function initMap() {
+      // 預設花蓮市中心
+      map = L.map('map').setView([23.97565, 121.60684], 14);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap'
+      }).addTo(map);
+    }
+
+    async function initLiff() {
+      try {
+        await liff.init({ liffId: LIFF_ID });
+        if (!liff.isLoggedIn()) {
+          liff.login();
+          return;
+        }
+        const profile = await liff.getProfile();
+        currentUser = profile;
+        
+        // 1. 檢查身分
+        checkRole(profile.userId);
+
+        // 2. 啟動地圖資料更新 (每10秒刷一次)
+        fetchDrivers();
+        setInterval(fetchDrivers, 10000);
+
+      } catch (err) {
+        alert("LIFF 初始化失敗: " + err);
+      }
+    }
+
+    // --- 身分驗證 ---
+    function checkRole(uid) {
+      fetch(`${GAS_URL}?op=check_role&uid=${uid}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.role === 'driver') {
+            isDriver = true;
+            document.getElementById('driver-panel').style.display = 'flex';
+            document.getElementById('driver-name').innerText = data.name;
+          }
+        });
+    }
+
+    // --- 司機端功能 ---
+    function togglePower() {
+      isOnline = !isOnline;
+      const btn = document.getElementById('btn-power');
+      const statusRow = document.getElementById('status-row');
+
+      if (isOnline) {
+        // 上線
+        btn.className = "btn btn-on";
+        btn.innerText = "🟢 上線中 (更新位置)";
+        statusRow.style.display = 'flex';
+        // 立即觸發上傳，並開始循環
+        uploadLocation();
+        updateTimer = setInterval(uploadLocation, 30000); // 30秒一次
+      } else {
+        // 下線
+        btn.className = "btn btn-off";
+        btn.innerText = "🔴 已下線";
+        statusRow.style.display = 'none';
+        clearInterval(updateTimer);
+        // 傳送下線訊號
+        postData('offline', isBusy ? 'busy' : 'empty', 0, 0);
+      }
+    }
+
+    function toggleStatus() {
+      isBusy = !isBusy;
+      const btn = document.getElementById('btn-status');
+      if (isBusy) {
+        btn.className = "btn btn-busy";
+        btn.innerText = "🟥 載客中";
+      } else {
+        btn.className = "btn btn-empty";
+        btn.innerText = "🟢 目前空車";
+      }
+      // 狀態變更立刻上傳一次
+      uploadLocation();
+    }
+
+    function uploadLocation() {
+      if (!isOnline) return;
+      
+      navigator.geolocation.getCurrentPosition(pos => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        // 司機自己地圖也要跟著移動到目前位置
+        // map.setView([lat, lng], 15); // 可選：是否要強制拉回視角
+        
+        postData('online', isBusy ? 'busy' : 'empty', lat, lng);
+      }, err => {
+        console.error("GPS Error");
+      });
+    }
+
+    function postData(status, work, lat, lng) {
+      const payload = {
+        userId: currentUser.userId,
+        status: status,
+        work: work,
+        lat: lat,
+        lng: lng
+      };
+      // 使用 fetch POST (注意：GAS Web App 需要 text/plain 避免 CORS preflight)
+      fetch(GAS_URL, {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      }).catch(e => console.log(e));
+    }
+
+    // --- 乘客端 (地圖顯示) ---
+    function fetchDrivers() {
+      fetch(`${GAS_URL}?op=get_drivers`)
+        .then(res => res.json())
+        .then(drivers => {
+          updateMap(drivers);
+          updateHUD(drivers.length);
+        });
+    }
+
+    function updateMap(drivers) {
+      // 簡單暴力法：清除所有 Marker 重畫 (因為車數少，效能影響不大)
+      for (let id in markers) {
+        map.removeLayer(markers[id]);
+      }
+      markers = {};
+
+      drivers.forEach(d => {
+        // 根據忙碌狀態換圖示
+        let icon = d.workStatus === 'busy' ? iconBusy : iconEmpty;
+        
+        let marker = L.marker([d.lat, d.lng], {icon: icon}).addTo(map);
+        marker.bindPopup(`
+          <div class="driver-popup">
+            <b>${d.name}</b><br>
+            ${d.workStatus === 'busy' ? '(載客中)' : '(空車)'}<br>
+            <a href="tel:${d.phone}" class="call-btn">📞 直接通話</a>
+          </div>
+        `);
+        markers[d.id] = marker;
+      });
+    }
+
+    function updateHUD(count) {
+      const hud = document.getElementById('hud');
+      const dot = hud.querySelector('.status-dot');
+      if (count > 0) {
+        dot.style.background = "#2ecc71";
+        hud.innerHTML = `<span class="status-dot" style="background:#2ecc71;"></span> 線上運將：${count} 人`;
+      } else {
+        dot.style.background = "#e74c3c";
+        hud.innerHTML = `<span class="status-dot" style="background:#e74c3c;"></span> 目前無司機服務`;
+      }
+    }
+  </script>
 </body>
 </html>
