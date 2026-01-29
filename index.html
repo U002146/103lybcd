@@ -8,75 +8,94 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
     /* CSS 樣式區 */
-    body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; overflow: hidden; }
+    body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; overflow: hidden; background: #f0f0f0; }
     #map { width: 100vw; height: 100vh; z-index: 1; }
     
-    /* 乘客資訊卡 HUD */
+    /* 乘客資訊卡 HUD (左上角) */
     #hud {
       position: absolute; top: 15px; left: 15px; z-index: 999;
-      background: rgba(0,0,0,0.7); color: white; padding: 10px 15px;
+      background: rgba(30, 30, 30, 0.85); color: white; padding: 10px 15px;
       border-radius: 30px; font-size: 14px; font-weight: bold;
-      backdrop-filter: blur(5px); box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-      display: flex; align-items: center; gap: 8px;
+      backdrop-filter: blur(5px); box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+      display: flex; align-items: center; gap: 8px; pointer-events: none; /* 讓點擊穿透 */
     }
     .status-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
     
-    /* 司機控制面板 */
-    #driver-panel {
-      display: none; /* 預設隱藏 */
-      position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
-      z-index: 999; width: 90%; max-width: 400px;
-      background: rgba(255,255,255,0.95); padding: 15px; border-radius: 20px;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.2);
-      flex-direction: column; gap: 10px;
+    /* 司機控制面板容器 (右上角) */
+    #driver-controls {
+      display: none; /* 預設隱藏，司機登入才顯示 */
+      position: absolute; top: 15px; right: 15px; z-index: 1000;
+      flex-direction: column; align-items: center; gap: 15px;
     }
-    .panel-title { text-align: center; font-size: 14px; color: #666; margin-bottom: 5px; }
-    .btn-group { display: flex; gap: 10px; }
-    .btn {
-      flex: 1; padding: 15px; border: none; border-radius: 12px;
-      font-size: 16px; font-weight: bold; cursor: pointer; color: white;
-      transition: all 0.2s; display: flex; justify-content: center; align-items: center;
+
+    /* 圓形按鈕通用樣式 */
+    .circle-btn {
+      border: none; border-radius: 50%; color: white;
+      font-weight: bold; cursor: pointer;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+      display: flex; flex-direction: column; justify-content: center; align-items: center;
+      transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* 彈性動畫 */
+      text-shadow: 0 1px 2px rgba(0,0,0,0.2);
     }
-    .btn:active { transform: scale(0.95); }
+    .circle-btn:active { transform: scale(0.9); box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+
+    /* 主開關按鈕 (大) */
+    #btn-power {
+      width: 75px; height: 75px; font-size: 18px;
+    }
     
-    /* 按鈕顏色 */
-    .btn-off { background: #95a5a6; color: #eee; }
-    .btn-on { background: #2ecc71; box-shadow: 0 4px 10px rgba(46, 204, 113, 0.4); }
-    .btn-empty { background: #27ae60; } 
-    .btn-busy { background: #e74c3c; }
+    /* 狀態按鈕 (小) */
+    #btn-status {
+      width: 60px; height: 60px; font-size: 14px;
+      opacity: 0; transform: translateY(-20px) scale(0.5); pointer-events: none; /* 預設隱藏 */
+    }
+    /* 狀態按鈕顯示時的樣式 */
+    #btn-status.show {
+      opacity: 1; transform: translateY(0) scale(1); pointer-events: auto;
+    }
+
+    /* 顏色定義 */
+    .bg-green { background: linear-gradient(135deg, #2ecc71, #27ae60); } /* 上線/空車 */
+    .bg-red   { background: linear-gradient(135deg, #e74c3c, #c0392b); } /* 下線/載客 */
+    .bg-gray  { background: linear-gradient(135deg, #95a5a6, #7f8c8d); } /* 離線灰 */
+
+    .sub-text { font-size: 10px; opacity: 0.8; font-weight: normal; margin-top: 2px; }
 
     /* 司機名片 Popup */
     .driver-popup { text-align: center; font-size: 15px; min-width: 150px; }
     .call-btn {
-      display: block; margin-top: 8px; padding: 8px 0;
+      display: block; margin-top: 8px; padding: 10px 0;
       background: #2ecc71; color: white; text-decoration: none;
-      border-radius: 5px; font-weight: bold;
+      border-radius: 20px; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.2);
     }
-    /* Google Logo 樣式調整 (尊重版權) */
-    .leaflet-control-attribution { font-size: 10px; }
+    
+    /* Leaflet 控制項位置調整 (避免擋到按鈕) */
+    .leaflet-top.leaflet-right { top: 120px; } 
+
   </style>
 </head>
 <body>
 
-  <!-- 左上角資訊 -->
+  <!-- 左上角資訊 HUD -->
   <div id="hud">
-    <span class="status-dot" style="background:gray;"></span> 系統連線中...
+    <span class="status-dot" style="background:gray;"></span> 連線中...
   </div>
 
   <!-- 地圖 -->
   <div id="map"></div>
 
-  <!-- 司機面板 -->
-  <div id="driver-panel">
-    <div class="panel-title">👋 運將 <span id="driver-name"></span> 的控制台</div>
-    <div class="btn-group">
-      <!-- 上下線開關 -->
-      <button id="btn-power" class="btn btn-off" onclick="togglePower()">🔴 已下線</button>
-    </div>
-    <div class="btn-group" style="margin-top:10px; display:none;" id="status-row">
-      <!-- 空車/載客開關 -->
-      <button id="btn-status" class="btn btn-empty" onclick="toggleStatus()">🟢 目前空車</button>
-    </div>
+  <!-- 右上角司機控制台 -->
+  <div id="driver-controls">
+    <!-- 1. 主開關 (上線/下線) -->
+    <button id="btn-power" class="circle-btn bg-gray" onclick="togglePower()">
+      <span>上線</span>
+      <span class="sub-text">OFF</span>
+    </button>
+    
+    <!-- 2. 狀態開關 (空車/載客) - 預設隱藏 -->
+    <button id="btn-status" class="circle-btn bg-green" onclick="toggleStatus()">
+      <span>空車</span>
+    </button>
   </div>
 
   <!-- 程式邏輯 -->
@@ -97,9 +116,9 @@
     var isBusy = false;   // 是否載客
     var updateTimer = null; // 上傳位置的計時器
 
-    // 自定義 Icon (使用 Emoji 省去圖檔，載入更快)
-    const iconEmpty = L.divIcon({ html: '<div style="font-size:30px; filter: drop-shadow(2px 2px 2px rgba(0,0,0,0.3));">🚕</div>', className: '', iconSize: [30, 30], iconAnchor: [15, 15] });
-    const iconBusy = L.divIcon({ html: '<div style="font-size:30px; filter: grayscale(100%); opacity: 0.7;">🚕</div>', className: '', iconSize: [30, 30], iconAnchor: [15, 15] });
+    // 自定義 Icon
+    const iconEmpty = L.divIcon({ html: '<div style="font-size:32px; filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.4));">🚕</div>', className: '', iconSize: [32, 32], iconAnchor: [16, 16] });
+    const iconBusy = L.divIcon({ html: '<div style="font-size:32px; filter: grayscale(100%) opacity(0.7);">🚕</div>', className: '', iconSize: [32, 32], iconAnchor: [16, 16] });
 
     window.onload = async function() {
       initMap();
@@ -107,14 +126,17 @@
     };
 
     function initMap() {
-      // 1. 初始化地圖，中心點設在花蓮市中心
-      map = L.map('map').setView([23.99000, 121.60684], 12);
+      // 1. 初始化地圖 (花蓮市中心，縮放 13 適合市區導航)
+      map = L.map('map', { zoomControl: false }).setView([23.99000, 121.60684], 13);
+      
+      // 將縮放按鈕移到右下角，避免跟我們的按鈕打架
+      L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-      // 2. 使用 Google Maps 標準街道圖 (免費方式)
+      // 2. Google Maps 標準街道圖 (免費方式)
       L.tileLayer('https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
         maxZoom: 20,
         subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
-        attribution: 'Map data &copy; Google' // 尊重版權標示
+        attribution: 'Map data &copy; Google'
       }).addTo(map);
     }
 
@@ -128,15 +150,13 @@
         const profile = await liff.getProfile();
         currentUser = profile;
         
-        // 1. 檢查身分
         checkRole(profile.userId);
-
-        // 2. 啟動地圖資料更新 (每10秒刷一次)
         fetchDrivers();
         setInterval(fetchDrivers, 10000);
 
       } catch (err) {
-        alert("LIFF 初始化失敗: " + err);
+        // 如果在瀏覽器測試可以忽略 LIFF 錯誤
+        console.log("LIFF Init Error (Dev Mode):", err);
       }
     }
 
@@ -147,46 +167,60 @@
         .then(data => {
           if (data.role === 'driver') {
             isDriver = true;
-            document.getElementById('driver-panel').style.display = 'flex';
-            document.getElementById('driver-name').innerText = data.name;
+            // 顯示右上角控制台
+            document.getElementById('driver-controls').style.display = 'flex';
+            // 歡迎訊息
+            // alert(`運將 ${data.name} 歡迎開工！`);
           }
         });
     }
 
-    // --- 司機端功能 ---
+    // --- 司機端功能 (UI 更新邏輯) ---
     function togglePower() {
       isOnline = !isOnline;
-      const btn = document.getElementById('btn-power');
-      const statusRow = document.getElementById('status-row');
+      const btnPower = document.getElementById('btn-power');
+      const btnStatus = document.getElementById('btn-status');
 
       if (isOnline) {
-        // 上線
-        btn.className = "btn btn-on";
-        btn.innerText = "🟢 上線中 (更新位置)";
-        statusRow.style.display = 'flex';
-        // 立即觸發上傳，並開始循環
+        // == 變為上線狀態 ==
+        // 1. 主按鈕變紅色 (顯示為可下線)
+        btnPower.className = "circle-btn bg-red";
+        btnPower.innerHTML = `<span>下線</span><span class="sub-text">ON</span>`;
+        
+        // 2. 顯示狀態子按鈕 (滑入動畫)
+        btnStatus.classList.add('show');
+        
+        // 3. 開始傳送 GPS
         uploadLocation();
-        updateTimer = setInterval(uploadLocation, 30000); // 30秒一次
+        updateTimer = setInterval(uploadLocation, 30000); 
+
       } else {
-        // 下線
-        btn.className = "btn btn-off";
-        btn.innerText = "🔴 已下線";
-        statusRow.style.display = 'none';
+        // == 變為下線狀態 ==
+        // 1. 主按鈕變灰色/綠色 (顯示為可上線)
+        btnPower.className = "circle-btn bg-green"; // 這裡改成綠色引導上線
+        btnPower.innerHTML = `<span>上線</span><span class="sub-text">OFF</span>`;
+        
+        // 2. 隱藏狀態子按鈕
+        btnStatus.classList.remove('show');
+        
+        // 3. 停止 GPS 並傳送下線訊號
         clearInterval(updateTimer);
-        // 傳送下線訊號
         postData('offline', isBusy ? 'busy' : 'empty', 0, 0);
       }
     }
 
     function toggleStatus() {
       isBusy = !isBusy;
-      const btn = document.getElementById('btn-status');
+      const btnStatus = document.getElementById('btn-status');
+      
       if (isBusy) {
-        btn.className = "btn btn-busy";
-        btn.innerText = "🟥 載客中";
+        // 變為載客中 (紅)
+        btnStatus.className = "circle-btn bg-red show";
+        btnStatus.innerHTML = `<span>載客</span>`;
       } else {
-        btn.className = "btn btn-empty";
-        btn.innerText = "🟢 目前空車";
+        // 變為空車 (綠)
+        btnStatus.className = "circle-btn bg-green show";
+        btnStatus.innerHTML = `<span>空車</span>`;
       }
       // 狀態變更立刻上傳一次
       uploadLocation();
@@ -198,8 +232,8 @@
       navigator.geolocation.getCurrentPosition(pos => {
         const lat = pos.coords.latitude;
         const lng = pos.coords.longitude;
-        // 司機自己地圖也要跟著移動到目前位置，方便看自己在哪
-        // map.panTo([lat, lng]); 
+        // 司機自己地圖跟隨 (可選)
+        // map.panTo([lat, lng]);
         
         postData('online', isBusy ? 'busy' : 'empty', lat, lng);
       }, err => {
@@ -215,9 +249,11 @@
         lat: lat,
         lng: lng
       };
-      // 使用 fetch POST
+      // 這裡使用 no-cors 模式避免部分跨域問題，但 GAS 必須正確處理 doPost
       fetch(GAS_URL, {
         method: 'POST',
+        mode: 'no-cors', // 如果遇到 CORS 錯誤可以加這行，但通常建議 GAS 端處理好 header
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       }).catch(e => console.log(e));
     }
@@ -233,27 +269,24 @@
     }
 
     function updateMap(drivers) {
-      // 清除舊標記
-      for (let id in markers) {
-        map.removeLayer(markers[id]);
-      }
+      // 為了效能，這裡先全清再全畫 (車隊規模小於100台時沒問題)
+      for (let id in markers) { map.removeLayer(markers[id]); }
       markers = {};
 
       drivers.forEach(d => {
-        // 根據忙碌狀態換圖示 (忙碌時變半透明灰階)
         let icon = d.workStatus === 'busy' ? iconBusy : iconEmpty;
-        
         let marker = L.marker([d.lat, d.lng], {icon: icon}).addTo(map);
         
-        // 點擊彈出名片
+        // 名片內容
         let popupContent = `
           <div class="driver-popup">
             <b style="font-size:16px;">🚕 ${d.name}</b><br>
-            <span style="color:#666; font-size:12px;">${d.workStatus === 'busy' ? '載客中' : '目前空車'}</span><br>
+            <span style="color:${d.workStatus==='busy'?'red':'green'}; font-size:12px; font-weight:bold;">
+              ● ${d.workStatus === 'busy' ? '載客中' : '目前空車'}
+            </span><br>
             <a href="tel:${d.phone}" class="call-btn">📞 直接叫車</a>
           </div>
         `;
-        
         marker.bindPopup(popupContent);
         markers[d.id] = marker;
       });
