@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>花蓮叫車總大廳</title>
+  <style>
+    body {
+      background-color: #f4f6f9;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      margin: 0; padding: 20px;
+      display: flex; flex-direction: column; align-items: center;
+    }
+    
+    h1 { color: #2c3e50; font-size: 24px; margin-bottom: 5px; }
+    p.subtitle { color: #7f8c8d; font-size: 14px; margin-bottom: 30px; }
+
+    /* 按鈕網格系統 */
+    .zone-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr; /* 兩欄 */
+      gap: 15px;
+      width: 100%; max-width: 400px;
+    }
+
+    /* 區域按鈕樣式 */
+    .zone-card {
+      background: white;
+      border-radius: 16px;
+      padding: 20px 15px;
+      text-align: center;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+      cursor: pointer;
+      text-decoration: none;
+      color: inherit;
+      position: relative;
+      transition: transform 0.2s, box-shadow 0.2s;
+      border: 2px solid transparent;
+    }
+    
+    .zone-card:active { transform: scale(0.96); }
+
+    /* 區域名稱 */
+    .zone-name {
+      font-size: 18px; font-weight: bold; color: #34495e;
+      margin-bottom: 8px; display: block;
+    }
+
+    /* 車輛數量標籤 */
+    .car-badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 13px; font-weight: bold;
+      background: #eee; color: #999; /* 預設灰色 */
+      transition: background 0.3s;
+    }
+
+    /* 有車時的樣式 (綠色) */
+    .has-cars {
+      background: #e8f8f5; color: #27ae60; border: 1px solid #2ecc71;
+    }
+    
+    /* 載入中的動畫 */
+    .loading { opacity: 0.5; }
+
+    /* 底部版權 */
+    .footer {
+      margin-top: 40px; font-size: 12px; color: #bdc3c7;
+    }
+
+  </style>
+</head>
+<body>
+
+  <h1>🚖 花蓮叫車總台</h1>
+  <p class="subtitle">請選擇您所在的區域</p>
+
+  <div class="zone-grid" id="zone-container">
+    <!-- 按鈕會由 JS 自動產生 -->
+  </div>
+
+  <div class="footer">系統提供：花蓮在地運將聯盟</div>
+
+  <script>
+    // ========= 設定區：請把你的 6 個區域填在這裡 =========
+    const ZONES = [
+      { 
+        name: "新城 / 太魯閣", 
+        gasUrl: "新城區的_GAS_網址", 
+        mapUrl: "新城區的_LIFF_網址_或_GitHub網址" 
+      },
+      { 
+        name: "花蓮市北區", 
+        gasUrl: "市北區的_GAS_網址", 
+        mapUrl: "市北區的_LIFF_網址" 
+      },
+      { 
+        name: "花蓮車站 / 市區", 
+        gasUrl: "市區的_GAS_網址", 
+        mapUrl: "市區的_LIFF_網址" 
+      },
+      { 
+        name: "吉安北區", 
+        gasUrl: "吉安北的_GAS_網址", 
+        mapUrl: "吉安北的_LIFF_網址" 
+      },
+      { 
+        name: "吉安南 / 民宿", 
+        gasUrl: "吉安南的_GAS_網址", 
+        mapUrl: "吉安南的_LIFF_網址" 
+      },
+      { 
+        name: "壽豐 / 志學", 
+        gasUrl: "壽豐的_GAS_網址", 
+        mapUrl: "壽豐的_LIFF_網址" 
+      }
+    ];
+    // =================================================
+
+    const container = document.getElementById('zone-container');
+
+    // 1. 初始化畫面：先把按鈕生出來
+    ZONES.forEach((zone, index) => {
+      const card = document.createElement('a');
+      card.className = 'zone-card';
+      card.href = zone.mapUrl; // 點擊後跳轉
+      
+      // 內部 HTML
+      card.innerHTML = `
+        <span class="zone-name">${zone.name}</span>
+        <span class="car-badge loading" id="badge-${index}">讀取中...</span>
+      `;
+      
+      container.appendChild(card);
+      
+      // 2. 對每個區域發出查詢 (非同步，不會卡住)
+      fetchCarCount(zone.gasUrl, index);
+    });
+
+    // 3. 查詢函式
+    function fetchCarCount(url, index) {
+      // 如果還沒填網址，就跳過
+      if(url.includes("GAS_網址")) {
+        updateBadge(index, 0); 
+        return;
+      }
+
+      fetch(`${url}?op=get_count`)
+        .then(res => res.json())
+        .then(data => {
+          updateBadge(index, data.count);
+        })
+        .catch(err => {
+          console.error("Fetch error:", err);
+          document.getElementById(`badge-${index}`).innerText = "連線失敗";
+        });
+    }
+
+    // 4. 更新標籤 UI
+    function updateBadge(index, count) {
+      const badge = document.getElementById(`badge-${index}`);
+      badge.classList.remove('loading');
+      
+      if (count > 0) {
+        badge.classList.add('has-cars');
+        badge.innerText = `🟢 線上：${count} 台`;
+      } else {
+        badge.innerText = `🔴 目前無車`;
+      }
+    }
+
+  </script>
+</body>
+</html>
