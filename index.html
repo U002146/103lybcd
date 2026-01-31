@@ -351,17 +351,37 @@
     }
     function closeModal(id) { document.getElementById(id).style.display = 'none'; }
 
+    // [更新] 註冊功能 - 增加掃碼失敗時的自動跳轉
     async function submitRegistration() {
       const name = document.getElementById('reg-name').value;
       const car = document.getElementById('reg-car').value;
       const phone = document.getElementById('reg-phone').value;
       if (!name || !car || !phone) { alert("大哥，資料要填完整喔！"); return; }
+      
       const msg = `🚖 【司機註冊申請】\n暱稱：${name}\n車號：${car}\n電話：${phone}\nID：${currentUser.userId}`;
+      
       try {
+        // 1. 嘗試直接傳送 (LIFF 在聊天室內開啟時)
+        if (!liff.isInClient()) {
+           throw new Error('Not in LINE client'); 
+        }
         await liff.sendMessages([{ type: 'text', text: msg }]);
         alert("資料已傳送！請等候管理員審核。");
         closeModal('reg-modal');
-      } catch (err) { alert("傳送失敗，請確認在 LINE 內開啟。"); }
+
+      } catch (err) {
+        // 2. [Plan B] 掃碼開啟或非好友狀態
+        // 重點優化：修改提示文字，確保大哥知道要先加好友
+        alert("即將跳轉至 LINE 聊天室！\n\n請務必依序執行：\n1. 點擊上方的【加入好友】(如未加入)\n2. 按下【傳送】鍵送出資料");
+        
+        // 你的官方帳號 ID
+        const target = "@103lybcd"; 
+        
+        // 使用 oaMessage 連結
+        const fallbackUrl = `https://line.me/R/oaMessage/${target}/?${encodeURIComponent(msg)}`;
+        
+        window.location.href = fallbackUrl;
+      }
     }
 
     function fetchDrivers() {
