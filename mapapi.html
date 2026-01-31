@@ -85,7 +85,7 @@
         .location-grid { max-height: 50vh; overflow-y: auto; padding: 4px; }
         .fa-spin-fast { animation: spin 1s linear infinite; }
 
-        /* --- NEW: 3.0 時間選擇器 UI (Sheet Modal) --- */
+        /* --- NEW: 3.1 時間選擇器 UI (Sheet Modal) --- */
         #time-selector-modal {
             position: fixed; top: 0; left: 0; right: 0; bottom: 0;
             z-index: 100;
@@ -147,6 +147,7 @@
             overflow-y: auto;
         }
         .time-btn {
+            appearance: none; /* 重置按鈕樣式 */
             padding: 12px 0;
             border-radius: 12px;
             background: #ffffff;
@@ -157,8 +158,12 @@
             cursor: pointer;
             transition: all 0.1s;
             position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
         }
-        .time-btn:active { transform: scale(0.95); background: #f8fafc; }
+        .time-btn:active { transform: scale(0.95); background: #f8fafc; border-color: #94a3b8; }
         .time-btn.selected {
             background: #e0f2fe; /* Light Blue */
             border-color: #3b82f6;
@@ -272,17 +277,17 @@
         </div>
     </div>
 
-    <!-- NEW: 3.0 時間選擇器 Modal -->
+    <!-- NEW: 3.1 時間選擇器 Modal -->
     <div id="time-selector-modal" onclick="closeModernTimeSelector(event)">
         <div id="time-selector-content" onclick="event.stopPropagation()">
             <!-- Header -->
             <div class="flex justify-between items-center mb-4">
                 <h3 class="text-xl font-bold text-slate-800">選擇預約時間</h3>
-                <button onclick="closeModernTimeSelector()" class="w-8 h-8 rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
+                <button type="button" onclick="closeModernTimeSelector()" class="w-8 h-8 rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
             </div>
 
             <!-- "現在" 按鈕 -->
-            <button onclick="selectNowAndClose()" id="btn-quick-now" class="w-full bg-slate-800 text-white py-3 rounded-xl font-bold mb-4 flex items-center justify-center shadow-md active:scale-[0.98] transition-transform">
+            <button type="button" onclick="selectNowAndClose()" id="btn-quick-now" class="w-full bg-slate-800 text-white py-3 rounded-xl font-bold mb-4 flex items-center justify-center shadow-md active:scale-[0.98] transition-transform">
                 <i class="fa-solid fa-bolt mr-2 text-yellow-400"></i> 現在出發 (即時)
             </button>
 
@@ -304,7 +309,7 @@
             <!-- VIEW 2: Minute Selection (Hidden by default) -->
             <div id="minute-selection-view" class="hidden h-64">
                 <div class="flex items-center mb-4">
-                    <button onclick="backToHourView()" class="mr-3 w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center text-gray-600"><i class="fa-solid fa-arrow-left"></i></button>
+                    <button type="button" onclick="backToHourView()" class="mr-3 w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center text-gray-600"><i class="fa-solid fa-arrow-left"></i></button>
                     <span class="text-lg font-bold text-slate-800">
                         <span id="selected-date-display" class="text-slate-500 mr-1 text-base"></span>
                         <span id="selected-hour-display" class="text-blue-600 text-2xl"></span>
@@ -313,12 +318,12 @@
                 </div>
                 <div class="text-sm text-gray-500 mb-2 font-bold">選擇分鐘</div>
                 <div class="grid grid-cols-3 gap-3">
-                    <button onclick="selectMinute('00')" class="time-btn text-lg">00 分</button>
-                    <button onclick="selectMinute('10')" class="time-btn text-lg">10 分</button>
-                    <button onclick="selectMinute('20')" class="time-btn text-lg">20 分</button>
-                    <button onclick="selectMinute('30')" class="time-btn text-lg">30 分</button>
-                    <button onclick="selectMinute('40')" class="time-btn text-lg">40 分</button>
-                    <button onclick="selectMinute('50')" class="time-btn text-lg">50 分</button>
+                    <button type="button" onclick="selectMinute('00')" class="time-btn text-lg">00 分</button>
+                    <button type="button" onclick="selectMinute('10')" class="time-btn text-lg">10 分</button>
+                    <button type="button" onclick="selectMinute('20')" class="time-btn text-lg">20 分</button>
+                    <button type="button" onclick="selectMinute('30')" class="time-btn text-lg">30 分</button>
+                    <button type="button" onclick="selectMinute('40')" class="time-btn text-lg">40 分</button>
+                    <button type="button" onclick="selectMinute('50')" class="time-btn text-lg">50 分</button>
                 </div>
             </div>
             
@@ -452,7 +457,7 @@
             let html = '<div class="grid grid-cols-2 gap-3 mt-2 location-grid">';
             PRESET_LOCATIONS.forEach(loc => {
                 let bgClass = (loc.value && loc.value.includes('FAV')) ? 'bg-yellow-50 hover:bg-yellow-100 border border-yellow-200' : 'bg-gray-50 hover:bg-slate-100';
-                html += `<button onclick="selectPreset('${loc.value || loc.name}', '${loc.name}')" class="flex flex-col items-center justify-center p-3 border border-gray-100 rounded-xl transition-all active:scale-95 ${bgClass}"><span class="text-2xl mb-1">${loc.icon}</span><span class="text-sm font-bold text-slate-700">${loc.name}</span></button>`;
+                html += `<button type="button" onclick="selectPreset('${loc.value || loc.name}', '${loc.name}')" class="flex flex-col items-center justify-center p-3 border border-gray-100 rounded-xl transition-all active:scale-95 ${bgClass}"><span class="text-2xl mb-1">${loc.icon}</span><span class="text-sm font-bold text-slate-700">${loc.name}</span></button>`;
             });
             html += '</div>';
             Swal.fire({ title: '選擇下車地點', html: html, showConfirmButton: false, showCloseButton: true, customClass: {popup: 'rounded-[24px]'} });
@@ -480,7 +485,7 @@
             PAYMENT_METHODS.forEach(m => {
                 let activeClass = m.label === currentVal ? 'border-slate-800 bg-slate-900 text-white ring-2 ring-slate-200' : 'bg-white border-gray-200 text-slate-600 hover:bg-gray-50';
                 let iconColor = m.label === currentVal ? 'text-white' : m.color;
-                html += `<button onclick="selectPaymentMethod('${m.label}', '${m.icon}', '${m.color}')" class="flex flex-col items-center justify-center p-3 border rounded-2xl transition-all active:scale-95 ${activeClass}"><i class="fa-solid ${m.icon} ${iconColor} text-xl mb-1"></i><span class="text-sm font-bold">${m.label}</span></button>`;
+                html += `<button type="button" onclick="selectPaymentMethod('${m.label}', '${m.icon}', '${m.color}')" class="flex flex-col items-center justify-center p-3 border rounded-2xl transition-all active:scale-95 ${activeClass}"><i class="fa-solid ${m.icon} ${iconColor} text-xl mb-1"></i><span class="text-sm font-bold">${m.label}</span></button>`;
             });
             html += '</div>';
             Swal.fire({ title: '選擇付款方式', html: html, showConfirmButton: false, showCloseButton: true, customClass: {popup: 'rounded-[24px]'} });
@@ -500,7 +505,7 @@
             iconElem.classList.add(colorClass.replace('text-','text-').replace('500','600')); 
         }
 
-        // --- V3.0 Modern Time Selector Logic ---
+        // --- V3.1 Robust Time Selector Logic ---
         
         function generateDates() {
             const dates = [];
@@ -571,7 +576,7 @@
         window.selectPickerDate = function(idx) {
             pickerState.dateIndex = idx;
             renderDateTabs();
-            renderHourGrid(); // Re-render to update disabled past hours
+            renderHourGrid();
         }
 
         function renderHourGrid() {
@@ -580,15 +585,12 @@
             
             let html = '';
             for(let h=0; h<24; h++) {
-                // 如果是今天，且小時已過，則 Disable
+                // BUG FIX: use button type="button" to prevent implicit form submission
                 const isPast = pickerState.dateIndex === 0 && h <= currentHour; 
-                // 為了方便測試，暫不鎖定 "當前小時"，只鎖定 "過去小時"
-                // 實際營運可改為 h < currentHour + 1 (保留1小時緩衝)
-                
                 const displayH = h.toString().padStart(2, '0');
                 const disabledClass = isPast ? 'disabled' : '';
                 
-                html += `<div onclick="selectPickerHour(${h})" class="time-btn ${disabledClass}">${displayH}:00</div>`;
+                html += `<button type="button" onclick="selectPickerHour(${h})" class="time-btn ${disabledClass}">${displayH}:00</button>`;
             }
             container.innerHTML = html;
         }
@@ -596,13 +598,15 @@
         window.selectPickerHour = function(h) {
             pickerState.hour = h;
             
-            // Switch View
-            document.getElementById('hour-selection-view').classList.add('hidden');
+            // Explicitly force switch view
+            const hourView = document.getElementById('hour-selection-view');
             const minView = document.getElementById('minute-selection-view');
+            
+            hourView.classList.add('hidden');
             minView.classList.remove('hidden');
             minView.classList.add('flex');
             
-            // Update Header in Min View
+            // Update Header
             const dateObj = pickerState.dates[pickerState.dateIndex];
             document.getElementById('selected-date-display').innerText = dateObj.fullDate;
             document.getElementById('selected-hour-display').innerText = h.toString().padStart(2, '0');
