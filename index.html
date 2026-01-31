@@ -4,13 +4,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>花蓮敬老愛心乘車支援平台</title>
+  <!-- 引入 Leaflet 地圖樣式 -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
     /* CSS 樣式區 */
     body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; overflow: hidden; background: #f0f0f0; }
-    #map { width: 100vw; height: 100vh; z-index: 1; }
+    #map { width: 100vw; height: 100vh; z-index: 1; transition: opacity 0.5s; }
     
-    /* === HUD === */
+    /* === 乘客資訊卡 HUD (左上角) === */
     #hud {
       position: absolute; top: 15px; left: 15px; z-index: 999;
       background: rgba(30, 30, 30, 0.85); color: white; padding: 10px 15px;
@@ -20,24 +21,15 @@
     }
     .status-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
     
-    /* === 右上角功能區 === */
-    #top-right-area {
-      position: absolute; top: 15px; right: 15px; z-index: 1000;
-      display: flex; flex-direction: column; align-items: flex-end; gap: 10px;
-    }
-
-    /* 註冊按鈕 */
-    #btn-register {
-      background: #3498db; color: white; border: none;
-      padding: 8px 15px; border-radius: 20px; font-weight: bold;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.2); cursor: pointer;
-      font-size: 14px;
-    }
-
-    /* === 司機控制面板 === */
+    /* === 司機控制面板容器 (右上角) === */
     #driver-controls {
-      display: none; /* 預設隱藏 */
-      flex-direction: column; align-items: center; gap: 15px;
+      display: none; position: absolute; top: 15px; right: 15px; z-index: 1000;
+      flex-direction: column; align-items: center; gap: 12px;
+    }
+
+    /* === 乘客註冊按鈕 (右上角) === */
+    #passenger-top-right {
+      display: none; position: absolute; top: 15px; right: 15px; z-index: 1000;
     }
 
     .circle-btn {
@@ -45,136 +37,150 @@
       font-weight: bold; cursor: pointer;
       box-shadow: 0 4px 15px rgba(0,0,0,0.3);
       display: flex; flex-direction: column; justify-content: center; align-items: center;
-      transition: all 0.3s; text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+      transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      text-shadow: 0 1px 2px rgba(0,0,0,0.2);
     }
-    .circle-btn:active { transform: scale(0.95); box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+    .circle-btn:active { transform: scale(0.9); }
     
     #btn-power { width: 75px; height: 75px; font-size: 18px; }
-    
-    .sub-controls {
-      display: flex; flex-direction: column; gap: 10px; 
-      opacity: 0; transform: translateY(-20px); pointer-events: none; transition: 0.3s;
-    }
-    .sub-controls.show { opacity: 1; transform: translateY(0); pointer-events: auto; }
+    #btn-status { width: 60px; height: 60px; font-size: 14px; opacity: 0; transform: translateY(-10px); pointer-events: none; }
+    #btn-status.show { opacity: 1; transform: translateY(0); pointer-events: auto; }
+    #btn-save-power { width: 60px; height: 60px; font-size: 12px; background: #34495e; opacity: 0; transform: translateY(-10px); pointer-events: none; }
+    #btn-save-power.show { opacity: 1; transform: translateY(0); pointer-events: auto; }
+    #btn-register { width: 70px; height: 70px; font-size: 14px; background: linear-gradient(135deg, #f39c12, #e67e22); }
 
-    #btn-status { width: 60px; height: 60px; font-size: 14px; }
-    .small-btn { width: 50px; height: 50px; font-size: 12px; }
-    
-    #btn-eco { background: linear-gradient(135deg, #f1c40f, #f39c12); }
-    #btn-black { background: linear-gradient(135deg, #34495e, #2c3e50); }
-
-    /* === 黑屏覆蓋層 === */
-    #black-overlay {
+    /* === 黑屏省電模式遮罩 === */
+    #power-save-overlay {
       display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-      background: #000000; z-index: 99999;
-      flex-direction: column; justify-content: center; align-items: center;
-      color: #333; touch-action: manipulation;
+      background: black; z-index: 2000; color: #444; flex-direction: column;
+      justify-content: center; align-items: center; font-size: 14px;
     }
-    #black-overlay.active { display: flex; }
-    .saver-text { font-size: 20px; font-weight: bold; margin-bottom: 20px; color: #555; }
-    .saver-hint { font-size: 14px; color: #444; }
+    #power-save-overlay.active { display: flex; }
+    #power-save-overlay p { color: #555; margin-top: 20px; }
 
-    /* === 底部卡片 (所有人可見) === */
-    #passenger-carousel {
-      position: absolute; bottom: 20px; left: 0; width: 100%; z-index: 1000;
-      display: flex; overflow-x: auto; gap: 12px; padding: 0 15px 10px 15px; box-sizing: border-box;
-      scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch;
-      scrollbar-width: none;
+    /* === 註冊彈窗 === */
+    #modal-overlay {
+      display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(0,0,0,0.6); z-index: 3000; justify-content: center; align-items: center;
+      backdrop-filter: blur(3px);
     }
+    .modal-content {
+      background: white; width: 85%; max-width: 350px; border-radius: 20px;
+      padding: 25px; box-sizing: border-box; box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    }
+    .modal-content h2 { margin: 0 0 20px 0; font-size: 20px; text-align: center; color: #333; }
+    .form-group { margin-bottom: 15px; }
+    .form-group label { display: block; font-size: 12px; color: #777; margin-bottom: 5px; }
+    .form-group input { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
+    .modal-btns { display: flex; gap: 10px; margin-top: 20px; }
+    .modal-btns button { flex: 1; padding: 12px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; }
+    .btn-cancel { background: #eee; color: #666; }
+    .btn-submit { background: #2ecc71; color: white; }
+
+    /* === 底部卡片與顏色定義 (維持原樣) === */
+    #passenger-carousel { position: absolute; bottom: 20px; left: 0; width: 100%; z-index: 1000; display: none; overflow-x: auto; gap: 12px; padding: 0 15px 10px 15px; box-sizing: border-box; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; }
     #passenger-carousel::-webkit-scrollbar { display: none; }
-
-    .driver-card {
-      flex: 0 0 85%; max-width: 320px; background: white; border-radius: 16px; padding: 15px;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.15); scroll-snap-align: center;
-      display: flex; align-items: center; justify-content: space-between; position: relative;
-    }
+    .driver-card { flex: 0 0 85%; max-width: 320px; background: white; border-radius: 16px; padding: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); scroll-snap-align: center; display: flex; align-items: center; justify-content: space-between; }
     .card-info { flex: 1; }
-    .card-name { font-size: 16px; font-weight: bold; color: #333; }
-    .card-status { font-size: 12px; font-weight: bold; margin-top: 4px; }
-    .card-call-btn {
-      background: #2ecc71; color: white; width: 45px; height: 45px; border-radius: 50%;
-      display: flex; justify-content: center; align-items: center; text-decoration: none; font-size: 20px;
-    }
-    .empty-card { flex: 0 0 100%; text-align: center; background: rgba(255,255,255,0.9); padding: 15px; border-radius: 12px; color: #666; }
-
-    /* 顏色定義 */
+    .card-name { font-size: 16px; font-weight: bold; color: #333; margin-bottom: 4px; }
+    .card-status { font-size: 12px; font-weight: bold; display: flex; align-items: center; gap: 5px; }
+    .card-dist { font-size: 12px; color: #666; margin-top: 4px; display: block; }
+    .card-call-btn { background: #2ecc71; color: white; border: none; width: 45px; height: 45px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 20px; text-decoration: none; }
     .bg-green { background: linear-gradient(135deg, #2ecc71, #27ae60); }
     .bg-red   { background: linear-gradient(135deg, #e74c3c, #c0392b); }
     .bg-gray  { background: linear-gradient(135deg, #95a5a6, #7f8c8d); }
-    .bg-eco-on { background: linear-gradient(135deg, #3498db, #2980b9); border: 2px solid white; }
-    
     .text-green { color: #27ae60; }
     .text-red { color: #c0392b; }
     .sub-text { font-size: 10px; opacity: 0.8; font-weight: normal; margin-top: 2px; }
-    
-    .driver-popup { text-align: center; font-size: 14px; min-width: 160px; }
-    .popup-call-btn { display: block; margin-top: 8px; padding: 8px 0; background: #2ecc71; color: white; text-decoration: none; border-radius: 20px; font-weight: bold; }
-    
-    /* 調整 Leaflet 位置 */
     .leaflet-bottom { bottom: 120px !important; }
 
   </style>
 </head>
 <body>
 
-  <!-- HUD -->
-  <div id="hud"><span class="status-dot" style="background:gray;"></span> 定位中...</div>
-
-  <!-- 地圖 -->
-  <div id="map"></div>
-
-  <!-- 黑屏保護層 -->
-  <div id="black-overlay" onclick="disableBlackScreen()">
-    <div class="saver-text">省電模式運作中</div>
-    <div class="saver-hint">點擊螢幕喚醒</div>
+  <!-- 黑屏省電遮罩 -->
+  <div id="power-save-overlay" onclick="togglePowerSaving()">
+    <div style="font-size: 40px;">🌙</div>
+    <p>省電模式執行中 (每2分鐘更新)</p>
+    <div style="font-size: 12px; color: #333; margin-top: 40px;">點擊螢幕回歸地圖</div>
   </div>
 
-  <!-- 右上角區域 (分流邏輯) -->
-  <div id="top-right-area">
-    
-    <!-- 1. 司機註冊按鈕 (路人顯示) -->
-    <button id="btn-register" onclick="registerProcess()">📝 我是司機 (註冊)</button>
-
-    <!-- 2. 司機控制面板 (司機顯示) -->
-    <div id="driver-controls">
-      <button id="btn-power" class="circle-btn bg-gray" onclick="togglePower()">
-        <span>上線</span><span class="sub-text">OFF</span>
-      </button>
-      <div id="sub-controls" class="sub-controls">
-        <button id="btn-status" class="circle-btn bg-green" onclick="toggleStatus()">
-          <span>空車</span>
-        </button>
-        <button id="btn-eco" class="circle-btn small-btn" onclick="toggleEco()">
-          <span>省電</span><span class="sub-text" id="eco-text">OFF</span>
-        </button>
-        <button id="btn-black" class="circle-btn small-btn" onclick="enableBlackScreen()">
-          <span>黑屏</span>
-        </button>
+  <!-- 註冊彈窗 -->
+  <div id="modal-overlay">
+    <div class="modal-content">
+      <h2>司機註冊申請</h2>
+      <div class="form-group">
+        <label>LINE ID (唯讀)</label>
+        <input type="text" id="reg-uid" readonly style="background:#f9f9f9; color:#999;">
+      </div>
+      <div class="form-group">
+        <label>司機暱稱</label>
+        <input type="text" id="reg-name" placeholder="例如：王小明">
+      </div>
+      <div class="form-group">
+        <label>車牌號碼</label>
+        <input type="text" id="reg-car" placeholder="例如：ABC-1234">
+      </div>
+      <div class="form-group">
+        <label>連絡電話</label>
+        <input type="tel" id="reg-phone" placeholder="0912-345-678">
+      </div>
+      <div class="modal-btns">
+        <button class="btn-cancel" onclick="closeModal()">取消</button>
+        <button class="btn-submit" onclick="submitRegistration()">送出註冊</button>
       </div>
     </div>
   </div>
 
-  <!-- 底部卡片 (所有人可見) -->
-  <div id="passenger-carousel"><div class="empty-card">搜尋附近司機中...</div></div>
+  <!-- 左上角 HUD -->
+  <div id="hud">
+    <span class="status-dot" style="background:gray;"></span> 定位中...
+  </div>
 
-  <!-- 邏輯腳本 -->
+  <!-- 地圖 -->
+  <div id="map"></div>
+
+  <!-- 司機控制面板 -->
+  <div id="driver-controls">
+    <button id="btn-power" class="circle-btn bg-gray" onclick="togglePower()">
+      <span>上線</span>
+      <span class="sub-text">OFF</span>
+    </button>
+    <button id="btn-status" class="circle-btn bg-green" onclick="toggleStatus()">
+      <span>空車</span>
+    </button>
+    <!-- 省電按鈕 -->
+    <button id="btn-save-power" class="circle-btn" onclick="togglePowerSaving()">
+      <span>省電</span>
+    </button>
+  </div>
+
+  <!-- 乘客端註冊入口 -->
+  <div id="passenger-top-right">
+    <button id="btn-register" class="circle-btn" onclick="openModal()">
+      <span>司機<br>註冊</span>
+    </button>
+  </div>
+
+  <!-- 乘客底部卡片列 -->
+  <div id="passenger-carousel">
+    <div class="empty-card">搜尋附近司機中...</div>
+  </div>
+
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
-    // ========= 設定區 =========
     const GAS_URL = "https://script.google.com/macros/s/AKfycbyfNTgci2gZE2Etxvv6SHaP3puw7Mxt8ineL4gZve7Zyh2UGrcna4Zxap6EOyRICQ/exec"; 
     const LIFF_ID = "2008907691-7ntMtfbA"; 
-    // ========================
 
     var map, markers = {};
     var currentUser = null;
     var isDriver = false;
     var myLat = null, myLng = null;
-    var isOnline = false, isBusy = false, isEco = false;
-    var updateTimer = null, updateInterval = 30000;
-    let wakeLock = null;
+    var isOnline = false, isBusy = false, isPowerSaving = false;
+    var updateTimer = null;
 
-    const iconEmpty = L.divIcon({ html: '<div style="font-size:32px; filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.4));">🚕</div>', className: '', iconSize: [32, 32], iconAnchor: [16, 16] });
+    const iconEmpty = L.divIcon({ html: '<div style="font-size:32px;">🚕</div>', className: '', iconSize: [32, 32], iconAnchor: [16, 16] });
     const iconBusy = L.divIcon({ html: '<div style="font-size:32px; filter: grayscale(100%) opacity(0.7);">🚕</div>', className: '', iconSize: [32, 32], iconAnchor: [16, 16] });
 
     window.onload = async function() {
@@ -186,7 +192,8 @@
       map = L.map('map', { zoomControl: false }).setView([23.99000, 121.60684], 13);
       L.control.zoom({ position: 'bottomright' }).addTo(map);
       L.tileLayer('https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
-        maxZoom: 20, subdomains: ['mt0', 'mt1', 'mt2', 'mt3'], attribution: 'Map data &copy; Google'
+        maxZoom: 20, subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+        attribution: 'Map data &copy; Google'
       }).addTo(map);
     }
 
@@ -195,10 +202,8 @@
         await liff.init({ liffId: LIFF_ID });
         if (!liff.isLoggedIn()) { liff.login(); return; }
         currentUser = await liff.getProfile();
-        
         startTrackingLocation();
         checkRole(currentUser.userId);
-        
         fetchDrivers();
         setInterval(fetchDrivers, 10000);
       } catch (err) { console.log("LIFF Error:", err); }
@@ -206,159 +211,153 @@
 
     function startTrackingLocation() {
       if (navigator.geolocation) {
-        navigator.geolocation.watchPosition(
-          (pos) => { myLat = pos.coords.latitude; myLng = pos.coords.longitude; },
-          (err) => console.error(err), { enableHighAccuracy: true }
-        );
+        navigator.geolocation.watchPosition((pos) => {
+          myLat = pos.coords.latitude; myLng = pos.coords.longitude;
+        }, (err) => console.error(err), { enableHighAccuracy: true });
       }
     }
 
-    // --- 身分判斷 ---
     function checkRole(uid) {
       fetch(`${GAS_URL}?op=check_role&uid=${uid}`)
         .then(res => res.json())
         .then(data => {
-          if (data.role === 'driver') {
-            isDriver = true;
+          isDriver = (data.role === 'driver');
+          if (isDriver) {
             document.getElementById('driver-controls').style.display = 'flex';
-            document.getElementById('btn-register').style.display = 'none';
+            document.getElementById('passenger-top-right').style.display = 'none';
+            document.getElementById('passenger-carousel').style.display = 'none';
           } else {
-            isDriver = false;
             document.getElementById('driver-controls').style.display = 'none';
-            document.getElementById('btn-register').style.display = 'block';
+            document.getElementById('passenger-top-right').style.display = 'block';
+            document.getElementById('passenger-carousel').style.display = 'flex';
           }
         });
     }
 
-    // --- 司機註冊 ---
-    function registerProcess() {
-      var name = prompt("請輸入您的【姓名】：\n(例如：阿財)"); if (!name) return;
-      var phone = prompt("請輸入您的【電話】：\n(例如：0912345678)"); if (!phone) return;
-      var car = prompt("請輸入您的【車牌】：\n(例如：TDP-1123)"); if (!car) car = "未填寫";
-      var msg = `#註冊 姓名:${name} 電話:${phone} 車牌:${car} ID:${currentUser.userId}`;
-
-      if (liff.isInClient()) {
-        liff.sendMessages([{ 'type': 'text', 'text': msg }])
-          .then(() => { alert('✅ 註冊申請已送出！'); liff.closeWindow(); })
-          .catch(() => alert('發送失敗'));
-      } else { alert("請手動輸入指令：\n" + msg); }
-    }
-
-    // --- 司機控制邏輯 ---
+    // --- 司機端功能 ---
     function togglePower() {
-      if (!currentUser) { alert("尚未登入，無法上線"); return; } // 防呆
-      
       isOnline = !isOnline;
       const btnPower = document.getElementById('btn-power');
-      const subControls = document.getElementById('sub-controls');
+      const btnStatus = document.getElementById('btn-status');
+      const btnSave = document.getElementById('btn-save-power');
       
       if (isOnline) {
         btnPower.className = "circle-btn bg-red";
         btnPower.innerHTML = `<span>下線</span><span class="sub-text">ON</span>`;
-        subControls.classList.add('show');
-        uploadLocation();
-        restartTimer();
+        btnStatus.classList.add('show');
+        btnSave.classList.add('show');
+        resetUpdateTimer();
       } else {
         btnPower.className = "circle-btn bg-green";
         btnPower.innerHTML = `<span>上線</span><span class="sub-text">OFF</span>`;
-        subControls.classList.remove('show');
+        btnStatus.classList.remove('show');
+        btnSave.classList.remove('show');
         clearInterval(updateTimer);
-        disableBlackScreen();
         postData('offline', isBusy ? 'busy' : 'empty', 0, 0);
+        if (isPowerSaving) togglePowerSaving(); // 關閉時自動退出省電模式
       }
     }
 
     function toggleStatus() {
       isBusy = !isBusy;
       const btnStatus = document.getElementById('btn-status');
-      if (isBusy) {
-        btnStatus.className = "circle-btn bg-red";
-        btnStatus.innerHTML = `<span>載客</span>`;
-      } else {
-        btnStatus.className = "circle-btn bg-green";
-        btnStatus.innerHTML = `<span>空車</span>`;
-      }
+      btnStatus.className = isBusy ? "circle-btn bg-red show" : "circle-btn bg-green show";
+      btnStatus.innerHTML = isBusy ? `<span>載客</span>` : `<span>空車</span>`;
       uploadLocation();
     }
 
-    function toggleEco() {
-      isEco = !isEco;
-      const btnEco = document.getElementById('btn-eco');
-      const ecoText = document.getElementById('eco-text');
-      if (isEco) {
-        updateInterval = 120000; 
-        btnEco.className = "circle-btn small-btn bg-eco-on";
-        ecoText.innerText = "ON";
+    // [更新] 省電模式切換
+    function togglePowerSaving() {
+      if (!isOnline) return;
+      isPowerSaving = !isPowerSaving;
+      const overlay = document.getElementById('power-save-overlay');
+      const btnSave = document.getElementById('btn-save-power');
+      
+      if (isPowerSaving) {
+        overlay.classList.add('active');
+        btnSave.style.background = "#2ecc71";
+        btnSave.innerHTML = `<span>正常</span>`;
       } else {
-        updateInterval = 30000; 
-        btnEco.className = "circle-btn small-btn";
-        btnEco.style.background = "#f1c40f"; 
-        ecoText.innerText = "OFF";
+        overlay.classList.remove('active');
+        btnSave.style.background = "#34495e";
+        btnSave.innerHTML = `<span>省電</span>`;
       }
-      if (isOnline) restartTimer();
+      resetUpdateTimer(); // 重新設定計時器
     }
 
-    async function enableBlackScreen() {
-      document.getElementById('black-overlay').classList.add('active');
-      if ('wakeLock' in navigator) {
-        try { wakeLock = await navigator.wakeLock.request('screen'); } catch(e){}
-      }
-    }
-    function disableBlackScreen() {
-      document.getElementById('black-overlay').classList.remove('active');
-      if (wakeLock !== null) { wakeLock.release().then(() => { wakeLock = null; }); }
-    }
-
-    function restartTimer() {
-      if (updateTimer) clearInterval(updateTimer);
-      updateTimer = setInterval(uploadLocation, updateInterval);
+    // [更新] 重設計時器 (30秒 vs 120秒)
+    function resetUpdateTimer() {
+      clearInterval(updateTimer);
+      uploadLocation(); // 立即上傳一次
+      const interval = isPowerSaving ? 120000 : 30000;
+      updateTimer = setInterval(uploadLocation, interval);
     }
 
     function uploadLocation() {
       if (!isOnline) return;
-      // 關鍵修復：加入 GPS 錯誤處理與高精度選項
-      navigator.geolocation.getCurrentPosition(
-        pos => {
-          postData('online', isBusy ? 'busy' : 'empty', pos.coords.latitude, pos.coords.longitude);
-        },
-        err => {
-          console.error("GPS Error:", err);
-          // 在這裡可以選擇是否跳出 alert 提醒司機
-        },
-        { enableHighAccuracy: true, timeout: 10000 }
-      );
+      navigator.geolocation.getCurrentPosition(pos => {
+        postData('online', isBusy ? 'busy' : 'empty', pos.coords.latitude, pos.coords.longitude);
+      });
     }
 
     function postData(status, work, lat, lng) {
-      if (!currentUser) return;
       const payload = { userId: currentUser.userId, status: status, work: work, lat: lat, lng: lng };
-      
-      // 關鍵修復：移除 Content-Type header 以符合 no-cors 規範，避免被瀏覽器擋下
       fetch(GAS_URL, {
-        method: 'POST', 
-        mode: 'no-cors',
-        // headers: { 'Content-Type': 'application/json' }, // 移除這行
+        method: 'POST', mode: 'no-cors',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       }).catch(e => console.log(e));
     }
 
-    // --- 資料抓取與渲染 ---
+    // --- 乘客端功能與註冊彈窗 ---
+    function openModal() {
+      document.getElementById('reg-uid').value = currentUser.userId;
+      document.getElementById('modal-overlay').style.display = 'flex';
+    }
+
+    function closeModal() {
+      document.getElementById('modal-overlay').style.display = 'none';
+    }
+
+    // [新增] 送出註冊到聊天室
+    async function submitRegistration() {
+      const name = document.getElementById('reg-name').value;
+      const car = document.getElementById('reg-car').value;
+      const phone = document.getElementById('reg-phone').value;
+      const uid = document.getElementById('reg-uid').value;
+
+      if (!name || !car || !phone) {
+        alert("請填寫完整資訊");
+        return;
+      }
+
+      const msg = `🚖 【司機註冊申請】\n暱稱：${name}\n車號：${car}\n電話：${phone}\nID：${uid}`;
+
+      try {
+        await liff.sendMessages([{ type: 'text', text: msg }]);
+        alert("申請已送出！請等待審核。");
+        closeModal();
+      } catch (err) {
+        console.error(err);
+        alert("傳送失敗，請確認是否在 LINE 環境中。");
+      }
+    }
+
     function fetchDrivers() {
       fetch(`${GAS_URL}?op=get_drivers`)
         .then(res => res.json())
         .then(drivers => {
-          drivers.forEach(d => { d.distance = calculateDistance(myLat, myLng, d.lat, d.lng); });
+          drivers.forEach(d => d.distance = calculateDistance(myLat, myLng, d.lat, d.lng));
           drivers.sort((a, b) => a.distance - b.distance);
-          
           updateMap(drivers);
-          renderCarousel(drivers);
+          if (!isDriver) renderCarousel(drivers);
           updateHUD(drivers.length);
         });
     }
 
     function calculateDistance(lat1, lon1, lat2, lon2) {
       if (!lat1 || !lon1 || !lat2 || !lon2) return 9999;
-      const R = 6371; 
+      const R = 6371;
       const dLat = (lat2 - lat1) * Math.PI / 180;
       const dLon = (lon2 - lon1) * Math.PI / 180;
       const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon/2) * Math.sin(dLon/2);
@@ -372,7 +371,7 @@
         let icon = d.workStatus === 'busy' ? iconBusy : iconEmpty;
         let marker = L.marker([d.lat, d.lng], {icon: icon}).addTo(map);
         let distText = (d.distance < 100) ? `(約 ${d.distance.toFixed(1)} km)` : '';
-        marker.bindPopup(`<div class="driver-popup"><b style="font-size:16px;">🚕 ${d.name}</b><br><span style="color:${d.workStatus==='busy'?'red':'green'}; font-size:12px; font-weight:bold;">● ${d.workStatus === 'busy' ? '載客中' : '目前空車'} ${distText}</span><br><a href="tel:${d.phone}" class="popup-call-btn">📞 直接叫車</a></div>`);
+        marker.bindPopup(`<div class="driver-popup"><b>🚕 ${d.name}</b><br><span style="color:${d.workStatus==='busy'?'red':'green'};">● ${d.workStatus==='busy'?'載客中':'目前空車'} ${distText}</span><br><a href="tel:${d.phone}" class="popup-call-btn">📞 直接叫車</a></div>`);
         markers[d.id] = marker;
       });
     }
@@ -380,23 +379,25 @@
     function renderCarousel(drivers) {
       const container = document.getElementById('passenger-carousel');
       if (drivers.length === 0) {
-        container.innerHTML = '<div class="empty-card">🔴 目前附近無司機服務<br>請稍後再試</div>'; return;
+        container.innerHTML = '<div class="empty-card">🔴 目前附近無司機服務</div>';
+        return;
       }
-      let html = '';
-      drivers.slice(0, 5).forEach(d => {
-        const statusText = d.workStatus === 'busy' ? '載客中' : '目前空車';
-        const statusClass = d.workStatus === 'busy' ? 'text-red' : 'text-green';
-        const distText = (d.distance < 100) ? `${d.distance.toFixed(1)} km` : '計算中...';
-        html += `<div class="driver-card" onclick="map.setView([${d.lat}, ${d.lng}], 15)"><div class="card-info"><div class="card-name">🚕 ${d.name}</div><div class="card-status ${statusClass}">● ${statusText}</div><span class="card-dist">📍 距離 ${distText}</span></div><a href="tel:${d.phone}" class="card-call-btn">📞</a></div>`;
-      });
-      container.innerHTML = html;
+      container.innerHTML = drivers.slice(0, 5).map(d => `
+        <div class="driver-card" onclick="map.setView([${d.lat}, ${d.lng}], 15)">
+          <div class="card-info">
+            <div class="card-name">🚕 ${d.name}</div>
+            <div class="card-status ${d.workStatus==='busy'?'text-red':'text-green'}">● ${d.workStatus==='busy'?'載客中':'目前空車'}</div>
+            <span class="card-dist">📍 距離 ${d.distance.toFixed(1)} km</span>
+          </div>
+          <a href="tel:${d.phone}" class="card-call-btn">📞</a>
+        </div>
+      `).join('');
     }
 
     function updateHUD(count) {
       const hud = document.getElementById('hud');
-      const dot = hud.querySelector('.status-dot');
-      if (count > 0) { dot.style.background = "#2ecc71"; hud.innerHTML = `<span class="status-dot" style="background:#2ecc71;"></span> 線上運將：${count} 人`; } 
-      else { dot.style.background = "#e74c3c"; hud.innerHTML = `<span class="status-dot" style="background:#e74c3c;"></span> 目前無司機服務`; }
+      if (count > 0) hud.innerHTML = `<span class="status-dot" style="background:#2ecc71;"></span> 線上運將：${count} 人`;
+      else hud.innerHTML = `<span class="status-dot" style="background:#e74c3c;"></span> 目前無司機服務`;
     }
   </script>
 </body>
