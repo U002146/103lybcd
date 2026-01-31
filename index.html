@@ -26,7 +26,7 @@
       display: flex; flex-direction: column; align-items: flex-end; gap: 10px;
     }
 
-    /* 註冊按鈕 (預設顯示，身分確認後如果是司機則隱藏) */
+    /* 註冊按鈕 */
     #btn-register {
       background: #3498db; color: white; border: none;
       padding: 8px 15px; border-radius: 20px; font-weight: bold;
@@ -110,7 +110,7 @@
     .driver-popup { text-align: center; font-size: 14px; min-width: 160px; }
     .popup-call-btn { display: block; margin-top: 8px; padding: 8px 0; background: #2ecc71; color: white; text-decoration: none; border-radius: 20px; font-weight: bold; }
     
-    /* 調整 Leaflet 位置，避免被卡片擋住 */
+    /* 調整 Leaflet 位置 */
     .leaflet-bottom { bottom: 120px !important; }
 
   </style>
@@ -199,7 +199,6 @@
         startTrackingLocation();
         checkRole(currentUser.userId);
         
-        // 統一行為：所有人都更新地圖與卡片
         fetchDrivers();
         setInterval(fetchDrivers, 10000);
       } catch (err) { console.log("LIFF Error:", err); }
@@ -214,19 +213,17 @@
       }
     }
 
-    // --- 身分判斷與 UI 切換 (極簡化) ---
+    // --- 身分判斷 ---
     function checkRole(uid) {
       fetch(`${GAS_URL}?op=check_role&uid=${uid}`)
         .then(res => res.json())
         .then(data => {
           if (data.role === 'driver') {
             isDriver = true;
-            // 司機：顯示控制台，隱藏註冊
             document.getElementById('driver-controls').style.display = 'flex';
             document.getElementById('btn-register').style.display = 'none';
           } else {
             isDriver = false;
-            // 乘客：隱藏控制台，顯示註冊
             document.getElementById('driver-controls').style.display = 'none';
             document.getElementById('btn-register').style.display = 'block';
           }
@@ -249,6 +246,8 @@
 
     // --- 司機控制邏輯 ---
     function togglePower() {
+      if (!currentUser) { alert("尚未登入，無法上線"); return; } // 防呆
+      
       isOnline = !isOnline;
       const btnPower = document.getElementById('btn-power');
       const subControls = document.getElementById('sub-controls');
@@ -287,11 +286,11 @@
       const btnEco = document.getElementById('btn-eco');
       const ecoText = document.getElementById('eco-text');
       if (isEco) {
-        updateInterval = 120000; // 2分鐘
+        updateInterval = 120000; 
         btnEco.className = "circle-btn small-btn bg-eco-on";
         ecoText.innerText = "ON";
       } else {
-        updateInterval = 30000; // 30秒
+        updateInterval = 30000; 
         btnEco.className = "circle-btn small-btn";
         btnEco.style.background = "#f1c40f"; 
         ecoText.innerText = "OFF";
@@ -299,7 +298,6 @@
       if (isOnline) restartTimer();
     }
 
-    // --- 黑屏與喚醒鎖 ---
     async function enableBlackScreen() {
       document.getElementById('black-overlay').classList.add('active');
       if ('wakeLock' in navigator) {
@@ -318,21 +316,33 @@
 
     function uploadLocation() {
       if (!isOnline) return;
-      navigator.geolocation.getCurrentPosition(pos => {
-        postData('online', isBusy ? 'busy' : 'empty', pos.coords.latitude, pos.coords.longitude);
-      });
+      // 關鍵修復：加入 GPS 錯誤處理與高精度選項
+      navigator.geolocation.getCurrentPosition(
+        pos => {
+          postData('online', isBusy ? 'busy' : 'empty', pos.coords.latitude, pos.coords.longitude);
+        },
+        err => {
+          console.error("GPS Error:", err);
+          // 在這裡可以選擇是否跳出 alert 提醒司機
+        },
+        { enableHighAccuracy: true, timeout: 10000 }
+      );
     }
 
     function postData(status, work, lat, lng) {
+      if (!currentUser) return;
       const payload = { userId: currentUser.userId, status: status, work: work, lat: lat, lng: lng };
+      
+      // 關鍵修復：移除 Content-Type header 以符合 no-cors 規範，避免被瀏覽器擋下
       fetch(GAS_URL, {
-        method: 'POST', mode: 'no-cors',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', 
+        mode: 'no-cors',
+        // headers: { 'Content-Type': 'application/json' }, // 移除這行
         body: JSON.stringify(payload)
       }).catch(e => console.log(e));
     }
 
-    // --- 資料抓取與渲染 (統一處理) ---
+    // --- 資料抓取與渲染 ---
     function fetchDrivers() {
       fetch(`${GAS_URL}?op=get_drivers`)
         .then(res => res.json())
@@ -341,7 +351,7 @@
           drivers.sort((a, b) => a.distance - b.distance);
           
           updateMap(drivers);
-          renderCarousel(drivers); // 所有人都能看
+          renderCarousel(drivers);
           updateHUD(drivers.length);
         });
     }
@@ -373,7 +383,6 @@
         container.innerHTML = '<div class="empty-card">🔴 目前附近無司機服務<br>請稍後再試</div>'; return;
       }
       let html = '';
-      // 顯示最近 5 台
       drivers.slice(0, 5).forEach(d => {
         const statusText = d.workStatus === 'busy' ? '載客中' : '目前空車';
         const statusClass = d.workStatus === 'busy' ? 'text-red' : 'text-green';
