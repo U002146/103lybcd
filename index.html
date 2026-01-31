@@ -321,19 +321,27 @@
       resetUpdateTimer();
     }
 
+    // [優化] 錯峰上傳 (Traffic Jitter)
+    // 防止所有人都在同一秒回傳，導致 GAS 塞車
     function resetUpdateTimer() {
       clearInterval(updateTimer);
-      uploadLocation();
-      const interval = isPowerSaving ? 120000 : 30000;
-      updateTimer = setInterval(uploadLocation, interval);
+      uploadLocation(); // 立即執行一次
+      
+      // 基礎間隔 (30秒 或 120秒)
+      const baseInterval = isPowerSaving ? 120000 : 30000;
+      
+      // 加入隨機延遲 0~5秒 (Jitter)，分散流量
+      const jitter = Math.floor(Math.random() * 5000); 
+      
+      updateTimer = setInterval(uploadLocation, baseInterval + jitter);
     }
 
-    // [重要修正] 針對 LINE 權限的防呆處理
     function uploadLocation() {
       if (!isOnline) return;
       
       if (!navigator.geolocation) {
-        alert("您的手機不支援 GPS，無法上線！");
+        // 靜默失敗，不干擾司機，除非連續多次
+        console.warn("瀏覽器不支援 GPS");
         return;
       }
 
@@ -344,16 +352,18 @@
         (err) => {
           console.error("GPS Error:", err);
           if(isOnline) {
-             // 針對錯誤代碼 1 (PERMISSION_DENIED) 給出詳細指導
+             // 只有「權限被拒絕 (代碼1)」才需要彈窗並下線
+             // 其他如「定位超時」、「訊號不佳」則靜默處理，等待下次重試
              if (err.code === 1) {
-               alert(`🔴 無法讀取位置！(代碼: 1)\n\n請檢查「LINE 的權限」：\n1. 手機「設定」\n2. 應用程式 -> LINE\n3. 權限 -> 位置 -> 改為「允許」`);
-               togglePower(); // 自動切回下線狀態，避免誤會
+               alert(`🔴 無法讀取位置！\n請檢查 LINE 權限設定。`);
+               togglePower(); 
              } else {
-               alert(`⚠️ 定位失敗 (代碼: ${err.code})\n請確認 GPS 已開啟，並在戶外空曠處測試。`);
+               // 網路/GPS 暫時不穩，不要下線，只在 Console 紀錄
+               console.log("GPS 暫時無法定位，等待下次更新...");
              }
           }
         },
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
       );
     }
 
@@ -364,8 +374,9 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       }).catch(e => {
-        console.log(e);
-        alert("網路連線異常，資料傳送失敗！");
+        // [優化] 靜默失敗 (Silent Failure)
+        // 網路塞車時不要彈 Alert 嚇司機，改為 Console 紀錄
+        console.warn("GAS 連線忙碌中，本次略過:", e);
       });
     }
 
