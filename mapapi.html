@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>地圖定位:即時叫車</title>
+    <title>地圖定位:預約/即時叫車</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
@@ -82,9 +82,63 @@
         .loader { border: 3px solid #f3f3f3; border-top: 3px solid #10B981; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         
-        .swal2-popup { border-radius: 24px !important; font-family: 'Noto Sans TC', sans-serif !important; }
+        .swal2-popup { border-radius: 24px !important; font-family: 'Noto Sans TC', sans-serif !important; padding-bottom: 20px !important;}
         .location-grid { max-height: 50vh; overflow-y: auto; padding: 4px; }
         .fa-spin-fast { animation: spin 1s linear infinite; }
+
+        /* --- 時間選擇器樣式 --- */
+        .time-picker-container {
+            display: grid;
+            grid-template-columns: 1.5fr 1fr 1fr;
+            gap: 8px;
+            height: 200px;
+            overflow: hidden;
+            position: relative;
+            background: #f8fafc;
+            border-radius: 12px;
+            margin-top: 10px;
+        }
+        .picker-col {
+            overflow-y: scroll;
+            scroll-snap-type: y mandatory;
+            height: 100%;
+            padding-top: 80px; /* Center content */
+            padding-bottom: 80px;
+            -ms-overflow-style: none;  /* IE and Edge */
+            scrollbar-width: none;  /* Firefox */
+        }
+        .picker-col::-webkit-scrollbar { display: none; }
+        .picker-item {
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            scroll-snap-align: center;
+            font-size: 16px;
+            color: #94a3b8;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        .picker-item.selected {
+            color: #0f172a;
+            font-weight: bold;
+            font-size: 18px;
+            transform: scale(1.1);
+        }
+        /* Selection Highlight Bar */
+        .picker-highlight {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 40px;
+            transform: translateY(-50%);
+            background: rgba(0,0,0,0.05);
+            border-top: 1px solid #e2e8f0;
+            border-bottom: 1px solid #e2e8f0;
+            pointer-events: none;
+            z-index: 0;
+        }
     </style>
 </head>
 <body>
@@ -131,22 +185,32 @@
                     <i class="fa-solid fa-location-dot input-icon text-rose-500"></i>
                     <div class="flex-1">
                         <label class="block text-[10px] text-slate-400 font-bold uppercase">Drop-off (To)</label>
-                        <!-- 修正：強力阻擋自動填寫 (亂數 name + autocomplete off) -->
                         <input type="text" id="dropoff" name="no_autofill_dest_8823" autocomplete="off" placeholder="輸入目的地..." class="w-full bg-transparent font-bold text-slate-800 outline-none text-lg">
                     </div>
                     <button onclick="openPresetLocations()" class="ml-2 bg-slate-100 text-slate-500 p-2 rounded-lg active:bg-slate-200"><i class="fa-solid fa-star text-sm"></i></button>
                 </div>
 
-                <!-- 3. 付款方式 -->
-                <div class="input-group cursor-pointer" onclick="openPaymentPicker()">
-                    <i id="payment-icon-display" class="fa-solid fa-wallet input-icon text-amber-500"></i>
+                <!-- 3. 預約時間 / 模式 (取代原本的付款欄位) -->
+                <div class="input-group cursor-pointer relative" onclick="openTimePicker()">
+                    <i id="time-icon" class="fa-solid fa-clock input-icon text-blue-600"></i>
                     <div class="flex-1">
-                        <label class="block text-[10px] text-slate-400 font-bold uppercase">Payment</label>
+                        <label class="block text-[10px] text-slate-400 font-bold uppercase">Pickup Time</label>
                         <div class="flex items-center justify-between">
-                            <span id="payment-display" class="font-bold text-slate-800 text-lg">現金</span>
-                            <i class="fa-solid fa-chevron-down text-gray-300 text-sm"></i>
+                            <span id="time-display" class="font-bold text-slate-800 text-lg">現在 (即時叫車)</span>
+                            <!-- 付款方式縮小整合在此 -->
+                            <div class="flex items-center space-x-2" onclick="event.stopPropagation(); openPaymentPicker();">
+                                <span class="w-[1px] h-4 bg-gray-300"></span>
+                                <div class="flex items-center bg-gray-100 px-2 py-1 rounded-md active:bg-gray-200 transition-colors">
+                                    <i id="payment-icon-small" class="fa-solid fa-coins text-slate-500 text-xs mr-1"></i>
+                                    <span id="payment-text-small" class="text-xs font-bold text-slate-600">現金</span>
+                                    <i class="fa-solid fa-caret-down text-[10px] text-gray-400 ml-1"></i>
+                                </div>
+                            </div>
                         </div>
                     </div>
+                    <!-- 隱藏欄位儲存狀態 -->
+                    <input type="hidden" id="booking-mode" value="NOW"> <!-- NOW or RESERVE -->
+                    <input type="hidden" id="booking-time-val" value="">
                     <input type="hidden" id="payment-value" value="現金">
                 </div>
 
@@ -166,7 +230,7 @@
         <div class="absolute bottom-0 left-0 right-0 p-5 bg-white/90 backdrop-blur-sm border-t border-gray-100">
             <button id="submitBtn" onclick="submitOrder()" class="w-full bg-slate-900 text-white font-bold py-4 rounded-2xl shadow-xl shadow-slate-300 active:scale-[0.98] transition-all text-xl flex items-center justify-center space-x-3">
                 <i class="fa-solid fa-taxi"></i>
-                <span>確認叫車</span>
+                <span id="submit-btn-text">確認叫車</span>
             </button>
         </div>
     </div>
@@ -174,6 +238,7 @@
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
+        // --- 設定與 API ---
         const API_KEY = 'AIzaSyAlTcoOPEZeeMNwTGTap39VPsW85Ux8NHo'; 
         const LIFF_ID = '2008907691-lqyPtbIY'; 
 
@@ -182,9 +247,16 @@
 
         let map, geocoder, cachedPosition = null;
         let currentCenter = { lat: 25.0330, lng: 121.5654 };
+        
+        // 預約資料
+        let tempBookingMode = 'NOW';
+        let tempSelectedDateIndex = 0;
+        let tempSelectedHour = new Date().getHours();
+        let tempSelectedMinute = Math.ceil(new Date().getMinutes() / 5) * 5;
 
         const MAP_STYLES = [{ "featureType": "poi", "elementType": "labels.icon", "stylers": [{ "visibility": "off" }] }, { "featureType": "poi", "elementType": "labels.text.fill", "stylers": [{ "color": "#757575" }] }, { "featureType": "road", "elementType": "geometry.fill", "stylers": [{ "color": "#ffffff" }] }, { "featureType": "road", "elementType": "geometry.stroke", "stylers": [{ "color": "#e0e0e0" }] }];
 
+        // --- 初始化 ---
         window.onload = function() {
             setTimeout(forceRemoveLoading, 5000);
             if (navigator.geolocation) {
@@ -213,6 +285,7 @@
             const savedPhone = localStorage.getItem('taxi_user_phone');
             if(savedPhone) document.getElementById('phone').value = savedPhone;
             
+            // 讀取付款方式
             const savedPayment = localStorage.getItem('taxi_selected_payment');
             if(savedPayment) {
                 const method = PAYMENT_METHODS.find(m => m.label === savedPayment);
@@ -276,6 +349,7 @@
             } else { alert("不支援 GPS"); icon.classList.remove('fa-spin-fast'); }
         }
 
+        // --- 地址預設功能 ---
         function openPresetLocations() {
             let html = '<div class="grid grid-cols-2 gap-3 mt-2 location-grid">';
             PRESET_LOCATIONS.forEach(loc => {
@@ -301,6 +375,7 @@
             Swal.fire({ title: `設定${label}`, input: 'text', inputPlaceholder: '輸入地址...', showCancelButton: true, confirmButtonText: '儲存', confirmButtonColor: '#0f172a' }).then((r) => { if (r.isConfirmed && r.value) { localStorage.setItem(key, r.value); input.value = r.value; Swal.fire({ icon: 'success', title: '已記憶！', timer: 1000, showConfirmButton: false }); } });
         }
 
+        // --- 付款方式 (Mini) ---
         function openPaymentPicker() {
             let html = '<div class="grid grid-cols-2 gap-3 mt-2 location-grid">';
             const currentVal = document.getElementById('payment-value').value;
@@ -321,16 +396,164 @@
 
         function updatePaymentUI(label, iconClass, colorClass) {
             document.getElementById('payment-value').value = label;
-            document.getElementById('payment-display').innerText = label;
-            const iconElem = document.getElementById('payment-icon-display');
-            iconElem.className = `fa-solid ${iconClass} input-icon ${colorClass}`;
+            document.getElementById('payment-text-small').innerText = label;
+            const iconElem = document.getElementById('payment-icon-small');
+            // Remove all color classes from icon
+            iconElem.className = `fa-solid ${iconClass} text-xs mr-1`;
+            // Re-add color class (simplified logic since text is slate-500 usually in small view, but let's keep icon color)
+            // Extract color class from input or just use default slate
+            iconElem.classList.add(colorClass.replace('text-','text-').replace('500','600')); 
         }
 
+        // --- NEW: 時間選擇器邏輯 (Time Picker) ---
+        function generateDateOptions() {
+            const dates = [];
+            const today = new Date();
+            const weekDays = ['日','一','二','三','四','五','六'];
+            for(let i=0; i<7; i++) {
+                const d = new Date(today);
+                d.setDate(today.getDate() + i);
+                const m = (d.getMonth()+1).toString().padStart(2,'0');
+                const day = d.getDate().toString().padStart(2,'0');
+                const w = weekDays[d.getDay()];
+                dates.push({ val: i, text: `${m}月${day}日 (${w})` });
+            }
+            return dates;
+        }
+
+        function generateHours() { return Array.from({length:24}, (_,i) => i.toString().padStart(2,'0')); }
+        function generateMinutes() { return Array.from({length:12}, (_,i) => (i*5).toString().padStart(2,'0')); }
+
+        function openTimePicker() {
+            const dates = generateDateOptions();
+            const hours = generateHours();
+            const minutes = generateMinutes();
+
+            // 生成HTML
+            let dateHtml = dates.map((d, i) => `<div class="picker-item ${i===0?'selected':''}" onclick="selectItem('date', ${i}, this)">${d.text}</div>`).join('');
+            let hourHtml = hours.map((h, i) => `<div class="picker-item ${parseInt(h) === new Date().getHours() + 1 ? 'selected':''}" onclick="selectItem('hour', ${h}, this)">${h}點</div>`).join('');
+            let minHtml = minutes.map((m, i) => `<div class="picker-item ${m==='00'?'selected':''}" onclick="selectItem('minute', ${m}, this)">${m}分</div>`).join('');
+
+            // 初始化暫存變數
+            tempBookingMode = document.getElementById('booking-mode').value;
+            // 預設選中現在下一個小時 (簡易邏輯)
+            if(tempBookingMode === 'NOW') {
+                 // Reset picker visuals if needed
+            }
+
+            const html = `
+                <div class="text-left text-xs text-gray-500 mb-2">
+                    <p>為保持良好的預約承諾，取消行程將收取 <span class="text-green-600 font-bold">$40</span> 取消費用。</p>
+                </div>
+                <div class="flex justify-end mb-2">
+                    <button type="button" onclick="setModeNow()" id="btn-now-mode" class="px-4 py-1.5 rounded-lg text-sm font-bold transition-colors ${tempBookingMode==='NOW' ? 'bg-slate-800 text-white' : 'bg-gray-100 text-gray-500'}">現在 (即時)</button>
+                </div>
+                <div class="time-picker-container relative">
+                    <div class="picker-highlight"></div>
+                    <div class="picker-col" id="col-date">${dateHtml}</div>
+                    <div class="picker-col" id="col-hour">${hourHtml}</div>
+                    <div class="picker-col" id="col-minute">${minHtml}</div>
+                </div>
+            `;
+
+            Swal.fire({
+                title: '選擇預約時間',
+                html: html,
+                showCancelButton: true,
+                confirmButtonText: '套用',
+                cancelButtonText: '取消',
+                confirmButtonColor: '#0f172a',
+                reverseButtons: true,
+                customClass: { popup: 'rounded-[24px]' },
+                didOpen: () => {
+                    // 這裡可以加入滾動監聽來強化 UX，目前簡化為點擊
+                    // 預設選中狀態視覺更新
+                    updatePickerVisuals();
+                },
+                preConfirm: () => {
+                    return { mode: tempBookingMode, dateIdx: tempSelectedDateIndex, h: tempSelectedHour, m: tempSelectedMinute };
+                }
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    applyTimeSelection(result.value);
+                }
+            });
+        }
+
+        window.setModeNow = function() {
+            tempBookingMode = 'NOW';
+            document.getElementById('btn-now-mode').className = 'px-4 py-1.5 rounded-lg text-sm font-bold transition-colors bg-slate-800 text-white';
+            // 視覺上淡化下面的滾輪
+            document.querySelector('.time-picker-container').style.opacity = '0.5';
+            document.querySelector('.time-picker-container').style.pointerEvents = 'none';
+        }
+
+        window.selectItem = function(type, val, elem) {
+            // 切換為預約模式
+            if(tempBookingMode === 'NOW') {
+                tempBookingMode = 'RESERVE';
+                document.getElementById('btn-now-mode').className = 'px-4 py-1.5 rounded-lg text-sm font-bold transition-colors bg-white border border-gray-300 text-gray-500';
+                document.querySelector('.time-picker-container').style.opacity = '1';
+                document.querySelector('.time-picker-container').style.pointerEvents = 'auto';
+            }
+
+            // 更新變數
+            if(type === 'date') tempSelectedDateIndex = parseInt(val);
+            if(type === 'hour') tempSelectedHour = parseInt(val);
+            if(type === 'minute') tempSelectedMinute = parseInt(val);
+
+            // 更新該列的視覺樣式
+            const col = elem.parentElement;
+            Array.from(col.children).forEach(c => c.classList.remove('selected'));
+            elem.classList.add('selected');
+            
+            // 簡單的自動滾動對齊
+            elem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        
+        function updatePickerVisuals() {
+             // 輔助函式，實際邏輯已在 selectItem 處理，這裡可擴充初始化邏輯
+        }
+
+        function applyTimeSelection(data) {
+            const modeInput = document.getElementById('booking-mode');
+            const timeDisplay = document.getElementById('time-display');
+            const timeValInput = document.getElementById('booking-time-val');
+            const icon = document.getElementById('time-icon');
+            const btnText = document.getElementById('submit-btn-text');
+
+            modeInput.value = data.mode;
+
+            if (data.mode === 'NOW') {
+                timeDisplay.innerText = "現在 (即時叫車)";
+                timeDisplay.classList.remove('text-blue-600');
+                timeDisplay.classList.add('text-slate-800');
+                icon.className = "fa-solid fa-clock input-icon text-slate-400";
+                timeValInput.value = "";
+                btnText.innerText = "確認叫車 (即時)";
+            } else {
+                // 組合顯示字串
+                const dates = generateDateOptions();
+                const dateStr = dates[data.dateIdx].text.split(' ')[0]; // 取 "02月01日"
+                const timeStr = `${data.h.toString().padStart(2,'0')}:${data.m.toString().padStart(2,'0')}`;
+                
+                timeDisplay.innerText = `${dateStr} ${timeStr}`;
+                timeDisplay.classList.remove('text-slate-800');
+                timeDisplay.classList.add('text-blue-600');
+                icon.className = "fa-solid fa-calendar-check input-icon text-blue-600";
+                timeValInput.value = `${dateStr} ${timeStr}`;
+                btnText.innerText = "確認預約";
+            }
+        }
+
+        // --- 送出訂單 ---
         async function submitOrder() {
             const phone = document.getElementById('phone').value;
             const pickup = document.getElementById('address-text').innerText;
             const dropoff = document.getElementById('dropoff').value;
             const payment = document.getElementById('payment-value').value;
+            const bookingMode = document.getElementById('booking-mode').value;
+            const bookingTime = document.getElementById('booking-time-val').value;
 
             if(!phone || phone.length < 8) return alert('請輸入電話');
             if(!dropoff) return alert('請輸入下車地點');
@@ -345,27 +568,51 @@
             const googleMapUrl = `https://www.google.com/maps/search/?api=1&query=${currentCenter.lat},${currentCenter.lng}`;
             const dropoffMapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(dropoff)}`;
 
+            // --- 產生標題邏輯 ---
+            // "標題付款方式 也變成 即時單+現在時間標記 預約單+預約時間標記"
+            const nowTimeStr = new Date().toLocaleTimeString('zh-TW', {hour:'2-digit', minute:'2-digit', hour12:false});
+            let headerTitle = "";
+            let headerColor = "";
+
+            if (bookingMode === 'NOW') {
+                headerTitle = `即時單 ${nowTimeStr}`;
+                headerColor = "#000000"; // 黑色沈穩
+            } else {
+                headerTitle = `預約單 ${bookingTime}`;
+                headerColor = "#1d4ed8"; // 藍色顯眼
+            }
+
             // V9.0 白底黑字隱藏版 Flex Message (White Stealth Edition)
             const flexMsg = {
                 type: "flex",
-                altText: "🚕 即時叫車",
+                altText: bookingMode === 'NOW' ? "🚕 即時叫車" : "📅 預約叫車",
                 contents: {
                     type: "bubble",
                     styles: {
-                        header: { backgroundColor: "#FFFFFF" }, // 白底
-                        body: { backgroundColor: "#FFFFFF" }   // 白底
+                        header: { backgroundColor: "#FFFFFF" },
+                        body: { backgroundColor: "#FFFFFF" }
                     },
                     header: {
                         type: "box", layout: "vertical",
                         contents: [
-                            { type: "text", text: `${payment}`, weight: "bold", size: "3xl", color: "#000000", align: "center" } // 黑字
+                            // 這裡改成 時間/模式 標題
+                            { type: "text", text: headerTitle, weight: "bold", size: "xl", color: headerColor, align: "center" }
                         ],
                         paddingAll: "5px"
                     },
                     body: {
                         type: "box", layout: "vertical",
                         contents: [
-                            // 上車 (隱藏導航 - 黑字)
+                            // 付款方式 (移到 Body 第一行顯示)
+                            {
+                                type: "box", layout: "horizontal", margin: "md",
+                                contents: [
+                                    { type: "text", text: "💰 付款", flex: 2, color: "#888888", size: "md" },
+                                    { type: "text", text: payment, flex: 5, color: "#111111", size: "md", weight: "bold" }
+                                ]
+                            },
+                            { type: "separator", margin: "md", color: "#EEEEEE" },
+                            // 上車
                             {
                                 type: "box", layout: "horizontal", margin: "md",
                                 contents: [
@@ -376,8 +623,8 @@
                                     }
                                 ]
                             },
-                            { type: "separator", margin: "lg", color: "#EEEEEE" }, // 淺灰分隔線
-                            // 下車 (隱藏導航 - 黑字)
+                            { type: "separator", margin: "lg", color: "#EEEEEE" },
+                            // 下車
                             {
                                 type: "box", layout: "horizontal", margin: "lg",
                                 contents: [
@@ -389,7 +636,7 @@
                                 ]
                             },
                             { type: "separator", margin: "lg", color: "#EEEEEE" },
-                            // 電話 (隱藏撥號 - 黑字)
+                            // 電話
                             {
                                 type: "box", layout: "horizontal", margin: "lg",
                                 contents: [
@@ -411,7 +658,7 @@
                     liff.closeWindow();
                 } else {
                     console.log(flexMsg);
-                    alert("【訂單模擬成功】\n(白底黑字 Flex Message 已生成)");
+                    alert(`【模擬訂單成功】\n標題：${headerTitle}\n付款：${payment}`);
                     btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-taxi mr-2"></i>確認叫車';
                 }
             } catch (e) {
@@ -422,4 +669,3 @@
     </script>
 </body>
 </html>
-
