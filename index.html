@@ -9,7 +9,7 @@
     body { margin: 0; padding: 0; font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto; overflow: hidden; background: #f0f0f0; }
     #map { width: 100vw; height: 100vh; z-index: 1; transition: opacity 0.5s; }
     
-    /* 左上角 HUD */
+    /* 左上角 HUD - 稍微放大字體 */
     #hud {
       position: absolute; top: 15px; left: 15px; z-index: 999;
       background: rgba(30, 30, 30, 0.9); color: white; padding: 12px 20px;
@@ -19,10 +19,15 @@
     }
     .status-dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
     
-    /* 右上角控制區容器 */
-    #top-right-panel {
-      position: absolute; top: 15px; right: 15px; z-index: 1000;
-      display: flex; flex-direction: column; align-items: center; gap: 12px;
+    /* 司機控制面板 */
+    #driver-controls {
+      display: none; position: absolute; top: 15px; right: 15px; z-index: 1000;
+      flex-direction: column; align-items: center; gap: 12px;
+    }
+
+    /* 乘客註冊按鈕 */
+    #passenger-top-right {
+      display: none; position: absolute; top: 15px; right: 15px; z-index: 1000;
     }
 
     .circle-btn {
@@ -35,20 +40,15 @@
     }
     .circle-btn:active { transform: scale(0.85); box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
     
-    /* 各種按鈕尺寸與顏色 */
-    #btn-power { width: 85px; height: 85px; font-size: 20px; }
-    #btn-status { width: 70px; height: 70px; font-size: 16px; display: none; }
-    #btn-save-power { width: 70px; height: 70px; font-size: 14px; background: #34495e; display: none; }
-    #btn-register { width: 75px; height: 75px; font-size: 15px; background: linear-gradient(135deg, #f39c12, #e67e22); display: none; }
+    #btn-power { width: 85px; height: 85px; font-size: 20px; } /* 放大按鈕 */
+    #btn-status { width: 70px; height: 70px; font-size: 16px; opacity: 0; transform: translateY(-10px); pointer-events: none; }
+    #btn-status.show { opacity: 1; transform: translateY(0); pointer-events: auto; }
+    #btn-save-power { width: 70px; height: 70px; font-size: 14px; background: #34495e; opacity: 0; transform: translateY(-10px); pointer-events: none; }
+    #btn-save-power.show { opacity: 1; transform: translateY(0); pointer-events: auto; }
     
-    /* 加入桌面按鈕 (較小) */
-    #btn-shortcut { 
-      width: 55px; height: 55px; font-size: 12px; 
-      background: linear-gradient(135deg, #3498db, #2980b9); 
-      margin-top: 5px;
-    }
+    #btn-register { width: 75px; height: 75px; font-size: 15px; background: linear-gradient(135deg, #f39c12, #e67e22); }
 
-    /* 黑屏遮罩 */
+    /* 黑屏省電模式遮罩 */
     #power-save-overlay {
       display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
       background: black; z-index: 2000; color: #444; flex-direction: column;
@@ -57,8 +57,8 @@
     #power-save-overlay.active { display: flex; }
     #power-save-overlay p { color: #00ff00; margin-top: 20px; font-size: 18px; opacity: 0.5; }
 
-    /* 通用彈窗樣式 */
-    .modal-overlay {
+    /* 註冊彈窗 */
+    #modal-overlay {
       display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
       background: rgba(0,0,0,0.75); z-index: 3000; justify-content: center; align-items: center;
       backdrop-filter: blur(5px);
@@ -72,20 +72,23 @@
     .form-group input { width: 100%; padding: 15px; border: 2px solid #eee; border-radius: 12px; box-sizing: border-box; font-size: 18px; }
     .modal-btns { display: flex; gap: 15px; margin-top: 25px; }
     .modal-btns button { flex: 1; padding: 15px; border-radius: 12px; border: none; font-size: 16px; font-weight: bold; }
+    .btn-cancel { background: #f5f5f5; color: #666; }
+    .btn-submit { background: #2ecc71; color: white; }
 
     /* 底部卡片 */
     #passenger-carousel { position: absolute; bottom: 20px; left: 0; width: 100%; z-index: 1000; display: none; overflow-x: auto; gap: 12px; padding: 0 15px 15px 15px; box-sizing: border-box; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; }
     .driver-card { flex: 0 0 88%; max-width: 340px; background: white; border-radius: 20px; padding: 18px; box-shadow: 0 8px 25px rgba(0,0,0,0.2); scroll-snap-align: center; display: flex; align-items: center; justify-content: space-between; }
-    
+    .card-name { font-size: 18px; font-weight: bold; color: #222; }
+    .card-call-btn { background: #2ecc71; color: white; border: none; width: 55px; height: 55px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 24px; text-decoration: none; box-shadow: 0 4px 12px rgba(46,204,113,0.4); }
+
     .bg-green { background: linear-gradient(135deg, #2ecc71, #27ae60); }
     .bg-red   { background: linear-gradient(135deg, #e74c3c, #c0392b); }
     .bg-gray  { background: linear-gradient(135deg, #bdc3c7, #95a5a6); }
+    .text-green { color: #27ae60; }
+    .text-red { color: #c0392b; }
     .sub-text { font-size: 12px; opacity: 0.9; margin-top: 4px; }
+    
     .leaflet-bottom { bottom: 140px !important; }
-
-    /* 引導說明文字 */
-    .guide-step { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 15px; font-size: 16px; line-height: 1.5; color: #333; }
-    .step-num { background: #3498db; color: white; width: 24px; height: 24px; border-radius: 50%; display: flex; justify-content: center; align-items: center; flex-shrink: 0; font-size: 12px; margin-top: 2px; }
   </style>
 </head>
 <body>
@@ -97,33 +100,8 @@
     <div style="font-size: 14px; color: #333; margin-top: 50px;">點擊螢幕回歸地圖</div>
   </div>
 
-  <!-- 加入桌面說明彈窗 -->
-  <div id="shortcut-guide-modal" class="modal-overlay">
-    <div class="modal-content">
-      <h2 style="text-align:center; margin-top:0;">如何加入桌面？</h2>
-      <div class="guide-step">
-        <div class="step-num">1</div>
-        <div>點擊畫面右上角的「三個點」或「分享按鈕」。</div>
-      </div>
-      <div class="guide-step">
-        <div class="step-num">2</div>
-        <div>找到<strong>「在瀏覽器中開啟」</strong>。</div>
-      </div>
-      <div class="guide-step">
-        <div class="step-num">3</div>
-        <div>再次點擊功能選單，選擇<strong>「新增至主畫面」</strong>。</div>
-      </div>
-      <p style="font-size: 13px; color: #e67e22; background: #fff5e6; padding: 10px; border-radius: 8px;">
-        💡 溫馨提示：加到桌面後，下次開車前點一下圖示就能立刻上線喔！
-      </p>
-      <div class="modal-btns">
-        <button class="btn-submit" onclick="closeShortcutGuide()">我知道了</button>
-      </div>
-    </div>
-  </div>
-
   <!-- 註冊彈窗 -->
-  <div id="modal-overlay" class="modal-overlay">
+  <div id="modal-overlay">
     <div class="modal-content">
       <h2 style="text-align:center; margin-top:0;">司機註冊申請</h2>
       <div class="form-group">
@@ -143,8 +121,8 @@
         <input type="tel" id="reg-phone" placeholder="09xx-xxx-xxx">
       </div>
       <div class="modal-btns">
-        <button style="background:#f5f5f5; color:#666;" onclick="closeModal()">關閉</button>
-        <button style="background:#2ecc71; color:white;" onclick="submitRegistration()">送出資料</button>
+        <button class="btn-cancel" onclick="closeModal()">關閉</button>
+        <button class="btn-submit" onclick="submitRegistration()">送出資料</button>
       </div>
     </div>
   </div>
@@ -155,10 +133,9 @@
 
   <div id="map"></div>
 
-  <!-- 右上角控制面板容器 -->
-  <div id="top-right-panel">
-    <!-- 司機按鈕 -->
-    <button id="btn-power" class="circle-btn bg-gray" style="display:none;" onclick="togglePower()">
+  <!-- 司機面板 -->
+  <div id="driver-controls">
+    <button id="btn-power" class="circle-btn bg-gray" onclick="togglePower()">
       <span>上線</span>
       <span class="sub-text">OFF</span>
     </button>
@@ -168,15 +145,12 @@
     <button id="btn-save-power" class="circle-btn" onclick="togglePowerSaving()">
       <span>省電</span>
     </button>
+  </div>
 
-    <!-- 乘客按鈕 -->
+  <!-- 乘客註冊入口 -->
+  <div id="passenger-top-right">
     <button id="btn-register" class="circle-btn" onclick="openModal()">
       <span>司機<br>註冊</span>
-    </button>
-
-    <!-- 共有按鈕：加入桌面 -->
-    <button id="btn-shortcut" class="circle-btn" onclick="handleAddToHomeScreen()">
-      <span>加入<br>桌面</span>
     </button>
   </div>
 
@@ -195,7 +169,7 @@
     var myLat = null, myLng = null;
     var isOnline = false, isBusy = false, isPowerSaving = false;
     var updateTimer = null;
-    var wakeLock = null;
+    var wakeLock = null; // 螢幕常亮鎖定對象
 
     const iconEmpty = L.divIcon({ html: '<div style="font-size:36px;">🚕</div>', className: '', iconSize: [36, 36], iconAnchor: [18, 18] });
     const iconBusy = L.divIcon({ html: '<div style="font-size:36px; filter: grayscale(100%) opacity(0.6);">🚕</div>', className: '', iconSize: [36, 36], iconAnchor: [18, 18] });
@@ -204,6 +178,7 @@
       initMap();
       await initLiff();
       
+      // 監聽可見性變化：如果使用者切換視窗回來，重新鎖定螢幕
       document.addEventListener('visibilitychange', async () => {
         if (wakeLock !== null && document.visibilityState === 'visible' && isOnline) {
           await requestWakeLock();
@@ -211,33 +186,26 @@
       });
     };
 
-    // [核心功能] 螢幕鎖定
+    // [核心功能] 請求螢幕常亮
     async function requestWakeLock() {
       if ('wakeLock' in navigator) {
-        try { wakeLock = await navigator.wakeLock.request('screen'); } catch (err) {}
-      }
-    }
-    function releaseWakeLock() {
-      if (wakeLock !== null) { wakeLock.release().then(() => wakeLock = null); }
-    }
-
-    // [新增] 加入桌面處理邏輯
-    async function handleAddToHomeScreen() {
-      // 1. 嘗試呼叫 LIFF 原生 API (部分環境支援)
-      if (liff.getOS() === "android") {
         try {
-          // 部分 LIFF 版本可直接透過 shortcut URL 觸發
-          window.location.href = `https://liff.line.me/${LIFF_ID}/shortcut`;
-          return;
-        } catch (e) { console.log(e); }
+          wakeLock = await navigator.wakeLock.request('screen');
+          console.log('螢幕常亮已啟用');
+        } catch (err) {
+          console.error(`${err.name}, ${err.message}`);
+        }
       }
-      
-      // 2. 如果不支援自動，顯示引導說明彈窗
-      document.getElementById('shortcut-guide-modal').style.display = 'flex';
     }
 
-    function closeShortcutGuide() {
-      document.getElementById('shortcut-guide-modal').style.display = 'none';
+    // [核心功能] 釋放螢幕鎖定
+    function releaseWakeLock() {
+      if (wakeLock !== null) {
+        wakeLock.release().then(() => {
+          wakeLock = null;
+          console.log('螢幕常亮已解除');
+        });
+      }
     }
 
     function initMap() {
@@ -275,12 +243,12 @@
         .then(data => {
           isDriver = (data.role === 'driver');
           if (isDriver) {
-            document.getElementById('btn-power').style.display = 'flex';
-            document.getElementById('btn-register').style.display = 'none';
+            document.getElementById('driver-controls').style.display = 'flex';
+            document.getElementById('passenger-top-right').style.display = 'none';
             document.getElementById('passenger-carousel').style.display = 'none';
           } else {
-            document.getElementById('btn-power').style.display = 'none';
-            document.getElementById('btn-register').style.display = 'flex';
+            document.getElementById('driver-controls').style.display = 'none';
+            document.getElementById('passenger-top-right').style.display = 'block';
             document.getElementById('passenger-carousel').style.display = 'flex';
           }
         });
@@ -296,17 +264,17 @@
       if (isOnline) {
         btnPower.className = "circle-btn bg-red";
         btnPower.innerHTML = `<span>下線</span><span class="sub-text">ON</span>`;
-        btnStatus.style.display = 'flex';
-        btnSave.style.display = 'flex';
-        requestWakeLock();
+        btnStatus.classList.add('show');
+        btnSave.classList.add('show');
+        requestWakeLock(); // 上線就開啟常亮
         resetUpdateTimer();
       } else {
         btnPower.className = "circle-btn bg-green";
         btnPower.innerHTML = `<span>上線</span><span class="sub-text">OFF</span>`;
-        btnStatus.style.display = 'none';
-        btnSave.style.display = 'none';
+        btnStatus.classList.remove('show');
+        btnSave.classList.remove('show');
         clearInterval(updateTimer);
-        releaseWakeLock();
+        releaseWakeLock(); // 下線就解除常亮
         postData('offline', isBusy ? 'busy' : 'empty', 0, 0);
         if (isPowerSaving) togglePowerSaving();
       }
@@ -315,7 +283,7 @@
     function toggleStatus() {
       isBusy = !isBusy;
       const btnStatus = document.getElementById('btn-status');
-      btnStatus.className = isBusy ? "circle-btn bg-red" : "circle-btn bg-green";
+      btnStatus.className = isBusy ? "circle-btn bg-red show" : "circle-btn bg-green show";
       btnStatus.innerHTML = isBusy ? `<span>載客</span>` : `<span>空車</span>`;
       uploadLocation();
     }
@@ -361,12 +329,15 @@
       }).catch(e => console.log(e));
     }
 
-    // --- 註冊與其他 ---
+    // --- 註冊功能 ---
     function openModal() {
       document.getElementById('reg-uid').value = currentUser.userId;
       document.getElementById('modal-overlay').style.display = 'flex';
     }
-    function closeModal() { document.getElementById('modal-overlay').style.display = 'none'; }
+
+    function closeModal() {
+      document.getElementById('modal-overlay').style.display = 'none';
+    }
 
     async function submitRegistration() {
       const name = document.getElementById('reg-name').value;
@@ -378,7 +349,7 @@
         await liff.sendMessages([{ type: 'text', text: msg }]);
         alert("資料已傳送！請等候管理員審核。");
         closeModal();
-      } catch (err) { alert("傳送失敗。"); }
+      } catch (err) { alert("傳送失敗，請確認在 LINE 內開啟。"); }
     }
 
     function fetchDrivers() {
