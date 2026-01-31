@@ -9,7 +9,7 @@
     body { margin: 0; padding: 0; font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto; overflow: hidden; background: #f0f0f0; }
     #map { width: 100vw; height: 100vh; z-index: 1; transition: opacity 0.5s; }
     
-    /* 左上角 HUD - 稍微放大字體 */
+    /* 左上角 HUD */
     #hud {
       position: absolute; top: 15px; left: 15px; z-index: 999;
       background: rgba(30, 30, 30, 0.9); color: white; padding: 12px 20px;
@@ -19,15 +19,10 @@
     }
     .status-dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
     
-    /* 司機控制面板 */
-    #driver-controls {
-      display: none; position: absolute; top: 15px; right: 15px; z-index: 1000;
-      flex-direction: column; align-items: center; gap: 12px;
-    }
-
-    /* 乘客註冊按鈕 */
-    #passenger-top-right {
-      display: none; position: absolute; top: 15px; right: 15px; z-index: 1000;
+    /* 右上角控制區容器 */
+    #top-right-panel {
+      position: absolute; top: 15px; right: 15px; z-index: 1000;
+      display: flex; flex-direction: column; align-items: center; gap: 12px;
     }
 
     .circle-btn {
@@ -40,15 +35,18 @@
     }
     .circle-btn:active { transform: scale(0.85); box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
     
-    #btn-power { width: 85px; height: 85px; font-size: 20px; } /* 放大按鈕 */
-    #btn-status { width: 70px; height: 70px; font-size: 16px; opacity: 0; transform: translateY(-10px); pointer-events: none; }
-    #btn-status.show { opacity: 1; transform: translateY(0); pointer-events: auto; }
-    #btn-save-power { width: 70px; height: 70px; font-size: 14px; background: #34495e; opacity: 0; transform: translateY(-10px); pointer-events: none; }
-    #btn-save-power.show { opacity: 1; transform: translateY(0); pointer-events: auto; }
+    #btn-power { width: 85px; height: 85px; font-size: 20px; }
+    #btn-status { width: 70px; height: 70px; font-size: 16px; display: none; }
+    #btn-save-power { width: 70px; height: 70px; font-size: 14px; background: #34495e; display: none; }
+    #btn-register { width: 75px; height: 75px; font-size: 15px; background: linear-gradient(135deg, #f39c12, #e67e22); display: none; }
     
-    #btn-register { width: 75px; height: 75px; font-size: 15px; background: linear-gradient(135deg, #f39c12, #e67e22); }
+    /* 分享掃碼按鈕 (藍色) */
+    #btn-share { 
+      width: 60px; height: 60px; font-size: 13px; 
+      background: linear-gradient(135deg, #3498db, #2980b9); 
+    }
 
-    /* 黑屏省電模式遮罩 */
+    /* 黑屏遮罩 */
     #power-save-overlay {
       display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
       background: black; z-index: 2000; color: #444; flex-direction: column;
@@ -57,37 +55,39 @@
     #power-save-overlay.active { display: flex; }
     #power-save-overlay p { color: #00ff00; margin-top: 20px; font-size: 18px; opacity: 0.5; }
 
-    /* 註冊彈窗 */
-    #modal-overlay {
+    /* 通用彈窗 */
+    .modal-overlay {
       display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-      background: rgba(0,0,0,0.75); z-index: 3000; justify-content: center; align-items: center;
+      background: rgba(0,0,0,0.8); z-index: 3000; justify-content: center; align-items: center;
       backdrop-filter: blur(5px);
     }
     .modal-content {
-      background: white; width: 90%; max-width: 380px; border-radius: 24px;
-      padding: 30px; box-sizing: border-box;
+      background: white; width: 85%; max-width: 350px; border-radius: 24px;
+      padding: 25px; box-sizing: border-box; text-align: center;
     }
-    .form-group { margin-bottom: 20px; }
-    .form-group label { display: block; font-size: 14px; color: #666; margin-bottom: 8px; }
-    .form-group input { width: 100%; padding: 15px; border: 2px solid #eee; border-radius: 12px; box-sizing: border-box; font-size: 18px; }
-    .modal-btns { display: flex; gap: 15px; margin-top: 25px; }
-    .modal-btns button { flex: 1; padding: 15px; border-radius: 12px; border: none; font-size: 16px; font-weight: bold; }
-    .btn-cancel { background: #f5f5f5; color: #666; }
-    .btn-submit { background: #2ecc71; color: white; }
+
+    /* QR Code 顯示區 */
+    #qrcode-container {
+      background: #f9f9f9; padding: 15px; border-radius: 15px; margin: 15px 0;
+      display: flex; justify-content: center; align-items: center;
+    }
+    #qrcode-container img { width: 200px; height: 200px; }
+
+    /* 註冊表單 */
+    .form-group { margin-bottom: 15px; text-align: left; }
+    .form-group label { display: block; font-size: 13px; color: #666; margin-bottom: 5px; }
+    .form-group input { width: 100%; padding: 12px; border: 2px solid #eee; border-radius: 10px; box-sizing: border-box; font-size: 16px; }
+
+    .modal-btns button { width: 100%; padding: 15px; border-radius: 12px; border: none; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px; }
 
     /* 底部卡片 */
     #passenger-carousel { position: absolute; bottom: 20px; left: 0; width: 100%; z-index: 1000; display: none; overflow-x: auto; gap: 12px; padding: 0 15px 15px 15px; box-sizing: border-box; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; }
     .driver-card { flex: 0 0 88%; max-width: 340px; background: white; border-radius: 20px; padding: 18px; box-shadow: 0 8px 25px rgba(0,0,0,0.2); scroll-snap-align: center; display: flex; align-items: center; justify-content: space-between; }
-    .card-name { font-size: 18px; font-weight: bold; color: #222; }
-    .card-call-btn { background: #2ecc71; color: white; border: none; width: 55px; height: 55px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 24px; text-decoration: none; box-shadow: 0 4px 12px rgba(46,204,113,0.4); }
-
+    
     .bg-green { background: linear-gradient(135deg, #2ecc71, #27ae60); }
     .bg-red   { background: linear-gradient(135deg, #e74c3c, #c0392b); }
     .bg-gray  { background: linear-gradient(135deg, #bdc3c7, #95a5a6); }
-    .text-green { color: #27ae60; }
-    .text-red { color: #c0392b; }
     .sub-text { font-size: 12px; opacity: 0.9; margin-top: 4px; }
-    
     .leaflet-bottom { bottom: 140px !important; }
   </style>
 </head>
@@ -100,17 +100,32 @@
     <div style="font-size: 14px; color: #333; margin-top: 50px;">點擊螢幕回歸地圖</div>
   </div>
 
-  <!-- 註冊彈窗 -->
-  <div id="modal-overlay">
+  <!-- 分享彈窗 -->
+  <div id="share-modal" class="modal-overlay">
     <div class="modal-content">
-      <h2 style="text-align:center; margin-top:0;">司機註冊申請</h2>
+      <h3 style="margin-top:0;">掃碼加入平台</h3>
+      <p style="font-size: 14px; color: #666;">讓其他司機或乘客掃描此碼<br>即可立即開啟服務</p>
+      <div id="qrcode-container">
+        <!-- QR Code 會在這裡生成 -->
+        <img id="qrcode-img" src="" alt="QR Code">
+      </div>
+      <div class="modal-btns">
+        <button style="background:#eee; color:#333;" onclick="closeModal('share-modal')">關閉</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 註冊彈窗 -->
+  <div id="reg-modal" class="modal-overlay">
+    <div class="modal-content">
+      <h3 style="margin-top:0;">司機註冊申請</h3>
       <div class="form-group">
-        <label>您的 LINE ID</label>
+        <label>LINE ID</label>
         <input type="text" id="reg-uid" readonly style="background:#f0f0f0;">
       </div>
       <div class="form-group">
-        <label>司機姓名/暱稱</label>
-        <input type="text" id="reg-name" placeholder="請輸入姓名">
+        <label>司機暱稱</label>
+        <input type="text" id="reg-name" placeholder="請填寫姓名">
       </div>
       <div class="form-group">
         <label>車牌號碼</label>
@@ -121,8 +136,8 @@
         <input type="tel" id="reg-phone" placeholder="09xx-xxx-xxx">
       </div>
       <div class="modal-btns">
-        <button class="btn-cancel" onclick="closeModal()">關閉</button>
-        <button class="btn-submit" onclick="submitRegistration()">送出資料</button>
+        <button style="background:#2ecc71; color:white;" onclick="submitRegistration()">送出資料</button>
+        <button style="background:#eee; color:#666;" onclick="closeModal('reg-modal')">取消</button>
       </div>
     </div>
   </div>
@@ -133,9 +148,10 @@
 
   <div id="map"></div>
 
-  <!-- 司機面板 -->
-  <div id="driver-controls">
-    <button id="btn-power" class="circle-btn bg-gray" onclick="togglePower()">
+  <!-- 右上角控制區 -->
+  <div id="top-right-panel">
+    <!-- 司機按鈕 -->
+    <button id="btn-power" class="circle-btn bg-gray" style="display:none;" onclick="togglePower()">
       <span>上線</span>
       <span class="sub-text">OFF</span>
     </button>
@@ -145,12 +161,15 @@
     <button id="btn-save-power" class="circle-btn" onclick="togglePowerSaving()">
       <span>省電</span>
     </button>
-  </div>
 
-  <!-- 乘客註冊入口 -->
-  <div id="passenger-top-right">
-    <button id="btn-register" class="circle-btn" onclick="openModal()">
+    <!-- 乘客按鈕 -->
+    <button id="btn-register" class="circle-btn" onclick="openModal('reg-modal')">
       <span>司機<br>註冊</span>
+    </button>
+
+    <!-- 共有按鈕：掃碼分享 -->
+    <button id="btn-share" class="circle-btn" onclick="openShareModal()">
+      <span>分享<br>平台</span>
     </button>
   </div>
 
@@ -169,7 +188,7 @@
     var myLat = null, myLng = null;
     var isOnline = false, isBusy = false, isPowerSaving = false;
     var updateTimer = null;
-    var wakeLock = null; // 螢幕常亮鎖定對象
+    var wakeLock = null;
 
     const iconEmpty = L.divIcon({ html: '<div style="font-size:36px;">🚕</div>', className: '', iconSize: [36, 36], iconAnchor: [18, 18] });
     const iconBusy = L.divIcon({ html: '<div style="font-size:36px; filter: grayscale(100%) opacity(0.6);">🚕</div>', className: '', iconSize: [36, 36], iconAnchor: [18, 18] });
@@ -178,7 +197,6 @@
       initMap();
       await initLiff();
       
-      // 監聽可見性變化：如果使用者切換視窗回來，重新鎖定螢幕
       document.addEventListener('visibilitychange', async () => {
         if (wakeLock !== null && document.visibilityState === 'visible' && isOnline) {
           await requestWakeLock();
@@ -186,26 +204,23 @@
       });
     };
 
-    // [核心功能] 請求螢幕常亮
+    // 螢幕鎖定功能
     async function requestWakeLock() {
       if ('wakeLock' in navigator) {
-        try {
-          wakeLock = await navigator.wakeLock.request('screen');
-          console.log('螢幕常亮已啟用');
-        } catch (err) {
-          console.error(`${err.name}, ${err.message}`);
-        }
+        try { wakeLock = await navigator.wakeLock.request('screen'); } catch (err) {}
       }
     }
-
-    // [核心功能] 釋放螢幕鎖定
     function releaseWakeLock() {
-      if (wakeLock !== null) {
-        wakeLock.release().then(() => {
-          wakeLock = null;
-          console.log('螢幕常亮已解除');
-        });
-      }
+      if (wakeLock !== null) { wakeLock.release().then(() => wakeLock = null); }
+    }
+
+    // [新增] 開啟分享彈窗並生成 QR Code
+    function openShareModal() {
+      const liffUrl = `https://liff.line.me/${LIFF_ID}`;
+      // 使用 QRServer API 生成圖片，這不需要額外引用 JS 庫，最穩定
+      const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(liffUrl)}`;
+      document.getElementById('qrcode-img').src = qrApiUrl;
+      openModal('share-modal');
     }
 
     function initMap() {
@@ -243,12 +258,12 @@
         .then(data => {
           isDriver = (data.role === 'driver');
           if (isDriver) {
-            document.getElementById('driver-controls').style.display = 'flex';
-            document.getElementById('passenger-top-right').style.display = 'none';
+            document.getElementById('btn-power').style.display = 'flex';
+            document.getElementById('btn-register').style.display = 'none';
             document.getElementById('passenger-carousel').style.display = 'none';
           } else {
-            document.getElementById('driver-controls').style.display = 'none';
-            document.getElementById('passenger-top-right').style.display = 'block';
+            document.getElementById('btn-power').style.display = 'none';
+            document.getElementById('btn-register').style.display = 'flex';
             document.getElementById('passenger-carousel').style.display = 'flex';
           }
         });
@@ -264,17 +279,17 @@
       if (isOnline) {
         btnPower.className = "circle-btn bg-red";
         btnPower.innerHTML = `<span>下線</span><span class="sub-text">ON</span>`;
-        btnStatus.classList.add('show');
-        btnSave.classList.add('show');
-        requestWakeLock(); // 上線就開啟常亮
+        btnStatus.style.display = 'flex';
+        btnSave.style.display = 'flex';
+        requestWakeLock();
         resetUpdateTimer();
       } else {
         btnPower.className = "circle-btn bg-green";
         btnPower.innerHTML = `<span>上線</span><span class="sub-text">OFF</span>`;
-        btnStatus.classList.remove('show');
-        btnSave.classList.remove('show');
+        btnStatus.style.display = 'none';
+        btnSave.style.display = 'none';
         clearInterval(updateTimer);
-        releaseWakeLock(); // 下線就解除常亮
+        releaseWakeLock();
         postData('offline', isBusy ? 'busy' : 'empty', 0, 0);
         if (isPowerSaving) togglePowerSaving();
       }
@@ -283,7 +298,7 @@
     function toggleStatus() {
       isBusy = !isBusy;
       const btnStatus = document.getElementById('btn-status');
-      btnStatus.className = isBusy ? "circle-btn bg-red show" : "circle-btn bg-green show";
+      btnStatus.className = isBusy ? "circle-btn bg-red" : "circle-btn bg-green";
       btnStatus.innerHTML = isBusy ? `<span>載客</span>` : `<span>空車</span>`;
       uploadLocation();
     }
@@ -329,15 +344,12 @@
       }).catch(e => console.log(e));
     }
 
-    // --- 註冊功能 ---
-    function openModal() {
-      document.getElementById('reg-uid').value = currentUser.userId;
-      document.getElementById('modal-overlay').style.display = 'flex';
+    // --- 彈窗通用 ---
+    function openModal(id) {
+      if (id === 'reg-modal') document.getElementById('reg-uid').value = currentUser.userId;
+      document.getElementById(id).style.display = 'flex';
     }
-
-    function closeModal() {
-      document.getElementById('modal-overlay').style.display = 'none';
-    }
+    function closeModal(id) { document.getElementById(id).style.display = 'none'; }
 
     async function submitRegistration() {
       const name = document.getElementById('reg-name').value;
@@ -348,7 +360,7 @@
       try {
         await liff.sendMessages([{ type: 'text', text: msg }]);
         alert("資料已傳送！請等候管理員審核。");
-        closeModal();
+        closeModal('reg-modal');
       } catch (err) { alert("傳送失敗，請確認在 LINE 內開啟。"); }
     }
 
