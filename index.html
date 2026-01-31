@@ -61,11 +61,24 @@
 
     #btn-status { width: 60px; height: 60px; font-size: 14px; }
     
-    /* 省電模式按鈕 (小一點) */
-    #btn-eco { 
+    /* 省電與黑屏按鈕 (小一點) */
+    .small-btn { 
       width: 50px; height: 50px; font-size: 12px; 
-      background: linear-gradient(135deg, #f1c40f, #f39c12);
     }
+    #btn-eco { background: linear-gradient(135deg, #f1c40f, #f39c12); }
+    #btn-black { background: linear-gradient(135deg, #34495e, #2c3e50); }
+
+    /* === 黑屏覆蓋層 === */
+    #black-overlay {
+      display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+      background: #000000; z-index: 99999;
+      flex-direction: column; justify-content: center; align-items: center;
+      color: #333; /* 很暗的字，防止刺眼 */
+      touch-action: manipulation;
+    }
+    #black-overlay.active { display: flex; }
+    .saver-text { font-size: 20px; font-weight: bold; margin-bottom: 20px; color: #555; }
+    .saver-hint { font-size: 14px; color: #444; }
 
     /* === 乘客底部卡片 === */
     #passenger-carousel {
@@ -111,6 +124,12 @@
   <!-- 地圖 -->
   <div id="map"></div>
 
+  <!-- 黑屏保護層 -->
+  <div id="black-overlay" onclick="disableBlackScreen()">
+    <div class="saver-text">省電模式運作中</div>
+    <div class="saver-hint">點擊螢幕喚醒</div>
+  </div>
+
   <!-- 右上角區域 -->
   <div id="top-right-area">
     
@@ -125,15 +144,19 @@
         <span>上線</span><span class="sub-text">OFF</span>
       </button>
       
-      <!-- 子控制項 (包含空車與省電) -->
+      <!-- 子控制項 -->
       <div id="sub-controls" class="sub-controls">
         <!-- 空車/載客 -->
         <button id="btn-status" class="circle-btn bg-green" onclick="toggleStatus()">
           <span>空車</span>
         </button>
-        <!-- 省電模式 -->
-        <button id="btn-eco" class="circle-btn" style="background: #f1c40f;" onclick="toggleEco()">
+        <!-- 省電模式 (降低頻率) -->
+        <button id="btn-eco" class="circle-btn small-btn" onclick="toggleEco()">
           <span>省電</span><span class="sub-text" id="eco-text">OFF</span>
+        </button>
+        <!-- 黑屏模式 (關閉螢幕顯示) -->
+        <button id="btn-black" class="circle-btn small-btn" onclick="enableBlackScreen()">
+          <span>黑屏</span>
         </button>
       </div>
 
@@ -161,6 +184,9 @@
     var isOnline = false, isBusy = false, isEco = false;
     var updateTimer = null;
     var updateInterval = 30000; // 預設 30秒
+
+    // 喚醒鎖物件
+    let wakeLock = null;
 
     const iconEmpty = L.divIcon({ html: '<div style="font-size:32px; filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.4));">🚕</div>', className: '', iconSize: [32, 32], iconAnchor: [16, 16] });
     const iconBusy = L.divIcon({ html: '<div style="font-size:32px; filter: grayscale(100%) opacity(0.7);">🚕</div>', className: '', iconSize: [32, 32], iconAnchor: [16, 16] });
@@ -219,9 +245,8 @@
         });
     }
 
-    // --- 司機註冊流程 (新功能) ---
+    // --- 司機註冊流程 (修正版：加入 UserID) ---
     function registerProcess() {
-      // 1. 簡單的問答式輸入
       var name = prompt("請輸入您的【姓名】或【代號】：\n(例如：阿財)");
       if (!name) return;
       
@@ -231,21 +256,19 @@
       var car = prompt("請輸入您的【車牌號碼】：\n(例如：TDP-1123)");
       if (!car) car = "未填寫";
 
-      // 2. 組合成指令
-      var msg = `#註冊 姓名:${name} 電話:${phone} 車牌:${car}`;
+      // 修正：將 UserID 加入訊息內容中
+      var msg = `#註冊 姓名:${name} 電話:${phone} 車牌:${car} ID:${currentUser.userId}`;
 
-      // 3. 透過 LIFF 幫使用者發送訊息給機器人
       if (liff.isInClient()) {
         liff.sendMessages([{ 'type': 'text', 'text': msg }])
           .then(function() {
             alert('✅ 註冊申請已送出！\n請留意總台的回覆訊息。');
-            liff.closeWindow(); // 關閉視窗讓他也看聊天室
+            liff.closeWindow(); 
           })
           .catch(function(error) {
             alert('發送失敗，請手動輸入指令。');
           });
       } else {
-        // 如果是在外部瀏覽器開啟，就只能提示他
         alert("請回到 LINE 聊天室輸入以下指令註冊：\n\n" + msg);
       }
     }
@@ -267,6 +290,7 @@
         btnPower.innerHTML = `<span>上線</span><span class="sub-text">OFF</span>`;
         subControls.classList.remove('show');
         clearInterval(updateTimer);
+        disableBlackScreen(); // 下線自動解開黑屏
         postData('offline', isBusy ? 'busy' : 'empty', 0, 0);
       }
     }
@@ -284,30 +308,53 @@
       uploadLocation();
     }
 
-    // --- 省電模式 (新功能) ---
+    // --- 省電模式 (頻率控制) ---
     function toggleEco() {
       isEco = !isEco;
       const btnEco = document.getElementById('btn-eco');
       const ecoText = document.getElementById('eco-text');
 
       if (isEco) {
-        // 開啟省電：更新頻率變慢 (2分鐘)
-        updateInterval = 120000; 
-        btnEco.className = "circle-btn bg-eco-on";
+        updateInterval = 120000; // 2分鐘
+        btnEco.className = "circle-btn small-btn bg-eco-on";
         ecoText.innerText = "ON";
         alert("🔋 省電模式已開啟\n位置更新改為每 2 分鐘一次");
       } else {
-        // 關閉省電：恢復正常 (30秒)
-        updateInterval = 30000;
-        btnEco.className = "circle-btn";
-        btnEco.style.background = "#f1c40f"; // 恢復黃色
+        updateInterval = 30000; // 30秒
+        btnEco.className = "circle-btn small-btn";
+        btnEco.style.background = "#f1c40f"; 
         ecoText.innerText = "OFF";
         alert("⚡ 高效模式已恢復\n位置更新改為每 30 秒一次");
       }
       
-      // 如果正在上班，要重啟計時器才會生效
-      if (isOnline) {
-        restartTimer();
+      if (isOnline) restartTimer();
+    }
+
+    // --- 黑屏模式 (OLED保護 + 喚醒鎖) ---
+    async function enableBlackScreen() {
+      const overlay = document.getElementById('black-overlay');
+      overlay.classList.add('active');
+      
+      // 請求喚醒鎖 (防止手機自動鎖定導致斷網)
+      if ('wakeLock' in navigator) {
+        try {
+          wakeLock = await navigator.wakeLock.request('screen');
+          console.log('Wake Lock active');
+        } catch (err) {
+          console.error(`${err.name}, ${err.message}`);
+          // 如果喚醒鎖失敗，至少黑屏還在
+        }
+      }
+    }
+
+    function disableBlackScreen() {
+      const overlay = document.getElementById('black-overlay');
+      overlay.classList.remove('active');
+      
+      // 釋放喚醒鎖
+      if (wakeLock !== null) {
+        wakeLock.release()
+          .then(() => { wakeLock = null; });
       }
     }
 
