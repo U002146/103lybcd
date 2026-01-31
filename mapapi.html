@@ -85,7 +85,7 @@
         .location-grid { max-height: 50vh; overflow-y: auto; padding: 4px; }
         .fa-spin-fast { animation: spin 1s linear infinite; }
 
-        /* --- NEW: 3.1 時間選擇器 UI (Sheet Modal) --- */
+        /* --- NEW: 3.2 時間選擇器 UI (Sheet Modal) --- */
         #time-selector-modal {
             position: fixed; top: 0; left: 0; right: 0; bottom: 0;
             z-index: 100;
@@ -105,7 +105,7 @@
             padding-bottom: 40px;
             transform: translateY(100%);
             transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
-            max-height: 80vh;
+            max-height: 85vh; /* 稍微加高以容納內容 */
             display: flex;
             flex-direction: column;
         }
@@ -176,10 +176,10 @@
             color: #94a3b8;
         }
 
-        /* Minute Overlay */
+        /* Minute Overlay - 修正: 移除 display:none，完全交給 Tailwind class 控制 */
         #minute-selection-view {
-            display: none; /* Hidden by default */
             flex-direction: column;
+            /* display: none; <--- 移除這個導致 BUG 的兇手 */
         }
     </style>
 </head>
@@ -277,12 +277,15 @@
         </div>
     </div>
 
-    <!-- NEW: 3.1 時間選擇器 Modal -->
+    <!-- NEW: 3.2 時間選擇器 Modal (修正版) -->
     <div id="time-selector-modal" onclick="closeModernTimeSelector(event)">
         <div id="time-selector-content" onclick="event.stopPropagation()">
-            <!-- Header -->
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-xl font-bold text-slate-800">選擇預約時間</h3>
+            <!-- Header (Changed bg slightly for version visual check) -->
+            <div class="flex justify-between items-center mb-4 pb-2 border-b border-gray-100">
+                <div class="flex items-baseline">
+                    <h3 class="text-xl font-bold text-slate-800 mr-2">選擇預約時間</h3>
+                    <span class="text-[10px] text-gray-400 font-mono">v3.2</span>
+                </div>
                 <button type="button" onclick="closeModernTimeSelector()" class="w-8 h-8 rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
             </div>
 
@@ -306,10 +309,10 @@
                 </div>
             </div>
 
-            <!-- VIEW 2: Minute Selection (Hidden by default) -->
+            <!-- VIEW 2: Minute Selection (Hidden by default using Tailwind) -->
             <div id="minute-selection-view" class="hidden h-64">
                 <div class="flex items-center mb-4">
-                    <button type="button" onclick="backToHourView()" class="mr-3 w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center text-gray-600"><i class="fa-solid fa-arrow-left"></i></button>
+                    <button type="button" onclick="backToHourView()" class="mr-3 w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center text-gray-600 active:bg-gray-100"><i class="fa-solid fa-arrow-left"></i></button>
                     <span class="text-lg font-bold text-slate-800">
                         <span id="selected-date-display" class="text-slate-500 mr-1 text-base"></span>
                         <span id="selected-hour-display" class="text-blue-600 text-2xl"></span>
@@ -336,7 +339,7 @@
     <script>
         // --- 設定與 API ---
         const API_KEY = 'AIzaSyAlTcoOPEZeeMNwTGTap39VPsW85Ux8NHo'; 
-        const LIFF_ID = '2008907691-7ntMtfbA'; 
+        const LIFF_ID = '2008907691-7ntMtfbA'; // UPDATED
 
         const PRESET_LOCATIONS = [{name:'常用地址 A',icon:'⭐',value:'FAV_ADDR_A'},{name:'常用地址 B',icon:'⭐',value:'FAV_ADDR_B'},{name:'花蓮前站',icon:'🚉'},{name:'花蓮後站',icon:'🚉'},{name:'慈濟醫院',icon:'🏥'},{name:'門諾醫院',icon:'🏥'},{name:'花蓮縣政府',icon:'🏢'},{name:'遠東百貨',icon:'🛍️'}];
         const PAYMENT_METHODS = [{id:'現金',label:'現金',icon:'fa-coins',color:'text-slate-600'},{id:'敬老卡',label:'敬老卡',sub:'(65歲+)',icon:'fa-person-cane',color:'text-orange-500'},{id:'愛心卡',label:'愛心卡',sub:'(身障)',icon:'fa-heart',color:'text-rose-500'},{id:'乘車券',label:'乘車券',icon:'fa-ticket',color:'text-blue-500'},{id:'TWRQ',label:'TWRQ',icon:'fa-qrcode',color:'text-purple-500'},{id:'LINE PAY',label:'LINE Pay',icon:'fa-brands fa-line',color:'text-green-500'},{id:'APPLE PAY',label:'Apple Pay',icon:'fa-brands fa-apple',color:'text-black'}];
@@ -505,7 +508,7 @@
             iconElem.classList.add(colorClass.replace('text-','text-').replace('500','600')); 
         }
 
-        // --- V3.1 Robust Time Selector Logic ---
+        // --- V3.2 Robust Time Selector Logic ---
         
         function generateDates() {
             const dates = [];
@@ -604,7 +607,7 @@
             
             hourView.classList.add('hidden');
             minView.classList.remove('hidden');
-            minView.classList.add('flex');
+            minView.classList.add('flex'); // Now this will work because #ID doesn't have display:none
             
             // Update Header
             const dateObj = pickerState.dates[pickerState.dateIndex];
