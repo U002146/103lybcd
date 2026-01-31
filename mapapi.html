@@ -85,7 +85,7 @@
         .location-grid { max-height: 50vh; overflow-y: auto; padding: 4px; }
         .fa-spin-fast { animation: spin 1s linear infinite; }
 
-        /* --- NEW: 3.2 時間選擇器 UI (Sheet Modal) --- */
+        /* --- V3.3 時間選擇器 UI (Sheet Modal) --- */
         #time-selector-modal {
             position: fixed; top: 0; left: 0; right: 0; bottom: 0;
             z-index: 100;
@@ -105,7 +105,7 @@
             padding-bottom: 40px;
             transform: translateY(100%);
             transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
-            max-height: 85vh; /* 稍微加高以容納內容 */
+            max-height: 85vh; 
             display: flex;
             flex-direction: column;
         }
@@ -176,10 +176,9 @@
             color: #94a3b8;
         }
 
-        /* Minute Overlay - 修正: 移除 display:none，完全交給 Tailwind class 控制 */
+        /* Minute Overlay */
         #minute-selection-view {
             flex-direction: column;
-            /* display: none; <--- 移除這個導致 BUG 的兇手 */
         }
     </style>
 </head>
@@ -202,6 +201,8 @@
         <button id="btn-my-loc" onclick="panToCurrentLocation()" class="absolute bottom-8 right-4 bg-white w-12 h-12 rounded-full shadow-lg z-30 text-slate-700 active:bg-slate-100 active:scale-95 transition-all flex items-center justify-center border border-gray-100">
             <i id="icon-my-loc" class="fa-solid fa-crosshairs text-xl"></i>
         </button>
+        <!-- LIFF Status Indicator (For Debug) -->
+        <div id="liff-status-dot" class="absolute bottom-5 left-5 w-3 h-3 rounded-full bg-red-500 border-2 border-white shadow-md z-30" title="LIFF Status"></div>
     </div>
 
     <!-- 下半部：控制面板 -->
@@ -277,14 +278,14 @@
         </div>
     </div>
 
-    <!-- NEW: 3.2 時間選擇器 Modal (修正版) -->
+    <!-- NEW: 3.3 時間選擇器 Modal (修正版) -->
     <div id="time-selector-modal" onclick="closeModernTimeSelector(event)">
         <div id="time-selector-content" onclick="event.stopPropagation()">
-            <!-- Header (Changed bg slightly for version visual check) -->
+            <!-- Header -->
             <div class="flex justify-between items-center mb-4 pb-2 border-b border-gray-100">
                 <div class="flex items-baseline">
                     <h3 class="text-xl font-bold text-slate-800 mr-2">選擇預約時間</h3>
-                    <span class="text-[10px] text-gray-400 font-mono">v3.2</span>
+                    <span class="text-[10px] text-emerald-600 font-mono font-bold">v3.3</span>
                 </div>
                 <button type="button" onclick="closeModernTimeSelector()" class="w-8 h-8 rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
             </div>
@@ -319,14 +320,9 @@
                         <span class="text-slate-400">點</span>
                     </span>
                 </div>
-                <div class="text-sm text-gray-500 mb-2 font-bold">選擇分鐘</div>
-                <div class="grid grid-cols-3 gap-3">
-                    <button type="button" onclick="selectMinute('00')" class="time-btn text-lg">00 分</button>
-                    <button type="button" onclick="selectMinute('10')" class="time-btn text-lg">10 分</button>
-                    <button type="button" onclick="selectMinute('20')" class="time-btn text-lg">20 分</button>
-                    <button type="button" onclick="selectMinute('30')" class="time-btn text-lg">30 分</button>
-                    <button type="button" onclick="selectMinute('40')" class="time-btn text-lg">40 分</button>
-                    <button type="button" onclick="selectMinute('50')" class="time-btn text-lg">50 分</button>
+                <div class="text-sm text-gray-500 mb-2 font-bold">選擇分鐘 (5分間隔)</div>
+                <div class="grid grid-cols-4 gap-3" id="minute-grid-container">
+                    <!-- JS Generated 5-min intervals -->
                 </div>
             </div>
             
@@ -339,7 +335,7 @@
     <script>
         // --- 設定與 API ---
         const API_KEY = 'AIzaSyAlTcoOPEZeeMNwTGTap39VPsW85Ux8NHo'; 
-        const LIFF_ID = '2008907691-7ntMtfbA'; // UPDATED
+        const LIFF_ID = '2008907691-7ntMtfbA'; 
 
         const PRESET_LOCATIONS = [{name:'常用地址 A',icon:'⭐',value:'FAV_ADDR_A'},{name:'常用地址 B',icon:'⭐',value:'FAV_ADDR_B'},{name:'花蓮前站',icon:'🚉'},{name:'花蓮後站',icon:'🚉'},{name:'慈濟醫院',icon:'🏥'},{name:'門諾醫院',icon:'🏥'},{name:'花蓮縣政府',icon:'🏢'},{name:'遠東百貨',icon:'🛍️'}];
         const PAYMENT_METHODS = [{id:'現金',label:'現金',icon:'fa-coins',color:'text-slate-600'},{id:'敬老卡',label:'敬老卡',sub:'(65歲+)',icon:'fa-person-cane',color:'text-orange-500'},{id:'愛心卡',label:'愛心卡',sub:'(身障)',icon:'fa-heart',color:'text-rose-500'},{id:'乘車券',label:'乘車券',icon:'fa-ticket',color:'text-blue-500'},{id:'TWRQ',label:'TWRQ',icon:'fa-qrcode',color:'text-purple-500'},{id:'LINE PAY',label:'LINE Pay',icon:'fa-brands fa-line',color:'text-green-500'},{id:'APPLE PAY',label:'Apple Pay',icon:'fa-brands fa-apple',color:'text-black'}];
@@ -347,9 +343,8 @@
         let map, geocoder, cachedPosition = null;
         let currentCenter = { lat: 25.0330, lng: 121.5654 };
         
-        // V3.0 Time Picker State
         let pickerState = {
-            dateIndex: 0,   // 0 = Today, 1 = Tomorrow...
+            dateIndex: 0,
             hour: null,
             minute: null,
             dates: []
@@ -375,8 +370,15 @@
             script.src = 'https://static.line-scdn.net/liff/edge/2/sdk.js';
             script.onload = () => { 
                 liff.init({ liffId: LIFF_ID })
-                    .then(() => { console.log('LIFF Initialized'); })
-                    .catch(e => { console.error('LIFF Init Failed:', e); });
+                    .then(() => { 
+                        console.log('LIFF Initialized'); 
+                        document.getElementById('liff-status-dot').classList.remove('bg-red-500');
+                        document.getElementById('liff-status-dot').classList.add('bg-green-500');
+                    })
+                    .catch(e => { 
+                        console.error('LIFF Init Failed:', e); 
+                        // Stay Red
+                    });
             };
             document.head.appendChild(script);
 
@@ -508,7 +510,7 @@
             iconElem.classList.add(colorClass.replace('text-','text-').replace('500','600')); 
         }
 
-        // --- V3.2 Robust Time Selector Logic ---
+        // --- V3.3 Robust Time Selector Logic ---
         
         function generateDates() {
             const dates = [];
@@ -552,7 +554,7 @@
         }
 
         function closeModernTimeSelector(e) {
-            if(e && e.target.id !== 'time-selector-modal' && !e.target.closest('button')) return; // Allow closing by button or backdrop
+            if(e && e.target.id !== 'time-selector-modal' && !e.target.closest('button')) return; 
             
             const modal = document.getElementById('time-selector-modal');
             const content = document.getElementById('time-selector-content');
@@ -588,7 +590,6 @@
             
             let html = '';
             for(let h=0; h<24; h++) {
-                // BUG FIX: use button type="button" to prevent implicit form submission
                 const isPast = pickerState.dateIndex === 0 && h <= currentHour; 
                 const displayH = h.toString().padStart(2, '0');
                 const disabledClass = isPast ? 'disabled' : '';
@@ -601,18 +602,30 @@
         window.selectPickerHour = function(h) {
             pickerState.hour = h;
             
-            // Explicitly force switch view
             const hourView = document.getElementById('hour-selection-view');
             const minView = document.getElementById('minute-selection-view');
             
             hourView.classList.add('hidden');
             minView.classList.remove('hidden');
-            minView.classList.add('flex'); // Now this will work because #ID doesn't have display:none
+            minView.classList.add('flex'); 
             
             // Update Header
             const dateObj = pickerState.dates[pickerState.dateIndex];
             document.getElementById('selected-date-display').innerText = dateObj.fullDate;
             document.getElementById('selected-hour-display').innerText = h.toString().padStart(2, '0');
+
+            // Render 5-min intervals
+            renderMinuteGrid();
+        }
+
+        function renderMinuteGrid() {
+            const container = document.getElementById('minute-grid-container');
+            let html = '';
+            for(let m=0; m<60; m+=5) {
+                const displayM = m.toString().padStart(2, '0');
+                html += `<button type="button" onclick="selectMinute('${displayM}')" class="time-btn text-lg">${displayM} 分</button>`;
+            }
+            container.innerHTML = html;
         }
 
         window.backToHourView = function() {
@@ -624,7 +637,7 @@
         window.selectMinute = function(m) {
             pickerState.minute = m;
             applyBookingTime();
-            closeModernTimeSelector();
+            closeModernTimeSelector(); // Auto Close Logic
         }
 
         window.selectNowAndClose = function() {
@@ -746,22 +759,28 @@
                 }
             };
 
-            // Formal Send Logic
+            // Formal Send Logic with Better Debugging
             try {
                 if (liff.isInClient()) {
                     await liff.sendMessages([flexMsg]);
-                    liff.closeWindow(); // Close window immediately after sending
+                    liff.closeWindow(); 
                 } else {
-                    // Fallback only for browser testing
+                    // Fallback / Debug Mode
                     console.log(flexMsg);
+                    
+                    // 偵測是否其實在 LINE 裡面但初始化失敗
+                    const isLine = navigator.userAgent.includes("Line");
+                    const statusText = isLine ? "偵測到 LINE 環境，但 LIFF 功能異常" : "此為瀏覽器測試模式 (非 LINE 環境)";
+                    
                     Swal.fire({
-                        icon: 'success',
-                        title: '模擬發送成功',
-                        html: `<p class="text-sm text-gray-500">此為瀏覽器測試模式<br>真機上會直接傳送訊息</p>
-                               <div class="mt-2 text-left bg-gray-50 p-2 rounded text-xs overflow-auto max-h-40">
+                        icon: 'info',
+                        title: '模擬發送 (LIFF未連線)',
+                        html: `<p class="text-xs text-red-500 font-bold mb-2">${statusText}</p>
+                               <div class="text-left bg-gray-50 p-2 rounded text-xs overflow-auto max-h-40">
                                  <strong>標題:</strong> ${headerTitle}<br>
                                  <strong>時間:</strong> ${bookingTime || nowTimeStr}<br>
-                                 <strong>付款:</strong> ${payment}
+                                 <strong>付款:</strong> ${payment}<br>
+                                 <span class="text-gray-400">若在 LINE 中看到此畫面，請檢查 LIFF ID 設定是否與網址匹配。</span>
                                </div>`,
                         confirmButtonText: '確定',
                         confirmButtonColor: '#0f172a'
@@ -769,7 +788,13 @@
                     btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-taxi mr-2"></i>確認叫車';
                 }
             } catch (e) {
-                alert("傳送失敗：" + e);
+                // Explicit Error Alert
+                Swal.fire({
+                    icon: 'error',
+                    title: '發送失敗',
+                    text: `錯誤代碼: ${e.code || 'Unknown'}\n訊息: ${e.message}`,
+                    confirmButtonColor: '#ef4444'
+                });
                 btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-taxi mr-2"></i>確認叫車';
             }
         }
