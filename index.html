@@ -39,12 +39,7 @@
     #btn-status { width: 70px; height: 70px; font-size: 16px; display: none; }
     #btn-save-power { width: 70px; height: 70px; font-size: 14px; background: #34495e; display: none; }
     #btn-register { width: 75px; height: 75px; font-size: 15px; background: linear-gradient(135deg, #f39c12, #e67e22); display: none; }
-    
-    /* 分享掃碼按鈕 (藍色) */
-    #btn-share { 
-      width: 60px; height: 60px; font-size: 13px; 
-      background: linear-gradient(135deg, #3498db, #2980b9); 
-    }
+    #btn-share { width: 60px; height: 60px; font-size: 13px; background: linear-gradient(135deg, #3498db, #2980b9); }
 
     /* 黑屏遮罩 */
     #power-save-overlay {
@@ -106,7 +101,6 @@
       <h3 style="margin-top:0;">掃碼加入平台</h3>
       <p style="font-size: 14px; color: #666;">讓其他司機或乘客掃描此碼<br>即可立即開啟服務</p>
       <div id="qrcode-container">
-        <!-- QR Code 會在這裡生成 -->
         <img id="qrcode-img" src="" alt="QR Code">
       </div>
       <div class="modal-btns">
@@ -179,8 +173,10 @@
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
+    // ========= 設定區 =========
     const GAS_URL = "https://script.google.com/macros/s/AKfycbyfNTgci2gZE2Etxvv6SHaP3puw7Mxt8ineL4gZve7Zyh2UGrcna4Zxap6EOyRICQ/exec"; 
     const LIFF_ID = "2008907691-7ntMtfbA"; 
+    // =========================
 
     var map, markers = {};
     var currentUser = null;
@@ -214,10 +210,8 @@
       if (wakeLock !== null) { wakeLock.release().then(() => wakeLock = null); }
     }
 
-    // [新增] 開啟分享彈窗並生成 QR Code
     function openShareModal() {
       const liffUrl = `https://liff.line.me/${LIFF_ID}`;
-      // 使用 QRServer API 生成圖片，這不需要額外引用 JS 庫，最穩定
       const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(liffUrl)}`;
       document.getElementById('qrcode-img').src = qrApiUrl;
       openModal('share-modal');
@@ -269,29 +263,35 @@
         });
     }
 
-    // --- 司機功能 ---
     function togglePower() {
-      isOnline = !isOnline;
-      const btnPower = document.getElementById('btn-power');
-      const btnStatus = document.getElementById('btn-status');
-      const btnSave = document.getElementById('btn-save-power');
-      
-      if (isOnline) {
-        btnPower.className = "circle-btn bg-red";
-        btnPower.innerHTML = `<span>下線</span><span class="sub-text">ON</span>`;
-        btnStatus.style.display = 'flex';
-        btnSave.style.display = 'flex';
-        requestWakeLock();
-        resetUpdateTimer();
-      } else {
-        btnPower.className = "circle-btn bg-green";
-        btnPower.innerHTML = `<span>上線</span><span class="sub-text">OFF</span>`;
-        btnStatus.style.display = 'none';
-        btnSave.style.display = 'none';
-        clearInterval(updateTimer);
-        releaseWakeLock();
-        postData('offline', isBusy ? 'busy' : 'empty', 0, 0);
-        if (isPowerSaving) togglePowerSaving();
+      try {
+        const nextState = !isOnline;
+        const btnPower = document.getElementById('btn-power');
+        const btnStatus = document.getElementById('btn-status');
+        const btnSave = document.getElementById('btn-save-power');
+
+        if (nextState) {
+          isOnline = true;
+          btnPower.className = "circle-btn bg-red";
+          btnPower.innerHTML = `<span>下線</span><span class="sub-text">ON</span>`;
+          btnStatus.style.display = 'flex';
+          btnSave.style.display = 'flex';
+          requestWakeLock();
+          console.log("嘗試上線，取得 GPS 中...");
+          resetUpdateTimer();
+        } else {
+          isOnline = false;
+          btnPower.className = "circle-btn bg-green";
+          btnPower.innerHTML = `<span>上線</span><span class="sub-text">OFF</span>`;
+          btnStatus.style.display = 'none';
+          btnSave.style.display = 'none';
+          clearInterval(updateTimer);
+          releaseWakeLock();
+          postData('offline', isBusy ? 'busy' : 'empty', 0, 0);
+          if (isPowerSaving) togglePowerSaving();
+        }
+      } catch (e) {
+        alert("按鈕功能發生錯誤：" + e.message);
       }
     }
 
@@ -328,11 +328,33 @@
       updateTimer = setInterval(uploadLocation, interval);
     }
 
+    // [重要修正] 針對 LINE 權限的防呆處理
     function uploadLocation() {
       if (!isOnline) return;
-      navigator.geolocation.getCurrentPosition(pos => {
-        postData('online', isBusy ? 'busy' : 'empty', pos.coords.latitude, pos.coords.longitude);
-      });
+      
+      if (!navigator.geolocation) {
+        alert("您的手機不支援 GPS，無法上線！");
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          postData('online', isBusy ? 'busy' : 'empty', pos.coords.latitude, pos.coords.longitude);
+        },
+        (err) => {
+          console.error("GPS Error:", err);
+          if(isOnline) {
+             // 針對錯誤代碼 1 (PERMISSION_DENIED) 給出詳細指導
+             if (err.code === 1) {
+               alert(`🔴 無法讀取位置！(代碼: 1)\n\n請檢查「LINE 的權限」：\n1. 手機「設定」\n2. 應用程式 -> LINE\n3. 權限 -> 位置 -> 改為「允許」`);
+               togglePower(); // 自動切回下線狀態，避免誤會
+             } else {
+               alert(`⚠️ 定位失敗 (代碼: ${err.code})\n請確認 GPS 已開啟，並在戶外空曠處測試。`);
+             }
+          }
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      );
     }
 
     function postData(status, work, lat, lng) {
@@ -341,45 +363,33 @@
         method: 'POST', mode: 'no-cors',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
-      }).catch(e => console.log(e));
+      }).catch(e => {
+        console.log(e);
+        alert("網路連線異常，資料傳送失敗！");
+      });
     }
 
-    // --- 彈窗通用 ---
     function openModal(id) {
       if (id === 'reg-modal') document.getElementById('reg-uid').value = currentUser.userId;
       document.getElementById(id).style.display = 'flex';
     }
     function closeModal(id) { document.getElementById(id).style.display = 'none'; }
 
-    // [更新] 註冊功能 - 增加掃碼失敗時的自動跳轉
     async function submitRegistration() {
       const name = document.getElementById('reg-name').value;
       const car = document.getElementById('reg-car').value;
       const phone = document.getElementById('reg-phone').value;
       if (!name || !car || !phone) { alert("大哥，資料要填完整喔！"); return; }
-      
       const msg = `🚖 【司機註冊申請】\n暱稱：${name}\n車號：${car}\n電話：${phone}\nID：${currentUser.userId}`;
-      
       try {
-        // 1. 嘗試直接傳送 (LIFF 在聊天室內開啟時)
-        if (!liff.isInClient()) {
-           throw new Error('Not in LINE client'); 
-        }
+        if (!liff.isInClient()) { throw new Error('Not in LINE client'); }
         await liff.sendMessages([{ type: 'text', text: msg }]);
         alert("資料已傳送！請等候管理員審核。");
         closeModal('reg-modal');
-
       } catch (err) {
-        // 2. [Plan B] 掃碼開啟或非好友狀態
-        // 重點優化：修改提示文字，確保大哥知道要先加好友
         alert("即將跳轉至 LINE 聊天室！\n\n請務必依序執行：\n1. 點擊上方的【加入好友】(如未加入)\n2. 按下【傳送】鍵送出資料");
-        
-        // 你的官方帳號 ID
         const target = "@103lybcd"; 
-        
-        // 使用 oaMessage 連結
         const fallbackUrl = `https://line.me/R/oaMessage/${target}/?${encodeURIComponent(msg)}`;
-        
         window.location.href = fallbackUrl;
       }
     }
