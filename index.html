@@ -4,30 +4,28 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>花蓮敬老愛心乘車支援平台</title>
-  <!-- 引入 Leaflet 地圖樣式 -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
-    /* CSS 樣式區 */
-    body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; overflow: hidden; background: #f0f0f0; }
+    body { margin: 0; padding: 0; font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto; overflow: hidden; background: #f0f0f0; }
     #map { width: 100vw; height: 100vh; z-index: 1; transition: opacity 0.5s; }
     
-    /* === 乘客資訊卡 HUD (左上角) === */
+    /* 左上角 HUD - 稍微放大字體 */
     #hud {
       position: absolute; top: 15px; left: 15px; z-index: 999;
-      background: rgba(30, 30, 30, 0.85); color: white; padding: 10px 15px;
-      border-radius: 30px; font-size: 14px; font-weight: bold;
-      backdrop-filter: blur(5px); box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-      display: flex; align-items: center; gap: 8px; pointer-events: none;
+      background: rgba(30, 30, 30, 0.9); color: white; padding: 12px 20px;
+      border-radius: 30px; font-size: 16px; font-weight: bold;
+      backdrop-filter: blur(5px); box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+      display: flex; align-items: center; gap: 10px; pointer-events: none;
     }
-    .status-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+    .status-dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
     
-    /* === 司機控制面板容器 (右上角) === */
+    /* 司機控制面板 */
     #driver-controls {
       display: none; position: absolute; top: 15px; right: 15px; z-index: 1000;
       flex-direction: column; align-items: center; gap: 12px;
     }
 
-    /* === 乘客註冊按鈕 (右上角) === */
+    /* 乘客註冊按鈕 */
     #passenger-top-right {
       display: none; position: absolute; top: 15px; right: 15px; z-index: 1000;
     }
@@ -35,112 +33,107 @@
     .circle-btn {
       border: none; border-radius: 50%; color: white;
       font-weight: bold; cursor: pointer;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+      box-shadow: 0 6px 20px rgba(0,0,0,0.4);
       display: flex; flex-direction: column; justify-content: center; align-items: center;
-      transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-      text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+      transition: all 0.2s;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.3);
     }
-    .circle-btn:active { transform: scale(0.9); }
+    .circle-btn:active { transform: scale(0.85); box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
     
-    #btn-power { width: 75px; height: 75px; font-size: 18px; }
-    #btn-status { width: 60px; height: 60px; font-size: 14px; opacity: 0; transform: translateY(-10px); pointer-events: none; }
+    #btn-power { width: 85px; height: 85px; font-size: 20px; } /* 放大按鈕 */
+    #btn-status { width: 70px; height: 70px; font-size: 16px; opacity: 0; transform: translateY(-10px); pointer-events: none; }
     #btn-status.show { opacity: 1; transform: translateY(0); pointer-events: auto; }
-    #btn-save-power { width: 60px; height: 60px; font-size: 12px; background: #34495e; opacity: 0; transform: translateY(-10px); pointer-events: none; }
+    #btn-save-power { width: 70px; height: 70px; font-size: 14px; background: #34495e; opacity: 0; transform: translateY(-10px); pointer-events: none; }
     #btn-save-power.show { opacity: 1; transform: translateY(0); pointer-events: auto; }
-    #btn-register { width: 70px; height: 70px; font-size: 14px; background: linear-gradient(135deg, #f39c12, #e67e22); }
+    
+    #btn-register { width: 75px; height: 75px; font-size: 15px; background: linear-gradient(135deg, #f39c12, #e67e22); }
 
-    /* === 黑屏省電模式遮罩 === */
+    /* 黑屏省電模式遮罩 */
     #power-save-overlay {
       display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
       background: black; z-index: 2000; color: #444; flex-direction: column;
-      justify-content: center; align-items: center; font-size: 14px;
+      justify-content: center; align-items: center;
     }
     #power-save-overlay.active { display: flex; }
-    #power-save-overlay p { color: #555; margin-top: 20px; }
+    #power-save-overlay p { color: #00ff00; margin-top: 20px; font-size: 18px; opacity: 0.5; }
 
-    /* === 註冊彈窗 === */
+    /* 註冊彈窗 */
     #modal-overlay {
       display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-      background: rgba(0,0,0,0.6); z-index: 3000; justify-content: center; align-items: center;
-      backdrop-filter: blur(3px);
+      background: rgba(0,0,0,0.75); z-index: 3000; justify-content: center; align-items: center;
+      backdrop-filter: blur(5px);
     }
     .modal-content {
-      background: white; width: 85%; max-width: 350px; border-radius: 20px;
-      padding: 25px; box-sizing: border-box; box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+      background: white; width: 90%; max-width: 380px; border-radius: 24px;
+      padding: 30px; box-sizing: border-box;
     }
-    .modal-content h2 { margin: 0 0 20px 0; font-size: 20px; text-align: center; color: #333; }
-    .form-group { margin-bottom: 15px; }
-    .form-group label { display: block; font-size: 12px; color: #777; margin-bottom: 5px; }
-    .form-group input { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
-    .modal-btns { display: flex; gap: 10px; margin-top: 20px; }
-    .modal-btns button { flex: 1; padding: 12px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; }
-    .btn-cancel { background: #eee; color: #666; }
+    .form-group { margin-bottom: 20px; }
+    .form-group label { display: block; font-size: 14px; color: #666; margin-bottom: 8px; }
+    .form-group input { width: 100%; padding: 15px; border: 2px solid #eee; border-radius: 12px; box-sizing: border-box; font-size: 18px; }
+    .modal-btns { display: flex; gap: 15px; margin-top: 25px; }
+    .modal-btns button { flex: 1; padding: 15px; border-radius: 12px; border: none; font-size: 16px; font-weight: bold; }
+    .btn-cancel { background: #f5f5f5; color: #666; }
     .btn-submit { background: #2ecc71; color: white; }
 
-    /* === 底部卡片與顏色定義 (維持原樣) === */
-    #passenger-carousel { position: absolute; bottom: 20px; left: 0; width: 100%; z-index: 1000; display: none; overflow-x: auto; gap: 12px; padding: 0 15px 10px 15px; box-sizing: border-box; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; }
-    #passenger-carousel::-webkit-scrollbar { display: none; }
-    .driver-card { flex: 0 0 85%; max-width: 320px; background: white; border-radius: 16px; padding: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); scroll-snap-align: center; display: flex; align-items: center; justify-content: space-between; }
-    .card-info { flex: 1; }
-    .card-name { font-size: 16px; font-weight: bold; color: #333; margin-bottom: 4px; }
-    .card-status { font-size: 12px; font-weight: bold; display: flex; align-items: center; gap: 5px; }
-    .card-dist { font-size: 12px; color: #666; margin-top: 4px; display: block; }
-    .card-call-btn { background: #2ecc71; color: white; border: none; width: 45px; height: 45px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 20px; text-decoration: none; }
+    /* 底部卡片 */
+    #passenger-carousel { position: absolute; bottom: 20px; left: 0; width: 100%; z-index: 1000; display: none; overflow-x: auto; gap: 12px; padding: 0 15px 15px 15px; box-sizing: border-box; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; }
+    .driver-card { flex: 0 0 88%; max-width: 340px; background: white; border-radius: 20px; padding: 18px; box-shadow: 0 8px 25px rgba(0,0,0,0.2); scroll-snap-align: center; display: flex; align-items: center; justify-content: space-between; }
+    .card-name { font-size: 18px; font-weight: bold; color: #222; }
+    .card-call-btn { background: #2ecc71; color: white; border: none; width: 55px; height: 55px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 24px; text-decoration: none; box-shadow: 0 4px 12px rgba(46,204,113,0.4); }
+
     .bg-green { background: linear-gradient(135deg, #2ecc71, #27ae60); }
     .bg-red   { background: linear-gradient(135deg, #e74c3c, #c0392b); }
-    .bg-gray  { background: linear-gradient(135deg, #95a5a6, #7f8c8d); }
+    .bg-gray  { background: linear-gradient(135deg, #bdc3c7, #95a5a6); }
     .text-green { color: #27ae60; }
     .text-red { color: #c0392b; }
-    .sub-text { font-size: 10px; opacity: 0.8; font-weight: normal; margin-top: 2px; }
-    .leaflet-bottom { bottom: 120px !important; }
-
+    .sub-text { font-size: 12px; opacity: 0.9; margin-top: 4px; }
+    
+    .leaflet-bottom { bottom: 140px !important; }
   </style>
 </head>
 <body>
 
   <!-- 黑屏省電遮罩 -->
   <div id="power-save-overlay" onclick="togglePowerSaving()">
-    <div style="font-size: 40px;">🌙</div>
-    <p>省電模式執行中 (每2分鐘更新)</p>
-    <div style="font-size: 12px; color: #333; margin-top: 40px;">點擊螢幕回歸地圖</div>
+    <div style="font-size: 60px;">🚕</div>
+    <p>螢幕常亮：系統運行中</p>
+    <div style="font-size: 14px; color: #333; margin-top: 50px;">點擊螢幕回歸地圖</div>
   </div>
 
   <!-- 註冊彈窗 -->
   <div id="modal-overlay">
     <div class="modal-content">
-      <h2>司機註冊申請</h2>
+      <h2 style="text-align:center; margin-top:0;">司機註冊申請</h2>
       <div class="form-group">
-        <label>LINE ID (唯讀)</label>
-        <input type="text" id="reg-uid" readonly style="background:#f9f9f9; color:#999;">
+        <label>您的 LINE ID</label>
+        <input type="text" id="reg-uid" readonly style="background:#f0f0f0;">
       </div>
       <div class="form-group">
-        <label>司機暱稱</label>
-        <input type="text" id="reg-name" placeholder="例如：王小明">
+        <label>司機姓名/暱稱</label>
+        <input type="text" id="reg-name" placeholder="請輸入姓名">
       </div>
       <div class="form-group">
         <label>車牌號碼</label>
-        <input type="text" id="reg-car" placeholder="例如：ABC-1234">
+        <input type="text" id="reg-car" placeholder="例如: ABC-1234">
       </div>
       <div class="form-group">
         <label>連絡電話</label>
-        <input type="tel" id="reg-phone" placeholder="0912-345-678">
+        <input type="tel" id="reg-phone" placeholder="09xx-xxx-xxx">
       </div>
       <div class="modal-btns">
-        <button class="btn-cancel" onclick="closeModal()">取消</button>
-        <button class="btn-submit" onclick="submitRegistration()">送出註冊</button>
+        <button class="btn-cancel" onclick="closeModal()">關閉</button>
+        <button class="btn-submit" onclick="submitRegistration()">送出資料</button>
       </div>
     </div>
   </div>
 
-  <!-- 左上角 HUD -->
   <div id="hud">
     <span class="status-dot" style="background:gray;"></span> 定位中...
   </div>
 
-  <!-- 地圖 -->
   <div id="map"></div>
 
-  <!-- 司機控制面板 -->
+  <!-- 司機面板 -->
   <div id="driver-controls">
     <button id="btn-power" class="circle-btn bg-gray" onclick="togglePower()">
       <span>上線</span>
@@ -149,23 +142,20 @@
     <button id="btn-status" class="circle-btn bg-green" onclick="toggleStatus()">
       <span>空車</span>
     </button>
-    <!-- 省電按鈕 -->
     <button id="btn-save-power" class="circle-btn" onclick="togglePowerSaving()">
       <span>省電</span>
     </button>
   </div>
 
-  <!-- 乘客端註冊入口 -->
+  <!-- 乘客註冊入口 -->
   <div id="passenger-top-right">
     <button id="btn-register" class="circle-btn" onclick="openModal()">
       <span>司機<br>註冊</span>
     </button>
   </div>
 
-  <!-- 乘客底部卡片列 -->
-  <div id="passenger-carousel">
-    <div class="empty-card">搜尋附近司機中...</div>
-  </div>
+  <!-- 乘客卡片 -->
+  <div id="passenger-carousel"></div>
 
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -179,14 +169,44 @@
     var myLat = null, myLng = null;
     var isOnline = false, isBusy = false, isPowerSaving = false;
     var updateTimer = null;
+    var wakeLock = null; // 螢幕常亮鎖定對象
 
-    const iconEmpty = L.divIcon({ html: '<div style="font-size:32px;">🚕</div>', className: '', iconSize: [32, 32], iconAnchor: [16, 16] });
-    const iconBusy = L.divIcon({ html: '<div style="font-size:32px; filter: grayscale(100%) opacity(0.7);">🚕</div>', className: '', iconSize: [32, 32], iconAnchor: [16, 16] });
+    const iconEmpty = L.divIcon({ html: '<div style="font-size:36px;">🚕</div>', className: '', iconSize: [36, 36], iconAnchor: [18, 18] });
+    const iconBusy = L.divIcon({ html: '<div style="font-size:36px; filter: grayscale(100%) opacity(0.6);">🚕</div>', className: '', iconSize: [36, 36], iconAnchor: [18, 18] });
 
     window.onload = async function() {
       initMap();
       await initLiff();
+      
+      // 監聽可見性變化：如果使用者切換視窗回來，重新鎖定螢幕
+      document.addEventListener('visibilitychange', async () => {
+        if (wakeLock !== null && document.visibilityState === 'visible' && isOnline) {
+          await requestWakeLock();
+        }
+      });
     };
+
+    // [核心功能] 請求螢幕常亮
+    async function requestWakeLock() {
+      if ('wakeLock' in navigator) {
+        try {
+          wakeLock = await navigator.wakeLock.request('screen');
+          console.log('螢幕常亮已啟用');
+        } catch (err) {
+          console.error(`${err.name}, ${err.message}`);
+        }
+      }
+    }
+
+    // [核心功能] 釋放螢幕鎖定
+    function releaseWakeLock() {
+      if (wakeLock !== null) {
+        wakeLock.release().then(() => {
+          wakeLock = null;
+          console.log('螢幕常亮已解除');
+        });
+      }
+    }
 
     function initMap() {
       map = L.map('map', { zoomControl: false }).setView([23.99000, 121.60684], 13);
@@ -234,7 +254,7 @@
         });
     }
 
-    // --- 司機端功能 ---
+    // --- 司機功能 ---
     function togglePower() {
       isOnline = !isOnline;
       const btnPower = document.getElementById('btn-power');
@@ -246,6 +266,7 @@
         btnPower.innerHTML = `<span>下線</span><span class="sub-text">ON</span>`;
         btnStatus.classList.add('show');
         btnSave.classList.add('show');
+        requestWakeLock(); // 上線就開啟常亮
         resetUpdateTimer();
       } else {
         btnPower.className = "circle-btn bg-green";
@@ -253,8 +274,9 @@
         btnStatus.classList.remove('show');
         btnSave.classList.remove('show');
         clearInterval(updateTimer);
+        releaseWakeLock(); // 下線就解除常亮
         postData('offline', isBusy ? 'busy' : 'empty', 0, 0);
-        if (isPowerSaving) togglePowerSaving(); // 關閉時自動退出省電模式
+        if (isPowerSaving) togglePowerSaving();
       }
     }
 
@@ -266,7 +288,6 @@
       uploadLocation();
     }
 
-    // [更新] 省電模式切換
     function togglePowerSaving() {
       if (!isOnline) return;
       isPowerSaving = !isPowerSaving;
@@ -282,13 +303,12 @@
         btnSave.style.background = "#34495e";
         btnSave.innerHTML = `<span>省電</span>`;
       }
-      resetUpdateTimer(); // 重新設定計時器
+      resetUpdateTimer();
     }
 
-    // [更新] 重設計時器 (30秒 vs 120秒)
     function resetUpdateTimer() {
       clearInterval(updateTimer);
-      uploadLocation(); // 立即上傳一次
+      uploadLocation();
       const interval = isPowerSaving ? 120000 : 30000;
       updateTimer = setInterval(uploadLocation, interval);
     }
@@ -309,7 +329,7 @@
       }).catch(e => console.log(e));
     }
 
-    // --- 乘客端功能與註冊彈窗 ---
+    // --- 註冊功能 ---
     function openModal() {
       document.getElementById('reg-uid').value = currentUser.userId;
       document.getElementById('modal-overlay').style.display = 'flex';
@@ -319,28 +339,17 @@
       document.getElementById('modal-overlay').style.display = 'none';
     }
 
-    // [新增] 送出註冊到聊天室
     async function submitRegistration() {
       const name = document.getElementById('reg-name').value;
       const car = document.getElementById('reg-car').value;
       const phone = document.getElementById('reg-phone').value;
-      const uid = document.getElementById('reg-uid').value;
-
-      if (!name || !car || !phone) {
-        alert("請填寫完整資訊");
-        return;
-      }
-
-      const msg = `🚖 【司機註冊申請】\n暱稱：${name}\n車號：${car}\n電話：${phone}\nID：${uid}`;
-
+      if (!name || !car || !phone) { alert("大哥，資料要填完整喔！"); return; }
+      const msg = `🚖 【司機註冊申請】\n暱稱：${name}\n車號：${car}\n電話：${phone}\nID：${currentUser.userId}`;
       try {
         await liff.sendMessages([{ type: 'text', text: msg }]);
-        alert("申請已送出！請等待審核。");
+        alert("資料已傳送！請等候管理員審核。");
         closeModal();
-      } catch (err) {
-        console.error(err);
-        alert("傳送失敗，請確認是否在 LINE 環境中。");
-      }
+      } catch (err) { alert("傳送失敗，請確認在 LINE 內開啟。"); }
     }
 
     function fetchDrivers() {
@@ -371,7 +380,7 @@
         let icon = d.workStatus === 'busy' ? iconBusy : iconEmpty;
         let marker = L.marker([d.lat, d.lng], {icon: icon}).addTo(map);
         let distText = (d.distance < 100) ? `(約 ${d.distance.toFixed(1)} km)` : '';
-        marker.bindPopup(`<div class="driver-popup"><b>🚕 ${d.name}</b><br><span style="color:${d.workStatus==='busy'?'red':'green'};">● ${d.workStatus==='busy'?'載客中':'目前空車'} ${distText}</span><br><a href="tel:${d.phone}" class="popup-call-btn">📞 直接叫車</a></div>`);
+        marker.bindPopup(`<div style="text-align:center;"><b>🚕 ${d.name}</b><br><span style="color:${d.workStatus==='busy'?'red':'green'};">● ${d.workStatus==='busy'?'載客中':'目前空車'} ${distText}</span><br><a href="tel:${d.phone}" style="display:block; margin-top:10px; padding:10px; background:#2ecc71; color:white; border-radius:10px; text-decoration:none; font-weight:bold;">📞 聯絡司機</a></div>`);
         markers[d.id] = marker;
       });
     }
@@ -379,15 +388,15 @@
     function renderCarousel(drivers) {
       const container = document.getElementById('passenger-carousel');
       if (drivers.length === 0) {
-        container.innerHTML = '<div class="empty-card">🔴 目前附近無司機服務</div>';
+        container.innerHTML = '<div style="flex:0 0 100%; text-align:center; padding:20px; background:white; border-radius:20px;">🔴 目前附近無司機服務</div>';
         return;
       }
       container.innerHTML = drivers.slice(0, 5).map(d => `
         <div class="driver-card" onclick="map.setView([${d.lat}, ${d.lng}], 15)">
           <div class="card-info">
             <div class="card-name">🚕 ${d.name}</div>
-            <div class="card-status ${d.workStatus==='busy'?'text-red':'text-green'}">● ${d.workStatus==='busy'?'載客中':'目前空車'}</div>
-            <span class="card-dist">📍 距離 ${d.distance.toFixed(1)} km</span>
+            <div style="font-size:14px; margin:5px 0; color:${d.workStatus==='busy'?'red':'green'}">● ${d.workStatus==='busy'?'載客中':'目前空車'}</div>
+            <div style="font-size:14px; color:#666;">📍 距離約 ${d.distance.toFixed(1)} km</div>
           </div>
           <a href="tel:${d.phone}" class="card-call-btn">📞</a>
         </div>
