@@ -217,26 +217,114 @@ new Vue({
             }, { enableHighAccuracy: true, timeout: 10000 });
         },
         selectDriver(driver) {
-            liff.sendMessages([{
+            // 定義漂亮的 Flex Message
+            const flexMessage = {
                 type: 'flex',
-                altText: '乘客叫車請求',
+                altText: `您的車輛 ${driver.plate} 已確認`,
                 contents: {
-                    type: 'bubble',
-                    body: {
-                        type: 'box',
-                        layout: 'vertical',
+                    type: "bubble",
+                    header: {
+                        type: "box",
+                        layout: "vertical",
                         contents: [
-                            { type: 'text', text: '🚕 乘客叫車', weight: 'bold', size: 'xl', color: '#1DB446' },
-                            { type: 'separator', margin: 'md' },
-                            { type: 'text', text: `車號：${driver.plate}`, margin: 'md', size: 'lg', weight: 'bold' },
-                            { type: 'text', text: `司機：${driver.name}`, size: 'md' },
-                            { type: 'text', text: `電話：${driver.phone}`, size: 'md', color: '#0066cc', action: { type: 'uri', label: 'Call', uri: `tel:${driver.phone}` } }
+                            {
+                                type: "text",
+                                text: "🚖 已為您安排車輛",
+                                color: "#856404",
+                                size: "xs",
+                                weight: "bold"
+                            }
+                        ],
+                        backgroundColor: "#FFF3CD", // 淡淡的黃色背景
+                        paddingTop: "15px",
+                        paddingBottom: "15px"
+                    },
+                    hero: {
+                        type: "box",
+                        layout: "vertical",
+                        contents: [
+                            {
+                                type: "text",
+                                text: driver.plate, // 車號 (大標題)
+                                size: "4xl",
+                                weight: "bold",
+                                align: "center",
+                                color: "#111111",
+                                margin: "md"
+                            }
+                        ],
+                        paddingBottom: "10px"
+                    },
+                    body: {
+                        type: "box",
+                        layout: "vertical",
+                        contents: [
+                            {
+                                type: "separator",
+                                margin: "md",
+                                color: "#eeeeee"
+                            },
+                            {
+                                type: "box",
+                                layout: "baseline",
+                                margin: "lg",
+                                spacing: "md",
+                                contents: [
+                                    {
+                                        type: "text",
+                                        text: "司機",
+                                        color: "#aaaaaa",
+                                        size: "sm",
+                                        flex: 2
+                                    },
+                                    {
+                                        type: "text",
+                                        text: driver.name, // 司機名字
+                                        wrap: true,
+                                        color: "#666666",
+                                        size: "lg",
+                                        weight: "bold",
+                                        flex: 5
+                                    }
+                                ]
+                            }
                         ]
+                    },
+                    footer: {
+                        type: "box",
+                        layout: "vertical",
+                        spacing: "sm",
+                        contents: [
+                            {
+                                type: "button",
+                                style: "primary",
+                                height: "sm",
+                                color: "#00C300", // LINE 綠色通話鈕
+                                action: {
+                                    type: "uri",
+                                    label: `📞 撥打給 ${driver.name}`,
+                                    uri: `tel:${driver.phone}`
+                                }
+                            },
+                            {
+                                type: "text",
+                                text: "請留意來車，祝您旅途愉快",
+                                size: "xxs",
+                                color: "#aaaaaa",
+                                align: "center",
+                                margin: "md"
+                            }
+                        ],
+                        paddingAll: "20px"
                     }
                 }
-            }]).then(() => {
+            };
+
+            // 發送訊息並關閉視窗
+            liff.sendMessages([flexMessage]).then(() => {
                 liff.closeWindow();
             }).catch(err => {
+                console.error(err);
                 alert('發送失敗，請從 LINE 開啟');
             });
         }
