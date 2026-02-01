@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>排班小黃-花蓮站</title>
+    <meta name="description" content="花蓮在地計程車排班系統">
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/vue@2/dist/vue.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
@@ -25,10 +26,20 @@
         <div>{{ loadingText }}</div>
     </div>
 
-    <div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
         <h4 class="fw-bold">🚕 排班大廳</h4>
         <button v-if="!isDriver" @click="showRegModal = true" class="btn btn-sm btn-outline-dark">司機註冊</button>
         <span v-else class="driver-badge">司機: {{ driverName }}</span>
+    </div>
+
+    <div v-if="isDriver && currentZoneId" class="alert alert-warning d-flex justify-content-between align-items-center shadow-sm mb-4">
+        <div>
+            <small class="text-muted">目前位置</small><br>
+            <strong>📍 {{ getZoneName(currentZoneId) }}</strong>
+        </div>
+        <button @click="leaveZone" class="btn btn-danger btn-sm px-3 shadow">
+            下班 / 退排
+        </button>
     </div>
 
     <div class="row g-3">
@@ -96,16 +107,19 @@
 </div>
 
 <script>
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbx4ncVkSKRLIkiisyftbtONCYI1OIbklzTsv4_h5gy4FX2ElcA1sWpKCA51O14cEj3p/exec'; // 請換成你的 URL
+// ★★★ 請務必檢查這兩行 ★★★
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbx4ncVkSKRLIkiisyftbtONCYI1OIbklzTsv4_h5gy4FX2ElcA1sWpKCA51O14cEj3p/exec'; // 這裡要填你的 GAS 網址
+const LIFF_ID = '2008907691-7ntMtfbA';        // 這裡要填你的 LIFF ID
 
 new Vue({
     el: '#app',
     data: {
-        liffId: '2008907691-7ntMtfbA',
+        liffId: LIFF_ID,
         userId: '',
         zones: [],
         isDriver: false,
         driverName: '',
+        currentZoneId: '', // 記錄司機當前位置
         loading: true,
         loadingText: '系統連線中...',
         showRegModal: false,
@@ -142,11 +156,32 @@ new Vue({
                 this.zones = res.data.zones;
                 this.isDriver = res.data.isDriver;
                 if (this.isDriver && res.data.driverData) {
-                    this.driverName = res.data.driverData[1]; // 暱稱
+                    this.driverName = res.data.driverData[1];
+                    this.currentZoneId = res.data.driverData[5]; // 更新目前位置
                 }
                 this.loading = false;
             } catch (err) {
                 alert('連線錯誤');
+                this.loading = false;
+            }
+        },
+        getZoneName(id) {
+            const z = this.zones.find(item => item.id === id);
+            return z ? z.name : '未知區域';
+        },
+        async leaveZone() {
+            if(!confirm('確定要下班/退出排班嗎？')) return;
+            this.loading = true;
+            this.loadingText = '退班處理中...';
+            try {
+                const res = await axios.post(GAS_URL, JSON.stringify({
+                    type: 'leaveZone',
+                    userId: this.userId
+                }));
+                alert(res.data.msg);
+                this.fetchLobby(); // 刷新
+            } catch(e) {
+                alert('連線失敗');
                 this.loading = false;
             }
         },
@@ -161,7 +196,6 @@ new Vue({
                 }));
                 alert(res.data.msg);
                 if(res.data.status === 'success') {
-                    // 傳送訊息到聊天室
                     liff.sendMessages([{
                         type: 'text',
                         text: `【司機註冊申請】\n暱稱：${this.regForm.name}\n車號：${this.regForm.plate}\n電話：${this.regForm.phone}\n請管理員審核。`
@@ -172,21 +206,15 @@ new Vue({
         },
         enterZone(zone) {
             if (this.isDriver && zone.count >= 10) return alert('此區已滿！');
-            
             this.loadingText = '定位中...';
             this.loading = true;
-
             if (!navigator.geolocation) {
                 this.loading = false;
                 return alert('您的裝置不支援 GPS');
             }
-
             navigator.geolocation.getCurrentPosition(async (pos) => {
                 const lat = pos.coords.latitude;
                 const lng = pos.coords.longitude;
-                
-                // 這裡可以先做前端距離快篩，減少 Server 負擔 (MVP 先省略，交給後端統一驗證)
-                
                 try {
                     const res = await axios.post(GAS_URL, JSON.stringify({
                         type: 'enterZone',
@@ -195,14 +223,12 @@ new Vue({
                         userLat: lat,
                         userLng: lng
                     }));
-                    
                     this.loading = false;
-                    
                     if (res.data.status === 'error') {
                         alert(res.data.msg);
                     } else if (res.data.role === 'driver') {
                         alert(res.data.msg);
-                        this.fetchLobby(); // 更新畫面
+                        this.fetchLobby();
                     } else if (res.data.role === 'passenger') {
                         this.activeDrivers = res.data.drivers;
                         this.showDriverListModal = true;
@@ -217,7 +243,7 @@ new Vue({
             }, { enableHighAccuracy: true, timeout: 10000 });
         },
         selectDriver(driver) {
-            // 定義漂亮的 Flex Message
+            // 美化版 Flex Message (v2.0)
             const flexMessage = {
                 type: 'flex',
                 altText: `您的車輛 ${driver.plate} 已確認`,
@@ -227,31 +253,15 @@ new Vue({
                         type: "box",
                         layout: "vertical",
                         contents: [
-                            {
-                                type: "text",
-                                text: "🚖 已為您安排車輛",
-                                color: "#856404",
-                                size: "xs",
-                                weight: "bold"
-                            }
+                            { type: "text", text: "🚖 已為您安排車輛", color: "#856404", size: "xs", weight: "bold" }
                         ],
-                        backgroundColor: "#FFF3CD", // 淡淡的黃色背景
-                        paddingTop: "15px",
-                        paddingBottom: "15px"
+                        backgroundColor: "#FFF3CD", paddingTop: "15px", paddingBottom: "15px"
                     },
                     hero: {
                         type: "box",
                         layout: "vertical",
                         contents: [
-                            {
-                                type: "text",
-                                text: driver.plate, // 車號 (大標題)
-                                size: "4xl",
-                                weight: "bold",
-                                align: "center",
-                                color: "#111111",
-                                margin: "md"
-                            }
+                            { type: "text", text: driver.plate, size: "4xl", weight: "bold", align: "center", color: "#111111", margin: "md" }
                         ],
                         paddingBottom: "10px"
                     },
@@ -259,68 +269,29 @@ new Vue({
                         type: "box",
                         layout: "vertical",
                         contents: [
+                            { type: "separator", margin: "md", color: "#eeeeee" },
                             {
-                                type: "separator",
-                                margin: "md",
-                                color: "#eeeeee"
-                            },
-                            {
-                                type: "box",
-                                layout: "baseline",
-                                margin: "lg",
-                                spacing: "md",
+                                type: "box", layout: "baseline", margin: "lg", spacing: "md",
                                 contents: [
-                                    {
-                                        type: "text",
-                                        text: "司機",
-                                        color: "#aaaaaa",
-                                        size: "sm",
-                                        flex: 2
-                                    },
-                                    {
-                                        type: "text",
-                                        text: driver.name, // 司機名字
-                                        wrap: true,
-                                        color: "#666666",
-                                        size: "lg",
-                                        weight: "bold",
-                                        flex: 5
-                                    }
+                                    { type: "text", text: "司機", color: "#aaaaaa", size: "sm", flex: 2 },
+                                    { type: "text", text: driver.name, wrap: true, color: "#666666", size: "lg", weight: "bold", flex: 5 }
                                 ]
                             }
                         ]
                     },
                     footer: {
-                        type: "box",
-                        layout: "vertical",
-                        spacing: "sm",
+                        type: "box", layout: "vertical", spacing: "sm",
                         contents: [
                             {
-                                type: "button",
-                                style: "primary",
-                                height: "sm",
-                                color: "#00C300", // LINE 綠色通話鈕
-                                action: {
-                                    type: "uri",
-                                    label: `📞 撥打給 ${driver.name}`,
-                                    uri: `tel:${driver.phone}`
-                                }
+                                type: "button", style: "primary", height: "sm", color: "#00C300",
+                                action: { type: "uri", label: `📞 撥打給 ${driver.name}`, uri: `tel:${driver.phone}` }
                             },
-                            {
-                                type: "text",
-                                text: "請留意來車，祝您旅途愉快",
-                                size: "xxs",
-                                color: "#aaaaaa",
-                                align: "center",
-                                margin: "md"
-                            }
+                            { type: "text", text: "請留意來車，祝您旅途愉快", size: "xxs", color: "#aaaaaa", align: "center", margin: "md" }
                         ],
                         paddingAll: "20px"
                     }
                 }
             };
-
-            // 發送訊息並關閉視窗
             liff.sendMessages([flexMessage]).then(() => {
                 liff.closeWindow();
             }).catch(err => {
