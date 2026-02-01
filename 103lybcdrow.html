@@ -78,7 +78,12 @@
                                 {{ zone.count }} / 10 台
                             </span>
                         </div>
-                        <h6 class="card-title fw-bold text-dark mb-0">{{ zone.name }}</h6>
+                        <h6 class="card-title fw-bold text-dark mb-1">{{ zone.name }}</h6>
+                        
+                        <div class="text-muted small" style="font-size: 0.8rem;">
+                            <i class="fas fa-location-arrow fa-xs me-1"></i>{{ getZoneDistance(zone) }}
+                        </div>
+
                     </div>
                 </div>
             </div>
@@ -196,7 +201,7 @@
 </div>
 
 <script>
-// ★★★ 請務必修改這兩行 ★★★
+// ★★★ 已預填您的資料 ★★★
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbx4ncVkSKRLIkiisyftbtONCYI1OIbklzTsv4_h5gy4FX2ElcA1sWpKCA51O14cEj3p/exec'; 
 const LIFF_ID = '2008907691-je5XDhbB'; 
 
@@ -214,6 +219,9 @@ new Vue({
         loading: true,
         loadingText: '系統連線中...',
         timer: null, 
+        
+        // ★★★ 新增：使用者目前座標 ★★★
+        userLocation: null, 
 
         showRegModal: false,
         showDriverListFullPage: false,
@@ -232,13 +240,53 @@ new Vue({
     },
     async mounted() {
         await this.initLiff();
-        // ★ 自動刷新機制：每 15 秒更新一次
+        // 啟動時先嘗試抓一次定位，為了計算距離
+        this.getUserLocation();
+        // 心跳機制
         this.timer = setInterval(() => { this.autoRefresh(); }, 15000); 
     },
     beforeDestroy() {
         if(this.timer) clearInterval(this.timer);
     },
     methods: {
+        // ★★★ 新增：抓取使用者位置 ★★★
+        getUserLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                        this.userLocation = {
+                            lat: pos.coords.latitude,
+                            lng: pos.coords.longitude
+                        };
+                        // 抓到定位後，順便刷新一下距離顯示 (Vue 會自動反應)
+                    },
+                    (err) => { console.log('定位失敗或未授權', err); },
+                    { enableHighAccuracy: false, timeout: 5000 } // 不需要太精準，省電為主
+                );
+            }
+        },
+
+        // ★★★ 新增：計算並顯示距離 ★★★
+        getZoneDistance(zone) {
+            if (!this.userLocation || !zone.lat || !zone.lng) return '定位中...';
+            
+            // Haversine 公式計算距離
+            const R = 6371; // 地球半徑 (km)
+            const dLat = (zone.lat - this.userLocation.lat) * Math.PI / 180;
+            const dLon = (zone.lng - this.userLocation.lng) * Math.PI / 180;
+            const a = 
+                Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(this.userLocation.lat * Math.PI / 180) * Math.cos(zone.lat * Math.PI / 180) * Math.sin(dLon/2) * Math.sin(dLon/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            const d = R * c; // 距離 (km)
+
+            if (d < 1) {
+                return Math.round(d * 1000) + ' m'; // 小於 1km 顯示公尺
+            } else {
+                return d.toFixed(1) + ' km'; // 大於 1km 顯示公里
+            }
+        },
+
         autoRefresh() {
             if (this.showDriverListFullPage && this.currentViewingZoneId) {
                 this.refreshZoneList(this.currentViewingZoneId);
@@ -297,7 +345,7 @@ new Vue({
                     avatar: this.userAvatar, 
                     name: f.name,
                     plate: f.plate,
-                    phone: "'" + f.phone, // ★ 註冊補單引號
+                    phone: "'" + f.phone, 
                     carModel: f.carModel,
                     capacity: f.capacity,
                     features: featureList.join(','), 
@@ -317,7 +365,6 @@ new Vue({
                 this.handleZoneEntry(zone, pos.coords.latitude, pos.coords.longitude, false);
             }, (err) => { this.loading = false; alert('請開啟 GPS'); }, { enableHighAccuracy: true });
         },
-        // ★ 背景刷新：傳送 0,0 座標
         async refreshZoneList(zoneId) {
              try {
                 const res = await axios.post(GAS_URL, JSON.stringify({
