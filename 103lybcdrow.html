@@ -51,19 +51,34 @@
             </span>
         </div>
 
-        <div v-if="isDriver && currentZoneId" class="alert alert-warning border-0 shadow-sm rounded-3 d-flex justify-content-between align-items-center mb-4 mx-1">
-            <div class="d-flex align-items-center">
-                <div class="bg-white p-2 rounded-circle me-3 text-warning">
-                    <i class="fas fa-map-marker-alt fa-lg"></i>
+        <div v-if="isDriver && currentZoneId" class="card border-0 shadow-sm rounded-3 mb-4 mx-1 overflow-hidden">
+            <div class="card-body d-flex justify-content-between align-items-center pb-2">
+                <div class="d-flex align-items-center">
+                    <div class="bg-warning bg-opacity-10 p-2 rounded-circle me-3 text-warning">
+                        <i class="fas fa-map-marker-alt fa-lg"></i>
+                    </div>
+                    <div>
+                        <small class="text-muted">目前排班位置</small><br>
+                        <strong class="h5 mb-0">{{ getZoneName(currentZoneId) }}</strong>
+                    </div>
                 </div>
-                <div>
-                    <small class="text-muted">目前排班位置</small><br>
-                    <strong class="h5 mb-0">{{ getZoneName(currentZoneId) }}</strong>
+                <div class="text-end">
+                    <button @click="leaveZone" class="btn btn-danger btn-sm px-3 rounded-pill shadow-sm mb-1">
+                        下班退排
+                    </button>
                 </div>
             </div>
-            <button @click="leaveZone" class="btn btn-danger btn-sm px-3 rounded-pill shadow-sm">
-                下班退排
-            </button>
+            <div class="px-3 pb-2">
+                <div class="d-flex justify-content-between small text-muted mb-1">
+                    <span><i class="fas fa-stopwatch me-1"></i>已排班: {{ queueTimeText }}</span>
+                    <span>剩餘: {{ remainingTimeText }}</span>
+                </div>
+                <div class="progress" style="height: 6px;">
+                    <div class="progress-bar" role="progressbar" 
+                         :style="{ width: queueProgress + '%', backgroundColor: progressColor }" 
+                         aria-valuemin="0" aria-valuemax="100"></div>
+                </div>
+            </div>
         </div>
 
         <div class="row g-3">
@@ -79,11 +94,9 @@
                             </span>
                         </div>
                         <h6 class="card-title fw-bold text-dark mb-1">{{ zone.name }}</h6>
-                        
                         <div class="text-muted small" style="font-size: 0.8rem;">
                             <i class="fas fa-location-arrow fa-xs me-1"></i>{{ getZoneDistance(zone) }}
                         </div>
-
                     </div>
                 </div>
             </div>
@@ -143,7 +156,7 @@
 
                 <div class="mt-3">
                     <button class="btn btn-success w-100 rounded-pill fw-bold">
-                        <i class="fas fa-phone-alt me-2"></i> 呼叫司機
+                        <i class="fas fa-hand-pointer me-2"></i> 選擇車輛
                     </button>
                 </div>
             </div>
@@ -201,7 +214,6 @@
 </div>
 
 <script>
-// ★★★ 已預填您的資料 ★★★
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbx4ncVkSKRLIkiisyftbtONCYI1OIbklzTsv4_h5gy4FX2ElcA1sWpKCA51O14cEj3p/exec'; 
 const LIFF_ID = '2008907691-je5XDhbB'; 
 
@@ -215,13 +227,17 @@ new Vue({
         isDriver: false,
         driverName: '',
         currentZoneId: '',
+        userLocation: null, 
         
         loading: true,
         loadingText: '系統連線中...',
         timer: null, 
-        
-        // ★★★ 新增：使用者目前座標 ★★★
-        userLocation: null, 
+        // ★★★ 新增：計時器變數 ★★★
+        queueStartTime: null,
+        queueTimeText: '0分',
+        remainingTimeText: '60分',
+        queueProgress: 0,
+        progressColor: '#198754', // 綠色
 
         showRegModal: false,
         showDriverListFullPage: false,
@@ -240,53 +256,63 @@ new Vue({
     },
     async mounted() {
         await this.initLiff();
-        // 啟動時先嘗試抓一次定位，為了計算距離
         this.getUserLocation();
-        // 心跳機制
+        // ★★★ 計時器：每秒更新一次顯示 ★★★
+        setInterval(() => { this.updateQueueTimer(); }, 1000);
+        // 背景刷新：每 15 秒抓一次資料
         this.timer = setInterval(() => { this.autoRefresh(); }, 15000); 
     },
     beforeDestroy() {
         if(this.timer) clearInterval(this.timer);
     },
     methods: {
-        // ★★★ 新增：抓取使用者位置 ★★★
+        // ★★★ 新增：更新計時器邏輯 ★★★
+        updateQueueTimer() {
+            if (!this.isDriver || !this.queueStartTime) return;
+            
+            const now = new Date().getTime();
+            const start = new Date(this.queueStartTime).getTime();
+            const diff = now - start;
+            
+            // 計算已排時間
+            const minutes = Math.floor(diff / 60000);
+            this.queueTimeText = `${minutes} 分`;
+
+            // 計算剩餘時間 (60分鐘 = 3600000 毫秒)
+            const limit = 60 * 60 * 1000;
+            const remaining = limit - diff;
+            const remainingMins = Math.ceil(remaining / 60000);
+            this.remainingTimeText = remainingMins > 0 ? `${remainingMins} 分` : '即將離線';
+
+            // 計算進度條 (倒數概念，時間越久進度條越滿)
+            const progress = (diff / limit) * 100;
+            this.queueProgress = Math.min(progress, 100);
+
+            // 顏色變化：0-50% 綠, 50-80% 黃, 80-100% 紅
+            if (this.queueProgress < 50) this.progressColor = '#198754'; // Green
+            else if (this.queueProgress < 80) this.progressColor = '#ffc107'; // Yellow
+            else this.progressColor = '#dc3545'; // Red
+        },
+
         getUserLocation() {
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(
-                    (pos) => {
-                        this.userLocation = {
-                            lat: pos.coords.latitude,
-                            lng: pos.coords.longitude
-                        };
-                        // 抓到定位後，順便刷新一下距離顯示 (Vue 會自動反應)
-                    },
-                    (err) => { console.log('定位失敗或未授權', err); },
-                    { enableHighAccuracy: false, timeout: 5000 } // 不需要太精準，省電為主
+                    (pos) => { this.userLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude }; },
+                    (err) => { console.log('定位失敗'); },
+                    { enableHighAccuracy: false, timeout: 5000 }
                 );
             }
         },
-
-        // ★★★ 新增：計算並顯示距離 ★★★
         getZoneDistance(zone) {
             if (!this.userLocation || !zone.lat || !zone.lng) return '定位中...';
-            
-            // Haversine 公式計算距離
-            const R = 6371; // 地球半徑 (km)
+            const R = 6371; 
             const dLat = (zone.lat - this.userLocation.lat) * Math.PI / 180;
             const dLon = (zone.lng - this.userLocation.lng) * Math.PI / 180;
-            const a = 
-                Math.sin(dLat/2) * Math.sin(dLat/2) +
-                Math.cos(this.userLocation.lat * Math.PI / 180) * Math.cos(zone.lat * Math.PI / 180) * Math.sin(dLon/2) * Math.sin(dLon/2);
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(this.userLocation.lat * Math.PI / 180) * Math.cos(zone.lat * Math.PI / 180) * Math.sin(dLon/2) * Math.sin(dLon/2);
             const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-            const d = R * c; // 距離 (km)
-
-            if (d < 1) {
-                return Math.round(d * 1000) + ' m'; // 小於 1km 顯示公尺
-            } else {
-                return d.toFixed(1) + ' km'; // 大於 1km 顯示公里
-            }
+            const d = R * c; 
+            return d < 1 ? Math.round(d * 1000) + ' m' : d.toFixed(1) + ' km';
         },
-
         autoRefresh() {
             if (this.showDriverListFullPage && this.currentViewingZoneId) {
                 this.refreshZoneList(this.currentViewingZoneId);
@@ -313,6 +339,9 @@ new Vue({
                 if (this.isDriver && res.data.driverData) {
                     this.driverName = res.data.driverData[1];
                     this.currentZoneId = res.data.driverData[5];
+                    // ★★★ 記錄排班開始時間 ★★★
+                    this.queueStartTime = res.data.driverData[6]; 
+                    this.updateQueueTimer(); // 立即觸發一次
                 }
                 if (!isBackground) this.loading = false;
             } catch (err) { if (!isBackground) this.loading = false; }
@@ -430,7 +459,10 @@ new Vue({
                     },
                     footer: {
                         type: "box", layout: "vertical", spacing: "sm",
-                        contents: [ { type: "button", style: "primary", color: "#00C300", action: { type: "uri", label: `📞 呼叫 ${driver.name}`, uri: `tel:${driver.phone}` } } ],
+                        contents: [ 
+                            // ★★★ 修改：按鈕文字改為「手機撥號」 ★★★
+                            { type: "button", style: "primary", color: "#00C300", action: { type: "uri", label: `📞 手機撥號`, uri: `tel:${driver.phone}` } } 
+                        ],
                         paddingAll: "20px"
                     }
                 }
