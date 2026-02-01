@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>排班小黃-花蓮站</title>
+    <meta name="description" content="花蓮在地計程車排班系統 - 即時車況、快速媒合">
+    <meta property="og:title" content="排班小黃-花蓮站">
+    <meta property="og:description" content="點擊進入排班大廳，查看即時車輛位置。">
+    
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/vue@2/dist/vue.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
@@ -15,7 +19,8 @@
         .zone-card.full { border-color: #dc3545; background-color: #ffe6e6; opacity: 0.8; }
         .driver-badge { font-size: 0.8rem; background: #ffc107; color: #000; padding: 2px 5px; border-radius: 4px; }
         .loading-mask { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); color: white; display: flex; justify-content: center; align-items: center; z-index: 9999; flex-direction: column; }
-        .feature-tag { font-size: 0.7rem; background: #e9ecef; border-radius: 10px; padding: 2px 6px; margin-right: 4px; display: inline-block; }
+        /* 標籤樣式微調 */
+        .feature-tag { font-size: 0.7rem; background: #fff; border: 1px solid #dee2e6; color: #666; border-radius: 4px; padding: 2px 6px; margin-right: 4px; display: inline-block; margin-bottom: 2px; }
     </style>
 </head>
 <body>
@@ -121,25 +126,39 @@
                     <div v-if="activeDrivers.length === 0" class="text-center text-muted my-3">
                         附近暫無排班車輛
                     </div>
+                    
                     <div v-for="d in activeDrivers" :key="d.userId" 
                          class="card mb-2 shadow-sm border-0" @click="selectDriver(d)">
                         <div class="card-body p-3">
                             <div class="d-flex align-items-center">
-                                <img :src="d.avatar || 'https://via.placeholder.com/50'" class="rounded-circle me-3" width="50" height="50" style="object-fit: cover;">
+                                <img :src="d.avatar || 'https://via.placeholder.com/60'" 
+                                     class="rounded-3 me-3 shadow-sm bg-light" 
+                                     width="60" height="60" 
+                                     style="object-fit: cover;">
+                                
                                 <div class="flex-grow-1">
-                                    <div class="d-flex justify-content-between align-items-center">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
                                         <h5 class="mb-0 fw-bold text-dark">{{ d.plate }}</h5>
-                                        <span class="badge bg-primary rounded-pill">{{ d.capacity }}人座</span>
+                                        <span class="badge bg-primary rounded-pill" style="font-weight: normal; font-size: 0.75rem;">
+                                            {{ d.capacity }}人座
+                                        </span>
                                     </div>
-                                    <div class="small text-muted mb-1">{{ d.carModel }} | {{ d.name }}</div>
-                                    <div v-if="d.features">
-                                        <span v-for="f in d.features.split(',')" class="feature-tag">{{f}}</span>
+                                    
+                                    <div class="mb-1 text-truncate" style="max-width: 200px;">
+                                        <span class="fw-bold text-dark">{{ d.name }}</span> 
+                                        <span class="text-muted small ms-1">| {{ d.carModel }}</span>
+                                    </div>
+
+                                    <div v-if="d.features" style="line-height: 1;">
+                                        <span v-for="f in d.features.split(',')" class="feature-tag">
+                                            {{f}}
+                                        </span>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                </div>
+                    </div>
             </div>
         </div>
     </div>
@@ -147,16 +166,16 @@
 </div>
 
 <script>
-// ★★★ 請確認這兩行 ★★★
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbx4ncVkSKRLIkiisyftbtONCYI1OIbklzTsv4_h5gy4FX2ElcA1sWpKCA51O14cEj3p/exec'; 
-const LIFF_ID = '2008907691-7ntMtfbA'; 
+// ★★★ 請務必修改這兩行 ★★★
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbx4ncVkSKRLIkiisyftbtONCYI1OIbklzTsv4_h5gy4FX2ElcA1sWpKCA51O14cEj3p/exec'; // 填入你的 GAS 部署網址
+const LIFF_ID = '2008907691-7ntMtfbA';        // 填入你的 LIFF ID
 
 new Vue({
     el: '#app',
     data: {
         liffId: LIFF_ID,
         userId: '',
-        userAvatar: '', // 存自己的頭像
+        userAvatar: '', 
         zones: [],
         isDriver: false,
         driverName: '',
@@ -165,13 +184,12 @@ new Vue({
         loadingText: '系統連線中...',
         showRegModal: false,
         showDriverListModal: false,
-        // 新版註冊表單資料
         regForm: { 
             name: '', plate: '', phone: '', 
             carModel: '', capacity: '', features: [], payment: [] 
         },
         featureOptions: ['寵物友善', '無菸車', '英語OK', '可載單車', '輔助上下車'],
-        paymentOptions: ['敬老卡愛心卡', 'LinePay', '刷卡', '街口'],
+        paymentOptions: ['現金', 'LinePay', '刷卡', '街口'],
         activeDrivers: []
     },
     async mounted() {
@@ -187,7 +205,7 @@ new Vue({
                 }
                 const profile = await liff.getProfile();
                 this.userId = profile.userId;
-                this.userAvatar = profile.pictureUrl; // 抓取頭像
+                this.userAvatar = profile.pictureUrl; 
                 this.fetchLobby();
             } catch (err) {
                 alert('LIFF 初始化失敗');
@@ -233,14 +251,14 @@ new Vue({
                 const res = await axios.post(GAS_URL, JSON.stringify({
                     type: 'register',
                     userId: this.userId,
-                    avatar: this.userAvatar, // 自動帶入頭像
+                    avatar: this.userAvatar, 
                     name: f.name,
                     plate: f.plate,
                     phone: f.phone,
                     carModel: f.carModel,
                     capacity: f.capacity,
-                    features: f.features.join(','), // 陣列轉字串
-                    payment: f.payment.join(',')    // 陣列轉字串
+                    features: f.features.join(','), 
+                    payment: f.payment.join(',')
                 }));
                 alert(res.data.msg);
                 if(res.data.status === 'success') {
@@ -279,7 +297,7 @@ new Vue({
             }, (err) => { this.loading = false; alert('請開啟 GPS'); }, { enableHighAccuracy: true });
         },
         selectDriver(driver) {
-            // ★★★ 新版名片 Flex Message ★★★
+            // V2.0 尊榮版司機名片 (Flex Message)
             const flexMessage = {
                 type: 'flex',
                 altText: `推薦車輛 ${driver.plate}`,
