@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>排班小黃-花蓮站</title>
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2/dist/vue.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f8f9fa; font-family: "Microsoft JhengHei", sans-serif; }
+        .zone-card { cursor: pointer; transition: 0.2s; border: 2px solid transparent; }
+        .zone-card:active { transform: scale(0.98); }
+        .zone-card.full { border-color: #dc3545; background-color: #ffe6e6; opacity: 0.8; }
+        .driver-badge { font-size: 0.8rem; background: #ffc107; color: #000; padding: 2px 5px; border-radius: 4px; }
+        .loading-mask { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); color: white; display: flex; justify-content: center; align-items: center; z-index: 9999; flex-direction: column; }
+    </style>
+</head>
+<body>
+
+<div id="app" class="container py-3">
+    <div v-if="loading" class="loading-mask">
+        <div class="spinner-border text-warning mb-2" role="status"></div>
+        <div>{{ loadingText }}</div>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="fw-bold">🚕 排班大廳</h4>
+        <button v-if="!isDriver" @click="showRegModal = true" class="btn btn-sm btn-outline-dark">司機註冊</button>
+        <span v-else class="driver-badge">司機: {{ driverName }}</span>
+    </div>
+
+    <div class="row g-3">
+        <div v-for="zone in zones" :key="zone.id" class="col-6 col-md-4">
+            <div class="card h-100 shadow-sm zone-card" 
+                 :class="{ full: zone.count >= 10 }"
+                 @click="enterZone(zone)">
+                <div class="card-body text-center p-2">
+                    <h6 class="card-title fw-bold mb-1">{{ zone.name }}</h6>
+                    <div class="mt-2">
+                        <span class="badge" :class="zone.count >= 10 ? 'bg-danger' : 'bg-success'">
+                            {{ zone.count }} / 10 台
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div v-if="showRegModal" class="modal d-block" style="background: rgba(0,0,0,0.5)">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">運將註冊</h5>
+                    <button type="button" class="btn-close" @click="showRegModal = false"></button>
+                </div>
+                <div class="modal-body">
+                    <input v-model="regForm.name" class="form-control mb-2" placeholder="暱稱 (如: 阿龍)">
+                    <input v-model="regForm.plate" class="form-control mb-2" placeholder="車號 (如: TDC-1234)">
+                    <input v-model="regForm.phone" class="form-control mb-2" placeholder="電話">
+                </div>
+                <div class="modal-footer">
+                    <button @click="submitRegister" class="btn btn-warning w-100">送出審核</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div v-if="showDriverListModal" class="modal d-block" style="background: rgba(0,0,0,0.5)">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">選擇車輛</h5>
+                    <button type="button" class="btn-close" @click="showDriverListModal = false"></button>
+                </div>
+                <div class="modal-body">
+                    <div v-if="activeDrivers.length === 0" class="text-center text-muted my-3">
+                        附近暫無排班車輛
+                    </div>
+                    <div v-for="d in activeDrivers" :key="d.userId" 
+                         class="card mb-2 shadow-sm" @click="selectDriver(d)">
+                        <div class="card-body d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-0 fw-bold">{{ d.plate }}</h6>
+                                <small class="text-muted">{{ d.name }}</small>
+                            </div>
+                            <button class="btn btn-sm btn-primary">叫車</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbx4ncVkSKRLIkiisyftbtONCYI1OIbklzTsv4_h5gy4FX2ElcA1sWpKCA51O14cEj3p/exec'; // 請換成你的 URL
+
+new Vue({
+    el: '#app',
+    data: {
+        liffId: '你的_LIFF_ID',
+        userId: '',
+        zones: [],
+        isDriver: false,
+        driverName: '',
+        loading: true,
+        loadingText: '系統連線中...',
+        showRegModal: false,
+        showDriverListModal: false,
+        regForm: { name: '', plate: '', phone: '' },
+        activeDrivers: []
+    },
+    async mounted() {
+        await this.initLiff();
+    },
+    methods: {
+        async initLiff() {
+            try {
+                await liff.init({ liffId: this.liffId });
+                if (!liff.isLoggedIn()) {
+                    liff.login();
+                    return;
+                }
+                const profile = await liff.getProfile();
+                this.userId = profile.userId;
+                this.fetchLobby();
+            } catch (err) {
+                alert('LIFF 初始化失敗: ' + err);
+                this.loading = false;
+            }
+        },
+        async fetchLobby() {
+            this.loadingText = '讀取排班狀況...';
+            try {
+                const res = await axios.post(GAS_URL, JSON.stringify({
+                    type: 'getLobbyData',
+                    userId: this.userId
+                }));
+                this.zones = res.data.zones;
+                this.isDriver = res.data.isDriver;
+                if (this.isDriver && res.data.driverData) {
+                    this.driverName = res.data.driverData[1]; // 暱稱
+                }
+                this.loading = false;
+            } catch (err) {
+                alert('連線錯誤');
+                this.loading = false;
+            }
+        },
+        async submitRegister() {
+            if(!this.regForm.name || !this.regForm.plate) return alert('資料請填寫完整');
+            this.loading = true;
+            try {
+                const res = await axios.post(GAS_URL, JSON.stringify({
+                    type: 'register',
+                    userId: this.userId,
+                    ...this.regForm
+                }));
+                alert(res.data.msg);
+                if(res.data.status === 'success') {
+                    // 傳送訊息到聊天室
+                    liff.sendMessages([{
+                        type: 'text',
+                        text: `【司機註冊申請】\n暱稱：${this.regForm.name}\n車號：${this.regForm.plate}\n電話：${this.regForm.phone}\n請管理員審核。`
+                    }]).then(() => liff.closeWindow());
+                }
+            } catch(e) { alert('註冊失敗'); }
+            this.loading = false;
+        },
+        enterZone(zone) {
+            if (this.isDriver && zone.count >= 10) return alert('此區已滿！');
+            
+            this.loadingText = '定位中...';
+            this.loading = true;
+
+            if (!navigator.geolocation) {
+                this.loading = false;
+                return alert('您的裝置不支援 GPS');
+            }
+
+            navigator.geolocation.getCurrentPosition(async (pos) => {
+                const lat = pos.coords.latitude;
+                const lng = pos.coords.longitude;
+                
+                // 這裡可以先做前端距離快篩，減少 Server 負擔 (MVP 先省略，交給後端統一驗證)
+                
+                try {
+                    const res = await axios.post(GAS_URL, JSON.stringify({
+                        type: 'enterZone',
+                        userId: this.userId,
+                        zoneId: zone.id,
+                        userLat: lat,
+                        userLng: lng
+                    }));
+                    
+                    this.loading = false;
+                    
+                    if (res.data.status === 'error') {
+                        alert(res.data.msg);
+                    } else if (res.data.role === 'driver') {
+                        alert(res.data.msg);
+                        this.fetchLobby(); // 更新畫面
+                    } else if (res.data.role === 'passenger') {
+                        this.activeDrivers = res.data.drivers;
+                        this.showDriverListModal = true;
+                    }
+                } catch (e) {
+                    this.loading = false;
+                    alert('系統忙線中');
+                }
+            }, (err) => {
+                this.loading = false;
+                alert('無法取得位置，請開啟 GPS');
+            }, { enableHighAccuracy: true, timeout: 10000 });
+        },
+        selectDriver(driver) {
+            liff.sendMessages([{
+                type: 'flex',
+                altText: '乘客叫車請求',
+                contents: {
+                    type: 'bubble',
+                    body: {
+                        type: 'box',
+                        layout: 'vertical',
+                        contents: [
+                            { type: 'text', text: '🚕 乘客叫車', weight: 'bold', size: 'xl', color: '#1DB446' },
+                            { type: 'separator', margin: 'md' },
+                            { type: 'text', text: `車號：${driver.plate}`, margin: 'md', size: 'lg', weight: 'bold' },
+                            { type: 'text', text: `司機：${driver.name}`, size: 'md' },
+                            { type: 'text', text: `電話：${driver.phone}`, size: 'md', color: '#0066cc', action: { type: 'uri', label: 'Call', uri: `tel:${driver.phone}` } }
+                        ]
+                    }
+                }
+            }]).then(() => {
+                liff.closeWindow();
+            }).catch(err => {
+                alert('發送失敗，請從 LINE 開啟');
+            });
+        }
+    }
+});
+</script>
+</body>
+</html>
