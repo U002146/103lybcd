@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>排班小黃-花蓮站</title>
-    <meta name="description" content="花蓮在地計程車排班系統">
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/vue@2/dist/vue.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
@@ -16,6 +15,7 @@
         .zone-card.full { border-color: #dc3545; background-color: #ffe6e6; opacity: 0.8; }
         .driver-badge { font-size: 0.8rem; background: #ffc107; color: #000; padding: 2px 5px; border-radius: 4px; }
         .loading-mask { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); color: white; display: flex; justify-content: center; align-items: center; z-index: 9999; flex-direction: column; }
+        .feature-tag { font-size: 0.7rem; background: #e9ecef; border-radius: 10px; padding: 2px 6px; margin-right: 4px; display: inline-block; }
     </style>
 </head>
 <body>
@@ -37,9 +37,7 @@
             <small class="text-muted">目前位置</small><br>
             <strong>📍 {{ getZoneName(currentZoneId) }}</strong>
         </div>
-        <button @click="leaveZone" class="btn btn-danger btn-sm px-3 shadow">
-            下班 / 退排
-        </button>
+        <button @click="leaveZone" class="btn btn-danger btn-sm px-3 shadow">退班</button>
     </div>
 
     <div class="row g-3">
@@ -59,17 +57,51 @@
         </div>
     </div>
 
-    <div v-if="showRegModal" class="modal d-block" style="background: rgba(0,0,0,0.5)">
+    <div v-if="showRegModal" class="modal d-block" style="background: rgba(0,0,0,0.5); overflow-y: auto;">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">運將註冊</h5>
+                    <h5 class="modal-title">運將註冊 (資料完善版)</h5>
                     <button type="button" class="btn-close" @click="showRegModal = false"></button>
                 </div>
                 <div class="modal-body">
-                    <input v-model="regForm.name" class="form-control mb-2" placeholder="暱稱 (如: 阿龍)">
-                    <input v-model="regForm.plate" class="form-control mb-2" placeholder="車號 (如: TDC-1234)">
-                    <input v-model="regForm.phone" class="form-control mb-2" placeholder="電話">
+                    <div class="mb-2">
+                        <label class="form-label text-muted small">基本資料</label>
+                        <input v-model="regForm.name" class="form-control mb-2" placeholder="暱稱 (如: 阿龍)">
+                        <input v-model="regForm.plate" class="form-control mb-2" placeholder="車號 (如: TDC-1234)">
+                        <input v-model="regForm.phone" class="form-control mb-2" placeholder="手機號碼">
+                    </div>
+                    
+                    <div class="mb-2">
+                        <label class="form-label text-muted small">車輛資訊</label>
+                        <input v-model="regForm.carModel" class="form-control mb-2" placeholder="車型顏色 (如: Toyota Altis 白)">
+                        <select v-model="regForm.capacity" class="form-control mb-2">
+                            <option value="" disabled selected>可載客人數</option>
+                            <option value="4">4人</option>
+                            <option value="6">6人 (WISH/Sienna)</option>
+                            <option value="8">8人 (九人座)</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-2">
+                        <label class="form-label text-muted small">友善特質 (可複選)</label>
+                        <div class="d-flex flex-wrap gap-2">
+                            <div v-for="opt in featureOptions" :key="opt" class="form-check form-check-inline">
+                                <input class="form-check-input" type="checkbox" :value="opt" v-model="regForm.features">
+                                <label class="form-check-label small">{{opt}}</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-2">
+                        <label class="form-label text-muted small">支付方式 (可複選)</label>
+                        <div class="d-flex flex-wrap gap-2">
+                            <div v-for="opt in paymentOptions" :key="opt" class="form-check form-check-inline">
+                                <input class="form-check-input" type="checkbox" :value="opt" v-model="regForm.payment">
+                                <label class="form-check-label small">{{opt}}</label>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button @click="submitRegister" class="btn btn-warning w-100">送出審核</button>
@@ -85,18 +117,26 @@
                     <h5 class="modal-title">選擇車輛</h5>
                     <button type="button" class="btn-close" @click="showDriverListModal = false"></button>
                 </div>
-                <div class="modal-body">
+                <div class="modal-body p-2">
                     <div v-if="activeDrivers.length === 0" class="text-center text-muted my-3">
                         附近暫無排班車輛
                     </div>
                     <div v-for="d in activeDrivers" :key="d.userId" 
-                         class="card mb-2 shadow-sm" @click="selectDriver(d)">
-                        <div class="card-body d-flex justify-content-between align-items-center">
-                            <div>
-                                <h6 class="mb-0 fw-bold">{{ d.plate }}</h6>
-                                <small class="text-muted">{{ d.name }}</small>
+                         class="card mb-2 shadow-sm border-0" @click="selectDriver(d)">
+                        <div class="card-body p-3">
+                            <div class="d-flex align-items-center">
+                                <img :src="d.avatar || 'https://via.placeholder.com/50'" class="rounded-circle me-3" width="50" height="50" style="object-fit: cover;">
+                                <div class="flex-grow-1">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <h5 class="mb-0 fw-bold text-dark">{{ d.plate }}</h5>
+                                        <span class="badge bg-primary rounded-pill">{{ d.capacity }}人座</span>
+                                    </div>
+                                    <div class="small text-muted mb-1">{{ d.carModel }} | {{ d.name }}</div>
+                                    <div v-if="d.features">
+                                        <span v-for="f in d.features.split(',')" class="feature-tag">{{f}}</span>
+                                    </div>
+                                </div>
                             </div>
-                            <button class="btn btn-sm btn-primary">叫車</button>
                         </div>
                     </div>
                 </div>
@@ -107,24 +147,31 @@
 </div>
 
 <script>
-// ★★★ 請務必檢查這兩行 ★★★
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbx4ncVkSKRLIkiisyftbtONCYI1OIbklzTsv4_h5gy4FX2ElcA1sWpKCA51O14cEj3p/exec'; // 這裡要填你的 GAS 網址
-const LIFF_ID = '2008907691-7ntMtfbA';        // 這裡要填你的 LIFF ID
+// ★★★ 請確認這兩行 ★★★
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbx4ncVkSKRLIkiisyftbtONCYI1OIbklzTsv4_h5gy4FX2ElcA1sWpKCA51O14cEj3p/exec'; 
+const LIFF_ID = '2008907691-7ntMtfbA'; 
 
 new Vue({
     el: '#app',
     data: {
         liffId: LIFF_ID,
         userId: '',
+        userAvatar: '', // 存自己的頭像
         zones: [],
         isDriver: false,
         driverName: '',
-        currentZoneId: '', // 記錄司機當前位置
+        currentZoneId: '',
         loading: true,
         loadingText: '系統連線中...',
         showRegModal: false,
         showDriverListModal: false,
-        regForm: { name: '', plate: '', phone: '' },
+        // 新版註冊表單資料
+        regForm: { 
+            name: '', plate: '', phone: '', 
+            carModel: '', capacity: '', features: [], payment: [] 
+        },
+        featureOptions: ['寵物友善', '無菸車', '英語OK', '可載單車', '輔助上下車'],
+        paymentOptions: ['現金', 'LinePay', '刷卡', '街口'],
         activeDrivers: []
     },
     async mounted() {
@@ -140,9 +187,10 @@ new Vue({
                 }
                 const profile = await liff.getProfile();
                 this.userId = profile.userId;
+                this.userAvatar = profile.pictureUrl; // 抓取頭像
                 this.fetchLobby();
             } catch (err) {
-                alert('LIFF 初始化失敗: ' + err);
+                alert('LIFF 初始化失敗');
                 this.loading = false;
             }
         },
@@ -150,18 +198,16 @@ new Vue({
             this.loadingText = '讀取排班狀況...';
             try {
                 const res = await axios.post(GAS_URL, JSON.stringify({
-                    type: 'getLobbyData',
-                    userId: this.userId
+                    type: 'getLobbyData', userId: this.userId
                 }));
                 this.zones = res.data.zones;
                 this.isDriver = res.data.isDriver;
                 if (this.isDriver && res.data.driverData) {
                     this.driverName = res.data.driverData[1];
-                    this.currentZoneId = res.data.driverData[5]; // 更新目前位置
+                    this.currentZoneId = res.data.driverData[5];
                 }
                 this.loading = false;
             } catch (err) {
-                alert('連線錯誤');
                 this.loading = false;
             }
         },
@@ -172,34 +218,33 @@ new Vue({
         async leaveZone() {
             if(!confirm('確定要下班/退出排班嗎？')) return;
             this.loading = true;
-            this.loadingText = '退班處理中...';
             try {
-                const res = await axios.post(GAS_URL, JSON.stringify({
-                    type: 'leaveZone',
-                    userId: this.userId
-                }));
-                alert(res.data.msg);
-                this.fetchLobby(); // 刷新
-            } catch(e) {
-                alert('連線失敗');
-                this.loading = false;
-            }
+                await axios.post(GAS_URL, JSON.stringify({ type: 'leaveZone', userId: this.userId }));
+                this.fetchLobby();
+            } catch(e) { alert('連線失敗'); this.loading = false; }
         },
         async submitRegister() {
-            if(!this.regForm.name || !this.regForm.plate) return alert('資料請填寫完整');
+            const f = this.regForm;
+            if(!f.name || !f.plate || !f.phone || !f.carModel || !f.capacity) 
+                return alert('請填寫完整資料 (含車型與人數)');
+            
             this.loading = true;
             try {
                 const res = await axios.post(GAS_URL, JSON.stringify({
                     type: 'register',
                     userId: this.userId,
-                    ...this.regForm
+                    avatar: this.userAvatar, // 自動帶入頭像
+                    name: f.name,
+                    plate: f.plate,
+                    phone: f.phone,
+                    carModel: f.carModel,
+                    capacity: f.capacity,
+                    features: f.features.join(','), // 陣列轉字串
+                    payment: f.payment.join(',')    // 陣列轉字串
                 }));
                 alert(res.data.msg);
                 if(res.data.status === 'success') {
-                    liff.sendMessages([{
-                        type: 'text',
-                        text: `【司機註冊申請】\n暱稱：${this.regForm.name}\n車號：${this.regForm.plate}\n電話：${this.regForm.phone}\n請管理員審核。`
-                    }]).then(() => liff.closeWindow());
+                    liff.closeWindow();
                 }
             } catch(e) { alert('註冊失敗'); }
             this.loading = false;
@@ -209,19 +254,16 @@ new Vue({
             this.loadingText = '定位中...';
             this.loading = true;
             if (!navigator.geolocation) {
-                this.loading = false;
-                return alert('您的裝置不支援 GPS');
+                this.loading = false; return alert('不支援 GPS');
             }
             navigator.geolocation.getCurrentPosition(async (pos) => {
-                const lat = pos.coords.latitude;
-                const lng = pos.coords.longitude;
                 try {
                     const res = await axios.post(GAS_URL, JSON.stringify({
                         type: 'enterZone',
                         userId: this.userId,
                         zoneId: zone.id,
-                        userLat: lat,
-                        userLng: lng
+                        userLat: pos.coords.latitude,
+                        userLng: pos.coords.longitude
                     }));
                     this.loading = false;
                     if (res.data.status === 'error') {
@@ -233,48 +275,56 @@ new Vue({
                         this.activeDrivers = res.data.drivers;
                         this.showDriverListModal = true;
                     }
-                } catch (e) {
-                    this.loading = false;
-                    alert('系統忙線中');
-                }
-            }, (err) => {
-                this.loading = false;
-                alert('無法取得位置，請開啟 GPS');
-            }, { enableHighAccuracy: true, timeout: 10000 });
+                } catch (e) { this.loading = false; alert('忙線中'); }
+            }, (err) => { this.loading = false; alert('請開啟 GPS'); }, { enableHighAccuracy: true });
         },
         selectDriver(driver) {
-            // 美化版 Flex Message (v2.0)
+            // ★★★ 新版名片 Flex Message ★★★
             const flexMessage = {
                 type: 'flex',
-                altText: `您的車輛 ${driver.plate} 已確認`,
+                altText: `推薦車輛 ${driver.plate}`,
                 contents: {
                     type: "bubble",
                     header: {
-                        type: "box",
-                        layout: "vertical",
+                        type: "box", layout: "vertical",
                         contents: [
-                            { type: "text", text: "🚖 已為您安排車輛", color: "#856404", size: "xs", weight: "bold" }
+                            { type: "text", text: "🚖 推薦車輛", color: "#856404", size: "xs", weight: "bold" }
                         ],
                         backgroundColor: "#FFF3CD", paddingTop: "15px", paddingBottom: "15px"
                     },
                     hero: {
-                        type: "box",
-                        layout: "vertical",
+                        type: "box", layout: "vertical",
                         contents: [
-                            { type: "text", text: driver.plate, size: "4xl", weight: "bold", align: "center", color: "#111111", margin: "md" }
+                            // 這裡顯示 LINE 大頭貼
+                            {
+                                type: "image", url: driver.avatar || "https://via.placeholder.com/150",
+                                size: "lg", aspectMode: "cover", aspectRatio: "1:1",
+                                action: { type: "uri", uri: driver.avatar || "https://line.me" },
+                                margin: "md"
+                            },
+                            { type: "text", text: driver.plate, size: "3xl", weight: "bold", align: "center", margin: "md" },
+                            { type: "text", text: `${driver.carModel} (${driver.capacity}人)`, size: "sm", color: "#666666", align: "center" }
                         ],
                         paddingBottom: "10px"
                     },
                     body: {
-                        type: "box",
-                        layout: "vertical",
+                        type: "box", layout: "vertical",
                         contents: [
                             { type: "separator", margin: "md", color: "#eeeeee" },
+                            // 顯示特質標籤
                             {
-                                type: "box", layout: "baseline", margin: "lg", spacing: "md",
+                                type: "box", layout: "horizontal", margin: "md", spacing: "sm",
+                                contents: driver.features ? driver.features.split(',').map(f => ({
+                                    type: "text", text: f, size: "xxs", color: "#ffffff",
+                                    backgroundColor: "#1DB446", paddingAll: "xs", cornerRadius: "sm", flex: 0, align: "center"
+                                })) : [{ type: "text", text: "優質司機", size: "xxs", color: "#999999" }]
+                            },
+                            // 顯示支付方式
+                            {
+                                type: "box", layout: "baseline", margin: "md", spacing: "sm",
                                 contents: [
-                                    { type: "text", text: "司機", color: "#aaaaaa", size: "sm", flex: 2 },
-                                    { type: "text", text: driver.name, wrap: true, color: "#666666", size: "lg", weight: "bold", flex: 5 }
+                                    { type: "text", text: "支付", color: "#aaaaaa", size: "xs", flex: 2 },
+                                    { type: "text", text: driver.payment || "現金", wrap: true, color: "#666666", size: "xs", flex: 5 }
                                 ]
                             }
                         ]
@@ -283,21 +333,15 @@ new Vue({
                         type: "box", layout: "vertical", spacing: "sm",
                         contents: [
                             {
-                                type: "button", style: "primary", height: "sm", color: "#00C300",
-                                action: { type: "uri", label: `📞 撥打給 ${driver.name}`, uri: `tel:${driver.phone}` }
-                            },
-                            { type: "text", text: "請留意來車，祝您旅途愉快", size: "xxs", color: "#aaaaaa", align: "center", margin: "md" }
+                                type: "button", style: "primary", color: "#00C300",
+                                action: { type: "uri", label: `📞 呼叫 ${driver.name}`, uri: `tel:${driver.phone}` }
+                            }
                         ],
                         paddingAll: "20px"
                     }
                 }
             };
-            liff.sendMessages([flexMessage]).then(() => {
-                liff.closeWindow();
-            }).catch(err => {
-                console.error(err);
-                alert('發送失敗，請從 LINE 開啟');
-            });
+            liff.sendMessages([flexMessage]).then(() => liff.closeWindow());
         }
     }
 });
