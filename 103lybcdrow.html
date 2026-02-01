@@ -4,161 +4,228 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>排班小黃-花蓮站</title>
-    <meta name="description" content="花蓮在地計程車排班系統 - 即時車況、快速媒合">
-    <meta property="og:title" content="排班小黃-花蓮站">
-    <meta property="og:description" content="點擊進入排班大廳，查看即時車輛位置。">
+    <meta name="description" content="花蓮在地計程車排班系統">
     
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/vue@2/dist/vue.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
     <style>
-        body { background-color: #f8f9fa; font-family: "Microsoft JhengHei", sans-serif; }
-        .zone-card { cursor: pointer; transition: 0.2s; border: 2px solid transparent; }
+        body { background-color: #f0f2f5; font-family: "Microsoft JhengHei", sans-serif; -webkit-overflow-scrolling: touch; }
+        
+        /* 排班區卡片 */
+        .zone-card { cursor: pointer; transition: 0.2s; border: none; border-radius: 12px; }
         .zone-card:active { transform: scale(0.98); }
-        .zone-card.full { border-color: #dc3545; background-color: #ffe6e6; opacity: 0.8; }
-        .driver-badge { font-size: 0.8rem; background: #ffc107; color: #000; padding: 2px 5px; border-radius: 4px; }
-        .loading-mask { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); color: white; display: flex; justify-content: center; align-items: center; z-index: 9999; flex-direction: column; }
-        /* 標籤樣式微調 */
-        .feature-tag { font-size: 0.7rem; background: #fff; border: 1px solid #dee2e6; color: #666; border-radius: 4px; padding: 2px 6px; margin-right: 4px; display: inline-block; margin-bottom: 2px; }
+        .zone-card.full { border: 2px solid #dc3545; background-color: #fff5f5; opacity: 0.8; }
+        
+        /* 司機標籤 */
+        .driver-badge { font-size: 0.9rem; background: #FFD700; color: #000; padding: 4px 10px; border-radius: 20px; font-weight: bold; }
+        
+        /* Loading */
+        .loading-mask { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); color: white; display: flex; justify-content: center; align-items: center; z-index: 9999; flex-direction: column; backdrop-filter: blur(5px); }
+        
+        /* ★★★ 新版：全螢幕選車頁面 ★★★ */
+        .full-page-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: #f8f9fa; z-index: 2000;
+            overflow-y: auto; /* 允許垂直滑動 */
+            padding-bottom: 80px; /* 底部留白避免被按鈕擋住 */
+        }
+        
+        /* 司機卡片設計 (仿網頁版) */
+        .driver-card-full {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            margin-bottom: 16px;
+            overflow: hidden;
+            transition: transform 0.2s;
+            border: 1px solid #eee;
+        }
+        .driver-card-full:active { transform: scale(0.98); background-color: #fafafa; }
+        
+        /* 標籤樣式 */
+        .tag-badge {
+            font-size: 0.75rem;
+            padding: 4px 8px;
+            border-radius: 6px;
+            background-color: #e9ecef;
+            color: #495057;
+            margin-right: 6px;
+            margin-bottom: 6px;
+            display: inline-block;
+        }
+        .tag-badge.pay { background-color: #e3f2fd; color: #0d6efd; } /* 支付類藍色 */
+        .tag-badge.feature { background-color: #e8f5e9; color: #198754; } /* 特質類綠色 */
     </style>
 </head>
 <body>
 
-<div id="app" class="container py-3">
+<div id="app">
     <div v-if="loading" class="loading-mask">
-        <div class="spinner-border text-warning mb-2" role="status"></div>
-        <div>{{ loadingText }}</div>
+        <div class="spinner-border text-warning mb-3" role="status" style="width: 3rem; height: 3rem;"></div>
+        <div class="h5">{{ loadingText }}</div>
     </div>
 
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h4 class="fw-bold">🚕 排班大廳</h4>
-        <button v-if="!isDriver" @click="showRegModal = true" class="btn btn-sm btn-outline-dark">司機註冊</button>
-        <span v-else class="driver-badge">司機: {{ driverName }}</span>
-    </div>
-
-    <div v-if="isDriver && currentZoneId" class="alert alert-warning d-flex justify-content-between align-items-center shadow-sm mb-4">
-        <div>
-            <small class="text-muted">目前位置</small><br>
-            <strong>📍 {{ getZoneName(currentZoneId) }}</strong>
+    <div v-show="!showDriverListFullPage" class="container py-3">
+        <div class="d-flex justify-content-between align-items-center mb-4 px-2">
+            <div>
+                <h3 class="fw-bold mb-0">🚕 排班大廳</h3>
+                <small class="text-muted">花蓮計程車數位車隊</small>
+            </div>
+            <button v-if="!isDriver" @click="showRegModal = true" class="btn btn-outline-dark rounded-pill px-3">
+                <i class="fas fa-id-card me-1"></i> 司機註冊
+            </button>
+            <span v-else class="driver-badge shadow-sm">
+                <i class="fas fa-taxi me-1"></i> {{ driverName }}
+            </span>
         </div>
-        <button @click="leaveZone" class="btn btn-danger btn-sm px-3 shadow">退班</button>
-    </div>
 
-    <div class="row g-3">
-        <div v-for="zone in zones" :key="zone.id" class="col-6 col-md-4">
-            <div class="card h-100 shadow-sm zone-card" 
-                 :class="{ full: zone.count >= 10 }"
-                 @click="enterZone(zone)">
-                <div class="card-body text-center p-2">
-                    <h6 class="card-title fw-bold mb-1">{{ zone.name }}</h6>
-                    <div class="mt-2">
-                        <span class="badge" :class="zone.count >= 10 ? 'bg-danger' : 'bg-success'">
-                            {{ zone.count }} / 10 台
-                        </span>
+        <div v-if="isDriver && currentZoneId" class="alert alert-warning border-0 shadow-sm rounded-3 d-flex justify-content-between align-items-center mb-4 mx-1">
+            <div class="d-flex align-items-center">
+                <div class="bg-white p-2 rounded-circle me-3 text-warning">
+                    <i class="fas fa-map-marker-alt fa-lg"></i>
+                </div>
+                <div>
+                    <small class="text-muted">目前排班位置</small><br>
+                    <strong class="h5 mb-0">{{ getZoneName(currentZoneId) }}</strong>
+                </div>
+            </div>
+            <button @click="leaveZone" class="btn btn-danger btn-sm px-3 rounded-pill shadow-sm">
+                下班退排
+            </button>
+        </div>
+
+        <div class="row g-3">
+            <div v-for="zone in zones" :key="zone.id" class="col-6 col-md-4">
+                <div class="card h-100 shadow-sm zone-card" 
+                     :class="{ full: zone.count >= 10 }"
+                     @click="enterZone(zone)">
+                    <div class="card-body text-center p-3">
+                        <div class="mb-2">
+                            <span class="badge rounded-pill" 
+                                  :class="zone.count >= 10 ? 'bg-danger' : (zone.count > 0 ? 'bg-success' : 'bg-secondary')">
+                                {{ zone.count }} / 10 台
+                            </span>
+                        </div>
+                        <h6 class="card-title fw-bold text-dark mb-0">{{ zone.name }}</h6>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <div v-if="showDriverListFullPage" class="full-page-overlay">
+        <div class="bg-white shadow-sm sticky-top px-3 py-3 d-flex align-items-center">
+            <button @click="closeDriverList" class="btn btn-light rounded-circle me-3" style="width: 40px; height: 40px;">
+                <i class="fas fa-arrow-left"></i>
+            </button>
+            <div>
+                <h5 class="mb-0 fw-bold">選擇車輛</h5>
+                <small class="text-muted">{{ currentZoneName }} ({{ activeDrivers.length }}台車)</small>
+            </div>
+        </div>
+
+        <div class="container py-3">
+            <div v-if="activeDrivers.length === 0" class="text-center text-muted mt-5">
+                <i class="fas fa-car-side fa-3x mb-3 text-light"></i>
+                <p>附近暫無排班車輛，請稍候再試。</p>
+            </div>
+
+            <div v-for="d in activeDrivers" :key="d.userId" 
+                 class="driver-card-full p-3" @click="selectDriver(d)">
+                
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <div class="d-flex align-items-center">
+                        <img :src="d.avatar || 'https://via.placeholder.com/50'" 
+                             class="rounded-circle me-2 border" width="40" height="40" style="object-fit: cover;">
+                        <h4 class="fw-bold text-dark mb-0">{{ d.name }}</h4>
+                    </div>
+                    <div class="bg-warning text-dark px-3 py-1 rounded-pill fw-bold h5 mb-0 font-monospace">
+                        {{ d.plate }}
+                    </div>
+                </div>
+
+                <hr class="my-2" style="opacity: 0.1">
+
+                <div class="d-flex align-items-center text-secondary mb-3">
+                    <i class="fas fa-car me-2"></i>
+                    <span class="fw-bold me-2">{{ d.carModel || '一般轎車' }}</span>
+                    <span class="text-muted me-3">|</span>
+                    <i class="fas fa-users me-2"></i>
+                    <span>{{ d.capacity || '4' }}人座</span>
+                </div>
+
+                <div class="d-flex flex-wrap">
+                    <span v-for="f in (d.features ? d.features.split(',') : [])" :key="'f'+f" class="tag-badge feature">
+                        <i class="fas fa-check-circle me-1"></i>{{ f }}
+                    </span>
+                    <span v-for="p in (d.payment ? d.payment.split(',') : [])" :key="'p'+p" class="tag-badge pay">
+                        <i class="fas fa-credit-card me-1"></i>{{ p }}
+                    </span>
+                    <span v-if="!d.features && !d.payment" class="tag-badge text-muted">無特殊標註</span>
+                </div>
+
+                <div class="mt-3">
+                    <button class="btn btn-success w-100 rounded-pill fw-bold">
+                        <i class="fas fa-phone-alt me-2"></i> 呼叫司機
+                    </button>
+                </div>
+            </div>
+            <div class="text-center text-muted small mt-4 mb-5">
+                -- 已經到底了 --
             </div>
         </div>
     </div>
 
     <div v-if="showRegModal" class="modal d-block" style="background: rgba(0,0,0,0.5); overflow-y: auto;">
         <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">運將註冊 (資料完善版)</h5>
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-warning">
+                    <h5 class="modal-title fw-bold text-dark"><i class="fas fa-user-plus me-2"></i>運將註冊</h5>
                     <button type="button" class="btn-close" @click="showRegModal = false"></button>
                 </div>
-                <div class="modal-body">
-                    <div class="mb-2">
-                        <label class="form-label text-muted small">基本資料</label>
-                        <input v-model="regForm.name" class="form-control mb-2" placeholder="暱稱 (如: 阿龍)">
-                        <input v-model="regForm.plate" class="form-control mb-2" placeholder="車號 (如: TDC-1234)">
-                        <input v-model="regForm.phone" class="form-control mb-2" placeholder="手機號碼">
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label text-muted small fw-bold">第一列：基本資料</label>
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <input v-model="regForm.name" class="form-control" placeholder="暱稱 (如: 阿龍)">
+                            </div>
+                            <div class="col-6">
+                                <input v-model="regForm.plate" class="form-control" placeholder="車號 (如: TDC-1234)">
+                            </div>
+                        </div>
+                        <input v-model="regForm.phone" class="form-control mt-2" placeholder="手機號碼">
                     </div>
                     
-                    <div class="mb-2">
-                        <label class="form-label text-muted small">車輛資訊</label>
+                    <div class="mb-3">
+                        <label class="form-label text-muted small fw-bold">第二列：車輛資訊</label>
                         <input v-model="regForm.carModel" class="form-control mb-2" placeholder="車型顏色 (如: Toyota Altis 白)">
-                        <select v-model="regForm.capacity" class="form-control mb-2">
+                        <select v-model="regForm.capacity" class="form-control">
                             <option value="" disabled selected>可載客人數</option>
                             <option value="4">4人</option>
+                            <option value="5">5人 (休旅)</option>
                             <option value="6">6人 (WISH/Sienna)</option>
                             <option value="8">8人 (九人座)</option>
                         </select>
                     </div>
 
-                    <div class="mb-2">
-                        <label class="form-label text-muted small">友善特質 (可複選)</label>
+                    <div class="mb-3">
+                        <label class="form-label text-muted small fw-bold">第三列：服務與支付 (可複選)</label>
                         <div class="d-flex flex-wrap gap-2">
-                            <div v-for="opt in featureOptions" :key="opt" class="form-check form-check-inline">
+                            <div v-for="opt in allOptions" :key="opt" class="form-check form-check-inline border rounded px-2 py-1 m-0">
                                 <input class="form-check-input" type="checkbox" :value="opt" v-model="regForm.features">
                                 <label class="form-check-label small">{{opt}}</label>
                             </div>
                         </div>
                     </div>
-
-                    <div class="mb-2">
-                        <label class="form-label text-muted small">支付方式 (可複選)</label>
-                        <div class="d-flex flex-wrap gap-2">
-                            <div v-for="opt in paymentOptions" :key="opt" class="form-check form-check-inline">
-                                <input class="form-check-input" type="checkbox" :value="opt" v-model="regForm.payment">
-                                <label class="form-check-label small">{{opt}}</label>
-                            </div>
-                        </div>
-                    </div>
                 </div>
-                <div class="modal-footer">
-                    <button @click="submitRegister" class="btn btn-warning w-100">送出審核</button>
+                <div class="modal-footer border-0">
+                    <button @click="submitRegister" class="btn btn-dark w-100 rounded-pill py-2">送出審核</button>
                 </div>
-            </div>
-        </div>
-    </div>
-
-    <div v-if="showDriverListModal" class="modal d-block" style="background: rgba(0,0,0,0.5)">
-        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">選擇車輛</h5>
-                    <button type="button" class="btn-close" @click="showDriverListModal = false"></button>
-                </div>
-                <div class="modal-body p-2">
-                    <div v-if="activeDrivers.length === 0" class="text-center text-muted my-3">
-                        附近暫無排班車輛
-                    </div>
-                    
-                    <div v-for="d in activeDrivers" :key="d.userId" 
-                         class="card mb-2 shadow-sm border-0" @click="selectDriver(d)">
-                        <div class="card-body p-3">
-                            <div class="d-flex align-items-center">
-                                <img :src="d.avatar || 'https://via.placeholder.com/60'" 
-                                     class="rounded-3 me-3 shadow-sm bg-light" 
-                                     width="60" height="60" 
-                                     style="object-fit: cover;">
-                                
-                                <div class="flex-grow-1">
-                                    <div class="d-flex justify-content-between align-items-center mb-1">
-                                        <h5 class="mb-0 fw-bold text-dark">{{ d.plate }}</h5>
-                                        <span class="badge bg-primary rounded-pill" style="font-weight: normal; font-size: 0.75rem;">
-                                            {{ d.capacity }}人座
-                                        </span>
-                                    </div>
-                                    
-                                    <div class="mb-1 text-truncate" style="max-width: 200px;">
-                                        <span class="fw-bold text-dark">{{ d.name }}</span> 
-                                        <span class="text-muted small ms-1">| {{ d.carModel }}</span>
-                                    </div>
-
-                                    <div v-if="d.features" style="line-height: 1;">
-                                        <span v-for="f in d.features.split(',')" class="feature-tag">
-                                            {{f}}
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    </div>
             </div>
         </div>
     </div>
@@ -167,8 +234,8 @@
 
 <script>
 // ★★★ 請務必修改這兩行 ★★★
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbx4ncVkSKRLIkiisyftbtONCYI1OIbklzTsv4_h5gy4FX2ElcA1sWpKCA51O14cEj3p/exec'; // 填入你的 GAS 部署網址
-const LIFF_ID = '2008907691-7ntMtfbA';        // 填入你的 LIFF ID
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbx4ncVkSKRLIkiisyftbtONCYI1OIbklzTsv4_h5gy4FX2ElcA1sWpKCA51O14cEj3p/exec'; 
+const LIFF_ID = '2008907691-je5XDhbB'; 
 
 new Vue({
     el: '#app',
@@ -182,14 +249,22 @@ new Vue({
         currentZoneId: '',
         loading: true,
         loadingText: '系統連線中...',
+        
+        // 頁面控制
         showRegModal: false,
-        showDriverListModal: false,
+        showDriverListFullPage: false, // 改用全頁模式
+        currentZoneName: '',
+
+        // 註冊表單
         regForm: { 
             name: '', plate: '', phone: '', 
-            carModel: '', capacity: '', features: [], payment: [] 
+            carModel: '', capacity: '', features: [] 
         },
-        featureOptions: ['寵物友善', '無菸車', '英語OK', '可載單車', '輔助上下車'],
-        paymentOptions: ['現金', 'LinePay', '刷卡', '街口'],
+        // 您的新需求選項 (合併特質與支付)
+        allOptions: [
+            '無菸車', '寵物友善', '敬老卡', '愛心卡', '乘車券', 
+            '信用卡', 'LinePay', '英語OK', '輔助上下車'
+        ],
         activeDrivers: []
     },
     async mounted() {
@@ -244,8 +319,13 @@ new Vue({
         async submitRegister() {
             const f = this.regForm;
             if(!f.name || !f.plate || !f.phone || !f.carModel || !f.capacity) 
-                return alert('請填寫完整資料 (含車型與人數)');
+                return alert('請填寫完整資料');
             
+            // 簡單分類：如果選項包含 '卡' 或 'Pay' 或 '券' 算支付，其他算特質 (後端存儲用，其實沒差)
+            const paymentKw = ['信用卡', 'LinePay', '敬老卡', '愛心卡', '乘車券'];
+            const paymentList = f.features.filter(i => paymentKw.some(k => i.includes(k)));
+            const featureList = f.features.filter(i => !paymentKw.some(k => i.includes(k)));
+
             this.loading = true;
             try {
                 const res = await axios.post(GAS_URL, JSON.stringify({
@@ -257,8 +337,8 @@ new Vue({
                     phone: f.phone,
                     carModel: f.carModel,
                     capacity: f.capacity,
-                    features: f.features.join(','), 
-                    payment: f.payment.join(',')
+                    features: featureList.join(','), 
+                    payment: paymentList.join(',')
                 }));
                 alert(res.data.msg);
                 if(res.data.status === 'success') {
@@ -269,6 +349,8 @@ new Vue({
         },
         enterZone(zone) {
             if (this.isDriver && zone.count >= 10) return alert('此區已滿！');
+            
+            // 進入定位與邏輯
             this.loadingText = '定位中...';
             this.loading = true;
             if (!navigator.geolocation) {
@@ -284,20 +366,26 @@ new Vue({
                         userLng: pos.coords.longitude
                     }));
                     this.loading = false;
+                    
                     if (res.data.status === 'error') {
                         alert(res.data.msg);
                     } else if (res.data.role === 'driver') {
                         alert(res.data.msg);
                         this.fetchLobby();
                     } else if (res.data.role === 'passenger') {
+                        // ★ 成功取得列表，開啟全螢幕模式 ★
                         this.activeDrivers = res.data.drivers;
-                        this.showDriverListModal = true;
+                        this.currentZoneName = zone.name;
+                        this.showDriverListFullPage = true; 
                     }
                 } catch (e) { this.loading = false; alert('忙線中'); }
             }, (err) => { this.loading = false; alert('請開啟 GPS'); }, { enableHighAccuracy: true });
         },
+        closeDriverList() {
+            this.showDriverListFullPage = false;
+        },
         selectDriver(driver) {
-            // V2.0 尊榮版司機名片 (Flex Message)
+            // V3.0 尊榮版司機名片 (Flex Message)
             const flexMessage = {
                 type: 'flex',
                 altText: `推薦車輛 ${driver.plate}`,
@@ -313,7 +401,6 @@ new Vue({
                     hero: {
                         type: "box", layout: "vertical",
                         contents: [
-                            // 這裡顯示 LINE 大頭貼
                             {
                                 type: "image", url: driver.avatar || "https://via.placeholder.com/150",
                                 size: "lg", aspectMode: "cover", aspectRatio: "1:1",
@@ -329,20 +416,11 @@ new Vue({
                         type: "box", layout: "vertical",
                         contents: [
                             { type: "separator", margin: "md", color: "#eeeeee" },
-                            // 顯示特質標籤
                             {
-                                type: "box", layout: "horizontal", margin: "md", spacing: "sm",
-                                contents: driver.features ? driver.features.split(',').map(f => ({
-                                    type: "text", text: f, size: "xxs", color: "#ffffff",
-                                    backgroundColor: "#1DB446", paddingAll: "xs", cornerRadius: "sm", flex: 0, align: "center"
-                                })) : [{ type: "text", text: "優質司機", size: "xxs", color: "#999999" }]
-                            },
-                            // 顯示支付方式
-                            {
-                                type: "box", layout: "baseline", margin: "md", spacing: "sm",
+                                type: "box", layout: "vertical", margin: "md", spacing: "sm",
                                 contents: [
-                                    { type: "text", text: "支付", color: "#aaaaaa", size: "xs", flex: 2 },
-                                    { type: "text", text: driver.payment || "現金", wrap: true, color: "#666666", size: "xs", flex: 5 }
+                                    { type: "text", text: "服務與支付", color: "#aaaaaa", size: "xs" },
+                                    { type: "text", text: (driver.features + ',' + driver.payment).replace(/^,|,$/g,''), wrap: true, color: "#666666", size: "sm" }
                                 ]
                             }
                         ]
