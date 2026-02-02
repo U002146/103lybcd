@@ -165,11 +165,11 @@
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
-    // ========= 設定區 (這裡都改好了) =========
-    // GAS 網址不變
+    // ========= 設定區 =========
+    // GAS 網址保持你原本的
     const GAS_URL = "https://script.google.com/macros/s/AKfycbyfNTgci2gZE2Etxvv6SHaP3puw7Mxt8ineL4gZve7Zyh2UGrcna4Zxap6EOyRICQ/exec"; 
     const LIFF_ID = "2008907691-7ntMtfbA"; 
-    // 👇 Firebase 總部網址 (已填入)
+    // 👇 Firebase 總部網址 (已填入你的專案)
     const FIREBASE_URL = "https://hualientaxi-bb32f-default-rtdb.asia-southeast1.firebasedatabase.app/"; 
     // =====================================
 
@@ -177,10 +177,15 @@
     var currentUser = null;
     var isDriver = false;
     var myLat = null, myLng = null;
-    var myPhone = ""; // 新增：存自己的電話
+    var myPhone = ""; // 存放自己的電話
     var isOnline = false, isBusy = false, isPowerSaving = false;
     var updateTimer = null;
     var wakeLock = null;
+
+    // 🔥 V2 核心：記憶上一次傳送的位置與時間
+    var lastUploadLat = 0;
+    var lastUploadLng = 0;
+    var lastUploadTime = 0;
 
     const iconEmpty = L.divIcon({ html: '<div style="font-size:36px;">🚕</div>', className: '', iconSize: [36, 36], iconAnchor: [18, 18] });
     const iconBusy = L.divIcon({ html: '<div style="font-size:36px; filter: grayscale(100%) opacity(0.6);">🚕</div>', className: '', iconSize: [36, 36], iconAnchor: [18, 18] });
@@ -228,8 +233,8 @@
         currentUser = await liff.getProfile();
         startTrackingLocation();
         checkRole(currentUser.userId);
-        fetchDrivers(); // 現在是從 Firebase 抓
-        setInterval(fetchDrivers, 5000); // 這裡可以改快一點，每 5 秒更新一次地圖
+        fetchDrivers(); // 從 Firebase 抓資料
+        setInterval(fetchDrivers, 5000); // 這裡改回每 5 秒更新一次地圖，這樣看別人車子比較順
       } catch (err) { console.log("LIFF Error:", err); }
     }
 
@@ -241,7 +246,6 @@
       }
     }
 
-    // 檢查身分 (這段有改：會順便把電話存下來)
     function checkRole(uid) {
       fetch(`${GAS_URL}?op=check_role&uid=${uid}`)
         .then(res => res.json())
@@ -284,7 +288,7 @@
           btnSave.style.display = 'none';
           clearInterval(updateTimer);
           releaseWakeLock();
-          postData('offline', isBusy ? 'busy' : 'empty', 0, 0); // 下線也會通知 Firebase
+          postData('offline', isBusy ? 'busy' : 'empty', 0, 0); 
           if (isPowerSaving) togglePowerSaving();
         }
       } catch (e) {
@@ -297,7 +301,8 @@
       const btnStatus = document.getElementById('btn-status');
       btnStatus.className = isBusy ? "circle-btn bg-red" : "circle-btn bg-green";
       btnStatus.innerHTML = isBusy ? `<span>載客</span>` : `<span>空車</span>`;
-      uploadLocation(); // 狀態改變立刻上傳
+      // 狀態改變時，不看距離限制，強制更新一次
+      uploadLocation(true); 
     }
 
     function togglePowerSaving() {
@@ -320,7 +325,7 @@
 
     function resetUpdateTimer() {
       clearInterval(updateTimer);
-      uploadLocation(); // 立即執行一次
+      uploadLocation(); 
       
       const baseInterval = isPowerSaving ? 120000 : 30000;
       const jitter = Math.floor(Math.random() * 5000); 
@@ -328,7 +333,8 @@
       updateTimer = setInterval(uploadLocation, baseInterval + jitter);
     }
 
-    function uploadLocation() {
+    // 🔥 核心修改：智慧上傳 (含心跳 + 移動過濾)
+    function uploadLocation(forceUpdate = false) {
       if (!isOnline) return;
       
       if (!navigator.geolocation) {
@@ -338,7 +344,33 @@
 
       navigator.geolocation.getCurrentPosition(
         (pos) => {
-          postData('online', isBusy ? 'busy' : 'empty', pos.coords.latitude, pos.coords.longitude);
+          const curLat = pos.coords.latitude;
+          const curLng = pos.coords.longitude;
+          const now = Date.now();
+
+          // 1. 計算移動距離
+          const dist = calculateDistance(lastUploadLat, lastUploadLng, curLat, curLng) * 1000; 
+          // 2. 計算時間間隔
+          const timeDiff = now - lastUploadTime;
+
+          // 3. 門檻設定 (30公尺 / 10分鐘心跳)
+          const distLimit = 30; 
+          const timeLimit = 10 * 60 * 1000; 
+
+          // 4. 判斷是否上傳：(移動夠遠 OR 太久沒傳 OR 強制更新)
+          if (dist > distLimit || timeDiff > timeLimit || forceUpdate) {
+            
+            console.log(`🚀 上傳更新：移動 ${dist.toFixed(1)}m`);
+            postData('online', isBusy ? 'busy' : 'empty', curLat, curLng);
+            
+            // 更新記憶
+            lastUploadLat = curLat;
+            lastUploadLng = curLng;
+            lastUploadTime = now;
+            
+          } else {
+            console.log(`💤 省流中：移動 ${dist.toFixed(1)}m (未達30m)`);
+          }
         },
         (err) => {
           console.error("GPS Error:", err);
@@ -351,26 +383,25 @@
       );
     }
 
-    // 🔥 核心修改：直接寫入 Firebase (使用 PUT 方法)
+    // 🔥 核心修改：寫入 Firebase (PUT)
     function postData(status, work, lat, lng) {
       if (!currentUser) return;
 
       const payload = {
         id: currentUser.userId,
         name: currentUser.displayName,
-        phone: myPhone || "無電話", // 如果沒抓到電話就顯示無電話
+        phone: myPhone || "無電話",
         status: status,
         workStatus: work,
         lat: lat,
         lng: lng,
-        lastUpdate: Date.now() // 心跳時間戳記
+        lastUpdate: Date.now()
       };
 
-      // 每個司機有自己的專屬路徑 drivers/USER_ID
       const url = `${FIREBASE_URL}drivers/${currentUser.userId}.json`;
 
       fetch(url, {
-        method: 'PUT', // 使用 PUT 保證不殘留舊資料
+        method: 'PUT',
         body: JSON.stringify(payload)
       }).catch(e => {
         console.warn("Firebase 連線忙碌中:", e);
@@ -402,28 +433,25 @@
       }
     }
 
-    // 🔥 核心修改：從 Firebase 讀取所有司機
+    // 🔥 核心修改：從 Firebase 讀取
     function fetchDrivers() {
       fetch(`${FIREBASE_URL}drivers.json`)
         .then(res => res.json())
         .then(data => {
-          if (!data) { // 如果完全沒資料
+          if (!data) { 
              updateHUD(0);
              renderCarousel([]);
              return; 
           }
 
           const now = Date.now();
-          const timeout = 10 * 60 * 1000; // 10分鐘沒更新視為斷線
+          const timeout = 10 * 60 * 1000; // 10分鐘心跳檢測
 
-          // 把物件轉為陣列並過濾
           let drivers = Object.values(data).filter(d => {
             return d.status === 'online' && (now - d.lastUpdate < timeout);
           });
 
-          // 計算距離
           drivers.forEach(d => d.distance = calculateDistance(myLat, myLng, d.lat, d.lng));
-          // 排序
           drivers.sort((a, b) => a.distance - b.distance);
 
           updateMap(drivers);
@@ -449,7 +477,7 @@
         let icon = d.workStatus === 'busy' ? iconBusy : iconEmpty;
         let marker = L.marker([d.lat, d.lng], {icon: icon}).addTo(map);
         let distText = (d.distance < 100) ? `(約 ${d.distance.toFixed(1)} km)` : '';
-        // 這裡會顯示從 Firebase 抓到的電話
+        // 這裡會顯示電話按鈕
         let phoneBtn = d.phone ? `<a href="tel:${d.phone}" style="display:block; margin-top:10px; padding:10px; background:#2ecc71; color:white; border-radius:10px; text-decoration:none; font-weight:bold;">📞 聯絡司機</a>` : '';
         
         marker.bindPopup(`<div style="text-align:center;"><b>🚕 ${d.name}</b><br><span style="color:${d.workStatus==='busy'?'red':'green'};">● ${d.workStatus==='busy'?'載客中':'目前空車'} ${distText}</span><br>${phoneBtn}</div>`);
