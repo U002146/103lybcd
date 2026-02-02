@@ -88,14 +88,12 @@
 </head>
 <body>
 
-  <!-- 黑屏省電遮罩 -->
   <div id="power-save-overlay" onclick="togglePowerSaving()">
     <div style="font-size: 60px;">🚕</div>
     <p>螢幕常亮：系統運行中</p>
     <div style="font-size: 14px; color: #333; margin-top: 50px;">點擊螢幕回歸地圖</div>
   </div>
 
-  <!-- 分享彈窗 -->
   <div id="share-modal" class="modal-overlay">
     <div class="modal-content">
       <h3 style="margin-top:0;">掃碼加入平台</h3>
@@ -109,7 +107,6 @@
     </div>
   </div>
 
-  <!-- 註冊彈窗 -->
   <div id="reg-modal" class="modal-overlay">
     <div class="modal-content">
       <h3 style="margin-top:0;">司機註冊申請</h3>
@@ -142,9 +139,7 @@
 
   <div id="map"></div>
 
-  <!-- 右上角控制區 -->
   <div id="top-right-panel">
-    <!-- 司機按鈕 -->
     <button id="btn-power" class="circle-btn bg-gray" style="display:none;" onclick="togglePower()">
       <span>上線</span>
       <span class="sub-text">OFF</span>
@@ -156,32 +151,33 @@
       <span>省電</span>
     </button>
 
-    <!-- 乘客按鈕 -->
     <button id="btn-register" class="circle-btn" onclick="openModal('reg-modal')">
       <span>司機<br>註冊</span>
     </button>
 
-    <!-- 共有按鈕：掃碼分享 -->
     <button id="btn-share" class="circle-btn" onclick="openShareModal()">
       <span>分享<br>平台</span>
     </button>
   </div>
 
-  <!-- 乘客卡片 -->
   <div id="passenger-carousel"></div>
 
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
-    // ========= 設定區 =========
+    // ========= 設定區 (這裡都改好了) =========
+    // GAS 網址不變
     const GAS_URL = "https://script.google.com/macros/s/AKfycbyfNTgci2gZE2Etxvv6SHaP3puw7Mxt8ineL4gZve7Zyh2UGrcna4Zxap6EOyRICQ/exec"; 
     const LIFF_ID = "2008907691-7ntMtfbA"; 
-    // =========================
+    // 👇 Firebase 總部網址 (已填入)
+    const FIREBASE_URL = "https://hualientaxi-bb32f-default-rtdb.asia-southeast1.firebasedatabase.app/"; 
+    // =====================================
 
     var map, markers = {};
     var currentUser = null;
     var isDriver = false;
     var myLat = null, myLng = null;
+    var myPhone = ""; // 新增：存自己的電話
     var isOnline = false, isBusy = false, isPowerSaving = false;
     var updateTimer = null;
     var wakeLock = null;
@@ -200,7 +196,6 @@
       });
     };
 
-    // 螢幕鎖定功能
     async function requestWakeLock() {
       if ('wakeLock' in navigator) {
         try { wakeLock = await navigator.wakeLock.request('screen'); } catch (err) {}
@@ -233,8 +228,8 @@
         currentUser = await liff.getProfile();
         startTrackingLocation();
         checkRole(currentUser.userId);
-        fetchDrivers();
-        setInterval(fetchDrivers, 10000);
+        fetchDrivers(); // 現在是從 Firebase 抓
+        setInterval(fetchDrivers, 5000); // 這裡可以改快一點，每 5 秒更新一次地圖
       } catch (err) { console.log("LIFF Error:", err); }
     }
 
@@ -246,12 +241,14 @@
       }
     }
 
+    // 檢查身分 (這段有改：會順便把電話存下來)
     function checkRole(uid) {
       fetch(`${GAS_URL}?op=check_role&uid=${uid}`)
         .then(res => res.json())
         .then(data => {
           isDriver = (data.role === 'driver');
           if (isDriver) {
+            if(data.phone) myPhone = data.phone; // 存電話
             document.getElementById('btn-power').style.display = 'flex';
             document.getElementById('btn-register').style.display = 'none';
             document.getElementById('passenger-carousel').style.display = 'none';
@@ -287,7 +284,7 @@
           btnSave.style.display = 'none';
           clearInterval(updateTimer);
           releaseWakeLock();
-          postData('offline', isBusy ? 'busy' : 'empty', 0, 0);
+          postData('offline', isBusy ? 'busy' : 'empty', 0, 0); // 下線也會通知 Firebase
           if (isPowerSaving) togglePowerSaving();
         }
       } catch (e) {
@@ -300,7 +297,7 @@
       const btnStatus = document.getElementById('btn-status');
       btnStatus.className = isBusy ? "circle-btn bg-red" : "circle-btn bg-green";
       btnStatus.innerHTML = isBusy ? `<span>載客</span>` : `<span>空車</span>`;
-      uploadLocation();
+      uploadLocation(); // 狀態改變立刻上傳
     }
 
     function togglePowerSaving() {
@@ -321,16 +318,11 @@
       resetUpdateTimer();
     }
 
-    // [優化] 錯峰上傳 (Traffic Jitter)
-    // 防止所有人都在同一秒回傳，導致 GAS 塞車
     function resetUpdateTimer() {
       clearInterval(updateTimer);
       uploadLocation(); // 立即執行一次
       
-      // 基礎間隔 (30秒 或 120秒)
       const baseInterval = isPowerSaving ? 120000 : 30000;
-      
-      // 加入隨機延遲 0~5秒 (Jitter)，分散流量
       const jitter = Math.floor(Math.random() * 5000); 
       
       updateTimer = setInterval(uploadLocation, baseInterval + jitter);
@@ -340,7 +332,6 @@
       if (!isOnline) return;
       
       if (!navigator.geolocation) {
-        // 靜默失敗，不干擾司機，除非連續多次
         console.warn("瀏覽器不支援 GPS");
         return;
       }
@@ -351,32 +342,38 @@
         },
         (err) => {
           console.error("GPS Error:", err);
-          if(isOnline) {
-             // 只有「權限被拒絕 (代碼1)」才需要彈窗並下線
-             // 其他如「定位超時」、「訊號不佳」則靜默處理，等待下次重試
-             if (err.code === 1) {
-               alert(`🔴 無法讀取位置！\n請檢查 LINE 權限設定。`);
-               togglePower(); 
-             } else {
-               // 網路/GPS 暫時不穩，不要下線，只在 Console 紀錄
-               console.log("GPS 暫時無法定位，等待下次更新...");
-             }
+          if(isOnline && err.code === 1) {
+              alert(`🔴 無法讀取位置！\n請檢查 LINE 權限設定。`);
+              togglePower(); 
           }
         },
         { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
       );
     }
 
+    // 🔥 核心修改：直接寫入 Firebase (使用 PUT 方法)
     function postData(status, work, lat, lng) {
-      const payload = { userId: currentUser.userId, status: status, work: work, lat: lat, lng: lng };
-      fetch(GAS_URL, {
-        method: 'POST', mode: 'no-cors',
-        headers: { 'Content-Type': 'application/json' },
+      if (!currentUser) return;
+
+      const payload = {
+        id: currentUser.userId,
+        name: currentUser.displayName,
+        phone: myPhone || "無電話", // 如果沒抓到電話就顯示無電話
+        status: status,
+        workStatus: work,
+        lat: lat,
+        lng: lng,
+        lastUpdate: Date.now() // 心跳時間戳記
+      };
+
+      // 每個司機有自己的專屬路徑 drivers/USER_ID
+      const url = `${FIREBASE_URL}drivers/${currentUser.userId}.json`;
+
+      fetch(url, {
+        method: 'PUT', // 使用 PUT 保證不殘留舊資料
         body: JSON.stringify(payload)
       }).catch(e => {
-        // [優化] 靜默失敗 (Silent Failure)
-        // 網路塞車時不要彈 Alert 嚇司機，改為 Console 紀錄
-        console.warn("GAS 連線忙碌中，本次略過:", e);
+        console.warn("Firebase 連線忙碌中:", e);
       });
     }
 
@@ -405,16 +402,35 @@
       }
     }
 
+    // 🔥 核心修改：從 Firebase 讀取所有司機
     function fetchDrivers() {
-      fetch(`${GAS_URL}?op=get_drivers`)
+      fetch(`${FIREBASE_URL}drivers.json`)
         .then(res => res.json())
-        .then(drivers => {
+        .then(data => {
+          if (!data) { // 如果完全沒資料
+             updateHUD(0);
+             renderCarousel([]);
+             return; 
+          }
+
+          const now = Date.now();
+          const timeout = 10 * 60 * 1000; // 10分鐘沒更新視為斷線
+
+          // 把物件轉為陣列並過濾
+          let drivers = Object.values(data).filter(d => {
+            return d.status === 'online' && (now - d.lastUpdate < timeout);
+          });
+
+          // 計算距離
           drivers.forEach(d => d.distance = calculateDistance(myLat, myLng, d.lat, d.lng));
+          // 排序
           drivers.sort((a, b) => a.distance - b.distance);
+
           updateMap(drivers);
           if (!isDriver) renderCarousel(drivers);
           updateHUD(drivers.length);
-        });
+        })
+        .catch(err => console.error("Firebase 讀取失敗", err));
     }
 
     function calculateDistance(lat1, lon1, lat2, lon2) {
@@ -433,7 +449,10 @@
         let icon = d.workStatus === 'busy' ? iconBusy : iconEmpty;
         let marker = L.marker([d.lat, d.lng], {icon: icon}).addTo(map);
         let distText = (d.distance < 100) ? `(約 ${d.distance.toFixed(1)} km)` : '';
-        marker.bindPopup(`<div style="text-align:center;"><b>🚕 ${d.name}</b><br><span style="color:${d.workStatus==='busy'?'red':'green'};">● ${d.workStatus==='busy'?'載客中':'目前空車'} ${distText}</span><br><a href="tel:${d.phone}" style="display:block; margin-top:10px; padding:10px; background:#2ecc71; color:white; border-radius:10px; text-decoration:none; font-weight:bold;">📞 聯絡司機</a></div>`);
+        // 這裡會顯示從 Firebase 抓到的電話
+        let phoneBtn = d.phone ? `<a href="tel:${d.phone}" style="display:block; margin-top:10px; padding:10px; background:#2ecc71; color:white; border-radius:10px; text-decoration:none; font-weight:bold;">📞 聯絡司機</a>` : '';
+        
+        marker.bindPopup(`<div style="text-align:center;"><b>🚕 ${d.name}</b><br><span style="color:${d.workStatus==='busy'?'red':'green'};">● ${d.workStatus==='busy'?'載客中':'目前空車'} ${distText}</span><br>${phoneBtn}</div>`);
         markers[d.id] = marker;
       });
     }
