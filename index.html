@@ -175,7 +175,6 @@
     // ========= 設定區 =========
     const GAS_URL = "https://script.google.com/macros/s/AKfycbyfNTgci2gZE2Etxvv6SHaP3puw7Mxt8ineL4gZve7Zyh2UGrcna4Zxap6EOyRICQ/exec"; 
     const LIFF_ID = "2008907691-7ntMtfbA"; 
-    // 👇 Firebase 總部網址
     const FIREBASE_URL = "https://hualientaxi-bb32f-default-rtdb.asia-southeast1.firebasedatabase.app/"; 
     // =====================================
 
@@ -185,7 +184,6 @@
     var myLat = null, myLng = null;
     var myPhone = ""; 
     
-    // 🔥 狀態改為文字模式：'empty'(空車) -> 'queue'(排班) -> 'busy'(載客)
     var currentWorkStatus = 'empty'; 
     var isOnline = false;
     var isPowerSaving = false;
@@ -195,12 +193,13 @@
     var lastUploadLat = 0;
     var lastUploadLng = 0;
     var lastUploadTime = 0;
+    
+    // 🚩 新增：用來記錄是否已經自動飛到使用者位置過
+    var hasCenteredMap = false; 
 
     // 定義三種圖示
     const iconEmpty = L.divIcon({ html: '<div style="font-size:36px;">🚕</div>', className: '', iconSize: [36, 36], iconAnchor: [18, 18] });
-    // 載客圖示 (灰色/紅色調)
     const iconBusy = L.divIcon({ html: '<div style="font-size:36px; filter: grayscale(100%) opacity(0.6);">🚕</div>', className: '', iconSize: [36, 36], iconAnchor: [18, 18] });
-    // 排班圖示 (藍色車)
     const iconQueue = L.divIcon({ html: '<div style="font-size:36px; filter: hue-rotate(200deg);">🚕</div>', className: '', iconSize: [36, 36], iconAnchor: [18, 18] });
 
     window.onload = async function() {
@@ -231,6 +230,7 @@
     }
 
     function initMap() {
+      // 預設花蓮市中心，但隨後 startTrackingLocation 會修正它
       map = L.map('map', { zoomControl: false }).setView([23.99000, 121.60684], 13);
       L.control.zoom({ position: 'bottomright' }).addTo(map);
       L.tileLayer('https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
@@ -251,10 +251,19 @@
       } catch (err) { console.log("LIFF Error:", err); }
     }
 
+    // 🔥 修改：加入自動置中邏輯
     function startTrackingLocation() {
       if (navigator.geolocation) {
         navigator.geolocation.watchPosition((pos) => {
-          myLat = pos.coords.latitude; myLng = pos.coords.longitude;
+          myLat = pos.coords.latitude; 
+          myLng = pos.coords.longitude;
+          
+          // 如果是第一次抓到位置，地圖飛過去
+          if (!hasCenteredMap) {
+             map.setView([myLat, myLng], 15);
+             hasCenteredMap = true; 
+             console.log("已自動定位至使用者位置");
+          }
         }, (err) => console.error(err), { enableHighAccuracy: true });
       }
     }
@@ -286,12 +295,11 @@
 
         if (nextState) {
           isOnline = true;
-          // 上線時預設為空車
           currentWorkStatus = 'empty';
           btnPower.className = "circle-btn bg-red";
           btnPower.innerHTML = `<span>下線</span><span class="sub-text">ON</span>`;
           btnStatus.style.display = 'flex';
-          updateStatusButton(); // 更新按鈕外觀
+          updateStatusButton(); 
           btnSave.style.display = 'flex';
           requestWakeLock();
           console.log("嘗試上線，取得 GPS 中...");
@@ -312,9 +320,7 @@
       }
     }
 
-    // 🔥 V2.2 新功能：三段式狀態切換
     function toggleStatus() {
-      // 循環順序：Empty (空車) -> Queue (排班) -> Busy (載客) -> Empty...
       if (currentWorkStatus === 'empty') {
         currentWorkStatus = 'queue';
       } else if (currentWorkStatus === 'queue') {
@@ -324,7 +330,6 @@
       }
       
       updateStatusButton();
-      // 狀態改變時，強制更新一次資料
       uploadLocation(true); 
     }
 
@@ -390,8 +395,6 @@
           const distLimit = 30; 
           const timeLimit = 10 * 60 * 1000; 
 
-          // 如果是排班模式，不需要頻繁檢查移動，主要是靠心跳
-          // 但如果位移太大(例如忘了切換狀態就開走)，還是會更新
           if (dist > distLimit || timeDiff > timeLimit || forceUpdate) {
             console.log(`🚀 上傳更新 [${currentWorkStatus}]：移動 ${dist.toFixed(1)}m`);
             postData('online', currentWorkStatus, curLat, curLng);
@@ -422,7 +425,7 @@
         name: currentUser.displayName,
         phone: myPhone || "無電話",
         status: status,
-        workStatus: work, // 會傳送 empty, queue, 或 busy
+        workStatus: work,
         lat: lat,
         lng: lng,
         lastUpdate: Date.now()
@@ -463,39 +466,60 @@
       }
     }
 
-    // 🔥 V2.2 核心修改：讀取資料與過濾
+    // 🔥 V2.3 核心修改：20km限制 + 排序 + 數量切割
     function fetchDrivers() {
+      // 沒抓到使用者位置前，先不計算，以免顯示錯誤
+      if (!myLat || !myLng) return;
+
       fetch(`${FIREBASE_URL}drivers.json`)
         .then(res => res.json())
         .then(data => {
           if (!data) { 
              updateHUD(0);
              renderCarousel([]);
+             updateMap([]); // 清空地圖
              return; 
           }
 
           const now = Date.now();
           
-          let drivers = Object.values(data).filter(d => {
+          // 1. 基礎過濾
+          let allDrivers = Object.values(data).filter(d => {
             if (d.status !== 'online') return false;
 
-            // ⏰ 逾時判斷邏輯
-            let timeoutLimit = 10 * 60 * 1000; // 預設 10 分鐘
-            
-            // 如果是「排班 (queue)」狀態，延長到 60 分鐘
+            let timeoutLimit = 10 * 60 * 1000; 
             if (d.workStatus === 'queue') {
               timeoutLimit = 60 * 60 * 1000; 
             }
-
             return (now - d.lastUpdate < timeoutLimit);
           });
 
-          drivers.forEach(d => d.distance = calculateDistance(myLat, myLng, d.lat, d.lng));
-          drivers.sort((a, b) => a.distance - b.distance);
+          // 2. 計算距離並過濾 20km 內
+          let nearbyDrivers = allDrivers.map(d => {
+              d.distance = calculateDistance(myLat, myLng, d.lat, d.lng);
+              return d;
+          }).filter(d => {
+              return d.distance <= 20; // 只留 20km 內
+          });
 
-          updateMap(drivers);
-          if (!isDriver) renderCarousel(drivers);
-          updateHUD(drivers.length);
+          // 3. 排序 (近 -> 遠)
+          nearbyDrivers.sort((a, b) => a.distance - b.distance);
+
+          // 4. 切割數量
+          // 地圖顯示前 10 名
+          const mapDrivers = nearbyDrivers.slice(0, 10);
+          
+          // 列表顯示前 5 名
+          const listDrivers = nearbyDrivers.slice(0, 5);
+
+          updateMap(mapDrivers);
+          
+          if (!isDriver) {
+             renderCarousel(listDrivers);
+          }
+          
+          // HUD 顯示「附近範圍內」的車輛數
+          updateHUD(nearbyDrivers.length); 
         })
         .catch(err => console.error("Firebase 讀取失敗", err));
     }
@@ -517,15 +541,14 @@
         let statusText;
         let colorStyle;
 
-        // 依狀態決定圖示
         if (d.workStatus === 'busy') {
           icon = iconBusy;
           statusText = '載客中';
           colorStyle = 'red';
         } else if (d.workStatus === 'queue') {
-          icon = iconQueue; // 藍色圖示
+          icon = iconQueue; 
           statusText = '排班中';
-          colorStyle = '#3498db'; // 藍色字
+          colorStyle = '#3498db'; 
         } else {
           icon = iconEmpty;
           statusText = '目前空車';
@@ -547,7 +570,7 @@
         container.innerHTML = '<div style="flex:0 0 100%; text-align:center; padding:20px; background:white; border-radius:20px;">🔴 目前附近無司機服務</div>';
         return;
       }
-      container.innerHTML = drivers.slice(0, 5).map(d => {
+      container.innerHTML = drivers.map(d => {
         let statusText = d.workStatus === 'busy' ? '載客中' : (d.workStatus === 'queue' ? '排班中' : '目前空車');
         let statusColor = d.workStatus === 'busy' ? 'red' : (d.workStatus === 'queue' ? '#3498db' : 'green');
         
@@ -565,8 +588,8 @@
 
     function updateHUD(count) {
       const hud = document.getElementById('hud');
-      if (count > 0) hud.innerHTML = `<span class="status-dot" style="background:#2ecc71;"></span> 線上運將：${count} 人`;
-      else hud.innerHTML = `<span class="status-dot" style="background:#e74c3c;"></span> 目前無司機服務`;
+      if (count > 0) hud.innerHTML = `<span class="status-dot" style="background:#2ecc71;"></span> 附近運將：${count} 人`;
+      else hud.innerHTML = `<span class="status-dot" style="background:#e74c3c;"></span> 附近無司機`;
     }
   </script>
 </body>
