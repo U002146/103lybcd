@@ -44,13 +44,13 @@
     /* 按鈕顏色樣式 */
     .bg-green { background: linear-gradient(135deg, #2ecc71, #27ae60); }
     .bg-red   { background: linear-gradient(135deg, #e74c3c, #c0392b); }
-    .bg-blue  { background: linear-gradient(135deg, #3498db, #2980b9); } /* 排班用藍色 */
+    .bg-blue  { background: linear-gradient(135deg, #3498db, #2980b9); } 
     .bg-gray  { background: linear-gradient(135deg, #bdc3c7, #95a5a6); }
     
     .sub-text { font-size: 12px; opacity: 0.9; margin-top: 4px; }
     .leaflet-bottom { bottom: 140px !important; }
 
-    /* 黑屏遮罩 */
+    /* 黑屏遮罩 (排班/省電) */
     #power-save-overlay {
       display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
       background: black; z-index: 2000; color: #444; flex-direction: column;
@@ -62,13 +62,18 @@
     /* 通用彈窗 */
     .modal-overlay {
       display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-      background: rgba(0,0,0,0.8); z-index: 3000; justify-content: center; align-items: center;
-      backdrop-filter: blur(5px);
+      background: rgba(0,0,0,0.85); z-index: 3000; justify-content: center; align-items: center;
+      backdrop-filter: blur(8px);
     }
     .modal-content {
       background: white; width: 85%; max-width: 350px; border-radius: 24px;
       padding: 25px; box-sizing: border-box; text-align: center;
     }
+
+    /* 🔥 新增：定位權限教學彈窗樣式 */
+    #gps-instruction { text-align: left; background: #fff8e1; padding: 15px; border-radius: 10px; margin: 15px 0; border: 2px solid #ffecb3; }
+    #gps-instruction ol { padding-left: 20px; margin: 5px 0; color: #555; font-size: 15px; line-height: 1.6; }
+    #gps-instruction b { color: #e67e22; }
 
     /* QR Code 顯示區 */
     #qrcode-container {
@@ -138,6 +143,27 @@
     </div>
   </div>
 
+  <div id="gps-alert-modal" class="modal-overlay" style="z-index: 4000;">
+    <div class="modal-content">
+      <div style="font-size: 50px;">📍</div>
+      <h2 style="margin: 10px 0; color: #e74c3c;">無法讀取位置</h2>
+      <p style="color:#666; font-size:14px;">請檢查手機設定，允許 LINE 存取您的位置。</p>
+      
+      <div id="gps-instruction">
+        <ol>
+          <li>進入手機<b>【設定】</b></li>
+          <li>找到應用程式<b>【LINE】</b></li>
+          <li>開啟<b>【位置/定位】</b>權限</li>
+        </ol>
+      </div>
+      
+      <div class="modal-btns">
+        <button style="background:#3498db; color:white;" onclick="retryGPS()">我開好了！重試</button>
+        <button style="background:#eee; color:#666; margin-top:8px;" onclick="closeModal('gps-alert-modal')">取消 (地圖可能不準)</button>
+      </div>
+    </div>
+  </div>
+
   <div id="hud">
     <span class="status-dot" style="background:gray;"></span> 定位中...
   </div>
@@ -194,10 +220,12 @@
     var lastUploadLng = 0;
     var lastUploadTime = 0;
     
-    // 🚩 新增：用來記錄是否已經自動飛到使用者位置過
     var hasCenteredMap = false; 
+    
+    // 🔥 防止重複彈出警告
+    var isGpsAlertShown = false;
 
-    // 定義三種圖示
+    // 定義圖示
     const iconEmpty = L.divIcon({ html: '<div style="font-size:36px;">🚕</div>', className: '', iconSize: [36, 36], iconAnchor: [18, 18] });
     const iconBusy = L.divIcon({ html: '<div style="font-size:36px; filter: grayscale(100%) opacity(0.6);">🚕</div>', className: '', iconSize: [36, 36], iconAnchor: [18, 18] });
     const iconQueue = L.divIcon({ html: '<div style="font-size:36px; filter: hue-rotate(200deg);">🚕</div>', className: '', iconSize: [36, 36], iconAnchor: [18, 18] });
@@ -230,7 +258,6 @@
     }
 
     function initMap() {
-      // 預設花蓮市中心，但隨後 startTrackingLocation 會修正它
       map = L.map('map', { zoomControl: false }).setView([23.99000, 121.60684], 13);
       L.control.zoom({ position: 'bottomright' }).addTo(map);
       L.tileLayer('https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
@@ -244,28 +271,62 @@
         await liff.init({ liffId: LIFF_ID });
         if (!liff.isLoggedIn()) { liff.login(); return; }
         currentUser = await liff.getProfile();
+        
+        // 啟動定位追蹤 (包含錯誤處理)
         startTrackingLocation();
+        
         checkRole(currentUser.userId);
         fetchDrivers(); 
         setInterval(fetchDrivers, 5000); 
       } catch (err) { console.log("LIFF Error:", err); }
     }
 
-    // 🔥 修改：加入自動置中邏輯
+    // 🔥 核心修改：定位與錯誤攔截
     function startTrackingLocation() {
       if (navigator.geolocation) {
-        navigator.geolocation.watchPosition((pos) => {
-          myLat = pos.coords.latitude; 
-          myLng = pos.coords.longitude;
-          
-          // 如果是第一次抓到位置，地圖飛過去
-          if (!hasCenteredMap) {
-             map.setView([myLat, myLng], 15);
-             hasCenteredMap = true; 
-             console.log("已自動定位至使用者位置");
-          }
-        }, (err) => console.error(err), { enableHighAccuracy: true });
+        navigator.geolocation.watchPosition(
+          (pos) => {
+            // 成功抓到位置
+            myLat = pos.coords.latitude; 
+            myLng = pos.coords.longitude;
+            
+            // 如果之前彈過警告視窗，成功後自動關閉
+            if (isGpsAlertShown) {
+               closeModal('gps-alert-modal');
+               isGpsAlertShown = false;
+            }
+
+            // 第一次自動飛到使用者位置
+            if (!hasCenteredMap) {
+               map.setView([myLat, myLng], 15);
+               hasCenteredMap = true; 
+               console.log("已自動定位至使用者位置");
+            }
+          }, 
+          (err) => {
+            // 失敗：攔截錯誤代碼
+            console.error("GPS Error:", err);
+            // 代碼 1: 使用者拒絕 / 代碼 2: 抓不到位置 (沒開 GPS) / 代碼 3: 逾時
+            if ((err.code === 1 || err.code === 2) && !isGpsAlertShown) {
+               openModal('gps-alert-modal');
+               isGpsAlertShown = true; // 標記已顯示，避免一直閃爍
+            }
+          }, 
+          { enableHighAccuracy: true, maximumAge: 0 }
+        );
+      } else {
+        alert("您的瀏覽器不支援定位功能");
       }
+    }
+    
+    // 按下「我開好了」的按鈕功能
+    function retryGPS() {
+       closeModal('gps-alert-modal');
+       isGpsAlertShown = false;
+       // 重新觸發一次定位
+       startTrackingLocation();
+       // 或是簡單的 location.reload(); 也可以
+       window.location.reload();
     }
 
     function checkRole(uid) {
@@ -407,10 +468,12 @@
           }
         },
         (err) => {
+          // 這裡的錯誤處理主要針對司機背景上傳
           console.error("GPS Error:", err);
           if(isOnline && err.code === 1) {
-              alert(`🔴 無法讀取位置！\n請檢查 LINE 權限設定。`);
-              togglePower(); 
+              // 司機上線中斷線，會跳出警示
+              openModal('gps-alert-modal');
+              togglePower(); // 強制下線
           }
         },
         { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
@@ -468,7 +531,7 @@
 
     // 🔥 V2.3 核心修改：20km限制 + 排序 + 數量切割
     function fetchDrivers() {
-      // 沒抓到使用者位置前，先不計算，以免顯示錯誤
+      // 沒抓到使用者位置前，先不計算
       if (!myLat || !myLng) return;
 
       fetch(`${FIREBASE_URL}drivers.json`)
@@ -477,13 +540,12 @@
           if (!data) { 
              updateHUD(0);
              renderCarousel([]);
-             updateMap([]); // 清空地圖
+             updateMap([]); 
              return; 
           }
 
           const now = Date.now();
           
-          // 1. 基礎過濾
           let allDrivers = Object.values(data).filter(d => {
             if (d.status !== 'online') return false;
 
@@ -494,22 +556,19 @@
             return (now - d.lastUpdate < timeoutLimit);
           });
 
-          // 2. 計算距離並過濾 20km 內
+          // 計算距離並過濾 20km 內
           let nearbyDrivers = allDrivers.map(d => {
               d.distance = calculateDistance(myLat, myLng, d.lat, d.lng);
               return d;
           }).filter(d => {
-              return d.distance <= 20; // 只留 20km 內
+              return d.distance <= 20; 
           });
 
-          // 3. 排序 (近 -> 遠)
+          // 排序 (近 -> 遠)
           nearbyDrivers.sort((a, b) => a.distance - b.distance);
 
-          // 4. 切割數量
-          // 地圖顯示前 10 名
+          // 切割數量
           const mapDrivers = nearbyDrivers.slice(0, 10);
-          
-          // 列表顯示前 5 名
           const listDrivers = nearbyDrivers.slice(0, 5);
 
           updateMap(mapDrivers);
@@ -518,7 +577,6 @@
              renderCarousel(listDrivers);
           }
           
-          // HUD 顯示「附近範圍內」的車輛數
           updateHUD(nearbyDrivers.length); 
         })
         .catch(err => console.error("Firebase 讀取失敗", err));
