@@ -41,6 +41,15 @@
     #btn-register { width: 75px; height: 75px; font-size: 15px; background: linear-gradient(135deg, #f39c12, #e67e22); display: none; }
     #btn-share { width: 60px; height: 60px; font-size: 13px; background: linear-gradient(135deg, #3498db, #2980b9); }
 
+    /* 按鈕顏色樣式 */
+    .bg-green { background: linear-gradient(135deg, #2ecc71, #27ae60); }
+    .bg-red   { background: linear-gradient(135deg, #e74c3c, #c0392b); }
+    .bg-blue  { background: linear-gradient(135deg, #3498db, #2980b9); } /* 排班用藍色 */
+    .bg-gray  { background: linear-gradient(135deg, #bdc3c7, #95a5a6); }
+    
+    .sub-text { font-size: 12px; opacity: 0.9; margin-top: 4px; }
+    .leaflet-bottom { bottom: 140px !important; }
+
     /* 黑屏遮罩 */
     #power-save-overlay {
       display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
@@ -78,19 +87,15 @@
     /* 底部卡片 */
     #passenger-carousel { position: absolute; bottom: 20px; left: 0; width: 100%; z-index: 1000; display: none; overflow-x: auto; gap: 12px; padding: 0 15px 15px 15px; box-sizing: border-box; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; }
     .driver-card { flex: 0 0 88%; max-width: 340px; background: white; border-radius: 20px; padding: 18px; box-shadow: 0 8px 25px rgba(0,0,0,0.2); scroll-snap-align: center; display: flex; align-items: center; justify-content: space-between; }
-    
-    .bg-green { background: linear-gradient(135deg, #2ecc71, #27ae60); }
-    .bg-red   { background: linear-gradient(135deg, #e74c3c, #c0392b); }
-    .bg-gray  { background: linear-gradient(135deg, #bdc3c7, #95a5a6); }
-    .sub-text { font-size: 12px; opacity: 0.9; margin-top: 4px; }
-    .leaflet-bottom { bottom: 140px !important; }
+    .driver-card .card-call-btn { text-decoration: none; font-size: 24px; width: 50px; height: 50px; background: #2ecc71; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(46, 204, 113, 0.4); }
+
   </style>
 </head>
 <body>
 
   <div id="power-save-overlay" onclick="togglePowerSaving()">
-    <div style="font-size: 60px;">🚕</div>
-    <p>螢幕常亮：系統運行中</p>
+    <div style="font-size: 60px;">🅿️</div>
+    <p>排班/省電模式中</p>
     <div style="font-size: 14px; color: #333; margin-top: 50px;">點擊螢幕回歸地圖</div>
   </div>
 
@@ -144,9 +149,11 @@
       <span>上線</span>
       <span class="sub-text">OFF</span>
     </button>
+    
     <button id="btn-status" class="circle-btn bg-green" onclick="toggleStatus()">
       <span>空車</span>
     </button>
+    
     <button id="btn-save-power" class="circle-btn" onclick="togglePowerSaving()">
       <span>省電</span>
     </button>
@@ -177,17 +184,24 @@
     var isDriver = false;
     var myLat = null, myLng = null;
     var myPhone = ""; 
-    var isOnline = false, isBusy = false, isPowerSaving = false;
+    
+    // 🔥 狀態改為文字模式：'empty'(空車) -> 'queue'(排班) -> 'busy'(載客)
+    var currentWorkStatus = 'empty'; 
+    var isOnline = false;
+    var isPowerSaving = false;
     var updateTimer = null;
     var wakeLock = null;
 
-    // 🔥 V2 核心：記憶上一次傳送的位置與時間
     var lastUploadLat = 0;
     var lastUploadLng = 0;
     var lastUploadTime = 0;
 
+    // 定義三種圖示
     const iconEmpty = L.divIcon({ html: '<div style="font-size:36px;">🚕</div>', className: '', iconSize: [36, 36], iconAnchor: [18, 18] });
+    // 載客圖示 (灰色/紅色調)
     const iconBusy = L.divIcon({ html: '<div style="font-size:36px; filter: grayscale(100%) opacity(0.6);">🚕</div>', className: '', iconSize: [36, 36], iconAnchor: [18, 18] });
+    // 排班圖示 (藍色車)
+    const iconQueue = L.divIcon({ html: '<div style="font-size:36px; filter: hue-rotate(200deg);">🚕</div>', className: '', iconSize: [36, 36], iconAnchor: [18, 18] });
 
     window.onload = async function() {
       initMap();
@@ -209,9 +223,7 @@
       if (wakeLock !== null) { wakeLock.release().then(() => wakeLock = null); }
     }
 
-    // 🔥 更新：分享官方帳號
     function openShareModal() {
-      // 這是官方帳號的加入好友連結
       const oaUrl = "https://line.me/R/ti/p/@631ugnif";
       const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(oaUrl)}`;
       document.getElementById('qrcode-img').src = qrApiUrl;
@@ -274,9 +286,12 @@
 
         if (nextState) {
           isOnline = true;
+          // 上線時預設為空車
+          currentWorkStatus = 'empty';
           btnPower.className = "circle-btn bg-red";
           btnPower.innerHTML = `<span>下線</span><span class="sub-text">ON</span>`;
           btnStatus.style.display = 'flex';
+          updateStatusButton(); // 更新按鈕外觀
           btnSave.style.display = 'flex';
           requestWakeLock();
           console.log("嘗試上線，取得 GPS 中...");
@@ -289,7 +304,7 @@
           btnSave.style.display = 'none';
           clearInterval(updateTimer);
           releaseWakeLock();
-          postData('offline', isBusy ? 'busy' : 'empty', 0, 0); 
+          postData('offline', 'empty', 0, 0); 
           if (isPowerSaving) togglePowerSaving();
         }
       } catch (e) {
@@ -297,12 +312,34 @@
       }
     }
 
+    // 🔥 V2.2 新功能：三段式狀態切換
     function toggleStatus() {
-      isBusy = !isBusy;
-      const btnStatus = document.getElementById('btn-status');
-      btnStatus.className = isBusy ? "circle-btn bg-red" : "circle-btn bg-green";
-      btnStatus.innerHTML = isBusy ? `<span>載客</span>` : `<span>空車</span>`;
+      // 循環順序：Empty (空車) -> Queue (排班) -> Busy (載客) -> Empty...
+      if (currentWorkStatus === 'empty') {
+        currentWorkStatus = 'queue';
+      } else if (currentWorkStatus === 'queue') {
+        currentWorkStatus = 'busy';
+      } else {
+        currentWorkStatus = 'empty';
+      }
+      
+      updateStatusButton();
+      // 狀態改變時，強制更新一次資料
       uploadLocation(true); 
+    }
+
+    function updateStatusButton() {
+      const btnStatus = document.getElementById('btn-status');
+      if (currentWorkStatus === 'empty') {
+        btnStatus.className = "circle-btn bg-green";
+        btnStatus.innerHTML = `<span>空車</span>`;
+      } else if (currentWorkStatus === 'queue') {
+        btnStatus.className = "circle-btn bg-blue";
+        btnStatus.innerHTML = `<span>排班</span>`;
+      } else {
+        btnStatus.className = "circle-btn bg-red";
+        btnStatus.innerHTML = `<span>載客</span>`;
+      }
     }
 
     function togglePowerSaving() {
@@ -333,7 +370,6 @@
       updateTimer = setInterval(uploadLocation, baseInterval + jitter);
     }
 
-    // 智慧上傳 (含心跳 + 移動過濾)
     function uploadLocation(forceUpdate = false) {
       if (!isOnline) return;
       
@@ -354,15 +390,17 @@
           const distLimit = 30; 
           const timeLimit = 10 * 60 * 1000; 
 
+          // 如果是排班模式，不需要頻繁檢查移動，主要是靠心跳
+          // 但如果位移太大(例如忘了切換狀態就開走)，還是會更新
           if (dist > distLimit || timeDiff > timeLimit || forceUpdate) {
-            console.log(`🚀 上傳更新：移動 ${dist.toFixed(1)}m`);
-            postData('online', isBusy ? 'busy' : 'empty', curLat, curLng);
+            console.log(`🚀 上傳更新 [${currentWorkStatus}]：移動 ${dist.toFixed(1)}m`);
+            postData('online', currentWorkStatus, curLat, curLng);
             
             lastUploadLat = curLat;
             lastUploadLng = curLng;
             lastUploadTime = now;
           } else {
-            console.log(`💤 省流中：移動 ${dist.toFixed(1)}m (未達30m)`);
+            console.log(`💤 省流中...`);
           }
         },
         (err) => {
@@ -376,7 +414,6 @@
       );
     }
 
-    // 寫入 Firebase (PUT)
     function postData(status, work, lat, lng) {
       if (!currentUser) return;
 
@@ -385,7 +422,7 @@
         name: currentUser.displayName,
         phone: myPhone || "無電話",
         status: status,
-        workStatus: work,
+        workStatus: work, // 會傳送 empty, queue, 或 busy
         lat: lat,
         lng: lng,
         lastUpdate: Date.now()
@@ -426,7 +463,7 @@
       }
     }
 
-    // 從 Firebase 讀取
+    // 🔥 V2.2 核心修改：讀取資料與過濾
     function fetchDrivers() {
       fetch(`${FIREBASE_URL}drivers.json`)
         .then(res => res.json())
@@ -438,10 +475,19 @@
           }
 
           const now = Date.now();
-          const timeout = 10 * 60 * 1000; 
-
+          
           let drivers = Object.values(data).filter(d => {
-            return d.status === 'online' && (now - d.lastUpdate < timeout);
+            if (d.status !== 'online') return false;
+
+            // ⏰ 逾時判斷邏輯
+            let timeoutLimit = 10 * 60 * 1000; // 預設 10 分鐘
+            
+            // 如果是「排班 (queue)」狀態，延長到 60 分鐘
+            if (d.workStatus === 'queue') {
+              timeoutLimit = 60 * 60 * 1000; 
+            }
+
+            return (now - d.lastUpdate < timeoutLimit);
           });
 
           drivers.forEach(d => d.distance = calculateDistance(myLat, myLng, d.lat, d.lng));
@@ -467,12 +513,30 @@
       for (let id in markers) { map.removeLayer(markers[id]); }
       markers = {};
       drivers.forEach(d => {
-        let icon = d.workStatus === 'busy' ? iconBusy : iconEmpty;
+        let icon;
+        let statusText;
+        let colorStyle;
+
+        // 依狀態決定圖示
+        if (d.workStatus === 'busy') {
+          icon = iconBusy;
+          statusText = '載客中';
+          colorStyle = 'red';
+        } else if (d.workStatus === 'queue') {
+          icon = iconQueue; // 藍色圖示
+          statusText = '排班中';
+          colorStyle = '#3498db'; // 藍色字
+        } else {
+          icon = iconEmpty;
+          statusText = '目前空車';
+          colorStyle = 'green';
+        }
+
         let marker = L.marker([d.lat, d.lng], {icon: icon}).addTo(map);
         let distText = (d.distance < 100) ? `(約 ${d.distance.toFixed(1)} km)` : '';
         let phoneBtn = d.phone ? `<a href="tel:${d.phone}" style="display:block; margin-top:10px; padding:10px; background:#2ecc71; color:white; border-radius:10px; text-decoration:none; font-weight:bold;">📞 聯絡司機</a>` : '';
         
-        marker.bindPopup(`<div style="text-align:center;"><b>🚕 ${d.name}</b><br><span style="color:${d.workStatus==='busy'?'red':'green'};">● ${d.workStatus==='busy'?'載客中':'目前空車'} ${distText}</span><br>${phoneBtn}</div>`);
+        marker.bindPopup(`<div style="text-align:center;"><b>🚕 ${d.name}</b><br><span style="color:${colorStyle}; font-weight:bold;">● ${statusText} ${distText}</span><br>${phoneBtn}</div>`);
         markers[d.id] = marker;
       });
     }
@@ -483,16 +547,20 @@
         container.innerHTML = '<div style="flex:0 0 100%; text-align:center; padding:20px; background:white; border-radius:20px;">🔴 目前附近無司機服務</div>';
         return;
       }
-      container.innerHTML = drivers.slice(0, 5).map(d => `
+      container.innerHTML = drivers.slice(0, 5).map(d => {
+        let statusText = d.workStatus === 'busy' ? '載客中' : (d.workStatus === 'queue' ? '排班中' : '目前空車');
+        let statusColor = d.workStatus === 'busy' ? 'red' : (d.workStatus === 'queue' ? '#3498db' : 'green');
+        
+        return `
         <div class="driver-card" onclick="map.setView([${d.lat}, ${d.lng}], 15)">
           <div class="card-info">
             <div class="card-name">🚕 ${d.name}</div>
-            <div style="font-size:14px; margin:5px 0; color:${d.workStatus==='busy'?'red':'green'}">● ${d.workStatus==='busy'?'載客中':'目前空車'}</div>
+            <div style="font-size:14px; margin:5px 0; color:${statusColor}; font-weight:bold;">● ${statusText}</div>
             <div style="font-size:14px; color:#666;">📍 距離約 ${d.distance.toFixed(1)} km</div>
           </div>
           <a href="tel:${d.phone}" class="card-call-btn">📞</a>
         </div>
-      `).join('');
+      `}).join('');
     }
 
     function updateHUD(count) {
