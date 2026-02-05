@@ -190,7 +190,6 @@
         <button onclick="forceRemoveLoading()" class="mt-8 text-sm text-gray-300 underline">若卡住請點此</button>
     </div>
 
-    <!-- 上半部：地圖 -->
     <div id="map-container">
         <div id="map"></div>
         <div id="center-marker" class="center-marker flex flex-col items-center">
@@ -201,16 +200,13 @@
         <button id="btn-my-loc" onclick="panToCurrentLocation()" class="absolute bottom-8 right-4 bg-white w-12 h-12 rounded-full shadow-lg z-30 text-slate-700 active:bg-slate-100 active:scale-95 transition-all flex items-center justify-center border border-gray-100">
             <i id="icon-my-loc" class="fa-solid fa-crosshairs text-xl"></i>
         </button>
-        <!-- LIFF Status Indicator (For Debug) -->
         <div id="liff-status-dot" class="absolute bottom-5 left-5 w-3 h-3 rounded-full bg-red-500 border-2 border-white shadow-md z-30" title="LIFF Status"></div>
     </div>
 
-    <!-- 下半部：控制面板 -->
     <div id="control-panel">
         <div class="w-full flex justify-center pt-3 pb-1"><div class="w-12 h-1.5 bg-gray-200 rounded-full"></div></div>
 
         <div class="scroll-content space-y-5">
-            <!-- 1. 上車地點顯示 -->
             <div class="text-center mb-2">
                 <p class="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mb-1">PICKUP LOCATION</p>
                 <div class="flex items-center justify-center space-x-2">
@@ -223,7 +219,6 @@
 
             <div class="space-y-4">
                 
-                <!-- 2. 下車地點 -->
                 <div class="input-group">
                     <i class="fa-solid fa-location-dot input-icon text-rose-500"></i>
                     <div class="flex-1">
@@ -233,14 +228,12 @@
                     <button onclick="openPresetLocations()" class="ml-2 bg-slate-100 text-slate-500 p-2 rounded-lg active:bg-slate-200"><i class="fa-solid fa-star text-sm"></i></button>
                 </div>
 
-                <!-- 3. 預約時間 / 模式 -->
                 <div class="input-group cursor-pointer relative" onclick="openModernTimeSelector()">
                     <i id="time-icon" class="fa-solid fa-clock input-icon text-blue-600"></i>
                     <div class="flex-1">
                         <label class="block text-[10px] text-slate-400 font-bold uppercase">Pickup Time</label>
                         <div class="flex items-center justify-between">
                             <span id="time-display" class="font-bold text-slate-800 text-lg">現在 (即時叫車)</span>
-                            <!-- 付款方式 (Badge) -->
                             <div class="flex items-center space-x-2" onclick="event.stopPropagation(); openPaymentPicker();">
                                 <span class="w-[1px] h-4 bg-gray-300"></span>
                                 <div class="flex items-center bg-gray-100 px-2 py-1 rounded-md active:bg-gray-200 transition-colors">
@@ -251,13 +244,11 @@
                             </div>
                         </div>
                     </div>
-                    <!-- 隱藏欄位儲存狀態 -->
                     <input type="hidden" id="booking-mode" value="NOW">
                     <input type="hidden" id="booking-time-val" value="">
                     <input type="hidden" id="payment-value" value="現金">
                 </div>
 
-                <!-- 4. 電話 -->
                 <div class="input-group">
                     <i class="fa-solid fa-phone input-icon"></i>
                     <div class="flex-1">
@@ -269,7 +260,6 @@
             </div>
         </div>
 
-        <!-- 底部確認按鈕 -->
         <div class="absolute bottom-0 left-0 right-0 p-5 bg-white/90 backdrop-blur-sm border-t border-gray-100">
             <button id="submitBtn" onclick="submitOrder()" class="w-full bg-slate-900 text-white font-bold py-4 rounded-2xl shadow-xl shadow-slate-300 active:scale-[0.98] transition-all text-xl flex items-center justify-center space-x-3">
                 <i class="fa-solid fa-taxi"></i>
@@ -278,10 +268,8 @@
         </div>
     </div>
 
-    <!-- NEW: 3.3 時間選擇器 Modal (修正版) -->
     <div id="time-selector-modal" onclick="closeModernTimeSelector(event)">
         <div id="time-selector-content" onclick="event.stopPropagation()">
-            <!-- Header -->
             <div class="flex justify-between items-center mb-4 pb-2 border-b border-gray-100">
                 <div class="flex items-baseline">
                     <h3 class="text-xl font-bold text-slate-800 mr-2">選擇預約時間</h3>
@@ -290,27 +278,20 @@
                 <button type="button" onclick="closeModernTimeSelector()" class="w-8 h-8 rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
             </div>
 
-            <!-- "現在" 按鈕 -->
             <button type="button" onclick="selectNowAndClose()" id="btn-quick-now" class="w-full bg-slate-800 text-white py-3 rounded-xl font-bold mb-4 flex items-center justify-center shadow-md active:scale-[0.98] transition-transform">
                 <i class="fa-solid fa-bolt mr-2 text-yellow-400"></i> 現在出發 (即時)
             </button>
 
             <div class="text-xs text-gray-400 font-bold mb-2 uppercase tracking-wide">Or Schedule For Later</div>
 
-            <!-- VIEW 1: Hour Selection -->
             <div id="hour-selection-view">
-                <!-- Date Tabs -->
                 <div class="date-tabs-container" id="date-tabs-list">
-                    <!-- JS Generated -->
-                </div>
-                <!-- Hour Grid -->
+                    </div>
                 <div class="text-sm text-gray-500 mb-2 font-bold">選擇小時 (24H)</div>
                 <div class="time-grid" id="hour-grid">
-                    <!-- JS Generated -->
-                </div>
+                    </div>
             </div>
 
-            <!-- VIEW 2: Minute Selection (Hidden by default using Tailwind) -->
             <div id="minute-selection-view" class="hidden h-64">
                 <div class="flex items-center mb-4">
                     <button type="button" onclick="backToHourView()" class="mr-3 w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center text-gray-600 active:bg-gray-100"><i class="fa-solid fa-arrow-left"></i></button>
@@ -322,19 +303,20 @@
                 </div>
                 <div class="text-sm text-gray-500 mb-2 font-bold">選擇分鐘 (5分間隔)</div>
                 <div class="grid grid-cols-4 gap-3" id="minute-grid-container">
-                    <!-- JS Generated 5-min intervals -->
-                </div>
+                    </div>
             </div>
             
         </div>
     </div>
 
 
-    <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
         // --- 設定與 API ---
-        const API_KEY = 'AIzaSyAlTcoOPEZeeMNwTGTap39VPsW85Ux8NHo'; 
+        
+        // 🔴 關鍵修正：請在下方單引號內填入你新申請的 GCP API Key
+        const API_KEY = 'AIzaSyAIxc6PEhHgUs_A9lyRUg8dNbmwOpSamY8'; 
+        
         const LIFF_ID = '2008907691-MAdAtfyf'; 
 
         const PRESET_LOCATIONS = [{name:'常用地址 A',icon:'⭐',value:'FAV_ADDR_A'},{name:'常用地址 B',icon:'⭐',value:'FAV_ADDR_B'},{name:'花蓮前站',icon:'🚉'},{name:'花蓮後站',icon:'🚉'},{name:'慈濟醫院',icon:'🏥'},{name:'門諾醫院',icon:'🏥'},{name:'花蓮縣政府',icon:'🏢'},{name:'遠東百貨',icon:'🛍️'}];
@@ -383,10 +365,16 @@
             document.head.appendChild(script);
 
             // Google Maps
-            if (API_KEY.includes('YOUR_')) { alert('請填入 API KEY'); forceRemoveLoading(); } else {
+            // ✅ 修改：標準 HTML 寫法 (適合 GitHub Pages)
+            if (API_KEY.includes('請在此填入') || API_KEY === '') { 
+                alert('請填入 API KEY'); 
+                forceRemoveLoading(); 
+            } else {
                 const mapScript = document.createElement('script');
+                // 注意：這裡直接使用變數 ${API_KEY}
                 mapScript.src = `https://maps.googleapis.com/maps/api/js?key=${API_KEY}&language=zh-TW&callback=initMap`;
-                mapScript.async = true; mapScript.defer = true;
+                mapScript.async = true; 
+                mapScript.defer = true;
                 mapScript.onerror = () => { alert('地圖載入失敗'); forceRemoveLoading(); };
                 document.head.appendChild(mapScript);
             }
@@ -692,8 +680,8 @@
             btn.disabled = true;
             btn.innerHTML = '<div class="loader mr-3 w-5 h-5 border-2 border-white border-t-transparent"></div> 處理中...';
 
-            const googleMapUrl = `https://www.google.com/maps/search/?api=1&query=${currentCenter.lat},${currentCenter.lng}`;
-            const dropoffMapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(dropoff)}`;
+            const googleMapUrl = `https://www.google.com/maps/search/?api=1&query=$${currentCenter.lat},${currentCenter.lng}`;
+            const dropoffMapUrl = `https://www.google.com/maps/search/?api=1&query=$${encodeURIComponent(dropoff)}`;
 
             const nowTimeStr = new Date().toLocaleTimeString('zh-TW', {hour:'2-digit', minute:'2-digit', hour12:false});
             let headerTitle = "";
