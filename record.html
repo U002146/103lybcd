@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>花蓮愛心計程車 (V3.0 完美報表)</title>
+  <title>載送記錄表</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
     /* 基礎設定 */
     body { font-family: "Microsoft JhengHei", -apple-system, BlinkMacSystemFont, sans-serif; background-color: #f3f4f6; -webkit-tap-highlight-color: transparent; }
-    input, select { font-size: 16px !important; } /* 防止手機輸入時畫面亂縮放 */
+    input, select { font-size: 16px !important; }
     .chip { transition: all 0.2s; }
     .chip:active { transform: scale(0.95); background-color: #e5e7eb; }
 
@@ -22,41 +22,59 @@
     @media print {
       @page { 
         size: A4 portrait; 
-        margin: 1.5cm 1cm; /* 上下左右留白，避免印表機切邊 */
+        margin: 0; /* 清除瀏覽器預設邊距，由 CSS 控制 */
       }
       
-      /* 隱藏瀏覽器預設的頁首頁尾 (網址、日期等) */
-      html, body { height: auto; margin: 0 !important; padding: 0 !important; overflow: visible; }
-      
-      /* 隱藏所有螢幕操作介面 */
+      html, body { margin: 0; padding: 0; background: white; }
       .screen-only { display: none !important; }
+      .print-only { display: block !important; }
       
-      /* 顯示報表本體 */
-      .print-only { display: block !important; width: 100%; font-family: "標楷體", "DFKai-SB", serif; } /* 報表改用標楷體較正式 */
+      /* 每一頁的容器 */
+      .print-page {
+        width: 210mm;
+        height: 297mm;
+        padding: 1.5cm; /* 這裡控制內容離紙張邊緣的距離 */
+        margin: 0 auto;
+        box-sizing: border-box;
+        page-break-after: always; /* 關鍵：每一頁結束後強制換頁 */
+        position: relative;
+      }
       
-      /* 表格樣式優化 */
-      .report-table { width: 100%; border-collapse: collapse; font-size: 12pt; }
-      .report-table th, .report-table td { border: 1px solid black; padding: 4px 6px; text-align: center; vertical-align: middle; }
-      .report-table th { background-color: #f0f0f0 !important; font-weight: bold; height: 35px; }
-      .report-table td { height: 30px; }
+      /* 最後一頁不要再換頁，避免多出一張白紙 */
+      .print-page:last-child {
+        page-break-after: avoid;
+      }
+
+      /* 字體設定 */
+      .report-font { font-family: "標楷體", "DFKai-SB", serif; }
+      
+      /* 表格樣式 */
+      .report-table { width: 100%; border-collapse: collapse; font-size: 11pt; margin-top: 5px; }
+      .report-table th, .report-table td { border: 1px solid black; padding: 4px; text-align: center; vertical-align: middle; height: 32px; } /* 固定每行高度 */
+      .report-table th { background-color: #f0f0f0 !important; font-weight: bold; height: 38px; }
       
       /* 標題與資訊區 */
-      .report-header { text-align: center; font-size: 18pt; font-weight: bold; margin-bottom: 25px; letter-spacing: 1px; }
-      .report-info { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 13pt; font-family: "標楷體"; }
+      .report-header { text-align: center; font-size: 18pt; font-weight: bold; margin-bottom: 20px; letter-spacing: 1px; }
+      .report-info { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13pt; }
       
-      /* 強制分頁設定 */
-      .page-break { page-break-before: always; }
+      /* 頁碼 (右下角) */
+      .page-number {
+        position: absolute;
+        bottom: 1cm;
+        right: 1.5cm;
+        font-size: 10pt;
+        color: #666;
+      }
     }
   </style>
 </head>
 <body class="pb-20">
 
   <div id="app-view" class="screen-only max-w-md mx-auto">
-    
     <div class="bg-indigo-700 text-white p-4 sticky top-0 z-50 shadow-md flex justify-between items-center">
       <div class="flex items-center">
         <i class="fas fa-taxi mr-2 text-yellow-400"></i>
-        <h1 class="text-xl font-bold tracking-wider">補單神器 V3</h1>
+        <h1 class="text-xl font-bold tracking-wider">補單 V4 分頁版</h1>
       </div>
       <button onclick="showPrintPreview()" class="bg-yellow-400 hover:bg-yellow-500 text-indigo-900 font-bold py-2 px-3 rounded shadow text-sm flex items-center transition">
          <i class="fas fa-print mr-1"></i> 預覽報表
@@ -123,39 +141,28 @@
 
   <div id="preview-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-95 z-50 flex flex-col items-center justify-center p-2 screen-only">
     <div class="bg-white w-full max-w-2xl h-[90vh] rounded-lg shadow-2xl flex flex-col overflow-hidden">
-        
         <div class="bg-gray-100 p-4 border-b">
             <div class="flex justify-between items-center mb-3">
                 <h3 class="font-bold text-gray-800 text-lg">設定報表</h3>
                 <button onclick="closePreview()" class="text-gray-500 hover:text-red-500"><i class="fas fa-times text-2xl"></i></button>
             </div>
-            
             <div class="flex items-center space-x-2 bg-white p-3 rounded border">
                 <label class="font-bold text-gray-600 whitespace-nowrap">報表月份：</label>
-                <select id="report-month-select" onchange="updatePrintContent()" class="flex-1 font-bold text-lg text-blue-600 border-none outline-none bg-transparent">
-                    <option value="1">1月</option>
-                    <option value="2">2月</option>
-                    <option value="3">3月</option>
-                    <option value="4">4月</option>
-                    <option value="5">5月</option>
-                    <option value="6">6月</option>
-                    <option value="7">7月</option>
-                    <option value="8">8月</option>
-                    <option value="9">9月</option>
-                    <option value="10">10月</option>
-                    <option value="11">11月</option>
-                    <option value="12">12月</option>
+                <select id="report-month-select" onchange="generatePrintHTML()" class="flex-1 font-bold text-lg text-blue-600 border-none outline-none bg-transparent">
+                    <option value="1">1月</option><option value="2">2月</option><option value="3">3月</option><option value="4">4月</option>
+                    <option value="5">5月</option><option value="6">6月</option><option value="7">7月</option><option value="8">8月</option>
+                    <option value="9">9月</option><option value="10">10月</option><option value="11">11月</option><option value="12">12月</option>
                 </select>
                 <div class="text-sm text-gray-400">115年度</div>
             </div>
         </div>
         
-        <div id="preview-content" class="flex-1 overflow-auto p-4 bg-gray-500">
+        <div id="preview-content" class="flex-1 overflow-auto p-4 bg-gray-500 flex flex-col items-center gap-4">
             </div>
 
         <div class="p-4 border-t bg-white flex space-x-3">
             <button onclick="window.print()" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-lg shadow-lg text-lg flex items-center justify-center">
-                <i class="fas fa-print mr-2"></i> 確認列印
+                <i class="fas fa-print mr-2"></i> 確定列印
             </button>
             <button onclick="closePreview()" class="px-6 bg-gray-200 text-gray-700 font-bold rounded-lg">修改</button>
         </div>
@@ -163,35 +170,10 @@
   </div>
 
   <div id="print-area" class="print-only">
-      <div class="report-header">
-          115年度花蓮縣敬老愛心計程車補助計劃 <span id="p-month" style="text-decoration: underline; padding: 0 10px;"></span> 月份載送記錄表
-      </div>
-      
-      <div class="report-info">
-          <div>駕駛姓名：<span id="p-name" class="px-2"></span></div>
-          <div>車牌號碼：<span id="p-plate" class="px-2"></span></div>
-          <div>隊員編號：<span id="p-id" class="px-2"></span></div>
-      </div>
-      
-      <table class="report-table">
-          <thead>
-              <tr>
-                  <th style="width: 8%;">序號</th>
-                  <th style="width: 20%;">日期/時間</th>
-                  <th style="width: 12%;">乘客類別</th>
-                  <th style="width: 20%;">上車地點</th>
-                  <th style="width: 20%;">下車地點</th>
-                  <th style="width: 20%;">備注</th>
-              </tr>
-          </thead>
-          <tbody id="print-tbody">
-              </tbody>
-      </table>
-  </div>
+    </div>
 
   <script>
-    // --- 資料與初始化 ---
-    let records = JSON.parse(localStorage.getItem('taxi_records_v3')) || [];
+    let records = JSON.parse(localStorage.getItem('taxi_records_v4')) || [];
     let driverInfo = JSON.parse(localStorage.getItem('driver_info')) || { name: '', plate: '', id: '' };
 
     window.onload = function() {
@@ -199,8 +181,6 @@
       setCardType('敬老卡');
       renderList();
       if(!driverInfo.name) editDriverInfo();
-      
-      // 預設月份為當前月份
       document.getElementById('report-month-select').value = new Date().getMonth() + 1;
     };
 
@@ -214,33 +194,18 @@
       Swal.fire({
         title: '司機資料設定',
         html: `
-          <div class="text-left mb-4 text-sm text-gray-500">這些資料會自動填入報表表頭</div>
-          <div class="mb-1 text-left font-bold text-gray-700">姓名</div>
-          <input id="d-name" class="swal2-input" value="${driverInfo.name}" placeholder="範例：王大明">
-          <div class="mb-1 text-left font-bold text-gray-700">車牌</div>
-          <input id="d-plate" class="swal2-input" value="${driverInfo.plate}" placeholder="範例：ABC-123">
-          <div class="mb-1 text-left font-bold text-gray-700">編號</div>
-          <input id="d-id" class="swal2-input" value="${driverInfo.id}" placeholder="範例：001">
+          <input id="d-name" class="swal2-input" value="${driverInfo.name}" placeholder="姓名">
+          <input id="d-plate" class="swal2-input" value="${driverInfo.plate}" placeholder="車牌">
+          <input id="d-id" class="swal2-input" value="${driverInfo.id}" placeholder="隊員編號">
         `,
-        confirmButtonText: '儲存設定',
-        preConfirm: () => ({
-          name: document.getElementById('d-name').value,
-          plate: document.getElementById('d-plate').value,
-          id: document.getElementById('d-id').value
-        })
-      }).then((result) => {
-        if(result.isConfirmed) {
-          driverInfo = result.value;
-          localStorage.setItem('driver_info', JSON.stringify(driverInfo));
-        }
-      });
+        confirmButtonText: '儲存',
+        preConfirm: () => ({ name: document.getElementById('d-name').value, plate: document.getElementById('d-plate').value, id: document.getElementById('d-id').value })
+      }).then((r) => { if(r.isConfirmed) { driverInfo = r.value; localStorage.setItem('driver_info', JSON.stringify(driverInfo)); }});
     }
 
-    // --- 輸入邏輯 ---
     function setCardType(type) {
       document.getElementById('input-type').value = type;
       const el = (id) => document.getElementById(id);
-      
       if(type === '敬老卡') {
         el('btn-elder').className = 'p-3 rounded-lg border-2 border-yellow-500 bg-yellow-50 text-yellow-700 font-bold shadow-md transform scale-105';
         el('btn-care').className = 'p-3 rounded-lg border-2 border-transparent bg-gray-100 text-gray-400 font-bold opacity-70';
@@ -249,7 +214,6 @@
         el('btn-elder').className = 'p-3 rounded-lg border-2 border-transparent bg-gray-100 text-gray-400 font-bold opacity-70';
       }
     }
-
     function setInput(id, val) { document.getElementById(id).value = val; }
 
     function addRecord() {
@@ -257,147 +221,152 @@
       const type = document.getElementById('input-type').value;
       const pickup = document.getElementById('input-pickup').value.trim();
       const dropoff = document.getElementById('input-dropoff').value.trim();
-      const remarks = document.getElementById('input-remarks').value.trim(); // 獲取備註
+      const remarks = document.getElementById('input-remarks').value.trim();
 
-      if (!timeStr || !pickup || !dropoff) return Swal.fire({icon: 'warning', title: '資料不完整', text: '時間、上車、下車地點必填'});
+      if (!timeStr || !pickup || !dropoff) return Swal.fire({icon: 'warning', title: '資料不完整', timer: 1500, showConfirmButton: false});
 
       const dateObj = new Date(timeStr);
-      // 格式化為 MM/DD HH:mm
       const fmtTime = `${String(dateObj.getMonth()+1).padStart(2,'0')}/${String(dateObj.getDate()).padStart(2,'0')} ${String(dateObj.getHours()).padStart(2,'0')}:${String(dateObj.getMinutes()).padStart(2,'0')}`;
 
-      // 儲存完整資料
-      records.push({ 
-          id: Date.now(), 
-          timeObj: timeStr, 
-          formattedTime: fmtTime, 
-          type, 
-          pickup, 
-          dropoff,
-          remarks: remarks // 存入備註
-      });
-      
-      localStorage.setItem('taxi_records_v3', JSON.stringify(records));
+      records.push({ id: Date.now(), timeObj: timeStr, formattedTime: fmtTime, type, pickup, dropoff, remarks });
+      localStorage.setItem('taxi_records_v4', JSON.stringify(records));
       renderList();
       
-      // 清空輸入框 (保留時間，但地點清空)
       document.getElementById('input-pickup').value = '';
       document.getElementById('input-dropoff').value = '';
       document.getElementById('input-remarks').value = '';
-      
-      const toast = Swal.mixin({ toast: true, position: 'top', showConfirmButton: false, timer: 800 });
-      toast.fire({ icon: 'success', title: '已記錄' });
+      Swal.mixin({ toast: true, position: 'top', showConfirmButton: false, timer: 800 }).fire({ icon: 'success', title: '已記錄' });
     }
 
     function deleteRecord(id) {
-        Swal.fire({
-            title: '刪除此筆?',
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#d33',
-            confirmButtonText: '刪除',
-            cancelButtonText: '取消'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                records = records.filter(r => r.id !== id);
-                localStorage.setItem('taxi_records_v3', JSON.stringify(records));
-                renderList();
-            }
-        });
+        if(confirm('確定刪除此筆？')) {
+            records = records.filter(r => r.id !== id);
+            localStorage.setItem('taxi_records_v4', JSON.stringify(records));
+            renderList();
+        }
     }
     
     function clearAll() {
-        Swal.fire({
-            title: '清空所有記錄?',
-            text: '這會刪除目前列表上的所有資料',
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#d33',
-            confirmButtonText: '確定清空'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                records = [];
-                localStorage.setItem('taxi_records_v3', JSON.stringify(records));
-                renderList();
-            }
-        });
+        if(confirm('確定清空所有資料？')) {
+            records = [];
+            localStorage.setItem('taxi_records_v4', JSON.stringify(records));
+            renderList();
+        }
     }
 
     function renderList() {
       const el = document.getElementById('record-list');
       document.getElementById('record-count').innerText = records.length;
-      if (records.length === 0) { 
-          el.innerHTML = '<div class="text-center text-gray-300 py-8 border-2 border-dashed border-gray-200 rounded-lg">還沒有行程<br>請上方輸入後按加入</div>'; 
-          return; 
-      }
+      if (records.length === 0) { el.innerHTML = '<div class="text-center text-gray-300 py-8 border-2 border-dashed border-gray-200 rounded-lg">無行程</div>'; return; }
       
-      // 介面顯示倒序 (新->舊)
       el.innerHTML = [...records].reverse().map((r, i) => `
-        <div class="bg-white p-4 rounded-lg shadow-sm border-l-4 ${r.type==='敬老卡'?'border-yellow-400':'border-rose-400'} flex justify-between items-center animate-fade-in relative overflow-hidden">
+        <div class="bg-white p-3 rounded-lg shadow-sm border-l-4 ${r.type==='敬老卡'?'border-yellow-400':'border-rose-400'} flex justify-between items-center relative">
             <div class="flex-1">
                 <div class="flex items-center text-sm text-gray-500 mb-1">
                     <span class="font-mono bg-gray-100 px-2 rounded mr-2">#${records.length - i}</span>
                     <span>${r.formattedTime}</span>
                     <span class="${r.type==='敬老卡'?'bg-yellow-100 text-yellow-700':'bg-rose-100 text-rose-700'} text-xs font-bold px-2 py-0.5 rounded-full ml-2">${r.type}</span>
                 </div>
-                <div class="text-gray-800 font-bold text-lg flex items-center flex-wrap">
-                    ${r.pickup} <i class="fas fa-arrow-right text-sm mx-2 text-gray-400"></i> ${r.dropoff}
+                <div class="text-gray-800 font-bold flex items-center flex-wrap">
+                    ${r.pickup} <i class="fas fa-arrow-right text-xs mx-2 text-gray-400"></i> ${r.dropoff}
                 </div>
-                ${r.remarks ? `<div class="text-sm text-gray-500 mt-1"><i class="fas fa-info-circle mr-1 text-blue-400"></i>${r.remarks}</div>` : ''}
+                ${r.remarks ? `<div class="text-xs text-gray-500 mt-1">備註: ${r.remarks}</div>` : ''}
             </div>
-            <button onclick="deleteRecord(${r.id})" class="text-gray-300 hover:text-red-500 p-3 ml-2 active:scale-95 transition">
-                <i class="fas fa-trash-alt text-xl"></i>
-            </button>
+            <button onclick="deleteRecord(${r.id})" class="text-gray-300 hover:text-red-500 p-2 ml-2"><i class="fas fa-trash-alt"></i></button>
         </div>
       `).join('');
     }
 
-    // --- 報表生成與預覽 ---
+    // --- 核心：動態分頁生成器 ---
     function showPrintPreview() {
         if(records.length === 0) return Swal.fire('沒有資料', '請先新增行程再預覽', 'warning');
-        
+        generatePrintHTML();
         document.getElementById('preview-modal').classList.remove('hidden');
-        updatePrintContent();
     }
-
-    function updatePrintContent() {
-        // 1. 填寫司機資訊
-        document.getElementById('p-name').innerText = driverInfo.name;
-        document.getElementById('p-plate').innerText = driverInfo.plate;
-        document.getElementById('p-id').innerText = driverInfo.id;
-        
-        // 2. 填寫月份 (從下拉選單讀取)
-        const selectedMonth = document.getElementById('report-month-select').value;
-        document.getElementById('p-month').innerText = selectedMonth;
-
-        // 3. 生成表格 (正序 1, 2, 3...)
-        const tbody = document.getElementById('print-tbody');
-        tbody.innerHTML = records.map((r, i) => `
-            <tr>
-                <td>${i + 1}</td>
-                <td>${r.formattedTime}</td>
-                <td>${r.type}</td>
-                <td>${r.pickup}</td>
-                <td>${r.dropoff}</td>
-                <td>${r.remarks || ''}</td>
-            </tr>
-        `).join('');
-
-        // 4. 更新預覽畫面 (將 print-area 的內容複製到預覽框，並縮放)
-        const printHTML = document.getElementById('print-area').innerHTML;
-        const previewEl = document.getElementById('preview-content');
-        
-        // 使用 CSS 模擬一張 A4 紙
-        previewEl.innerHTML = `
-            <div style="background: white; width: 210mm; min-height: 297mm; padding: 20mm; margin: 0 auto; box-shadow: 0 0 15px rgba(0,0,0,0.2); transform: scale(0.6); transform-origin: top center;">
-                <div style="font-family: '標楷體';">
-                    ${printHTML}
-                </div>
-            </div>
-        `;
-    }
-
+    
     function closePreview() {
         document.getElementById('preview-modal').classList.add('hidden');
+    }
+
+    function generatePrintHTML() {
+        const month = document.getElementById('report-month-select').value;
+        const printArea = document.getElementById('print-area');
+        const previewContent = document.getElementById('preview-content');
+        
+        // 分頁參數
+        const recordsPerPage = 20; 
+        const totalPages = Math.ceil(records.length / recordsPerPage);
+        
+        let finalHTML = '';
+        
+        // 迴圈產生每一頁
+        for (let page = 0; page < totalPages; page++) {
+            // 切割出這一頁的 20 筆資料
+            const chunk = records.slice(page * recordsPerPage, (page + 1) * recordsPerPage);
+            
+            // 產生表格內容
+            let rowsHTML = chunk.map((r, i) => `
+                <tr>
+                    <td style="width: 8%">${(page * recordsPerPage) + i + 1}</td>
+                    <td style="width: 20%">${r.formattedTime}</td>
+                    <td style="width: 12%">${r.type}</td>
+                    <td style="width: 20%">${r.pickup}</td>
+                    <td style="width: 20%">${r.dropoff}</td>
+                    <td style="width: 20%">${r.remarks || ''}</td>
+                </tr>
+            `).join('');
+            
+            // 補空白行 (如果不滿20筆，為了美觀可以補空行，這裡選擇不補，保持高度彈性，但為了格式嚴謹，若有需求可開啟)
+            // 運將大哥如果希望最後一頁也要畫滿格線，可以跟我說，我再加迴圈補空 tr
+
+            // 組裝這一頁的 HTML
+            finalHTML += `
+                <div class="print-page report-font">
+                    <div class="report-header">
+                        115年度花蓮縣敬老愛心計程車補助計劃 <span style="text-decoration: underline; padding: 0 5px;"> ${month} </span> 月份載送記錄表
+                    </div>
+                    
+                    <div class="report-info">
+                        <div>駕駛姓名：<span class="px-2">${driverInfo.name}</span></div>
+                        <div>車牌號碼：<span class="px-2">${driverInfo.plate}</span></div>
+                        <div>隊員編號：<span class="px-2">${driverInfo.id}</span></div>
+                    </div>
+                    
+                    <table class="report-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 8%">序號</th>
+                                <th style="width: 20%">日期/時間</th>
+                                <th style="width: 12%">乘客類別</th>
+                                <th style="width: 20%">上車地點</th>
+                                <th style="width: 20%">下車地點</th>
+                                <th style="width: 20%">備注</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rowsHTML}
+                        </tbody>
+                    </table>
+
+                    <div class="page-number">第 ${page + 1} 頁 / 共 ${totalPages} 頁</div>
+                </div>
+            `;
+        }
+        
+        // 1. 放入真實列印區 (給印表機讀的)
+        printArea.innerHTML = finalHTML;
+
+        // 2. 放入預覽區 (給眼睛看的，縮小版)
+        // 這裡我們直接把 generated HTML 塞進預覽，並用 CSS 縮放
+        previewContent.innerHTML = finalHTML.replace(/print-page/g, 'print-page shadow-lg mb-4 bg-white'); 
+        // 移除 page-break 屬性以免預覽時跑掉，並加上陰影區隔每一頁
+        const previewPages = previewContent.querySelectorAll('.print-page');
+        previewPages.forEach(p => {
+            p.style.transform = "scale(0.8)"; // 預覽縮小一點
+            p.style.transformOrigin = "top center";
+            p.style.marginBottom = "-50mm"; // 修正縮放後的間距
+            p.style.pageBreakAfter = "auto";
+        });
     }
   </script>
 </body>
