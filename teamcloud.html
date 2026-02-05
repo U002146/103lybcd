@@ -1,25 +1,162 @@
-<script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>花蓮愛心計程車 (V6.2 雲端車隊版)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    body { font-family: "Microsoft JhengHei", sans-serif; background-color: #f3f4f6; -webkit-tap-highlight-color: transparent; }
+    input, select { font-size: 16px !important; }
+    .chip:active { transform: scale(0.95); background-color: #e5e7eb; }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .status-dot { height: 10px; width: 10px; border-radius: 50%; display: inline-block; }
+    .status-ok { background-color: #4ade80; box-shadow: 0 0 5px #4ade80; }
+    .status-err { background-color: #ef4444; }
 
-<script>
-    // --- 全域變數 ---
-    const LIFF_ID = "2008907691-Ojnb8ANZ"; // ★ 請在此填入你的 LIFF ID
-    let currentUserId = ""; // 用來存取 LINE User ID
+    /* --- V6.2 列印核心樣式 --- */
+    .screen-only { display: block; }
+    .print-only { display: none; }
     
+    @media print {
+      @page { size: A4 portrait; margin: 0; }
+      html, body { margin: 0; padding: 0; background: white; }
+      .screen-only { display: none !important; }
+      .print-only { display: block !important; }
+      .print-page { width: 210mm; height: 297mm; padding: 1.2cm 1.5cm; margin: 0 auto; box-sizing: border-box; page-break-after: always; position: relative; }
+      .print-page:last-child { page-break-after: avoid; }
+      .report-table { width: 100%; border-collapse: collapse; font-size: 11pt; margin-top: 5px; font-family: "標楷體", "DFKai-SB", serif; table-layout: fixed; }
+      .report-table th, .report-table td { border: 1px solid black; padding: 2px 4px; text-align: center; height: 29px; overflow: hidden; white-space: nowrap; }
+      .report-table th { background-color: #f0f0f0 !important; height: 35px; }
+      .report-header { text-align: center; font-size: 18pt; font-weight: bold; margin-bottom: 15px; font-family: "標楷體"; letter-spacing: 1px; }
+      .report-info { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 12pt; font-family: "標楷體"; }
+      .page-number { position: absolute; bottom: 0.8cm; right: 1.5cm; font-size: 10pt; color: #444; font-family: "Times New Roman", serif; }
+    }
+  </style>
+</head>
+<body class="pb-24">
+
+  <div id="app-view" class="screen-only max-w-md mx-auto">
+    <div class="bg-blue-700 text-white p-4 sticky top-0 z-50 shadow-md flex justify-between items-center">
+      <div class="flex items-center" onclick="openSettings()">
+        <i class="fas fa-taxi mr-2 text-yellow-300"></i>
+        <h1 class="text-xl font-bold tracking-wider">雲端補單 V6.2</h1>
+        <div id="cloud-status" class="ml-2 status-dot bg-gray-400" title="連線中..."></div>
+      </div>
+      <button onclick="showPrintPreview()" class="bg-white text-blue-800 font-bold py-2 px-3 rounded shadow text-sm">
+         <i class="fas fa-print mr-1"></i> 預覽
+       </button>
+    </div>
+
+    <div class="p-4">
+      <div class="bg-white rounded-xl shadow-lg p-5 mb-6 border border-gray-100">
+        <div class="flex justify-between items-center mb-4 border-b pb-2">
+            <h2 class="text-lg font-bold text-gray-700">新增行程</h2>
+            <button onclick="editDriverInfo()" class="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">司機設定</button>
+        </div>
+        
+        <div class="mb-4">
+          <label class="block text-sm font-bold text-gray-500 mb-1">日期時間</label>
+          <input type="datetime-local" id="input-time" class="w-full p-3 border border-gray-300 rounded-lg bg-gray-50 text-lg font-mono">
+        </div>
+
+        <div class="mb-4 grid grid-cols-2 gap-3">
+          <button onclick="setCardType('敬老卡')" id="btn-elder" class="p-3 rounded-lg border-2 bg-gray-100 text-gray-600 font-bold transition">敬老卡</button>
+          <button onclick="setCardType('愛心卡')" id="btn-care" class="p-3 rounded-lg border-2 bg-gray-100 text-gray-600 font-bold transition">愛心卡</button>
+          <input type="hidden" id="input-type">
+        </div>
+
+        <div class="mb-4 space-y-3">
+          <div>
+            <label class="text-sm font-bold text-gray-500">上車</label>
+            <div class="flex gap-2 overflow-x-auto pb-2 mb-1 no-scrollbar">
+                <span onclick="setInput('input-pickup', '前站')" class="chip px-3 py-2 bg-blue-50 text-blue-700 rounded-lg text-sm font-bold border border-blue-100 whitespace-nowrap shadow-sm">前站</span>
+                <span onclick="setInput('input-pickup', '後站')" class="chip px-3 py-2 bg-blue-50 text-blue-700 rounded-lg text-sm font-bold border border-blue-100 whitespace-nowrap shadow-sm">後站</span>
+                <span onclick="setInput('input-pickup', '慈濟')" class="chip px-3 py-2 bg-blue-50 text-blue-700 rounded-lg text-sm font-bold border border-blue-100 whitespace-nowrap shadow-sm">慈濟</span>
+                <span onclick="setInput('input-pickup', '門諾')" class="chip px-3 py-2 bg-blue-50 text-blue-700 rounded-lg text-sm font-bold border border-blue-100 whitespace-nowrap shadow-sm">門諾</span>
+                <span onclick="setInput('input-pickup', '花蓮醫院')" class="chip px-3 py-2 bg-blue-50 text-blue-700 rounded-lg text-sm font-bold border border-blue-100 whitespace-nowrap shadow-sm">花蓮醫院</span>
+                <span onclick="setInput('input-pickup', '國軍醫院')" class="chip px-3 py-2 bg-blue-50 text-blue-700 rounded-lg text-sm font-bold border border-blue-100 whitespace-nowrap shadow-sm">國軍醫院</span>
+            </div>
+            <input type="text" id="input-pickup" placeholder="上車地點" class="w-full p-3 border border-gray-300 rounded-lg text-lg">
+          </div>
+          <div>
+            <label class="text-sm font-bold text-gray-500">下車</label>
+            <div class="flex gap-2 overflow-x-auto pb-2 mb-1 no-scrollbar">
+                <span onclick="setInput('input-dropoff', '前站')" class="chip px-3 py-2 bg-green-50 text-green-700 rounded-lg text-sm font-bold border border-green-100 whitespace-nowrap shadow-sm">前站</span>
+                <span onclick="setInput('input-dropoff', '後站')" class="chip px-3 py-2 bg-green-50 text-green-700 rounded-lg text-sm font-bold border border-green-100 whitespace-nowrap shadow-sm">後站</span>
+                <span onclick="setInput('input-dropoff', '慈濟')" class="chip px-3 py-2 bg-green-50 text-green-700 rounded-lg text-sm font-bold border border-green-100 whitespace-nowrap shadow-sm">慈濟</span>
+                <span onclick="setInput('input-dropoff', '門諾')" class="chip px-3 py-2 bg-green-50 text-green-700 rounded-lg text-sm font-bold border border-green-100 whitespace-nowrap shadow-sm">門諾</span>
+                <span onclick="setInput('input-dropoff', '花蓮醫院')" class="chip px-3 py-2 bg-green-50 text-green-700 rounded-lg text-sm font-bold border border-green-100 whitespace-nowrap shadow-sm">花蓮醫院</span>
+                <span onclick="setInput('input-dropoff', '國軍醫院')" class="chip px-3 py-2 bg-green-50 text-green-700 rounded-lg text-sm font-bold border border-green-100 whitespace-nowrap shadow-sm">國軍醫院</span>
+            </div>
+            <input type="text" id="input-dropoff" placeholder="下車地點" class="w-full p-3 border border-gray-300 rounded-lg text-lg">
+          </div>
+        </div>
+        
+        <div class="mb-6">
+           <label class="text-sm font-bold text-gray-500">備註</label>
+           <input type="text" id="input-remarks" placeholder="例如：停靠全聯" class="w-full p-3 border border-gray-300 rounded-lg text-lg bg-yellow-50">
+        </div>
+
+        <button onclick="addRecord()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl text-xl shadow-lg active:scale-95 transition flex justify-center items-center">
+           <i class="fas fa-paper-plane mr-2"></i> 寫入資料
+        </button>
+      </div>
+
+      <div class="flex justify-between items-end mb-2 px-1">
+        <h3 class="font-bold text-gray-500">本日記錄 (<span id="record-count">0</span>)</h3>
+        <button onclick="clearAll()" class="text-xs text-red-400 underline">清空</button>
+      </div>
+      <div id="record-list" class="space-y-3 pb-20"></div>
+    </div>
+  </div>
+
+  <div id="preview-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-95 z-50 flex flex-col items-center justify-center p-2 screen-only">
+    <div class="bg-white w-full max-w-2xl h-[90vh] rounded-lg shadow-2xl flex flex-col overflow-hidden">
+        <div class="bg-gray-100 p-4 border-b flex justify-between items-center">
+             <div class="flex items-center space-x-2">
+                <span class="font-bold text-gray-600">月份：</span>
+                <select id="report-month-select" onchange="generatePrintHTML()" class="font-bold text-lg text-blue-600 bg-transparent outline-none">
+                    <option value="1">1月</option><option value="2">2月</option><option value="3">3月</option><option value="4">4月</option>
+                    <option value="5">5月</option><option value="6">6月</option><option value="7">7月</option><option value="8">8月</option>
+                    <option value="9">9月</option><option value="10">10月</option><option value="11">11月</option><option value="12">12月</option>
+                </select>
+            </div>
+            <button onclick="closePreview()" class="text-gray-500"><i class="fas fa-times text-2xl"></i></button>
+        </div>
+        <div id="preview-content" class="flex-1 overflow-auto p-4 bg-gray-500 flex flex-col items-center gap-4"></div>
+        <div class="p-4 border-t bg-white flex space-x-3">
+            <button onclick="window.print()" class="flex-1 bg-blue-600 text-white font-bold py-3 rounded-lg shadow-lg text-lg"><i class="fas fa-print mr-2"></i> 列印</button>
+            <button onclick="closePreview()" class="px-6 bg-gray-200 text-gray-700 font-bold rounded-lg">修改</button>
+        </div>
+    </div>
+  </div>
+
+  <div id="print-area" class="print-only"></div>
+
+  <script>
+    // ★★★ 設定區 ★★★
+    const LIFF_ID = "2008907691-Ojnb8ANZ"; // 請換成你的
+    const API_URL = "https://script.google.com/macros/s/AKfycby_XYDJCTiio3PUqg_g2Ip6nB5tu5ap-OwqGxwBLJbiC-0PrW9hNOVoxCG2vqj0J_vb/exec";
+    
+    // --- 系統變數 ---
     let records = JSON.parse(localStorage.getItem('taxi_records_v6')) || [];
     let driverInfo = JSON.parse(localStorage.getItem('driver_info')) || { name: '', plate: '', id: '' };
-    // ★ 直接將網址寫死在這裡，讓所有人共用 (設為預設值)
-    const DEFAULT_API_URL = "https://script.google.com/macros/s/AKfycby_XYDJCTiio3PUqg_g2Ip6nB5tu5ap-OwqGxwBLJbiC-0PrW9hNOVoxCG2vqj0J_vb/exec";
+    let currentUserId = "";
 
-    // 優先讀取本地設定(方便你測試)，如果沒有就用上面的預設網址(給司機用)
-    let apiUrl = localStorage.getItem('gas_api_url') || DEFAULT_API_URL;
-
-    // --- 程式入口 ---
+    // --- 初始化 ---
     window.onload = function() {
-        initTime();
-        setCardType('敬老卡');
-        
-        // 啟動 LIFF
-        initializeLiff();
+      initTime();
+      setCardType('敬老卡');
+      renderList();
+      document.getElementById('report-month-select').value = new Date().getMonth() + 1;
+      
+      // 啟動 LIFF 系統
+      initializeLiff();
     };
 
     async function initializeLiff() {
@@ -29,113 +166,72 @@
                 liff.login();
                 return;
             }
-            
-            // 取得使用者個資
             const profile = await liff.getProfile();
             currentUserId = profile.userId;
             
-            // 這裡可以選擇自動填入司機名稱，或者保留手動輸入但綁定 ID
-            // if(!driverInfo.name) { driverInfo.name = profile.displayName; }
-
-            // 顯示歡迎訊息 (UI 優化)
+            // 介面更新：顯示已登入
             const dot = document.getElementById('cloud-status');
+            dot.classList.remove('bg-gray-400');
+            dot.classList.add('status-ok');
             dot.title = `已登入: ${profile.displayName}`;
-            
-            checkApiStatus();
-            renderList();
-            
-            // ★ 自動從雲端拉取該司機的歷史資料 (同步)
-            if(apiUrl) fetchCloudRecords();
+
+            // 首次自動抓取雲端資料
+            if(records.length === 0) fetchCloudRecords();
 
         } catch (err) {
-            console.error('LIFF Init Error', err);
-            Swal.fire('系統錯誤', 'LINE 登入失敗，請使用 LINE 開啟', 'error');
+            console.error('LIFF Error', err);
+            // 即使 LIFF 失敗，還是讓用戶可以用單機版
+            Swal.fire({ toast: true, position: 'top', icon: 'info', title: '離線模式' });
         }
     }
 
-    // --- 修改後的同步功能 ---
-
-    function checkApiStatus() {
-        const dot = document.getElementById('cloud-status');
-        if(apiUrl && currentUserId) { // 必須有 API 且有 UserID
-            dot.classList.remove('bg-gray-400', 'status-err');
-            dot.classList.add('status-ok');
-        } else {
-            dot.classList.remove('status-ok');
-            dot.classList.add('bg-gray-400');
-        }
-    }
-
-    // 1. 寫入資料 (增加 userId)
+    // --- 雲端功能 ---
     function syncToCloud(record) {
-        if (!currentUserId || !apiUrl) return; // 安全檢查
+        if (!currentUserId) return; // 沒登入不送
 
-        const toast = Swal.mixin({ toast: true, position: 'top', showConfirmButton: false });
-        // toast.fire({ icon: 'info', title: '雲端同步中...' }); // 減少干擾，可註解掉
-        
         const payload = { 
             ...record, 
-            userId: currentUserId, // ★ 關鍵：綁定身分
+            userId: currentUserId,
             driverName: driverInfo.name, 
             driverPlate: driverInfo.plate, 
             driverId: driverInfo.id 
         };
 
-        fetch(apiUrl, { 
-            method: 'POST', 
-            mode: 'no-cors', // GAS WebApp 跨域特性
-            headers: { 'Content-Type': 'application/json' }, 
-            body: JSON.stringify(payload) 
+        fetch(API_URL, { 
+            method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) 
         })
         .then(() => {
             record.syncStatus = 'synced';
             updateRecordStatus(record.id, 'synced');
-            toast.fire({ icon: 'success', title: '雲端備份完成' });
+            Swal.fire({ toast: true, position: 'top', showConfirmButton: false, timer: 1500, icon: 'success', title: '雲端備份成功' });
         })
-        .catch(err => {
+        .catch(() => {
             updateRecordStatus(record.id, 'error');
-            toast.fire({ icon: 'warning', title: '連線不穩，稍後重試' });
+            Swal.fire({ toast: true, position: 'top', showConfirmButton: false, timer: 1500, icon: 'warning', title: '連線不穩' });
         });
     }
 
-    // 2. 拉取資料 (只拉取自己的)
     function fetchCloudRecords() {
-        if(!apiUrl || !currentUserId) return;
-
-        // 呼叫 GAS 的 doGet，並帶上 userId 參數
-        fetch(`${apiUrl}?userId=${currentUserId}`)
+        if(!currentUserId) return;
+        
+        fetch(`${API_URL}?userId=${currentUserId}`)
         .then(res => res.json())
         .then(data => {
             if(data && Array.isArray(data) && data.length > 0) {
-                // 這裡可以做「雲端與本地合併」的邏輯
-                // V1.0 簡單版：如果本地是空的，就用雲端的覆蓋
-                if(records.length === 0) {
-                    records = data.map(r => ({
-                        ...r,
-                        id: Date.now() + Math.random(), // 重新生成臨時ID以免衝突
-                        syncStatus: 'synced'
-                    }));
-                    localStorage.setItem('taxi_records_v6', JSON.stringify(records));
-                    renderList();
-                    Swal.fire({
-                        toast: true, position: 'top', 
-                        icon: 'success', title: `已載入雲端 ${data.length} 筆資料`
-                    });
-                }
+                // 合併邏輯：簡單覆蓋 (可視需求改成智慧合併)
+                records = data.map(r => ({
+                    ...r,
+                    id: Date.now() + Math.random(),
+                    syncStatus: 'synced'
+                }));
+                localStorage.setItem('taxi_records_v6', JSON.stringify(records));
+                renderList();
+                Swal.fire({ toast: true, position: 'top', icon: 'success', title: `雲端載入 ${data.length} 筆` });
             }
-        })
-        .catch(e => console.log("Fetch Error", e));
+        });
     }
 
-    // --- 以下保留你原本的 UI 邏輯 ---
-    // (openSettings, addRecord, updateRecordStatus, initTime, editDriverInfo, setCardType, setInput, deleteRecord, clearAll, renderList, getSyncIcon, showPrintPreview, closePreview, generatePrintHTML 都不用變動，除了 addRecord 裡面的 syncToCloud 呼叫)
-    
-    // 記得在 addRecord 函式內，保留這行：
-    // if(apiUrl) syncToCloud(newRecord);
-    
-    // ... (其餘你的 V6.2 原始碼貼在下面) ...
-    // --- 貼上你原本的 UI 函式 ---
-    function openSettings() { /* ... */ }
+    // --- UI 邏輯 (保持 V6.2 原樣) ---
     function addRecord() {
       const timeStr = document.getElementById('input-time').value;
       const type = document.getElementById('input-type').value;
@@ -143,7 +239,7 @@
       const dropoff = document.getElementById('input-dropoff').value.trim();
       const remarks = document.getElementById('input-remarks').value.trim();
 
-      if (!timeStr || !pickup || !dropoff) return Swal.fire({icon: 'warning', title: '資料不完整', timer: 1500, showConfirmButton: false});
+      if (!timeStr || !pickup || !dropoff) return Swal.fire({icon: 'warning', title: '資料不完整', timer: 1000, showConfirmButton: false});
 
       const dateObj = new Date(timeStr);
       const fmtTime = `${String(dateObj.getMonth()+1).padStart(2,'0')}/${String(dateObj.getDate()).padStart(2,'0')} ${String(dateObj.getHours()).padStart(2,'0')}:${String(dateObj.getMinutes()).padStart(2,'0')}`;
@@ -157,12 +253,9 @@
       document.getElementById('input-dropoff').value = '';
       document.getElementById('input-remarks').value = '';
 
-      // 觸發同步
-      if(apiUrl) syncToCloud(newRecord); 
-      else Swal.mixin({ toast: true, position: 'top', showConfirmButton: false, timer: 1500 }).fire({ icon: 'success', title: '已儲存 (僅本地)' });
+      syncToCloud(newRecord); // 觸發雲端
     }
-    
-    // ... 其他函式 (updateRecordStatus, initTime, editDriverInfo...) 全部照舊
+
     function updateRecordStatus(id, status) {
         const idx = records.findIndex(r => r.id === id);
         if(idx !== -1) {
@@ -171,6 +264,10 @@
             renderList();
         }
     }
+
+    function openSettings() { /* 保留給未來擴充 */ }
+    function checkApiStatus() { /* 已整合進 init */ }
+
     function initTime() {
         const now = new Date();
         now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
@@ -243,11 +340,9 @@
         document.getElementById('preview-modal').classList.remove('hidden');
     }
     function closePreview() { document.getElementById('preview-modal').classList.add('hidden'); }
+    
+    // --- V6.2 列印引擎 ---
     function generatePrintHTML() {
-        // ... (保持你原來的列印邏輯不變) ...
-        // 為了節省篇幅，這裡請維持你原本 V6.2 的 generatePrintHTML 程式碼
-        // 記得要把之前的這段函式完整貼回來
-        
         const month = document.getElementById('report-month-select').value;
         const printArea = document.getElementById('print-area');
         const previewContent = document.getElementById('preview-content');
@@ -317,4 +412,6 @@
             p.style.transform = "scale(0.8)"; p.style.transformOrigin = "top center"; p.style.marginBottom = "-50mm"; p.style.pageBreakAfter = "auto";
         });
     }
-</script>
+  </script>
+</body>
+</html>
