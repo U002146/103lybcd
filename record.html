@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>愛心計程車補單神器 (單機版)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f0f2f5; -webkit-tap-highlight-color: transparent; }
+    .chip { transition: all 0.2s; }
+    .chip:active { transform: scale(0.95); background-color: #e5e7eb; }
+    /* 防止 iOS 上輸入框字體過小導致縮放 */
+    input, select, textarea { font-size: 16px !important; }
+  </style>
+</head>
+<body class="pb-32">
+
+  <div class="bg-blue-600 text-white p-4 sticky top-0 z-50 shadow-md flex justify-between items-center">
+    <div>
+      <h1 class="text-xl font-bold"><i class="fas fa-file-csv mr-2"></i>補單神器</h1>
+      <p class="text-xs text-blue-200">離線儲存・格式免煩惱</p>
+    </div>
+    <div class="text-right">
+       <button onclick="downloadCSV()" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded shadow text-sm">
+         <i class="fas fa-download mr-1"></i> 下載報表
+       </button>
+    </div>
+  </div>
+
+  <div class="max-w-md mx-auto p-4">
+
+    <div class="bg-white rounded-xl shadow-sm p-4 mb-6 border border-gray-200">
+      <h2 class="text-lg font-bold text-gray-700 mb-4 border-b pb-2">新增行程</h2>
+      
+      <div class="mb-4">
+        <label class="block text-sm font-bold text-gray-600 mb-1">日期時間</label>
+        <input type="datetime-local" id="input-time" class="w-full p-3 border border-gray-300 rounded-lg bg-gray-50 text-lg font-mono">
+      </div>
+
+      <div class="mb-4">
+        <label class="block text-sm font-bold text-gray-600 mb-1">卡別</label>
+        <div class="grid grid-cols-2 gap-3">
+          <button type="button" onclick="setCardType('敬老卡')" id="btn-elder" class="p-3 rounded-lg border-2 border-transparent bg-gray-100 text-gray-600 font-bold text-lg active:scale-95 transition-all">敬老卡</button>
+          <button type="button" onclick="setCardType('愛心卡')" id="btn-care" class="p-3 rounded-lg border-2 border-transparent bg-gray-100 text-gray-600 font-bold text-lg active:scale-95 transition-all">愛心卡</button>
+        </div>
+        <input type="hidden" id="input-type">
+      </div>
+
+      <div class="mb-4">
+        <label class="block text-sm font-bold text-gray-600 mb-1">上車地點</label>
+        <div class="flex gap-2 mb-2 overflow-x-auto pb-1 no-scrollbar">
+          <span onclick="setInput('input-pickup', '前站')" class="chip px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm border border-blue-100 whitespace-nowrap">前站</span>
+          <span onclick="setInput('input-pickup', '後站')" class="chip px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm border border-blue-100 whitespace-nowrap">後站</span>
+          <span onclick="setInput('input-pickup', '慈濟')" class="chip px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm border border-blue-100 whitespace-nowrap">慈濟</span>
+          <span onclick="setInput('input-pickup', '門諾')" class="chip px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm border border-blue-100 whitespace-nowrap">門諾</span>
+        </div>
+        <input type="text" id="input-pickup" placeholder="輸入或選擇地點" class="w-full p-3 border border-gray-300 rounded-lg text-lg">
+      </div>
+
+      <div class="mb-6">
+        <label class="block text-sm font-bold text-gray-600 mb-1">下車地點</label>
+        <div class="flex gap-2 mb-2 overflow-x-auto pb-1 no-scrollbar">
+          <span onclick="setInput('input-dropoff', '自宅')" class="chip px-3 py-1 bg-green-50 text-green-700 rounded-full text-sm border border-green-100 whitespace-nowrap">自宅</span>
+          <span onclick="setInput('input-dropoff', '慈濟')" class="chip px-3 py-1 bg-green-50 text-green-700 rounded-full text-sm border border-green-100 whitespace-nowrap">慈濟</span>
+          <span onclick="setInput('input-dropoff', '門諾')" class="chip px-3 py-1 bg-green-50 text-green-700 rounded-full text-sm border border-green-100 whitespace-nowrap">門諾</span>
+          <span onclick="setInput('input-dropoff', '國稅局')" class="chip px-3 py-1 bg-green-50 text-green-700 rounded-full text-sm border border-green-100 whitespace-nowrap">國稅局</span>
+        </div>
+        <input type="text" id="input-dropoff" placeholder="輸入或選擇地點" class="w-full p-3 border border-gray-300 rounded-lg text-lg">
+      </div>
+
+      <button onclick="addRecord()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl text-xl shadow-lg active:scale-95 transition-transform flex justify-center items-center">
+        <i class="fas fa-plus-circle mr-2"></i> 加入清單
+      </button>
+    </div>
+
+    <div class="flex justify-between items-end mb-2">
+      <h3 class="font-bold text-gray-500">已記錄行程 (<span id="record-count">0</span>)</h3>
+      <button onclick="clearAll()" class="text-xs text-red-400 underline">清空重來</button>
+    </div>
+    
+    <div id="record-list" class="space-y-3">
+      <div class="text-center text-gray-400 py-8 text-sm bg-gray-100 rounded-lg border border-dashed border-gray-300">
+        目前沒有資料<br>請上方輸入資料後按加入
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // --- 初始化設定 ---
+    let records = JSON.parse(localStorage.getItem('taxi_records')) || [];
+    let driverInfo = JSON.parse(localStorage.getItem('driver_info')) || { name: '', plate: '', id: '' };
+
+    // 常用地點 (你可以自己加)
+    const commonLocs = ['前站', '後站', '慈濟', '門諾', '國稅局', '805醫院', '中正寶雅', '衛生局'];
+
+    window.onload = function() {
+      // 設定預設時間為現在
+      const now = new Date();
+      now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+      document.getElementById('input-time').value = now.toISOString().slice(0,16);
+      
+      // 預設選取敬老卡
+      setCardType('敬老卡');
+      
+      renderList();
+      checkDriverInfo();
+    };
+
+    function checkDriverInfo() {
+      if(!driverInfo.name) {
+        Swal.fire({
+          title: '初次設定',
+          html: `
+            <input id="d-name" class="swal2-input" placeholder="駕駛姓名">
+            <input id="d-plate" class="swal2-input" placeholder="車牌號碼 (ABC-123)">
+            <input id="d-id" class="swal2-input" placeholder="隊員編號">
+          `,
+          confirmButtonText: '保存',
+          allowOutsideClick: false,
+          preConfirm: () => {
+            return {
+              name: document.getElementById('d-name').value,
+              plate: document.getElementById('d-plate').value,
+              id: document.getElementById('d-id').value
+            }
+          }
+        }).then((result) => {
+          if(result.isConfirmed) {
+            driverInfo = result.value;
+            localStorage.setItem('driver_info', JSON.stringify(driverInfo));
+          }
+        });
+      }
+    }
+
+    // --- 操作邏輯 ---
+    function setCardType(type) {
+      document.getElementById('input-type').value = type;
+      const btnElder = document.getElementById('btn-elder');
+      const btnCare = document.getElementById('btn-care');
+      
+      // 重置樣式
+      btnElder.className = `p-3 rounded-lg border-2 border-transparent bg-gray-100 text-gray-600 font-bold text-lg active:scale-95 transition-all`;
+      btnCare.className = `p-3 rounded-lg border-2 border-transparent bg-gray-100 text-gray-600 font-bold text-lg active:scale-95 transition-all`;
+
+      // 套用選取樣式
+      if(type === '敬老卡') {
+        btnElder.className = `p-3 rounded-lg border-2 border-yellow-500 bg-yellow-50 text-yellow-700 font-bold text-lg shadow-sm active:scale-95 transition-all`;
+      } else {
+        btnCare.className = `p-3 rounded-lg border-2 border-rose-500 bg-rose-50 text-rose-700 font-bold text-lg shadow-sm active:scale-95 transition-all`;
+      }
+    }
+
+    function setInput(id, val) {
+      document.getElementById(id).value = val;
+    }
+
+    function addRecord() {
+      const timeStr = document.getElementById('input-time').value;
+      const type = document.getElementById('input-type').value;
+      const pickup = document.getElementById('input-pickup').value.trim();
+      const dropoff = document.getElementById('input-dropoff').value.trim();
+
+      if (!timeStr || !pickup || !dropoff) {
+        Swal.fire('資料不完整', '請檢查時間、上下車地點是否都填了？', 'warning');
+        return;
+      }
+
+      // 格式化時間 MM/DD HH:mm
+      const dateObj = new Date(timeStr);
+      const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+      const day = String(dateObj.getDate()).padStart(2, '0');
+      const hours = String(dateObj.getHours()).padStart(2, '0');
+      const minutes = String(dateObj.getMinutes()).padStart(2, '0');
+      const formattedTime = `${month}/${day} ${hours}:${minutes}`;
+
+      const newRecord = {
+        id: Date.now(),
+        rawTime: timeStr,
+        formattedTime: formattedTime,
+        type: type,
+        pickup: pickup,
+        dropoff: dropoff,
+        remarks: ''
+      };
+
+      records.push(newRecord);
+      saveAndRender();
+      
+      // 清空地點，時間保留以便連續輸入，或者可以往後推一點時間
+      document.getElementById('input-pickup').value = '';
+      document.getElementById('input-dropoff').value = '';
+      
+      const toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
+      toast.fire({ icon: 'success', title: '已加入清單' });
+    }
+
+    function deleteRecord(id) {
+      records = records.filter(r => r.id !== id);
+      saveAndRender();
+    }
+
+    function clearAll() {
+      if(confirm('確定要清空所有記錄嗎？')) {
+        records = [];
+        saveAndRender();
+      }
+    }
+
+    function saveAndRender() {
+      localStorage.setItem('taxi_records', JSON.stringify(records));
+      renderList();
+    }
+
+    function renderList() {
+      const listEl = document.getElementById('record-list');
+      document.getElementById('record-count').innerText = records.length;
+      
+      if (records.length === 0) {
+        listEl.innerHTML = '<div class="text-center text-gray-400 py-8 text-sm bg-gray-100 rounded-lg border border-dashed border-gray-300">目前沒有資料<br>請上方輸入資料後按加入</div>';
+        return;
+      }
+
+      // 倒序排列，最新的在最上面
+      const sortedRecords = [...records].reverse();
+      
+      listEl.innerHTML = sortedRecords.map((r, index) => {
+        // 真實序號 (正序)
+        const realIndex = records.length - index;
+        const badgeColor = r.type === '敬老卡' ? 'bg-yellow-100 text-yellow-700' : 'bg-rose-100 text-rose-700';
+        
+        return `
+          <div class="bg-white p-3 rounded-lg shadow-sm border-l-4 ${r.type === '敬老卡' ? 'border-yellow-400' : 'border-rose-400'} flex justify-between items-center animate-fade-in">
+            <div class="flex-1">
+              <div class="flex items-center mb-1">
+                <span class="text-xs font-mono font-bold text-gray-400 mr-2">#${realIndex}</span>
+                <span class="text-xs px-2 py-0.5 rounded-full ${badgeColor} font-bold mr-2">${r.type}</span>
+                <span class="font-bold text-gray-800">${r.formattedTime}</span>
+              </div>
+              <div class="text-sm text-gray-600">
+                <span class="font-medium">${r.pickup}</span> 
+                <i class="fas fa-arrow-right text-xs text-gray-300 mx-1"></i> 
+                <span class="font-medium">${r.dropoff}</span>
+              </div>
+            </div>
+            <button onclick="deleteRecord(${r.id})" class="text-gray-300 hover:text-red-500 p-2">
+              <i class="fas fa-trash-alt"></i>
+            </button>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // --- CSV 下載邏輯 ---
+    function downloadCSV() {
+      if (records.length === 0) {
+        Swal.fire('沒有資料', '請先輸入行程再下載', 'warning');
+        return;
+      }
+
+      // 取得月份 (用第一筆資料的月份)
+      const firstDate = new Date(records[0].rawTime);
+      const monthNum = String(firstDate.getMonth() + 1).padStart(2, '0');
+      
+      // 構建 CSV 內容
+      // 表頭部分
+      let csvContent = `115年度花蓮縣敬老愛心計程車補助計劃_____${monthNum}月份載送記錄表\n`;
+      csvContent += `駕駛姓名：,${driverInfo.name},車牌號碼：,${driverInfo.plate},隊員編號：,${driverInfo.id}\n`;
+      csvContent += `序號,日期/時間,乘客類別,上車地點,下車地點,備注\n`;
+
+      // 資料部分
+      records.forEach((r, index) => {
+        // CSV 為了避免亂碼與分隔符問題，建議簡單處理。這裡假設地址沒有逗號。
+        const row = [
+          index + 1,
+          r.formattedTime,
+          r.type,
+          r.pickup,
+          r.dropoff,
+          r.remarks || ''
+        ].join(',');
+        csvContent += row + "\n";
+      });
+
+      // 建立 Blob 與下載連結 (加入 BOM \uFEFF 解決 Excel 中文亂碼)
+      const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", `補助計劃載送記錄表_${driverInfo.name}_${monthNum}月.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  </script>
+</body>
+</html>
