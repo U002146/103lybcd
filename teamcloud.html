@@ -7,7 +7,11 @@
     
     let records = JSON.parse(localStorage.getItem('taxi_records_v6')) || [];
     let driverInfo = JSON.parse(localStorage.getItem('driver_info')) || { name: '', plate: '', id: '' };
-    let apiUrl = localStorage.getItem('gas_api_url') || '';
+    // ★ 直接將網址寫死在這裡，讓所有人共用 (設為預設值)
+    const DEFAULT_API_URL = "https://script.google.com/macros/s/AKfycby_XYDJCTiio3PUqg_g2Ip6nB5tu5ap-OwqGxwBLJbiC-0PrW9hNOVoxCG2vqj0J_vb/exec";
+
+    // 優先讀取本地設定(方便你測試)，如果沒有就用上面的預設網址(給司機用)
+    let apiUrl = localStorage.getItem('gas_api_url') || DEFAULT_API_URL;
 
     // --- 程式入口 ---
     window.onload = function() {
