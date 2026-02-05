@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>花蓮愛心計程車 (V6.0 雲端連線版)</title>
+  <title>花蓮愛心計程車 (V6.1 加強版)</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -12,6 +12,10 @@
     input, select { font-size: 16px !important; }
     .chip:active { transform: scale(0.95); background-color: #e5e7eb; }
     
+    /* 隱藏捲軸但保留功能 */
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
     /* 連線狀態燈號 */
     .status-dot { height: 10px; width: 10px; border-radius: 50%; display: inline-block; }
     .status-ok { background-color: #4ade80; box-shadow: 0 0 5px #4ade80; }
@@ -42,8 +46,8 @@
     <div class="bg-blue-700 text-white p-4 sticky top-0 z-50 shadow-md flex justify-between items-center">
       <div class="flex items-center" onclick="openSettings()">
         <i class="fas fa-cloud-upload-alt mr-2 text-blue-200"></i>
-        <h1 class="text-xl font-bold tracking-wider">雲端補單 V6</h1>
-        <div id="cloud-status" class="ml-2 status-dot bg-gray-400" title="尚未設定連線"></div>
+        <h1 class="text-xl font-bold tracking-wider">雲端補單 V6.1</h1>
+        <div id="cloud-status" class="ml-2 status-dot bg-gray-400" title="點擊設定連線"></div>
       </div>
       <button onclick="showPrintPreview()" class="bg-white text-blue-800 font-bold py-2 px-3 rounded shadow text-sm">
          <i class="fas fa-print mr-1"></i> 預覽
@@ -70,19 +74,27 @@
 
         <div class="mb-4 space-y-3">
           <div>
-            <label class="text-sm font-bold text-gray-500">上車</label>
-            <div class="flex gap-2 overflow-x-auto pb-1 mb-1 no-scrollbar">
-                <span onclick="setInput('input-pickup', '前站')" class="chip px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs border border-blue-100 whitespace-nowrap">前站</span>
-                <span onclick="setInput('input-pickup', '慈濟')" class="chip px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs border border-blue-100 whitespace-nowrap">慈濟</span>
-                <span onclick="setInput('input-pickup', '門諾')" class="chip px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs border border-blue-100 whitespace-nowrap">門諾</span>
+            <label class="text-sm font-bold text-gray-500">上車 (可左右滑動)</label>
+            <div class="flex gap-2 overflow-x-auto pb-2 mb-1 no-scrollbar">
+                <span onclick="setInput('input-pickup', '前站')" class="chip px-3 py-2 bg-blue-50 text-blue-700 rounded-lg text-sm font-bold border border-blue-100 whitespace-nowrap shadow-sm">前站</span>
+                <span onclick="setInput('input-pickup', '後站')" class="chip px-3 py-2 bg-blue-50 text-blue-700 rounded-lg text-sm font-bold border border-blue-100 whitespace-nowrap shadow-sm">後站</span>
+                <span onclick="setInput('input-pickup', '慈濟')" class="chip px-3 py-2 bg-blue-50 text-blue-700 rounded-lg text-sm font-bold border border-blue-100 whitespace-nowrap shadow-sm">慈濟</span>
+                <span onclick="setInput('input-pickup', '門諾')" class="chip px-3 py-2 bg-blue-50 text-blue-700 rounded-lg text-sm font-bold border border-blue-100 whitespace-nowrap shadow-sm">門諾</span>
+                <span onclick="setInput('input-pickup', '花蓮醫院')" class="chip px-3 py-2 bg-blue-50 text-blue-700 rounded-lg text-sm font-bold border border-blue-100 whitespace-nowrap shadow-sm">花蓮醫院</span>
+                <span onclick="setInput('input-pickup', '國軍醫院')" class="chip px-3 py-2 bg-blue-50 text-blue-700 rounded-lg text-sm font-bold border border-blue-100 whitespace-nowrap shadow-sm">國軍醫院</span>
             </div>
             <input type="text" id="input-pickup" placeholder="上車地點" class="w-full p-3 border border-gray-300 rounded-lg text-lg">
           </div>
+          
           <div>
-            <label class="text-sm font-bold text-gray-500">下車</label>
-            <div class="flex gap-2 overflow-x-auto pb-1 mb-1 no-scrollbar">
-                <span onclick="setInput('input-dropoff', '自宅')" class="chip px-3 py-1 bg-green-50 text-green-700 rounded-full text-xs border border-green-100 whitespace-nowrap">自宅</span>
-                <span onclick="setInput('input-dropoff', '慈濟')" class="chip px-3 py-1 bg-green-50 text-green-700 rounded-full text-xs border border-green-100 whitespace-nowrap">慈濟</span>
+            <label class="text-sm font-bold text-gray-500">下車 (可左右滑動)</label>
+            <div class="flex gap-2 overflow-x-auto pb-2 mb-1 no-scrollbar">
+                <span onclick="setInput('input-dropoff', '前站')" class="chip px-3 py-2 bg-green-50 text-green-700 rounded-lg text-sm font-bold border border-green-100 whitespace-nowrap shadow-sm">前站</span>
+                <span onclick="setInput('input-dropoff', '後站')" class="chip px-3 py-2 bg-green-50 text-green-700 rounded-lg text-sm font-bold border border-green-100 whitespace-nowrap shadow-sm">後站</span>
+                <span onclick="setInput('input-dropoff', '慈濟')" class="chip px-3 py-2 bg-green-50 text-green-700 rounded-lg text-sm font-bold border border-green-100 whitespace-nowrap shadow-sm">慈濟</span>
+                <span onclick="setInput('input-dropoff', '門諾')" class="chip px-3 py-2 bg-green-50 text-green-700 rounded-lg text-sm font-bold border border-green-100 whitespace-nowrap shadow-sm">門諾</span>
+                <span onclick="setInput('input-dropoff', '花蓮醫院')" class="chip px-3 py-2 bg-green-50 text-green-700 rounded-lg text-sm font-bold border border-green-100 whitespace-nowrap shadow-sm">花蓮醫院</span>
+                <span onclick="setInput('input-dropoff', '國軍醫院')" class="chip px-3 py-2 bg-green-50 text-green-700 rounded-lg text-sm font-bold border border-green-100 whitespace-nowrap shadow-sm">國軍醫院</span>
             </div>
             <input type="text" id="input-dropoff" placeholder="下車地點" class="w-full p-3 border border-gray-300 rounded-lg text-lg">
           </div>
@@ -130,6 +142,7 @@
   <div id="print-area" class="print-only"></div>
 
   <script>
+    // 使用 v6 的資料庫，無痛轉移
     let records = JSON.parse(localStorage.getItem('taxi_records_v6')) || [];
     let driverInfo = JSON.parse(localStorage.getItem('driver_info')) || { name: '', plate: '', id: '' };
     let apiUrl = localStorage.getItem('gas_api_url') || '';
@@ -148,11 +161,11 @@
         if(apiUrl && apiUrl.startsWith('http')) {
             dot.classList.remove('bg-gray-400', 'status-err');
             dot.classList.add('status-ok');
-            dot.title = "已連線至 Google 試算表";
+            dot.title = "已連線至雲端";
         } else {
             dot.classList.remove('status-ok');
             dot.classList.add('bg-gray-400');
-            dot.title = "未設定雲端網址 (僅本地儲存)";
+            dot.title = "未設定雲端網址";
         }
     }
 
@@ -160,9 +173,8 @@
         Swal.fire({
             title: '雲端連線設定',
             html: `
-                <p class="text-sm text-gray-500 mb-2">請貼上 Apps Script 網頁應用程式網址</p>
+                <p class="text-sm text-gray-500 mb-2">請貼上 Apps Script 網址 (V6 用的那串)</p>
                 <input id="swal-url" class="swal2-input" value="${apiUrl}" placeholder="https://script.google.com/...">
-                <p class="text-xs text-gray-400 mt-2 text-left">設定後，資料將自動同步至 Google 試算表。</p>
             `,
             showCancelButton: true,
             confirmButtonText: '儲存',
@@ -194,20 +206,17 @@
           timeObj: timeStr, 
           formattedTime: fmtTime, 
           type, pickup, dropoff, remarks,
-          syncStatus: 'pending' // 標記尚未同步
+          syncStatus: 'pending' 
       };
 
-      // 1. 先存本地 (保證不掉單)
       records.push(newRecord);
       localStorage.setItem('taxi_records_v6', JSON.stringify(records));
       renderList();
       
-      // 清空輸入
       document.getElementById('input-pickup').value = '';
       document.getElementById('input-dropoff').value = '';
       document.getElementById('input-remarks').value = '';
 
-      // 2. 嘗試傳送到雲端
       if(apiUrl) {
           syncToCloud(newRecord);
       } else {
@@ -216,7 +225,6 @@
     }
 
     function syncToCloud(record) {
-        // 顯示上傳中提示 (Toast)
         const toast = Swal.mixin({ toast: true, position: 'top', showConfirmButton: false });
         toast.fire({ icon: 'info', title: '正在同步到雲端...' });
 
@@ -229,11 +237,10 @@
 
         fetch(apiUrl, {
             method: 'POST',
-            mode: 'no-cors', // 關鍵：解決跨域問題，雖然拿不到回傳值，但能寫入
+            mode: 'no-cors',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         }).then(() => {
-            // 因為 no-cors 拿不到回應，我們假設成功
             record.syncStatus = 'synced';
             updateRecordStatus(record.id, 'synced');
             toast.fire({ icon: 'success', title: '雲端備份成功！' });
@@ -253,7 +260,6 @@
         }
     }
 
-    // --- 其他既有功能保持不變 ---
     function initTime() {
         const now = new Date();
         now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
@@ -287,7 +293,7 @@
         }
     }
     function clearAll() {
-        if(confirm('清空手機記錄？(雲端資料不會消失)')) {
+        if(confirm('清空手機記錄？')) {
             records = [];
             localStorage.setItem('taxi_records_v6', JSON.stringify(records));
             renderList();
