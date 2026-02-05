@@ -112,7 +112,10 @@
         const DRIVER_USER_ID = 'U467348846c6b1fa433990d7b75c935b5'; 
         const LIFF_ID = '2008907691-1mAjwojZ'; 
         const FIREBASE_DB_URL = 'https://hualientaxi-bb32f-default-rtdb.asia-southeast1.firebasedatabase.app/';
-        const GOOGLE_MAPS_API_KEY = 'AIzaSyAlTcoOPEZeeMNwTGTap39VPsW85Ux8NHo';
+        
+        // 🔴 關鍵修正：請在此填入你剛剛在 GCP 申請的新 Key (跟上一個專案用同一把即可)
+        const GOOGLE_MAPS_API_KEY = 'AIzaSyAIxc6PEhHgUs_A9lyRUg8dNbmwOpSamY8';
+        
         // ====================================================
 
         let map, carMarker, geocoder;
@@ -146,6 +149,12 @@
         };
 
         function loadGoogleMaps() {
+            // ✅ 安全檢查：如果沒填 Key，跳出警告
+            if (GOOGLE_MAPS_API_KEY.includes('請在此填入') || GOOGLE_MAPS_API_KEY === '') {
+                alert('⚠️ 系統偵測到尚未填入 API Key！\n請打開程式碼，在設定區填入新申請的 Google Maps Key。');
+                return;
+            }
+
             const script = document.createElement('script');
             script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&language=zh-TW&callback=initMap`;
             script.defer = true;
