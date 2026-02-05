@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>花蓮愛心計程車 (V6.1 加強版)</title>
+  <title>花蓮愛心計程車 (V6.2 完美排版)</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -12,31 +12,68 @@
     input, select { font-size: 16px !important; }
     .chip:active { transform: scale(0.95); background-color: #e5e7eb; }
     
-    /* 隱藏捲軸但保留功能 */
+    /* 隱藏捲軸 */
     .no-scrollbar::-webkit-scrollbar { display: none; }
     .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-    /* 連線狀態燈號 */
+    /* 狀態燈 */
     .status-dot { height: 10px; width: 10px; border-radius: 50%; display: inline-block; }
     .status-ok { background-color: #4ade80; box-shadow: 0 0 5px #4ade80; }
     .status-err { background-color: #ef4444; }
 
-    /* 列印與螢幕控制 */
+    /* --- 列印核心設計 (Design Master 調校) --- */
     .screen-only { display: block; }
     .print-only { display: none; }
+    
     @media print {
-      @page { size: A4 portrait; margin: 0; }
+      @page { 
+        size: A4 portrait; 
+        margin: 0; /* 清除瀏覽器預設邊距 */
+      }
       html, body { margin: 0; padding: 0; background: white; }
       .screen-only { display: none !important; }
       .print-only { display: block !important; }
-      .print-page { width: 210mm; height: 297mm; padding: 1.5cm; margin: 0 auto; page-break-after: always; position: relative; }
+      
+      /* 每一頁的容器 */
+      .print-page { 
+        width: 210mm; 
+        height: 297mm; 
+        padding: 1.2cm 1.5cm; /* 上下邊距微調，左右保持 */
+        margin: 0 auto; 
+        box-sizing: border-box; 
+        page-break-after: always; 
+        position: relative; 
+      }
       .print-page:last-child { page-break-after: avoid; }
-      .report-table { width: 100%; border-collapse: collapse; font-size: 11pt; margin-top: 5px; font-family: "標楷體"; }
-      .report-table th, .report-table td { border: 1px solid black; padding: 4px; text-align: center; height: 32px; }
-      .report-table th { background-color: #f0f0f0 !important; }
-      .report-header { text-align: center; font-size: 18pt; font-weight: bold; margin-bottom: 20px; font-family: "標楷體"; }
-      .report-info { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13pt; font-family: "標楷體"; }
-      .page-number { position: absolute; bottom: 1cm; right: 1.5cm; font-size: 10pt; color: #666; }
+      
+      /* 表格設計 */
+      .report-table { 
+        width: 100%; 
+        border-collapse: collapse; 
+        font-size: 11pt; /* 字體大小 */
+        margin-top: 5px; 
+        font-family: "標楷體", "DFKai-SB", serif; 
+        table-layout: fixed; /* 固定欄寬，避免跳動 */
+      }
+      
+      /* 格線與高度控制 */
+      .report-table th, .report-table td { 
+        border: 1px solid black; 
+        padding: 2px 4px; 
+        text-align: center; 
+        height: 29px; /* 強制高度，確保25筆剛好塞滿 */
+        overflow: hidden;
+        white-space: nowrap;
+      }
+      .report-table th { 
+        background-color: #f0f0f0 !important; 
+        height: 35px; /* 標題列稍微高一點 */
+      }
+      
+      /* 頁首頁尾 */
+      .report-header { text-align: center; font-size: 18pt; font-weight: bold; margin-bottom: 15px; font-family: "標楷體"; letter-spacing: 1px; }
+      .report-info { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 12pt; font-family: "標楷體"; }
+      .page-number { position: absolute; bottom: 0.8cm; right: 1.5cm; font-size: 10pt; color: #444; font-family: "Times New Roman", serif; }
     }
   </style>
 </head>
@@ -46,7 +83,7 @@
     <div class="bg-blue-700 text-white p-4 sticky top-0 z-50 shadow-md flex justify-between items-center">
       <div class="flex items-center" onclick="openSettings()">
         <i class="fas fa-cloud-upload-alt mr-2 text-blue-200"></i>
-        <h1 class="text-xl font-bold tracking-wider">雲端補單 V6.1</h1>
+        <h1 class="text-xl font-bold tracking-wider">雲端補單 V6.2</h1>
         <div id="cloud-status" class="ml-2 status-dot bg-gray-400" title="點擊設定連線"></div>
       </div>
       <button onclick="showPrintPreview()" class="bg-white text-blue-800 font-bold py-2 px-3 rounded shadow text-sm">
@@ -85,7 +122,6 @@
             </div>
             <input type="text" id="input-pickup" placeholder="上車地點" class="w-full p-3 border border-gray-300 rounded-lg text-lg">
           </div>
-          
           <div>
             <label class="text-sm font-bold text-gray-500">下車 (可左右滑動)</label>
             <div class="flex gap-2 overflow-x-auto pb-2 mb-1 no-scrollbar">
@@ -142,7 +178,6 @@
   <div id="print-area" class="print-only"></div>
 
   <script>
-    // 使用 v6 的資料庫，無痛轉移
     let records = JSON.parse(localStorage.getItem('taxi_records_v6')) || [];
     let driverInfo = JSON.parse(localStorage.getItem('driver_info')) || { name: '', plate: '', id: '' };
     let apiUrl = localStorage.getItem('gas_api_url') || '';
@@ -172,13 +207,8 @@
     function openSettings() {
         Swal.fire({
             title: '雲端連線設定',
-            html: `
-                <p class="text-sm text-gray-500 mb-2">請貼上 Apps Script 網址 (V6 用的那串)</p>
-                <input id="swal-url" class="swal2-input" value="${apiUrl}" placeholder="https://script.google.com/...">
-            `,
-            showCancelButton: true,
-            confirmButtonText: '儲存',
-            preConfirm: () => document.getElementById('swal-url').value
+            html: `<p class="text-sm text-gray-500 mb-2">請貼上 Apps Script 網址</p><input id="swal-url" class="swal2-input" value="${apiUrl}" placeholder="https://script.google.com/...">`,
+            showCancelButton: true, confirmButtonText: '儲存', preConfirm: () => document.getElementById('swal-url').value
         }).then((result) => {
             if (result.isConfirmed) {
                 apiUrl = result.value.trim();
@@ -200,14 +230,7 @@
 
       const dateObj = new Date(timeStr);
       const fmtTime = `${String(dateObj.getMonth()+1).padStart(2,'0')}/${String(dateObj.getDate()).padStart(2,'0')} ${String(dateObj.getHours()).padStart(2,'0')}:${String(dateObj.getMinutes()).padStart(2,'0')}`;
-
-      const newRecord = { 
-          id: Date.now(), 
-          timeObj: timeStr, 
-          formattedTime: fmtTime, 
-          type, pickup, dropoff, remarks,
-          syncStatus: 'pending' 
-      };
+      const newRecord = { id: Date.now(), timeObj: timeStr, formattedTime: fmtTime, type, pickup, dropoff, remarks, syncStatus: 'pending' };
 
       records.push(newRecord);
       localStorage.setItem('taxi_records_v6', JSON.stringify(records));
@@ -217,37 +240,22 @@
       document.getElementById('input-dropoff').value = '';
       document.getElementById('input-remarks').value = '';
 
-      if(apiUrl) {
-          syncToCloud(newRecord);
-      } else {
-          Swal.mixin({ toast: true, position: 'top', showConfirmButton: false, timer: 1500 }).fire({ icon: 'success', title: '已儲存 (僅本地)' });
-      }
+      if(apiUrl) syncToCloud(newRecord);
+      else Swal.mixin({ toast: true, position: 'top', showConfirmButton: false, timer: 1500 }).fire({ icon: 'success', title: '已儲存 (僅本地)' });
     }
 
     function syncToCloud(record) {
         const toast = Swal.mixin({ toast: true, position: 'top', showConfirmButton: false });
         toast.fire({ icon: 'info', title: '正在同步到雲端...' });
-
-        const payload = {
-            ...record,
-            driverName: driverInfo.name,
-            driverPlate: driverInfo.plate,
-            driverId: driverInfo.id
-        };
-
-        fetch(apiUrl, {
-            method: 'POST',
-            mode: 'no-cors',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        }).then(() => {
+        const payload = { ...record, driverName: driverInfo.name, driverPlate: driverInfo.plate, driverId: driverInfo.id };
+        fetch(apiUrl, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+        .then(() => {
             record.syncStatus = 'synced';
             updateRecordStatus(record.id, 'synced');
             toast.fire({ icon: 'success', title: '雲端備份成功！' });
         }).catch(err => {
-            console.error(err);
             updateRecordStatus(record.id, 'error');
-            toast.fire({ icon: 'warning', title: '雲端連線失敗，已存本地' });
+            toast.fire({ icon: 'warning', title: '雲端連線失敗' });
         });
     }
 
@@ -286,7 +294,7 @@
     }
     function setInput(id, val) { document.getElementById(id).value = val; }
     function deleteRecord(id) {
-        if(confirm('刪除此筆？(雲端資料需手動刪除)')) {
+        if(confirm('刪除此筆？')) {
             records = records.filter(r => r.id !== id);
             localStorage.setItem('taxi_records_v6', JSON.stringify(records));
             renderList();
@@ -322,7 +330,7 @@
       `).join('');
     }
     function getSyncIcon(status) {
-        if(status === 'synced') return '<i class="fas fa-check-circle text-green-500 ml-2" title="已備份至雲端"></i>';
+        if(status === 'synced') return '<i class="fas fa-check-circle text-green-500 ml-2" title="已備份"></i>';
         if(status === 'error') return '<i class="fas fa-exclamation-circle text-red-500 ml-2" title="上傳失敗"></i>';
         return '<i class="fas fa-cloud-upload-alt text-gray-300 ml-2" title="尚未同步"></i>';
     }
@@ -332,15 +340,20 @@
         document.getElementById('preview-modal').classList.remove('hidden');
     }
     function closePreview() { document.getElementById('preview-modal').classList.add('hidden'); }
+    
+    // --- 核心：V6.2 排版引擎 ---
     function generatePrintHTML() {
         const month = document.getElementById('report-month-select').value;
         const printArea = document.getElementById('print-area');
         const previewContent = document.getElementById('preview-content');
-        const recordsPerPage = 20; 
+        const recordsPerPage = 25; // 黃金比例
         const totalPages = Math.ceil(records.length / recordsPerPage);
         let finalHTML = '';
+
         for (let page = 0; page < totalPages; page++) {
             const chunk = records.slice(page * recordsPerPage, (page + 1) * recordsPerPage);
+            
+            // 資料行
             let rowsHTML = chunk.map((r, i) => `
                 <tr>
                     <td style="width: 8%">${(page * recordsPerPage) + i + 1}</td>
@@ -351,6 +364,21 @@
                     <td style="width: 20%">${r.remarks || ''}</td>
                 </tr>
             `).join('');
+
+            // 自動補滿空行 (設計師堅持的細節)
+            const remaining = recordsPerPage - chunk.length;
+            if(remaining > 0) {
+                for(let j=0; j<remaining; j++) {
+                    const emptySeq = (page * recordsPerPage) + chunk.length + j + 1;
+                    rowsHTML += `
+                        <tr>
+                            <td style="color: #ddd;">${emptySeq}</td>
+                            <td></td><td></td><td></td><td></td><td></td>
+                        </tr>
+                    `;
+                }
+            }
+
             finalHTML += `
                 <div class="print-page report-font">
                     <div class="report-header">
@@ -378,7 +406,10 @@
                 </div>
             `;
         }
+        
         printArea.innerHTML = finalHTML;
+        
+        // 預覽縮放
         previewContent.innerHTML = finalHTML.replace(/print-page/g, 'print-page shadow-lg mb-4 bg-white'); 
         const previewPages = previewContent.querySelectorAll('.print-page');
         previewPages.forEach(p => {
@@ -388,3 +419,5 @@
   </script>
 </body>
 </html>
+
+```
