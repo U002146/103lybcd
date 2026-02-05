@@ -3,160 +3,197 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>愛心計程車補單神器 (單機版)</title>
+  <title>愛心計程車補單 (直出報表)</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f0f2f5; -webkit-tap-highlight-color: transparent; }
+    body { font-family: "Microsoft JhengHei", -apple-system, BlinkMacSystemFont, sans-serif; background-color: #f0f2f5; -webkit-tap-highlight-color: transparent; }
+    
+    /* 螢幕顯示時的樣式 */
+    .screen-only { display: block; }
+    .print-only { display: none; }
+    
+    /* 輸入介面優化 */
     .chip { transition: all 0.2s; }
     .chip:active { transform: scale(0.95); background-color: #e5e7eb; }
-    /* 防止 iOS 上輸入框字體過小導致縮放 */
-    input, select, textarea { font-size: 16px !important; }
+    input, select { font-size: 16px !important; }
+
+    /* --- 列印時的專用樣式 (A4 規格) --- */
+    @media print {
+      @page { size: A4 portrait; margin: 1cm; }
+      body { background-color: white; -webkit-print-color-adjust: exact; }
+      .screen-only { display: none !important; }
+      .print-only { display: block !important; width: 100%; }
+      
+      /* 表格樣式 */
+      .report-table { width: 100%; border-collapse: collapse; font-size: 12pt; }
+      .report-table th, .report-table td { border: 1px solid black; padding: 6px; text-align: center; }
+      .report-table th { background-color: #f0f0f0 !important; font-weight: bold; }
+      
+      /* 標題區 */
+      .report-header { text-align: center; font-size: 16pt; font-weight: bold; margin-bottom: 20px; }
+      .report-info { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 12pt; }
+    }
   </style>
 </head>
-<body class="pb-32">
+<body class="pb-10">
 
-  <div class="bg-blue-600 text-white p-4 sticky top-0 z-50 shadow-md flex justify-between items-center">
-    <div>
-      <h1 class="text-xl font-bold"><i class="fas fa-file-csv mr-2"></i>補單神器</h1>
-      <p class="text-xs text-blue-200">離線儲存・格式免煩惱</p>
-    </div>
-    <div class="text-right">
-       <button onclick="downloadCSV()" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded shadow text-sm">
-         <i class="fas fa-download mr-1"></i> 下載報表
+  <div id="app-view" class="screen-only max-w-md mx-auto">
+    
+    <div class="bg-blue-600 text-white p-4 sticky top-0 z-50 shadow-md flex justify-between items-center">
+      <h1 class="text-xl font-bold"><i class="fas fa-taxi mr-2"></i>補單神器</h1>
+      <button onclick="showPrintPreview()" class="bg-white text-blue-600 font-bold py-2 px-4 rounded shadow text-sm flex items-center">
+         <i class="fas fa-print mr-1"></i> 產生報表
        </button>
+    </div>
+
+    <div class="p-4">
+      <div class="bg-white rounded-xl shadow-sm p-4 mb-6 border border-gray-200">
+        <div class="flex justify-between items-center mb-4 border-b pb-2">
+            <h2 class="text-lg font-bold text-gray-700">新增行程</h2>
+            <button onclick="editDriverInfo()" class="text-xs text-blue-500 underline">設定司機資料</button>
+        </div>
+        
+        <div class="mb-4">
+          <label class="block text-sm font-bold text-gray-600 mb-1">日期時間</label>
+          <input type="datetime-local" id="input-time" class="w-full p-3 border border-gray-300 rounded-lg bg-gray-50 text-lg">
+        </div>
+
+        <div class="mb-4 grid grid-cols-2 gap-3">
+          <button onclick="setCardType('敬老卡')" id="btn-elder" class="p-3 rounded-lg border-2 bg-gray-100 text-gray-600 font-bold">敬老卡</button>
+          <button onclick="setCardType('愛心卡')" id="btn-care" class="p-3 rounded-lg border-2 bg-gray-100 text-gray-600 font-bold">愛心卡</button>
+          <input type="hidden" id="input-type">
+        </div>
+
+        <div class="mb-4 space-y-3">
+          <div>
+            <label class="text-sm font-bold text-gray-600">上車</label>
+            <div class="flex gap-2 overflow-x-auto pb-1 mb-1 no-scrollbar">
+                <span onclick="setInput('input-pickup', '前站')" class="chip px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs border border-blue-100 whitespace-nowrap">前站</span>
+                <span onclick="setInput('input-pickup', '慈濟')" class="chip px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs border border-blue-100 whitespace-nowrap">慈濟</span>
+                <span onclick="setInput('input-pickup', '門諾')" class="chip px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs border border-blue-100 whitespace-nowrap">門諾</span>
+            </div>
+            <input type="text" id="input-pickup" placeholder="上車地點" class="w-full p-2 border border-gray-300 rounded text-lg">
+          </div>
+          <div>
+            <label class="text-sm font-bold text-gray-600">下車</label>
+            <div class="flex gap-2 overflow-x-auto pb-1 mb-1 no-scrollbar">
+                <span onclick="setInput('input-dropoff', '自宅')" class="chip px-3 py-1 bg-green-50 text-green-700 rounded-full text-xs border border-green-100 whitespace-nowrap">自宅</span>
+                <span onclick="setInput('input-dropoff', '慈濟')" class="chip px-3 py-1 bg-green-50 text-green-700 rounded-full text-xs border border-green-100 whitespace-nowrap">慈濟</span>
+                <span onclick="setInput('input-dropoff', '門諾')" class="chip px-3 py-1 bg-green-50 text-green-700 rounded-full text-xs border border-green-100 whitespace-nowrap">門諾</span>
+            </div>
+            <input type="text" id="input-dropoff" placeholder="下車地點" class="w-full p-2 border border-gray-300 rounded text-lg">
+          </div>
+        </div>
+
+        <button onclick="addRecord()" class="w-full bg-blue-600 text-white font-bold py-3 rounded-xl text-lg shadow active:scale-95">加入清單</button>
+      </div>
+
+      <div class="flex justify-between items-end mb-2">
+        <h3 class="font-bold text-gray-500">已記錄 (<span id="record-count">0</span>)</h3>
+        <button onclick="clearAll()" class="text-xs text-red-400 underline">清空</button>
+      </div>
+      <div id="record-list" class="space-y-2 pb-20"></div>
     </div>
   </div>
 
-  <div class="max-w-md mx-auto p-4">
-
-    <div class="bg-white rounded-xl shadow-sm p-4 mb-6 border border-gray-200">
-      <h2 class="text-lg font-bold text-gray-700 mb-4 border-b pb-2">新增行程</h2>
-      
-      <div class="mb-4">
-        <label class="block text-sm font-bold text-gray-600 mb-1">日期時間</label>
-        <input type="datetime-local" id="input-time" class="w-full p-3 border border-gray-300 rounded-lg bg-gray-50 text-lg font-mono">
-      </div>
-
-      <div class="mb-4">
-        <label class="block text-sm font-bold text-gray-600 mb-1">卡別</label>
-        <div class="grid grid-cols-2 gap-3">
-          <button type="button" onclick="setCardType('敬老卡')" id="btn-elder" class="p-3 rounded-lg border-2 border-transparent bg-gray-100 text-gray-600 font-bold text-lg active:scale-95 transition-all">敬老卡</button>
-          <button type="button" onclick="setCardType('愛心卡')" id="btn-care" class="p-3 rounded-lg border-2 border-transparent bg-gray-100 text-gray-600 font-bold text-lg active:scale-95 transition-all">愛心卡</button>
+  <div id="preview-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-95 z-50 flex flex-col items-center justify-center p-2 screen-only">
+    <div class="bg-white w-full max-w-2xl h-[90vh] rounded-lg shadow-2xl flex flex-col overflow-hidden">
+        <div class="bg-gray-100 p-3 border-b flex justify-between items-center">
+            <h3 class="font-bold text-gray-700">報表預覽</h3>
+            <button onclick="closePreview()" class="text-gray-500 hover:text-gray-800"><i class="fas fa-times text-xl"></i></button>
         </div>
-        <input type="hidden" id="input-type">
-      </div>
+        
+        <div id="preview-content" class="flex-1 overflow-auto p-4 bg-gray-50">
+            </div>
 
-      <div class="mb-4">
-        <label class="block text-sm font-bold text-gray-600 mb-1">上車地點</label>
-        <div class="flex gap-2 mb-2 overflow-x-auto pb-1 no-scrollbar">
-          <span onclick="setInput('input-pickup', '前站')" class="chip px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm border border-blue-100 whitespace-nowrap">前站</span>
-          <span onclick="setInput('input-pickup', '後站')" class="chip px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm border border-blue-100 whitespace-nowrap">後站</span>
-          <span onclick="setInput('input-pickup', '慈濟')" class="chip px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm border border-blue-100 whitespace-nowrap">慈濟</span>
-          <span onclick="setInput('input-pickup', '門諾')" class="chip px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm border border-blue-100 whitespace-nowrap">門諾</span>
+        <div class="p-4 border-t bg-white flex space-x-3">
+            <button onclick="window.print()" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg shadow text-lg">
+                <i class="fas fa-print mr-2"></i> 列印 / 存成 PDF
+            </button>
+            <button onclick="closePreview()" class="px-6 bg-gray-200 text-gray-700 font-bold rounded-lg">返回</button>
         </div>
-        <input type="text" id="input-pickup" placeholder="輸入或選擇地點" class="w-full p-3 border border-gray-300 rounded-lg text-lg">
-      </div>
-
-      <div class="mb-6">
-        <label class="block text-sm font-bold text-gray-600 mb-1">下車地點</label>
-        <div class="flex gap-2 mb-2 overflow-x-auto pb-1 no-scrollbar">
-          <span onclick="setInput('input-dropoff', '自宅')" class="chip px-3 py-1 bg-green-50 text-green-700 rounded-full text-sm border border-green-100 whitespace-nowrap">自宅</span>
-          <span onclick="setInput('input-dropoff', '慈濟')" class="chip px-3 py-1 bg-green-50 text-green-700 rounded-full text-sm border border-green-100 whitespace-nowrap">慈濟</span>
-          <span onclick="setInput('input-dropoff', '門諾')" class="chip px-3 py-1 bg-green-50 text-green-700 rounded-full text-sm border border-green-100 whitespace-nowrap">門諾</span>
-          <span onclick="setInput('input-dropoff', '國稅局')" class="chip px-3 py-1 bg-green-50 text-green-700 rounded-full text-sm border border-green-100 whitespace-nowrap">國稅局</span>
-        </div>
-        <input type="text" id="input-dropoff" placeholder="輸入或選擇地點" class="w-full p-3 border border-gray-300 rounded-lg text-lg">
-      </div>
-
-      <button onclick="addRecord()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl text-xl shadow-lg active:scale-95 transition-transform flex justify-center items-center">
-        <i class="fas fa-plus-circle mr-2"></i> 加入清單
-      </button>
     </div>
+  </div>
 
-    <div class="flex justify-between items-end mb-2">
-      <h3 class="font-bold text-gray-500">已記錄行程 (<span id="record-count">0</span>)</h3>
-      <button onclick="clearAll()" class="text-xs text-red-400 underline">清空重來</button>
-    </div>
-    
-    <div id="record-list" class="space-y-3">
-      <div class="text-center text-gray-400 py-8 text-sm bg-gray-100 rounded-lg border border-dashed border-gray-300">
-        目前沒有資料<br>請上方輸入資料後按加入
+  <div id="print-area" class="print-only">
+      <div class="report-header">
+          115年度花蓮縣敬老愛心計程車補助計劃 <span id="p-month" class="underline decoration-1 underline-offset-4 px-2"> &nbsp;&nbsp; </span> 月份載送記錄表
       </div>
-    </div>
-
+      <div class="report-info">
+          <div>駕駛姓名：<span id="p-name"></span></div>
+          <div>車牌號碼：<span id="p-plate"></span></div>
+          <div>隊員編號：<span id="p-id"></span></div>
+      </div>
+      <table class="report-table">
+          <thead>
+              <tr>
+                  <th style="width: 8%;">序號</th>
+                  <th style="width: 20%;">日期/時間</th>
+                  <th style="width: 15%;">乘客類別</th>
+                  <th style="width: 22%;">上車地點</th>
+                  <th style="width: 22%;">下車地點</th>
+                  <th style="width: 13%;">備注</th>
+              </tr>
+          </thead>
+          <tbody id="print-tbody">
+              </tbody>
+      </table>
   </div>
 
   <script>
-    // --- 初始化設定 ---
+    // --- 資料與初始化 ---
     let records = JSON.parse(localStorage.getItem('taxi_records')) || [];
     let driverInfo = JSON.parse(localStorage.getItem('driver_info')) || { name: '', plate: '', id: '' };
 
-    // 常用地點 (你可以自己加)
-    const commonLocs = ['前站', '後站', '慈濟', '門諾', '國稅局', '805醫院', '中正寶雅', '衛生局'];
-
     window.onload = function() {
-      // 設定預設時間為現在
-      const now = new Date();
-      now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-      document.getElementById('input-time').value = now.toISOString().slice(0,16);
-      
-      // 預設選取敬老卡
+      initTime();
       setCardType('敬老卡');
-      
       renderList();
-      checkDriverInfo();
+      if(!driverInfo.name) editDriverInfo();
     };
 
-    function checkDriverInfo() {
-      if(!driverInfo.name) {
-        Swal.fire({
-          title: '初次設定',
-          html: `
-            <input id="d-name" class="swal2-input" placeholder="駕駛姓名">
-            <input id="d-plate" class="swal2-input" placeholder="車牌號碼 (ABC-123)">
-            <input id="d-id" class="swal2-input" placeholder="隊員編號">
-          `,
-          confirmButtonText: '保存',
-          allowOutsideClick: false,
-          preConfirm: () => {
-            return {
-              name: document.getElementById('d-name').value,
-              plate: document.getElementById('d-plate').value,
-              id: document.getElementById('d-id').value
-            }
-          }
-        }).then((result) => {
-          if(result.isConfirmed) {
-            driverInfo = result.value;
-            localStorage.setItem('driver_info', JSON.stringify(driverInfo));
-          }
-        });
-      }
+    function initTime() {
+        const now = new Date();
+        now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+        document.getElementById('input-time').value = now.toISOString().slice(0,16);
     }
 
-    // --- 操作邏輯 ---
+    function editDriverInfo() {
+      Swal.fire({
+        title: '司機資料設定',
+        html: `
+          <div class="mb-2 text-left text-sm text-gray-600">姓名</div>
+          <input id="d-name" class="swal2-input" value="${driverInfo.name}" placeholder="王大明">
+          <div class="mb-2 text-left text-sm text-gray-600">車牌</div>
+          <input id="d-plate" class="swal2-input" value="${driverInfo.plate}" placeholder="ABC-123">
+          <div class="mb-2 text-left text-sm text-gray-600">編號</div>
+          <input id="d-id" class="swal2-input" value="${driverInfo.id}" placeholder="001">
+        `,
+        confirmButtonText: '保存',
+        preConfirm: () => ({
+          name: document.getElementById('d-name').value,
+          plate: document.getElementById('d-plate').value,
+          id: document.getElementById('d-id').value
+        })
+      }).then((result) => {
+        if(result.isConfirmed) {
+          driverInfo = result.value;
+          localStorage.setItem('driver_info', JSON.stringify(driverInfo));
+        }
+      });
+    }
+
+    // --- 輸入邏輯 ---
     function setCardType(type) {
       document.getElementById('input-type').value = type;
-      const btnElder = document.getElementById('btn-elder');
-      const btnCare = document.getElementById('btn-care');
-      
-      // 重置樣式
-      btnElder.className = `p-3 rounded-lg border-2 border-transparent bg-gray-100 text-gray-600 font-bold text-lg active:scale-95 transition-all`;
-      btnCare.className = `p-3 rounded-lg border-2 border-transparent bg-gray-100 text-gray-600 font-bold text-lg active:scale-95 transition-all`;
-
-      // 套用選取樣式
-      if(type === '敬老卡') {
-        btnElder.className = `p-3 rounded-lg border-2 border-yellow-500 bg-yellow-50 text-yellow-700 font-bold text-lg shadow-sm active:scale-95 transition-all`;
-      } else {
-        btnCare.className = `p-3 rounded-lg border-2 border-rose-500 bg-rose-50 text-rose-700 font-bold text-lg shadow-sm active:scale-95 transition-all`;
-      }
+      const el = (id) => document.getElementById(id);
+      el('btn-elder').className = type === '敬老卡' ? 'p-3 rounded-lg border-2 border-yellow-500 bg-yellow-50 text-yellow-700 font-bold shadow-sm' : 'p-3 rounded-lg border-2 border-transparent bg-gray-100 text-gray-500 font-bold';
+      el('btn-care').className = type === '愛心卡' ? 'p-3 rounded-lg border-2 border-rose-500 bg-rose-50 text-rose-700 font-bold shadow-sm' : 'p-3 rounded-lg border-2 border-transparent bg-gray-100 text-gray-500 font-bold';
     }
 
-    function setInput(id, val) {
-      document.getElementById(id).value = val;
-    }
+    function setInput(id, val) { document.getElementById(id).value = val; }
 
     function addRecord() {
       const timeStr = document.getElementById('input-time').value;
@@ -164,136 +201,93 @@
       const pickup = document.getElementById('input-pickup').value.trim();
       const dropoff = document.getElementById('input-dropoff').value.trim();
 
-      if (!timeStr || !pickup || !dropoff) {
-        Swal.fire('資料不完整', '請檢查時間、上下車地點是否都填了？', 'warning');
-        return;
-      }
+      if (!timeStr || !pickup || !dropoff) return Swal.fire('請填寫完整', '', 'warning');
 
-      // 格式化時間 MM/DD HH:mm
       const dateObj = new Date(timeStr);
-      const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-      const day = String(dateObj.getDate()).padStart(2, '0');
-      const hours = String(dateObj.getHours()).padStart(2, '0');
-      const minutes = String(dateObj.getMinutes()).padStart(2, '0');
-      const formattedTime = `${month}/${day} ${hours}:${minutes}`;
+      // 格式化為 MM/DD HH:mm
+      const fmtTime = `${String(dateObj.getMonth()+1).padStart(2,'0')}/${String(dateObj.getDate()).padStart(2,'0')} ${String(dateObj.getHours()).padStart(2,'0')}:${String(dateObj.getMinutes()).padStart(2,'0')}`;
 
-      const newRecord = {
-        id: Date.now(),
-        rawTime: timeStr,
-        formattedTime: formattedTime,
-        type: type,
-        pickup: pickup,
-        dropoff: dropoff,
-        remarks: ''
-      };
-
-      records.push(newRecord);
-      saveAndRender();
+      records.push({ id: Date.now(), timeObj: timeStr, formattedTime: fmtTime, type, pickup, dropoff });
+      localStorage.setItem('taxi_records', JSON.stringify(records));
+      renderList();
       
-      // 清空地點，時間保留以便連續輸入，或者可以往後推一點時間
       document.getElementById('input-pickup').value = '';
       document.getElementById('input-dropoff').value = '';
-      
-      const toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
-      toast.fire({ icon: 'success', title: '已加入清單' });
+      Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1000 }).fire({ icon: 'success', title: '已加入' });
     }
 
     function deleteRecord(id) {
-      records = records.filter(r => r.id !== id);
-      saveAndRender();
+        if(!confirm('刪除此筆?')) return;
+        records = records.filter(r => r.id !== id);
+        localStorage.setItem('taxi_records', JSON.stringify(records));
+        renderList();
     }
-
+    
     function clearAll() {
-      if(confirm('確定要清空所有記錄嗎？')) {
-        records = [];
-        saveAndRender();
-      }
-    }
-
-    function saveAndRender() {
-      localStorage.setItem('taxi_records', JSON.stringify(records));
-      renderList();
+        if(confirm('確定清空全部資料?')) {
+            records = [];
+            localStorage.setItem('taxi_records', JSON.stringify(records));
+            renderList();
+        }
     }
 
     function renderList() {
-      const listEl = document.getElementById('record-list');
+      const el = document.getElementById('record-list');
       document.getElementById('record-count').innerText = records.length;
+      if (records.length === 0) { el.innerHTML = '<div class="text-center text-gray-300 py-4">無資料</div>'; return; }
       
-      if (records.length === 0) {
-        listEl.innerHTML = '<div class="text-center text-gray-400 py-8 text-sm bg-gray-100 rounded-lg border border-dashed border-gray-300">目前沒有資料<br>請上方輸入資料後按加入</div>';
-        return;
-      }
-
-      // 倒序排列，最新的在最上面
-      const sortedRecords = [...records].reverse();
-      
-      listEl.innerHTML = sortedRecords.map((r, index) => {
-        // 真實序號 (正序)
-        const realIndex = records.length - index;
-        const badgeColor = r.type === '敬老卡' ? 'bg-yellow-100 text-yellow-700' : 'bg-rose-100 text-rose-700';
-        
-        return `
-          <div class="bg-white p-3 rounded-lg shadow-sm border-l-4 ${r.type === '敬老卡' ? 'border-yellow-400' : 'border-rose-400'} flex justify-between items-center animate-fade-in">
-            <div class="flex-1">
-              <div class="flex items-center mb-1">
-                <span class="text-xs font-mono font-bold text-gray-400 mr-2">#${realIndex}</span>
-                <span class="text-xs px-2 py-0.5 rounded-full ${badgeColor} font-bold mr-2">${r.type}</span>
-                <span class="font-bold text-gray-800">${r.formattedTime}</span>
-              </div>
-              <div class="text-sm text-gray-600">
-                <span class="font-medium">${r.pickup}</span> 
-                <i class="fas fa-arrow-right text-xs text-gray-300 mx-1"></i> 
-                <span class="font-medium">${r.dropoff}</span>
-              </div>
+      // 介面顯示倒序 (新->舊)
+      el.innerHTML = [...records].reverse().map((r, i) => `
+        <div class="bg-white p-3 rounded shadow-sm border-l-4 ${r.type==='敬老卡'?'border-yellow-400':'border-rose-400'} flex justify-between items-center">
+            <div>
+                <div class="text-xs text-gray-500 font-bold">#${records.length - i} . ${r.formattedTime} <span class="${r.type==='敬老卡'?'text-yellow-600':'text-rose-600'} ml-1">${r.type}</span></div>
+                <div class="text-gray-800 font-medium">${r.pickup} <i class="fas fa-arrow-right text-xs mx-1 text-gray-300"></i> ${r.dropoff}</div>
             </div>
-            <button onclick="deleteRecord(${r.id})" class="text-gray-300 hover:text-red-500 p-2">
-              <i class="fas fa-trash-alt"></i>
-            </button>
-          </div>
-        `;
-      }).join('');
+            <button onclick="deleteRecord(${r.id})" class="text-gray-300 hover:text-red-500 px-2"><i class="fas fa-trash"></i></button>
+        </div>
+      `).join('');
     }
 
-    // --- CSV 下載邏輯 ---
-    function downloadCSV() {
-      if (records.length === 0) {
-        Swal.fire('沒有資料', '請先輸入行程再下載', 'warning');
-        return;
-      }
+    // --- 核心：報表生成與列印 ---
+    function showPrintPreview() {
+        if(records.length === 0) return Swal.fire('沒資料不能印', '', 'warning');
 
-      // 取得月份 (用第一筆資料的月份)
-      const firstDate = new Date(records[0].rawTime);
-      const monthNum = String(firstDate.getMonth() + 1).padStart(2, '0');
-      
-      // 構建 CSV 內容
-      // 表頭部分
-      let csvContent = `115年度花蓮縣敬老愛心計程車補助計劃_____${monthNum}月份載送記錄表\n`;
-      csvContent += `駕駛姓名：,${driverInfo.name},車牌號碼：,${driverInfo.plate},隊員編號：,${driverInfo.id}\n`;
-      csvContent += `序號,日期/時間,乘客類別,上車地點,下車地點,備注\n`;
+        // 1. 填寫報表表頭
+        document.getElementById('p-name').innerText = driverInfo.name;
+        document.getElementById('p-plate').innerText = driverInfo.plate;
+        document.getElementById('p-id').innerText = driverInfo.id;
+        
+        // 自動抓取第一筆資料的月份
+        const firstDate = new Date(records[0].timeObj);
+        document.getElementById('p-month').innerText = (firstDate.getMonth() + 1);
 
-      // 資料部分
-      records.forEach((r, index) => {
-        // CSV 為了避免亂碼與分隔符問題，建議簡單處理。這裡假設地址沒有逗號。
-        const row = [
-          index + 1,
-          r.formattedTime,
-          r.type,
-          r.pickup,
-          r.dropoff,
-          r.remarks || ''
-        ].join(',');
-        csvContent += row + "\n";
-      });
+        // 2. 生成表格 (正序 1, 2, 3...)
+        const tbody = document.getElementById('print-tbody');
+        tbody.innerHTML = records.map((r, i) => `
+            <tr>
+                <td>${i + 1}</td>
+                <td>${r.formattedTime}</td>
+                <td>${r.type}</td>
+                <td>${r.pickup}</td>
+                <td>${r.dropoff}</td>
+                <td></td>
+            </tr>
+        `).join('');
 
-      // 建立 Blob 與下載連結 (加入 BOM \uFEFF 解決 Excel 中文亂碼)
-      const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.setAttribute("href", url);
-      link.setAttribute("download", `補助計劃載送記錄表_${driverInfo.name}_${monthNum}月.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+        // 3. 為了讓手機預覽，我們把 print-area 的 HTML 複製到 modal 裡顯示
+        // 注意：這裡只是為了「看」，真正的列印是靠 @media print CSS 控制 print-area
+        const printContent = document.getElementById('print-area').innerHTML;
+        document.getElementById('preview-content').innerHTML = `
+            <div style="background:white; padding: 20px; box-shadow: 0 0 10px rgba(0,0,0,0.1);">
+                ${printContent}
+            </div>
+        `;
+        
+        document.getElementById('preview-modal').classList.remove('hidden');
+    }
+
+    function closePreview() {
+        document.getElementById('preview-modal').classList.add('hidden');
     }
   </script>
 </body>
