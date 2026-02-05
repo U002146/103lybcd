@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>花蓮敬老愛心乘車支援平台</title>
+    <meta name="description" content="花蓮在地計程車排班系統 - 營業中司機名單">
+    <meta property="og:title" content="花蓮敬老愛心乘車支援平台">
+    <meta property="og:description" content="點擊查看各區營業中司機名單，提供敬老愛心卡、無菸車等友善服務。">
+    
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2/dist/vue.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+    <style>
+        body { background-color: #f0f2f5; font-family: "Microsoft JhengHei", sans-serif; -webkit-overflow-scrolling: touch; }
+        .zone-card { cursor: pointer; transition: 0.2s; border: none; border-radius: 12px; }
+        .zone-card:active { transform: scale(0.98); }
+        .zone-card.full { border: 2px solid #dc3545; background-color: #fff5f5; opacity: 0.8; }
+        .driver-badge { font-size: 0.9rem; background: #FFD700; color: #000; padding: 4px 10px; border-radius: 20px; font-weight: bold; }
+        .loading-mask { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); color: white; display: flex; justify-content: center; align-items: center; z-index: 9999; flex-direction: column; backdrop-filter: blur(5px); }
+        .full-page-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: #f8f9fa; z-index: 2000; overflow-y: auto; padding-bottom: 80px; }
+        .driver-card-full { background: white; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 16px; overflow: hidden; transition: transform 0.2s; border: 1px solid #eee; }
+        .driver-card-full:active { transform: scale(0.98); background-color: #fafafa; }
+        .tag-badge { font-size: 0.75rem; padding: 4px 8px; border-radius: 6px; background-color: #e9ecef; color: #495057; margin-right: 6px; margin-bottom: 6px; display: inline-block; }
+        .tag-badge.pay { background-color: #e3f2fd; color: #0d6efd; } 
+        .tag-badge.feature { background-color: #e8f5e9; color: #198754; }
+        .promo-btn { border-radius: 50px; font-weight: bold; padding: 10px 20px; }
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <div v-if="loading" class="loading-mask">
+        <div v-if="!loadingError">
+            <div class="spinner-border text-warning mb-3" role="status" style="width: 3rem; height: 3rem;"></div>
+            <div class="h5">{{ loadingText }}</div>
+            <div class="text-white-50 small mt-2">連線中...請稍候</div>
+        </div>
+        
+        <div v-else class="text-center p-4">
+            <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
+            <h5 class="mb-2">系統連線回應過慢</h5>
+            <p class="text-white-50 small mb-4">{{ errorMessage }}</p>
+            <button @click="retryConnection" class="btn btn-warning rounded-pill px-4 fw-bold">
+                <i class="fas fa-sync-alt me-2"></i> 重新連線
+            </button>
+            <div class="mt-3">
+                <small class="text-white-50" @click="forceCloseLoading"><u>強制進入 (僅供測試)</u></small>
+            </div>
+        </div>
+    </div>
+
+    <div v-show="!showDriverListFullPage" class="container py-3">
+        <div class="d-flex justify-content-between align-items-start mb-4 px-2">
+            <div>
+                <h5 class="fw-bold mb-1" style="color: #2c3e50;">花蓮敬老愛心<br>乘車支援平台</h5>
+                <div class="d-flex align-items-center mt-2">
+                    <span class="badge bg-success me-2">營業中</span>
+                    <small class="text-muted fw-bold">排班區司機名單</small>
+                </div>
+            </div>
+            
+            <div class="text-end">
+                <button v-if="!isDriver" @click="showRegModal = true" class="btn btn-sm btn-outline-primary rounded-pill px-3 shadow-sm">
+                    <i class="fas fa-id-card me-1"></i> 司機登入
+                </button>
+                <span v-else class="driver-badge shadow-sm">
+                    <i class="fas fa-taxi me-1"></i> {{ driverName }}
+                </span>
+            </div>
+        </div>
+
+        <div v-if="isDriver && currentZoneId" class="card border-0 shadow-sm rounded-3 mb-4 mx-1 overflow-hidden">
+            <div class="card-body d-flex justify-content-between align-items-center pb-2">
+                <div class="d-flex align-items-center">
+                    <div class="bg-warning bg-opacity-10 p-2 rounded-circle me-3 text-warning">
+                        <i class="fas fa-map-marker-alt fa-lg"></i>
+                    </div>
+                    <div>
+                        <small class="text-muted">目前排班位置</small><br>
+                        <strong class="h5 mb-0">{{ getZoneName(currentZoneId) }}</strong>
+                    </div>
+                </div>
+                <div class="text-end">
+                    <button @click="leaveZone" class="btn btn-danger btn-sm px-3 rounded-pill shadow-sm mb-1">
+                        下班退排
+                    </button>
+                </div>
+            </div>
+            <div class="px-3 pb-2">
+                <div class="d-flex justify-content-between small text-muted mb-1">
+                    <span><i class="fas fa-stopwatch me-1"></i>已排班: {{ queueTimeText }}</span>
+                    <span>剩餘: {{ remainingTimeText }}</span>
+                </div>
+                <div class="progress" style="height: 6px;">
+                    <div class="progress-bar" role="progressbar" 
+                         :style="{ width: queueProgress + '%', backgroundColor: progressColor }" 
+                         aria-valuemin="0" aria-valuemax="100"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-3 mb-5">
+            <div v-for="zone in zones" :key="zone.id" class="col-6 col-md-4">
+                <div class="card h-100 shadow-sm zone-card" 
+                     :class="{ full: zone.count >= 10 }"
+                     @click="enterZone(zone)">
+                    <div class="card-body text-center p-3">
+                        <div class="mb-2">
+                            <span class="badge rounded-pill" 
+                                  :class="zone.count >= 10 ? 'bg-danger' : (zone.count > 0 ? 'bg-success' : 'bg-secondary')">
+                                {{ zone.count }} / 10 位司機
+                            </span>
+                        </div>
+                        <h6 class="card-title fw-bold text-dark mb-1">{{ zone.displayName || zone.name }}</h6>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-4 mb-4 text-center">
+            <h6 class="text-muted mb-3 separator">——— 司機推廣工具 ———</h6>
+            <div class="d-grid gap-2 col-10 mx-auto">
+                <button @click="showQrCodeModal = true" class="btn btn-success promo-btn shadow-sm">
+                    <i class="fas fa-qrcode me-2"></i> 顯示推廣 QR Code
+                </button>
+                <a href="https://line.me/R/ti/p/@631ugnif" target="_blank" class="btn btn-dark promo-btn shadow-sm">
+                    <i class="fab fa-line me-2"></i> 加入官方帳號
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div v-if="showDriverListFullPage" class="full-page-overlay">
+        <div class="bg-white shadow-sm sticky-top px-3 py-3 d-flex align-items-center">
+            <button @click="closeDriverList" class="btn btn-light rounded-circle me-3" style="width: 40px; height: 40px;">
+                <i class="fas fa-arrow-left"></i>
+            </button>
+            <div>
+                <h5 class="mb-0 fw-bold">選擇車輛</h5>
+                <small class="text-muted">{{ currentZoneName }} ({{ activeDrivers.length }}位司機營業中)</small>
+            </div>
+        </div>
+
+        <div class="container py-3">
+            <div v-if="activeDrivers.length === 0" class="text-center text-muted mt-5">
+                <i class="fas fa-car-side fa-3x mb-3 text-light"></i>
+                <p>目前此區暫無司機排班</p>
+                <small>請嘗試選擇其他區域</small>
+            </div>
+
+            <div v-for="d in activeDrivers" :key="d.userId" 
+                 class="driver-card-full p-3" @click="selectDriver(d)">
+                
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <div class="d-flex align-items-center">
+                        <img :src="d.avatar || 'https://via.placeholder.com/50'" 
+                             class="rounded-circle me-2 border" width="40" height="40" style="object-fit: cover;">
+                        <h4 class="fw-bold text-dark mb-0">{{ d.name }}</h4>
+                    </div>
+                    <div class="bg-warning text-dark px-3 py-1 rounded-pill fw-bold h5 mb-0 font-monospace">
+                        {{ d.plate }}
+                    </div>
+                </div>
+
+                <hr class="my-2" style="opacity: 0.1">
+
+                <div class="d-flex align-items-center text-secondary mb-3">
+                    <i class="fas fa-car me-2"></i>
+                    <span class="fw-bold me-2">{{ d.carModel || '一般轎車' }}</span>
+                    <span class="text-muted me-3">|</span>
+                    <i class="fas fa-users me-2"></i>
+                    <span>{{ d.capacity || '4' }}人座</span>
+                </div>
+
+                <div class="d-flex flex-wrap">
+                    <span v-for="f in (d.features ? d.features.split(',') : [])" :key="'f'+f" class="tag-badge feature">
+                        <i class="fas fa-check-circle me-1"></i>{{ f }}
+                    </span>
+                    <span v-for="p in (d.payment ? d.payment.split(',') : [])" :key="'p'+p" class="tag-badge pay">
+                        <i class="fas fa-credit-card me-1"></i>{{ p }}
+                    </span>
+                    <span v-if="!d.features && !d.payment" class="tag-badge text-muted">無特殊標註</span>
+                </div>
+
+                <div class="mt-3">
+                    <button class="btn btn-success w-100 rounded-pill fw-bold">
+                        <i class="fas fa-hand-pointer me-2"></i> 選擇車輛
+                    </button>
+                </div>
+            </div>
+            
+            <div class="text-center text-muted small mt-4 mb-5">-- 已經到底了 --</div>
+        </div>
+    </div>
+
+    <div v-if="showQrCodeModal" class="modal d-block" style="background: rgba(0,0,0,0.8)" @click.self="showQrCodeModal = false">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content text-center p-4">
+                <h5 class="fw-bold mb-3">請乘客掃描此碼</h5>
+                <img :src="'https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=' + encodeURIComponent(liffUrl)" 
+                     class="img-fluid mb-3 mx-auto" style="max-width: 250px;">
+                <p class="text-muted small">掃描後即可進入<br>「花蓮敬老愛心乘車支援平台」</p>
+                <button class="btn btn-outline-secondary w-100" @click="showQrCodeModal = false">關閉</button>
+            </div>
+        </div>
+    </div>
+
+    <div v-if="showRegModal" class="modal d-block" style="background: rgba(0,0,0,0.5); overflow-y: auto;">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-warning">
+                    <h5 class="modal-title fw-bold text-dark"><i class="fas fa-user-plus me-2"></i>運將註冊</h5>
+                    <button type="button" class="btn-close" @click="showRegModal = false"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label text-muted small fw-bold">第一列：基本資料</label>
+                        <div class="row g-2">
+                            <div class="col-6"><input v-model="regForm.name" class="form-control" placeholder="暱稱"></div>
+                            <div class="col-6"><input v-model="regForm.plate" class="form-control" placeholder="車號"></div>
+                        </div>
+                        <input v-model="regForm.phone" class="form-control mt-2" placeholder="手機號碼">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted small fw-bold">第二列：車輛資訊</label>
+                        <input v-model="regForm.carModel" class="form-control mb-2" placeholder="車型顏色">
+                        <select v-model="regForm.capacity" class="form-control">
+                            <option value="" disabled selected>可載客人數</option>
+                            <option value="4">4人</option>
+                            <option value="5">5人 (休旅)</option>
+                            <option value="6">6人 (WISH/Sienna)</option>
+                            <option value="8">8人 (九人座)</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted small fw-bold">第三列：服務與支付</label>
+                        <div class="d-flex flex-wrap gap-2">
+                            <div v-for="opt in allOptions" :key="opt" class="form-check form-check-inline border rounded px-2 py-1 m-0">
+                                <input class="form-check-input" type="checkbox" :value="opt" v-model="regForm.features">
+                                <label class="form-check-label small">{{opt}}</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button @click="submitRegister" class="btn btn-dark w-100 rounded-pill py-2">送出審核</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+// ★★★ v9.0 最新參數 (來自您的檔案)  ★★★
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbxmGIHZBcJ1CB4Wb7KUYIH2LMWLSwMxcXze9kh4ea7VeGLQo8pViuzqQMsy3ssAhM5S/exec'; 
+const LIFF_ID = '2009015736-HB6Gjiqh'; 
+const LIFF_URL_FULL = 'https://liff.line.me/2009015736-HB6Gjiqh';
+
+axios.defaults.timeout = 10000;
+
+new Vue({
+    el: '#app',
+    data: {
+        liffId: LIFF_ID,
+        liffUrl: LIFF_URL_FULL,
+        userId: '',
+        userAvatar: '', 
+        zones: [],
+        isDriver: false,
+        driverName: '',
+        currentZoneId: '',
+        userLocation: null, 
+        
+        loading: true,
+        loadingText: '系統連線中...',
+        loadingError: false, 
+        errorMessage: '',    
+        watchdogTimer: null, 
+        
+        queueStartTime: null,
+        queueTimeText: '0分',
+        remainingTimeText: '60分',
+        queueProgress: 0,
+        progressColor: '#198754', 
+
+        showRegModal: false,
+        showDriverListFullPage: false,
+        showQrCodeModal: false, 
+        currentZoneName: '',
+        currentViewingZoneId: null,
+
+        regForm: { name: '', plate: '', phone: '', carModel: '', capacity: '', features: [] },
+        allOptions: ['無菸車', '寵物友善', '敬老卡', '愛心卡', '乘車券', '信用卡', 'LinePay', '英語OK', '輔助上下車'],
+        activeDrivers: []
+    },
+    async mounted() {
+        this.startWatchdog(); 
+        await this.initLiff();
+        
+        // 30秒自動刷新 (背景執行)
+        setInterval(() => { this.autoRefresh(); }, 30000);
+        // 計時器顯示 (每秒)
+        setInterval(() => { this.updateQueueTimer(); }, 1000);
+    },
+    methods: {
+        startWatchdog() {
+            if (this.watchdogTimer) clearTimeout(this.watchdogTimer);
+            this.watchdogTimer = setTimeout(() => {
+                if (this.loading) {
+                    this.loadingError = true;
+                    this.errorMessage = "網路回應逾時，請檢查訊號。";
+                }
+            }, 10000); 
+        },
+        clearWatchdog() {
+            if (this.watchdogTimer) clearTimeout(this.watchdogTimer);
+            this.loadingError = false;
+        },
+        retryConnection() {
+            this.loadingError = false;
+            this.loadingText = '重新連線中...';
+            this.startWatchdog();
+            this.fetchLobby(false);
+        },
+        forceCloseLoading() {
+            this.loading = false;
+            this.loadingError = false;
+        },
+
+        async initLiff() {
+            try {
+                await liff.init({ liffId: this.liffId });
+                if (!liff.isLoggedIn()) { liff.login(); return; }
+                const profile = await liff.getProfile();
+                this.userId = profile.userId;
+                this.userAvatar = profile.pictureUrl; 
+                this.fetchLobby(false); 
+            } catch (err) { 
+                this.loadingError = true;
+                this.errorMessage = 'LIFF 初始化失敗: ' + err.message;
+            }
+        },
+
+        async fetchLobby(isBackground = false) {
+            if (!isBackground) { 
+                this.loadingText = '讀取排班狀況...'; 
+                this.loading = true; 
+                this.startWatchdog();
+            }
+            try {
+                const res = await axios.post(GAS_URL, JSON.stringify({ type: 'getLobbyData', userId: this.userId }));
+                
+                if (res.data && res.data.zones) {
+                    this.zones = res.data.zones.map(z => {
+                        if (z.id === 'ZONE_01') z.displayName = '花蓮前站東出口';
+                        else if (z.id === 'ZONE_02') z.displayName = '花蓮後站西出口';
+                        else if (z.id === 'ZONE_05') z.displayName = '花蓮市區';
+                        else z.displayName = z.name;
+                        return z;
+                    });
+                    this.isDriver = res.data.isDriver;
+                    if (this.isDriver && res.data.driverData) {
+                        this.driverName = res.data.driverData[1];
+                        this.currentZoneId = res.data.driverData[5];
+                        this.queueStartTime = res.data.driverData[6]; 
+                        this.updateQueueTimer(); 
+                    }
+                    if (!isBackground) {
+                        this.loading = false; 
+                        this.clearWatchdog();
+                    }
+                } else {
+                    throw new Error("Invalid Data Format");
+                }
+            } catch (err) { 
+                if (!isBackground) {
+                    this.loadingError = true;
+                    this.errorMessage = '伺服器連線失敗 (' + (err.response ? err.response.status : 'Network') + ')';
+                }
+            }
+        },
+
+        autoRefresh() {
+            if (this.showDriverListFullPage && this.currentViewingZoneId) {
+                this.refreshZoneList(this.currentViewingZoneId);
+            } else if (!this.showRegModal && !this.showQrCodeModal && !this.loading) {
+                this.fetchLobby(true);
+            }
+        },
+
+        async enterZone(zone) {
+            if (this.isDriver && zone.count >= 10) return alert('此區已滿！');
+            
+            this.loadingText = '定位中...';
+            this.loading = true;
+            this.startWatchdog();
+
+            if (!navigator.geolocation) { 
+                this.loading = false; return alert('不支援 GPS'); 
+            }
+            
+            navigator.geolocation.getCurrentPosition(async (pos) => {
+                this.handleZoneEntry(zone, pos.coords.latitude, pos.coords.longitude, false);
+            }, (err) => { 
+                this.loading = false; 
+                this.clearWatchdog();
+                alert('請確認 GPS 權限已開啟'); 
+            }, { enableHighAccuracy: true });
+        },
+
+        async handleZoneEntry(zone, lat, lng, isBackground) {
+             try {
+                const res = await axios.post(GAS_URL, JSON.stringify({
+                    type: 'enterZone', userId: this.userId, zoneId: zone.id, userLat: lat, userLng: lng
+                }));
+                if (!isBackground) {
+                    this.loading = false;
+                    this.clearWatchdog();
+                }
+                
+                if (res.data.status === 'error') {
+                    if(!isBackground) alert(res.data.msg); 
+                } else if (res.data.role === 'driver') {
+                    if(!isBackground) alert(res.data.msg);
+                    this.fetchLobby(isBackground);
+                } else if (res.data.role === 'passenger') {
+                    this.activeDrivers = res.data.drivers;
+                    this.currentZoneName = zone.displayName || zone.name;
+                    this.currentViewingZoneId = zone.id;
+                    this.showDriverListFullPage = true; 
+                }
+            } catch (e) { 
+                if(!isBackground) { 
+                   this.loadingError = true;
+                   this.errorMessage = '進入排班區失敗';
+                }
+            }
+        },
+
+        getZoneName(id) {
+            const z = this.zones.find(item => item.id === id);
+            return z ? (z.displayName || z.name) : '未知區域';
+        },
+        async leaveZone() {
+            if(!confirm('確定要下班/退出排班嗎？')) return;
+            this.loading = true; this.startWatchdog();
+            try {
+                await axios.post(GAS_URL, JSON.stringify({ type: 'leaveZone', userId: this.userId }));
+                this.fetchLobby(false);
+            } catch(e) { this.errorMessage = '退班失敗'; this.loadingError = true; }
+        },
+        async submitRegister() {
+            const f = this.regForm;
+            if(!f.name || !f.plate || !f.phone || !f.carModel || !f.capacity) return alert('請填寫完整資料');
+            const paymentKw = ['信用卡', 'LinePay', '敬老卡', '愛心卡', '乘車券'];
+            const paymentList = f.features.filter(i => paymentKw.some(k => i.includes(k)));
+            const featureList = f.features.filter(i => !paymentKw.some(k => i.includes(k)));
+            this.loading = true; this.startWatchdog();
+            try {
+                const res = await axios.post(GAS_URL, JSON.stringify({
+                    type: 'register', userId: this.userId, avatar: this.userAvatar, 
+                    name: f.name, plate: f.plate, phone: "'" + f.phone, 
+                    carModel: f.carModel, capacity: f.capacity,
+                    features: featureList.join(','), payment: paymentList.join(',')
+                }));
+                alert(res.data.msg);
+                if(res.data.status === 'success') { liff.closeWindow(); }
+                this.loading = false; this.clearWatchdog();
+            } catch(e) { alert('註冊失敗'); this.loading = false; }
+        },
+        async refreshZoneList(zoneId) {
+             try {
+                const res = await axios.post(GAS_URL, JSON.stringify({
+                    type: 'enterZone', userId: this.userId, zoneId: zoneId, userLat: 0, userLng: 0
+                }));
+                if (res.data.role === 'passenger') { this.activeDrivers = res.data.drivers; }
+             } catch(e) { console.log('Auto refresh failed'); }
+        },
+        closeDriverList() {
+            this.showDriverListFullPage = false;
+            this.currentViewingZoneId = null;
+            this.fetchLobby(false); 
+        },
+        selectDriver(driver) {
+            const flexMessage = {
+                type: 'flex', altText: `司機名片 ${driver.plate}`,
+                contents: {
+                    type: "bubble",
+                    header: {
+                        type: "box", layout: "vertical",
+                        contents: [ { type: "text", text: "🚖 司機名片", color: "#856404", size: "xs", weight: "bold" } ],
+                        backgroundColor: "#FFF3CD", paddingTop: "15px", paddingBottom: "15px"
+                    },
+                    hero: {
+                        type: "image", url: driver.avatar || "https://via.placeholder.com/800x520", 
+                        size: "full", aspectRatio: "20:13", aspectMode: "cover", 
+                        action: { type: "uri", uri: driver.avatar || "https://line.me" }
+                    },
+                    body: {
+                        type: "box", layout: "vertical",
+                        contents: [
+                            { type: "text", text: driver.plate, size: "3xl", weight: "bold", align: "center", margin: "md" },
+                            { type: "text", text: `${driver.carModel} (${driver.capacity}人)`, size: "sm", color: "#666666", align: "center" },
+                            { type: "separator", margin: "md", color: "#eeeeee" },
+                            { type: "box", layout: "vertical", margin: "md", spacing: "sm", contents: [
+                                    { type: "text", text: "服務與支付", color: "#aaaaaa", size: "xs" },
+                                    { type: "text", text: (driver.features + ',' + driver.payment).replace(/^,|,$/g,''), wrap: true, color: "#666666", size: "sm" }
+                                ] }
+                        ]
+                    },
+                    footer: {
+                        type: "box", layout: "vertical", spacing: "sm",
+                        contents: [ { type: "button", style: "primary", color: "#00C300", action: { type: "uri", label: `📞 手機撥號`, uri: `tel:${driver.phone}` } } ],
+                        paddingAll: "20px"
+                    }
+                }
+            };
+            liff.sendMessages([flexMessage]).then(() => liff.closeWindow());
+        },
+        updateQueueTimer() {
+            if (!this.isDriver || !this.queueStartTime) return;
+            const now = new Date().getTime();
+            const start = new Date(this.queueStartTime).getTime();
+            const diff = now - start;
+            const minutes = Math.floor(diff / 60000);
+            this.queueTimeText = `${minutes} 分`;
+            const limit = 60 * 60 * 1000;
+            const remaining = limit - diff;
+            const remainingMins = Math.ceil(remaining / 60000);
+            this.remainingTimeText = remainingMins > 0 ? `${remainingMins} 分` : '即將離線';
+            const progress = (diff / limit) * 100;
+            this.queueProgress = Math.min(progress, 100);
+            if (this.queueProgress < 50) this.progressColor = '#198754';
+            else if (this.queueProgress < 80) this.progressColor = '#ffc107';
+            else this.progressColor = '#dc3545'; 
+        }
+    }
+});
+</script>
+</body>
+</html>
