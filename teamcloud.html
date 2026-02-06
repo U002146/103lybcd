@@ -29,10 +29,16 @@
     div:where(.swal2-container) { z-index: 20000 !important; }
     #preview-modal { z-index: 9999; }
 
-    /* V8.2 儀表板優化：與列表結合 */
+    /* 儀表板樣式 */
+    .glass-card {
+        background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%);
+        box-shadow: 0 8px 32px 0 rgba(194, 65, 12, 0.37);
+        backdrop-filter: blur(4px);
+        border: 1px solid rgba(255, 255, 255, 0.18);
+    }
     .dashboard-header {
         background: linear-gradient(180deg, #ea580c 0%, #c2410c 100%);
-        border-radius: 1rem 1rem 0 0; /* 上圓下直，接續列表 */
+        border-radius: 1rem 1rem 0 0;
         color: white;
         padding: 1.25rem;
         position: relative;
@@ -156,8 +162,11 @@
               </div>
           </div>
           
-          <div class="history-container">
-              <div id="record-list" class="space-y-3 pb-4"></div>
+          <div class="history-container flex flex-col">
+              <div id="record-list" class="space-y-3 pb-4 flex-1"></div>
+              
+              <div id="pagination-controls" class="flex justify-between items-center pt-4 border-t border-gray-100 mt-2">
+                  </div>
           </div>
       </div>
       
@@ -193,7 +202,7 @@
   <div id="print-area" class="print-only"></div>
 
   <script>
-    // ★★★ 設定區 (ID已填妥) ★★★
+    // ★★★ 設定區 ★★★
     const LIFF_ID = "2008907691-Ojnb8ANZ"; 
     const API_URL = "https://script.google.com/macros/s/AKfycby_XYDJCTiio3PUqg_g2Ip6nB5tu5ap-OwqGxwBLJbiC-0PrW9hNOVoxCG2vqj0J_vb/exec";
     
@@ -201,6 +210,10 @@
     let records = JSON.parse(localStorage.getItem('taxi_records_v6')) || [];
     let driverInfo = JSON.parse(localStorage.getItem('driver_info')) || { name: '', plate: '', id: '', delPassword: '0000' };
     let currentUserId = "";
+    
+    // ★ V8.3 分頁變數
+    let currentPage = 1;
+    const itemsPerPage = 25;
 
     window.onload = function() {
       initTime();
@@ -225,11 +238,10 @@
         } catch (err) { console.error(err); Swal.fire({ toast: true, position: 'top', icon: 'info', title: '離線模式' }); }
     }
 
-    // --- V8.1 獎金規則邏輯 (不變) ---
+    // --- V8.1 獎金規則 ---
     function updateDashboard() {
         const now = new Date();
         const currentMonth = now.getMonth() + 1;
-        
         document.getElementById('nav-title').innerText = `${currentMonth}月載送記錄表`;
 
         const thisMonthRecords = records.filter(r => {
@@ -295,6 +307,8 @@
       records.sort((a, b) => new Date(a.timeObj) - new Date(b.timeObj));
       localStorage.setItem('taxi_records_v6', JSON.stringify(records));
       
+      // 新增後跳回第一頁
+      currentPage = 1;
       renderList();
       updateDashboard(); 
       
@@ -306,7 +320,7 @@
       syncToCloud(newRecord);
     }
 
-    // --- 刪除鎖 (密碼保護) ---
+    // --- 刪除鎖 ---
     function deleteRecord(id) {
         Swal.fire({
             title: '輸入刪除密碼',
@@ -326,6 +340,8 @@
                 const targetRecord = records.find(r => r.id === id);
                 records = records.filter(r => r.id !== id);
                 localStorage.setItem('taxi_records_v6', JSON.stringify(records));
+                
+                // 刪除後不跳頁，維持在當前頁，除非當前頁空了
                 renderList();
                 updateDashboard();
 
@@ -363,6 +379,7 @@
                     records = [...records, ...newRecords];
                     records.sort((a, b) => new Date(a.timeObj) - new Date(b.timeObj));
                     localStorage.setItem('taxi_records_v6', JSON.stringify(records));
+                    currentPage = 1; // 載入新資料後回首頁
                     renderList();
                     updateDashboard();
                     Swal.fire({ toast: true, position: 'top', icon: 'success', title: `同步 ${newRecords.length} 筆資料` });
@@ -371,7 +388,63 @@
         });
     }
 
-    // --- 設定頁面 ---
+    // --- V8.3 列表渲染 (含分頁) ---
+    function renderList() {
+      const el = document.getElementById('record-list');
+      const controls = document.getElementById('pagination-controls');
+      
+      const listRecords = [...records].sort((a, b) => new Date(b.timeObj) - new Date(a.timeObj));
+      
+      if (listRecords.length === 0) { 
+          el.innerHTML = '<div class="text-center text-gray-300 py-8 border-2 border-dashed border-gray-200 rounded-lg">尚無行程</div>'; 
+          controls.innerHTML = '';
+          return; 
+      }
+      
+      // 計算分頁
+      const totalPages = Math.ceil(listRecords.length / itemsPerPage);
+      if (currentPage > totalPages) currentPage = totalPages;
+      const startIndex = (currentPage - 1) * itemsPerPage;
+      const displayRecords = listRecords.slice(startIndex, startIndex + itemsPerPage);
+      
+      // 渲染列表
+      el.innerHTML = displayRecords.map((r, i) => `
+        <div class="bg-white p-3 rounded-lg shadow-sm border-l-4 ${r.type==='敬老卡'?'border-yellow-400':'border-rose-400'} flex justify-between items-center relative border-b border-gray-100">
+            <div class="flex-1">
+                <div class="flex items-center text-sm text-gray-500 mb-1">
+                    <span class="font-mono bg-gray-100 px-2 rounded mr-2">#${listRecords.length - (startIndex + i)}</span>
+                    <span>${formatDisplayTime(r.timeObj || r.formattedTime)}</span>
+                    <span class="${r.type==='敬老卡'?'bg-yellow-100 text-yellow-700':'bg-rose-100 text-rose-700'} text-xs font-bold px-2 py-0.5 rounded-full ml-2">${r.type}</span>
+                    ${getSyncIcon(r.syncStatus)}
+                </div>
+                <div class="text-gray-800 font-bold flex items-center flex-wrap">
+                    ${r.pickup} <i class="fas fa-arrow-right text-xs mx-2 text-gray-400"></i> ${r.dropoff}
+                </div>
+                ${r.remarks ? `<div class="text-xs text-gray-500 mt-1">備註: ${r.remarks}</div>` : ''}
+            </div>
+            <button onclick="deleteRecord(${r.id})" class="text-gray-300 hover:text-red-500 p-2 ml-2"><i class="fas fa-trash-alt"></i></button>
+        </div>
+      `).join('');
+
+      // 渲染分頁按鈕
+      if (totalPages > 1) {
+          controls.innerHTML = `
+            <button onclick="changePage(-1)" ${currentPage === 1 ? 'disabled class="text-gray-300 cursor-not-allowed"' : 'class="text-blue-600 font-bold"'}><i class="fas fa-chevron-left mr-1"></i> 上一頁</button>
+            <span class="text-sm text-gray-500 font-mono">第 ${currentPage} / ${totalPages} 頁</span>
+            <button onclick="changePage(1)" ${currentPage === totalPages ? 'disabled class="text-gray-300 cursor-not-allowed"' : 'class="text-blue-600 font-bold"'} >下一頁 <i class="fas fa-chevron-right ml-1"></i></button>
+          `;
+      } else {
+          controls.innerHTML = '';
+      }
+    }
+
+    function changePage(delta) {
+        currentPage += delta;
+        renderList();
+        // 換頁後稍微滑動到列表頂部 (但不要蓋住儀表板)
+        document.querySelector('.history-container').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
     function editDriverInfo() {
       Swal.fire({
         title: '設定與備份',
@@ -408,36 +481,13 @@
       });
     }
 
-    function clearAll() { Swal.fire({ title: '清空快取?', text: "僅清除手機畫面，雲端資料保留", icon: 'info', showCancelButton: true, confirmButtonColor: '#ef4444', confirmButtonText: '清空' }).then((r) => { if (r.isConfirmed) { records = []; localStorage.setItem('taxi_records_v6', JSON.stringify(records)); renderList(); updateDashboard(); } }); }
+    function clearAll() { Swal.fire({ title: '清空快取?', text: "僅清除手機畫面，雲端資料保留", icon: 'info', showCancelButton: true, confirmButtonColor: '#ef4444', confirmButtonText: '清空' }).then((r) => { if (r.isConfirmed) { records = []; localStorage.setItem('taxi_records_v6', JSON.stringify(records)); currentPage = 1; renderList(); updateDashboard(); } }); }
     function exportToCSV() { if(records.length === 0) return Swal.fire('無資料'); let c = "\uFEFF日期,類別,上車,下車,備註\n"; records.forEach(r => { c += `${formatDisplayTime(r.timeObj)},${r.type},${r.pickup},${r.dropoff},${r.remarks}\n`; }); const b = new Blob([c], { type: 'text/csv;charset=utf-8;' }); const u = URL.createObjectURL(b); const l = document.createElement("a"); l.href = u; l.download = `backup_${new Date().toISOString().slice(0,10)}.csv`; document.body.appendChild(l); l.click(); document.body.removeChild(l); }
     function initTime() { const now = new Date(); now.setMinutes(now.getMinutes() - now.getTimezoneOffset()); document.getElementById('input-time').value = now.toISOString().slice(0,16); }
     function formatDisplayTime(timeObj) { if (!timeObj) return "--/-- --:--"; const d = new Date(timeObj); if (isNaN(d.getTime())) return timeObj; return `${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; }
     function updateRecordStatus(id, status) { const idx = records.findIndex(r => r.id === id); if(idx !== -1) { records[idx].syncStatus = status; localStorage.setItem('taxi_records_v6', JSON.stringify(records)); renderList(); } }
     function setCardType(type) { document.getElementById('input-type').value = type; const el = (id) => document.getElementById(id); if(type === '敬老卡') { el('btn-elder').className = 'p-3 rounded-lg border-2 border-yellow-500 bg-yellow-50 text-yellow-700 font-bold shadow-md transform scale-105'; el('btn-care').className = 'p-3 rounded-lg border-2 border-transparent bg-gray-100 text-gray-400 font-bold opacity-70'; } else { el('btn-care').className = 'p-3 rounded-lg border-2 border-rose-500 bg-rose-50 text-rose-700 font-bold shadow-md transform scale-105'; el('btn-elder').className = 'p-3 rounded-lg border-2 border-transparent bg-gray-100 text-gray-400 font-bold opacity-70'; } }
     function setInput(id, val) { document.getElementById(id).value = val; }
-    
-    function renderList() {
-      const el = document.getElementById('record-list');
-      const listRecords = [...records].sort((a, b) => new Date(b.timeObj) - new Date(a.timeObj));
-      if (listRecords.length === 0) { el.innerHTML = '<div class="text-center text-gray-300 py-8 border-2 border-dashed border-gray-200 rounded-lg">尚無行程</div>'; return; }
-      
-      el.innerHTML = listRecords.map((r, i) => `
-        <div class="bg-white p-3 rounded-lg shadow-sm border-l-4 ${r.type==='敬老卡'?'border-yellow-400':'border-rose-400'} flex justify-between items-center relative border-b border-gray-100">
-            <div class="flex-1">
-                <div class="flex items-center text-sm text-gray-500 mb-1">
-                    <span>${formatDisplayTime(r.timeObj || r.formattedTime)}</span>
-                    <span class="${r.type==='敬老卡'?'bg-yellow-100 text-yellow-700':'bg-rose-100 text-rose-700'} text-xs font-bold px-2 py-0.5 rounded-full ml-2">${r.type}</span>
-                    ${getSyncIcon(r.syncStatus)}
-                </div>
-                <div class="text-gray-800 font-bold flex items-center flex-wrap">
-                    ${r.pickup} <i class="fas fa-arrow-right text-xs mx-2 text-gray-400"></i> ${r.dropoff}
-                </div>
-                ${r.remarks ? `<div class="text-xs text-gray-500 mt-1">備註: ${r.remarks}</div>` : ''}
-            </div>
-            <button onclick="deleteRecord(${r.id})" class="text-gray-300 hover:text-red-500 p-2 ml-2"><i class="fas fa-trash-alt"></i></button>
-        </div>
-      `).join('');
-    }
     
     function getSyncIcon(status) {
         if(status === 'synced') return '<i class="fas fa-check-circle text-green-500 ml-2" title="已備份"></i>';
