@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>花蓮愛心計程車 (V6.4 正式版)</title>
+  <title>花蓮愛心計程車 (V6.5 完美修復版)</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
@@ -18,32 +18,40 @@
     .status-ok { background-color: #4ade80; box-shadow: 0 0 5px #4ade80; }
     .status-err { background-color: #ef4444; }
 
-    /* 列印專用 */
+    /* ★★★ V6.5 修復核心：強制提示窗在最最最上層 ★★★ */
+    div:where(.swal2-container) { z-index: 20000 !important; }
+    #preview-modal { z-index: 9999; }
+
+    /* 列印專用設定 */
     .screen-only { display: block; }
     .print-only { display: none; }
+    
     @media print {
       @page { size: A4 portrait; margin: 0; }
       html, body { margin: 0; padding: 0; background: white; }
       .screen-only { display: none !important; }
       .print-only { display: block !important; }
+      
       .print-page { width: 210mm; height: 297mm; padding: 1.2cm 1.5cm; margin: 0 auto; box-sizing: border-box; page-break-after: always; position: relative; }
       .print-page:last-child { page-break-after: avoid; }
+      
       .report-table { width: 100%; border-collapse: collapse; font-size: 11pt; margin-top: 5px; font-family: "標楷體", "DFKai-SB", serif; table-layout: fixed; }
       .report-table th, .report-table td { border: 1px solid black; padding: 2px 4px; text-align: center; height: 29px; overflow: hidden; white-space: nowrap; }
       .report-table th { background-color: #f0f0f0 !important; height: 35px; }
+      
       .report-header { text-align: center; font-size: 18pt; font-weight: bold; margin-bottom: 15px; font-family: "標楷體"; letter-spacing: 1px; }
       .report-info { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 12pt; font-family: "標楷體"; }
       .page-number { position: absolute; bottom: 0.8cm; right: 1.5cm; font-size: 10pt; color: #444; font-family: "Times New Roman", serif; }
     }
-    #preview-modal { z-index: 9999 !important; }
   </style>
 </head>
 <body class="pb-24">
 
   <div id="app-view" class="screen-only max-w-md mx-auto">
     <div class="bg-blue-700 text-white p-4 sticky top-0 z-50 shadow-md flex justify-between items-center">
-      <div class="flex items-center" onclick="editDriverInfo()"> <i class="fas fa-taxi mr-2 text-yellow-300"></i>
-        <h1 class="text-xl font-bold tracking-wider">雲端補單 V6.4</h1>
+      <div class="flex items-center" onclick="editDriverInfo()">
+        <i class="fas fa-taxi mr-2 text-yellow-300"></i>
+        <h1 class="text-xl font-bold tracking-wider">雲端補單 V6.5</h1>
         <div id="cloud-status" class="ml-2 status-dot bg-gray-400" title="連線中..."></div>
       </div>
       <button onclick="showPrintPreview()" class="bg-white text-blue-800 font-bold py-2 px-3 rounded shadow text-sm">
@@ -117,7 +125,7 @@
   </div>
 
   <div id="preview-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-95 flex flex-col items-center justify-center p-2 screen-only">
-    <div class="bg-white w-full max-w-2xl h-[90vh] rounded-lg shadow-2xl flex flex-col overflow-hidden">
+    <div class="bg-white w-full max-w-2xl h-[90vh] rounded-lg shadow-2xl flex flex-col overflow-hidden relative">
         <div class="bg-gray-100 p-4 border-b flex justify-between items-center">
              <div class="flex items-center space-x-2">
                 <span class="font-bold text-gray-600">月份：</span>
@@ -129,10 +137,16 @@
             </div>
             <button onclick="closePreview()" class="text-gray-500"><i class="fas fa-times text-2xl"></i></button>
         </div>
+        
         <div id="preview-content" class="flex-1 overflow-auto p-4 bg-gray-500 flex flex-col items-center gap-4"></div>
+        
         <div class="p-4 border-t bg-white flex space-x-3">
-            <button onclick="smartPrint()" class="flex-1 bg-blue-600 text-white font-bold py-3 rounded-lg shadow-lg text-lg"><i class="fas fa-print mr-2"></i> 列印</button>
-            <button onclick="closePreview()" class="px-6 bg-gray-200 text-gray-700 font-bold rounded-lg">修改</button>
+            <button onclick="smartPrint()" class="flex-1 bg-blue-600 text-white font-bold py-3 rounded-lg shadow-lg text-lg">
+                <i class="fas fa-print mr-2"></i> 列印
+            </button>
+            <button onclick="closePreview()" class="px-6 bg-gray-200 text-gray-700 font-bold rounded-lg">
+                修改
+            </button>
         </div>
     </div>
   </div>
@@ -176,7 +190,6 @@
             dot.classList.add('status-ok');
             dot.title = `已登入: ${profile.displayName}`;
 
-            // 自動拉取雲端資料
             if(API_URL) fetchCloudRecords();
 
         } catch (err) {
@@ -232,12 +245,11 @@
         });
     }
 
-    // --- V6.4 資料備份 (減輕你的壓力) ---
+    // --- CSV 匯出 ---
     function exportToCSV() {
         if(records.length === 0) return Swal.fire('沒有資料可匯出');
         
-        // 製作 CSV 內容
-        let csvContent = "\uFEFF"; // BOM for Excel
+        let csvContent = "\uFEFF"; // BOM
         csvContent += "日期,類別,上車,下車,備註\n";
         records.forEach(r => {
             csvContent += `${r.formattedTime},${r.type},${r.pickup},${r.dropoff},${r.remarks}\n`;
@@ -265,7 +277,6 @@
                 <button onclick="exportToCSV()" class="w-full bg-green-600 text-white py-2 rounded font-bold">
                     <i class="fas fa-file-csv mr-2"></i> 下載備份 CSV
                 </button>
-                <p class="text-xs text-gray-400">建議每週下載一次自行保存</p>
             </div>
         `,
         confirmButtonText: '儲存資料',
@@ -274,14 +285,12 @@
           if(r.isConfirmed) { 
               driverInfo = r.value; 
               localStorage.setItem('driver_info', JSON.stringify(driverInfo)); 
-              // 重新渲染表頭
               const headerInfo = document.querySelector('.report-info');
               if(headerInfo) generatePrintHTML(); 
           }
       });
     }
 
-    // --- 核心邏輯 ---
     function addRecord() {
       const timeStr = document.getElementById('input-time').value;
       const type = document.getElementById('input-type').value;
@@ -306,8 +315,10 @@
       syncToCloud(newRecord);
     }
 
+    // --- 修復後的列印邏輯 ---
     function smartPrint() {
         if (liff.isInClient()) {
+            // 在 LINE 裡面，顯示引導
             Swal.fire({
                 title: 'LINE 無法列印',
                 html: `<div class="text-left text-gray-600"><p class="mb-2">請按右上角 <i class="fas fa-ellipsis-v"></i> 選單</p><p class="mb-2">選擇 <b>使用預設瀏覽器開啟</b></p><p class="text-sm text-blue-500">開啟後資料會自動同步，再按一次列印即可。</p></div>`,
@@ -315,10 +326,13 @@
                 confirmButtonText: '我知道了'
             });
         } else {
+            // 在瀏覽器，直接列印
             window.print();
         }
     }
 
+    function closePreview() { document.getElementById('preview-modal').classList.add('hidden'); }
+    
     // --- 輔助函式 ---
     function updateRecordStatus(id, status) {
         const idx = records.findIndex(r => r.id === id);
@@ -391,7 +405,7 @@
         generatePrintHTML();
         document.getElementById('preview-modal').classList.remove('hidden');
     }
-    function closePreview() { document.getElementById('preview-modal').classList.add('hidden'); }
+    
     function generatePrintHTML() {
         const month = document.getElementById('report-month-select').value;
         const printArea = document.getElementById('print-area');
