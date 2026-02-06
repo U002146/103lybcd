@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>花蓮縣敬老愛心計程車補助計劃</title>
+  <title>花蓮愛心計程車 (V6.3 雲端修復版)</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
@@ -18,7 +18,7 @@
     .status-ok { background-color: #4ade80; box-shadow: 0 0 5px #4ade80; }
     .status-err { background-color: #ef4444; }
 
-    /* --- V6.2 列印核心樣式 --- */
+    /* --- V6.3 列印核心樣式 --- */
     .screen-only { display: block; }
     .print-only { display: none; }
     
@@ -36,6 +36,9 @@
       .report-info { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 12pt; font-family: "標楷體"; }
       .page-number { position: absolute; bottom: 0.8cm; right: 1.5cm; font-size: 10pt; color: #444; font-family: "Times New Roman", serif; }
     }
+    
+    /* 修正預覽視窗層級，避免被遮擋 */
+    #preview-modal { z-index: 9999 !important; }
   </style>
 </head>
 <body class="pb-24">
@@ -44,7 +47,7 @@
     <div class="bg-blue-700 text-white p-4 sticky top-0 z-50 shadow-md flex justify-between items-center">
       <div class="flex items-center" onclick="openSettings()">
         <i class="fas fa-taxi mr-2 text-yellow-300"></i>
-        <h1 class="text-xl font-bold tracking-wider">載送記錄表(雲端車隊版) </h1>
+        <h1 class="text-xl font-bold tracking-wider">雲端補單 V6.3</h1>
         <div id="cloud-status" class="ml-2 status-dot bg-gray-400" title="連線中..."></div>
       </div>
       <button onclick="showPrintPreview()" class="bg-white text-blue-800 font-bold py-2 px-3 rounded shadow text-sm">
@@ -115,7 +118,7 @@
     </div>
   </div>
 
-  <div id="preview-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-95 z-50 flex flex-col items-center justify-center p-2 screen-only">
+  <div id="preview-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-95 flex flex-col items-center justify-center p-2 screen-only">
     <div class="bg-white w-full max-w-2xl h-[90vh] rounded-lg shadow-2xl flex flex-col overflow-hidden">
         <div class="bg-gray-100 p-4 border-b flex justify-between items-center">
              <div class="flex items-center space-x-2">
@@ -130,8 +133,7 @@
         </div>
         <div id="preview-content" class="flex-1 overflow-auto p-4 bg-gray-500 flex flex-col items-center gap-4"></div>
         <div class="p-4 border-t bg-white flex space-x-3">
-            <button onclick="smartPrint()" class="flex-1 bg-blue-600 text-white font-bold py-3 rounded-lg shadow-lg text-lg">
-            <i class="fas fa-print mr-2"></i> 列印</button>
+            <button onclick="smartPrint()" class="flex-1 bg-blue-600 text-white font-bold py-3 rounded-lg shadow-lg text-lg"><i class="fas fa-print mr-2"></i> 列印</button>
             <button onclick="closePreview()" class="px-6 bg-gray-200 text-gray-700 font-bold rounded-lg">修改</button>
         </div>
     </div>
@@ -141,7 +143,7 @@
 
   <script>
     // ★★★ 設定區 ★★★
-    const LIFF_ID = "2008907691-Ojnb8ANZ"; // 請換成你的
+    const LIFF_ID = "2008907691-Ojnb8ANZ"; // 請填入
     const API_URL = "https://script.google.com/macros/s/AKfycby_XYDJCTiio3PUqg_g2Ip6nB5tu5ap-OwqGxwBLJbiC-0PrW9hNOVoxCG2vqj0J_vb/exec";
     
     // --- 系統變數 ---
@@ -163,10 +165,13 @@
     async function initializeLiff() {
         try {
             await liff.init({ liffId: LIFF_ID });
+            
+            // 判斷是否登入
             if (!liff.isLoggedIn()) {
                 liff.login();
                 return;
             }
+            
             const profile = await liff.getProfile();
             currentUserId = profile.userId;
             
@@ -176,8 +181,8 @@
             dot.classList.add('status-ok');
             dot.title = `已登入: ${profile.displayName}`;
 
-            // 首次自動抓取雲端資料
-            if(records.length === 0) fetchCloudRecords();
+            // 登入成功後，立刻從雲端拉取資料 (包含跳轉回來時)
+            if(API_URL) fetchCloudRecords();
 
         } catch (err) {
             console.error('LIFF Error', err);
@@ -219,17 +224,41 @@
         .then(res => res.json())
         .then(data => {
             if(data && Array.isArray(data) && data.length > 0) {
-                // 合併邏輯：簡單覆蓋 (可視需求改成智慧合併)
-                records = data.map(r => ({
-                    ...r,
-                    id: Date.now() + Math.random(),
-                    syncStatus: 'synced'
-                }));
-                localStorage.setItem('taxi_records_v6', JSON.stringify(records));
-                renderList();
-                Swal.fire({ toast: true, position: 'top', icon: 'success', title: `雲端載入 ${data.length} 筆` });
+                // 如果雲端有資料，且本地是空的，就載入 (避免重複)
+                if(records.length === 0) {
+                     records = data.map(r => ({
+                        ...r,
+                        id: Date.now() + Math.random(),
+                        syncStatus: 'synced'
+                    }));
+                    localStorage.setItem('taxi_records_v6', JSON.stringify(records));
+                    renderList();
+                    Swal.fire({ toast: true, position: 'top', icon: 'success', title: `雲端載入 ${data.length} 筆` });
+                }
             }
         });
+    }
+
+    // --- V6.3 智慧列印功能 (解決 LINE 無法列印) ---
+    function smartPrint() {
+        if (liff.isInClient()) {
+            // 在 LINE 裡面 -> 引導去 Chrome
+            Swal.fire({
+                title: 'LINE 無法列印',
+                html: `
+                    <div class="text-left text-gray-600">
+                        <p class="mb-2">請按右上角 <i class="fas fa-ellipsis-v"></i> 選單</p>
+                        <p class="mb-2">選擇 <b>使用預設瀏覽器開啟</b></p>
+                        <p class="text-sm text-blue-500">開啟後資料會自動同步，再按一次列印即可。</p>
+                    </div>
+                `,
+                icon: 'info',
+                confirmButtonText: '我知道了'
+            });
+        } else {
+            // 在 Chrome/電腦 -> 直接列印
+            window.print();
+        }
     }
 
     // --- UI 邏輯 (保持 V6.2 原樣) ---
@@ -267,8 +296,7 @@
     }
 
     function openSettings() { /* 保留給未來擴充 */ }
-    function checkApiStatus() { /* 已整合進 init */ }
-
+    
     function initTime() {
         const now = new Date();
         now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
