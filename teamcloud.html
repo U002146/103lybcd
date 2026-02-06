@@ -29,12 +29,21 @@
     div:where(.swal2-container) { z-index: 20000 !important; }
     #preview-modal { z-index: 9999; }
 
-    /* V8.1 儀表板：改為金色系，強調獎金 */
-    .glass-card {
-        background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%); /* 橘金色代表錢 */
-        box-shadow: 0 8px 32px 0 rgba(194, 65, 12, 0.37);
-        backdrop-filter: blur(4px);
-        border: 1px solid rgba(255, 255, 255, 0.18);
+    /* V8.2 儀表板優化：與列表結合 */
+    .dashboard-header {
+        background: linear-gradient(180deg, #ea580c 0%, #c2410c 100%);
+        border-radius: 1rem 1rem 0 0; /* 上圓下直，接續列表 */
+        color: white;
+        padding: 1.25rem;
+        position: relative;
+        overflow: hidden;
+    }
+    .history-container {
+        background: white;
+        border-radius: 0 0 1rem 1rem;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        padding: 1rem;
+        min-height: 200px;
     }
 
     .screen-only { display: block; }
@@ -70,28 +79,11 @@
        </button>
     </div>
 
-    <div class="p-4 space-y-5">
+    <div class="p-4 space-y-6">
       
-      <div class="glass-card rounded-2xl p-5 text-white shadow-xl relative overflow-hidden">
-          <div class="absolute -right-5 -top-5 opacity-20"><i class="fas fa-trophy text-9xl"></i></div>
-          <div class="relative z-10">
-              <div class="flex justify-between items-end mb-2">
-                  <span class="text-orange-100 text-sm font-bold">本月預估獎金</span>
-                  <span class="text-xs bg-black/20 px-2 py-1 rounded" id="bonus-status">計算中...</span>
-              </div>
-              <div class="text-4xl font-black tracking-tight mb-2">
-                  $<span id="total-income">0</span>
-              </div>
-              <div class="flex space-x-4 text-sm text-orange-100 font-bold">
-                  <div><i class="fas fa-flag-checkered mr-1"></i> <span id="total-trips">0</span> 趟</div>
-                  <div class="opacity-80 font-normal text-xs flex items-center">(目標 > 50 趟)</div>
-              </div>
-          </div>
-      </div>
-
-      <div class="bg-white rounded-xl shadow-lg p-5 border border-gray-100">
+      <div class="bg-white rounded-xl shadow-lg p-5 border border-blue-100 ring-4 ring-blue-50/50">
         <div class="flex justify-between items-center mb-4 border-b pb-2">
-            <h2 class="text-lg font-bold text-gray-700">新增行程</h2>
+            <h2 class="text-lg font-bold text-gray-700"><i class="fas fa-edit text-blue-500 mr-2"></i>新增行程</h2>
             <button onclick="editDriverInfo()" class="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
                 <i class="fas fa-cog"></i> 設定
             </button>
@@ -145,14 +137,30 @@
         </button>
       </div>
 
-      <div class="flex justify-between items-end px-1">
-          <h3 class="font-bold text-gray-500">歷史記錄</h3>
-          <div class="space-x-2">
-              <button onclick="clearAll()" class="text-xs text-red-400 underline">清空快取</button>
+      <div>
+          <div class="dashboard-header">
+              <div class="absolute -right-3 -top-3 opacity-20"><i class="fas fa-coins text-8xl"></i></div>
+              <div class="relative z-10 flex justify-between items-center">
+                  <div>
+                      <div class="text-orange-100 text-xs mb-1 font-bold">本月獎金預估</div>
+                      <div class="text-3xl font-black">$<span id="total-income">0</span></div>
+                  </div>
+                  <div class="text-right">
+                      <div class="text-orange-100 text-xs mb-1">累積趟次</div>
+                      <div class="text-2xl font-bold"><span id="total-trips">0</span> <span class="text-sm font-normal">趟</span></div>
+                  </div>
+              </div>
+              <div class="mt-3 flex justify-between items-end">
+                  <span class="text-xs bg-black/20 px-2 py-1 rounded" id="bonus-status">計算中...</span>
+                  <button onclick="clearAll()" class="text-xs text-orange-200 underline opacity-80 hover:opacity-100">清空快取</button>
+              </div>
+          </div>
+          
+          <div class="history-container">
+              <div id="record-list" class="space-y-3 pb-4"></div>
           </div>
       </div>
       
-      <div id="record-list" class="space-y-3 pb-20"></div>
     </div>
   </div>
 
@@ -191,7 +199,6 @@
     
     // --- 系統變數 ---
     let records = JSON.parse(localStorage.getItem('taxi_records_v6')) || [];
-    // V8.1: 新增 delPassword (預設0000)
     let driverInfo = JSON.parse(localStorage.getItem('driver_info')) || { name: '', plate: '', id: '', delPassword: '0000' };
     let currentUserId = "";
 
@@ -218,15 +225,13 @@
         } catch (err) { console.error(err); Swal.fire({ toast: true, position: 'top', icon: 'info', title: '離線模式' }); }
     }
 
-    // --- V8.1 核心：階梯式獎金計算 ---
+    // --- V8.1 獎金規則邏輯 (不變) ---
     function updateDashboard() {
         const now = new Date();
         const currentMonth = now.getMonth() + 1;
         
-        // 更新頂部標題
         document.getElementById('nav-title').innerText = `${currentMonth}月載送記錄表`;
 
-        // 篩選本月資料
         const thisMonthRecords = records.filter(r => {
             const d = new Date(r.timeObj);
             return d.getMonth() + 1 === currentMonth && d.getFullYear() === now.getFullYear();
@@ -236,25 +241,21 @@
         let totalIncome = 0;
         let statusMsg = "";
 
-        // ★★★ 獎金規則邏輯 ★★★
         if (tripCount <= 50) {
             totalIncome = 0;
             statusMsg = `還差 ${51 - tripCount} 趟達標`;
         } else if (tripCount > 100) {
-            totalIncome = 5000; // 上限 5000
+            totalIncome = 5000;
             statusMsg = "已達最高獎金";
         } else {
-            // 51~100 趟，每趟 50
             totalIncome = tripCount * 50;
             statusMsg = "獎金累積中";
         }
 
-        // 動畫跳數字
         animateValue("total-income", 0, totalIncome, 500);
         document.getElementById("total-trips").innerText = tripCount;
         document.getElementById("bonus-status").innerText = statusMsg;
         
-        // 顏色警示：未達標顯示灰色/紅色，達標顯示綠色
         const badge = document.getElementById("bonus-status");
         if(tripCount <= 50) { badge.className = "text-xs bg-red-900/50 px-2 py-1 rounded text-red-200"; }
         else { badge.className = "text-xs bg-green-900/50 px-2 py-1 rounded text-green-200"; }
@@ -305,7 +306,7 @@
       syncToCloud(newRecord);
     }
 
-    // --- V8.1 刪除鎖 (密碼保護) ---
+    // --- 刪除鎖 (密碼保護) ---
     function deleteRecord(id) {
         Swal.fire({
             title: '輸入刪除密碼',
@@ -316,20 +317,15 @@
             confirmButtonColor: '#ef4444',
             showLoaderOnConfirm: true,
             preConfirm: (inputPass) => {
-                // 比對密碼 (預設 0000)
                 const settingPass = driverInfo.delPassword || '0000';
-                if (inputPass !== settingPass) {
-                    Swal.showValidationMessage('密碼錯誤');
-                }
+                if (inputPass !== settingPass) { Swal.showValidationMessage('密碼錯誤'); }
                 return inputPass === settingPass;
             }
         }).then((result) => {
             if (result.isConfirmed) {
-                // 密碼正確，執行刪除
                 const targetRecord = records.find(r => r.id === id);
                 records = records.filter(r => r.id !== id);
                 localStorage.setItem('taxi_records_v6', JSON.stringify(records));
-                
                 renderList();
                 updateDashboard();
 
@@ -349,7 +345,7 @@
         fetch(API_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
         .then(() => {
             record.syncStatus = 'synced'; updateRecordStatus(record.id, 'synced');
-            updateDashboard(); // 同步後更新
+            updateDashboard(); 
             Swal.fire({ toast: true, position: 'top', showConfirmButton: false, timer: 1500, icon: 'success', title: '雲端備份成功' });
         })
         .catch(() => { updateRecordStatus(record.id, 'error'); });
@@ -375,7 +371,7 @@
         });
     }
 
-    // --- V8.1 設定頁面 (增加密碼) ---
+    // --- 設定頁面 ---
     function editDriverInfo() {
       Swal.fire({
         title: '設定與備份',
@@ -406,6 +402,7 @@
           if(r.isConfirmed) { 
               driverInfo = r.value; 
               localStorage.setItem('driver_info', JSON.stringify(driverInfo)); 
+              updateDashboard(); 
               const h = document.querySelector('.report-info'); if(h) generatePrintHTML(); 
           }
       });
@@ -421,12 +418,11 @@
     
     function renderList() {
       const el = document.getElementById('record-list');
-      // V8.1 移除搜尋過濾，直接顯示所有資料
       const listRecords = [...records].sort((a, b) => new Date(b.timeObj) - new Date(a.timeObj));
-      if (listRecords.length === 0) { el.innerHTML = '<div class="text-center text-gray-300 py-8 border-2 border-dashed border-gray-200 rounded-lg">無行程</div>'; return; }
+      if (listRecords.length === 0) { el.innerHTML = '<div class="text-center text-gray-300 py-8 border-2 border-dashed border-gray-200 rounded-lg">尚無行程</div>'; return; }
       
       el.innerHTML = listRecords.map((r, i) => `
-        <div class="bg-white p-3 rounded-lg shadow-sm border-l-4 ${r.type==='敬老卡'?'border-yellow-400':'border-rose-400'} flex justify-between items-center relative">
+        <div class="bg-white p-3 rounded-lg shadow-sm border-l-4 ${r.type==='敬老卡'?'border-yellow-400':'border-rose-400'} flex justify-between items-center relative border-b border-gray-100">
             <div class="flex-1">
                 <div class="flex items-center text-sm text-gray-500 mb-1">
                     <span>${formatDisplayTime(r.timeObj || r.formattedTime)}</span>
