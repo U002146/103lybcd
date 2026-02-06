@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>花蓮愛心計程車 (V8.0 旗艦版)</title>
+  <title>花蓮縣敬老愛心計程車補助計劃</title>
   
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -22,24 +22,21 @@
     .chip:active { transform: scale(0.95); background-color: #e5e7eb; }
     .no-scrollbar::-webkit-scrollbar { display: none; }
     .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-    
     .status-dot { height: 10px; width: 10px; border-radius: 50%; display: inline-block; }
     .status-ok { background-color: #4ade80; box-shadow: 0 0 5px #4ade80; }
     .status-err { background-color: #ef4444; }
 
-    /* SweetAlert 層級 */
     div:where(.swal2-container) { z-index: 20000 !important; }
     #preview-modal { z-index: 9999; }
 
-    /* 儀表板卡片特效 */
+    /* V8.1 儀表板：改為金色系，強調獎金 */
     .glass-card {
-        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-        box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+        background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%); /* 橘金色代表錢 */
+        box-shadow: 0 8px 32px 0 rgba(194, 65, 12, 0.37);
         backdrop-filter: blur(4px);
         border: 1px solid rgba(255, 255, 255, 0.18);
     }
 
-    /* 列印設定 */
     .screen-only { display: block; }
     .print-only { display: none; }
     @media print {
@@ -64,8 +61,8 @@
     
     <div class="bg-blue-700 text-white p-4 sticky top-0 z-50 shadow-md flex justify-between items-center">
       <div class="flex items-center" onclick="editDriverInfo()">
-        <i class="fas fa-taxi mr-2 text-yellow-300"></i>
-        <h1 class="text-xl font-bold tracking-wider">雲端補單 V8.0</h1>
+        <i class="fas fa-file-signature mr-2 text-yellow-300"></i>
+        <h1 class="text-xl font-bold tracking-wider" id="nav-title">載送記錄表</h1>
         <div id="cloud-status" class="ml-2 status-dot bg-gray-400" title="連線中..."></div>
       </div>
       <button onclick="showPrintPreview()" class="bg-white text-blue-800 font-bold py-2 px-3 rounded-full shadow text-sm active:scale-95 transition">
@@ -76,18 +73,18 @@
     <div class="p-4 space-y-5">
       
       <div class="glass-card rounded-2xl p-5 text-white shadow-xl relative overflow-hidden">
-          <div class="absolute -right-5 -top-5 opacity-20"><i class="fas fa-coins text-9xl"></i></div>
+          <div class="absolute -right-5 -top-5 opacity-20"><i class="fas fa-trophy text-9xl"></i></div>
           <div class="relative z-10">
               <div class="flex justify-between items-end mb-2">
-                  <span class="text-blue-100 text-sm font-bold">本月預估收入</span>
-                  <span class="text-xs bg-blue-800 px-2 py-1 rounded opacity-80" id="current-month-badge">--月</span>
+                  <span class="text-orange-100 text-sm font-bold">本月預估獎金</span>
+                  <span class="text-xs bg-black/20 px-2 py-1 rounded" id="bonus-status">計算中...</span>
               </div>
               <div class="text-4xl font-black tracking-tight mb-2">
                   $<span id="total-income">0</span>
               </div>
-              <div class="flex space-x-4 text-sm text-blue-100">
-                  <div><i class="fas fa-user-clock mr-1"></i> <span id="total-trips">0</span> 趟</div>
-                  <div><i class="fas fa-sync-alt mr-1"></i> <span id="sync-count">0</span> 已同步</div>
+              <div class="flex space-x-4 text-sm text-orange-100 font-bold">
+                  <div><i class="fas fa-flag-checkered mr-1"></i> <span id="total-trips">0</span> 趟</div>
+                  <div class="opacity-80 font-normal text-xs flex items-center">(目標 > 50 趟)</div>
               </div>
           </div>
       </div>
@@ -96,7 +93,7 @@
         <div class="flex justify-between items-center mb-4 border-b pb-2">
             <h2 class="text-lg font-bold text-gray-700">新增行程</h2>
             <button onclick="editDriverInfo()" class="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
-                <i class="fas fa-cog"></i> 設定與備份
+                <i class="fas fa-cog"></i> 設定
             </button>
         </div>
         
@@ -148,18 +145,11 @@
         </button>
       </div>
 
-      <div class="flex flex-col space-y-2">
-        <div class="relative">
-            <i class="fas fa-search absolute left-3 top-3.5 text-gray-400"></i>
-            <input type="text" id="search-input" oninput="renderList()" placeholder="搜尋地點或備註..." class="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition">
-        </div>
-        
-        <div class="flex justify-between items-end px-1">
-            <h3 class="font-bold text-gray-500">歷史記錄</h3>
-            <div class="space-x-2">
-                <button onclick="clearAll()" class="text-xs text-red-400 underline">清空快取</button>
-            </div>
-        </div>
+      <div class="flex justify-between items-end px-1">
+          <h3 class="font-bold text-gray-500">歷史記錄</h3>
+          <div class="space-x-2">
+              <button onclick="clearAll()" class="text-xs text-red-400 underline">清空快取</button>
+          </div>
       </div>
       
       <div id="record-list" class="space-y-3 pb-20"></div>
@@ -195,20 +185,20 @@
   <div id="print-area" class="print-only"></div>
 
   <script>
-    // ★★★ 設定區 (已填妥) ★★★
+    // ★★★ 設定區 (ID已填妥) ★★★
     const LIFF_ID = "2008907691-Ojnb8ANZ"; 
     const API_URL = "https://script.google.com/macros/s/AKfycby_XYDJCTiio3PUqg_g2Ip6nB5tu5ap-OwqGxwBLJbiC-0PrW9hNOVoxCG2vqj0J_vb/exec";
     
     // --- 系統變數 ---
     let records = JSON.parse(localStorage.getItem('taxi_records_v6')) || [];
-    // V8.0 新增: 預估補助金額設定 (預設 100)
-    let driverInfo = JSON.parse(localStorage.getItem('driver_info')) || { name: '', plate: '', id: '', subsidyElder: 100, subsidyCare: 100 };
+    // V8.1: 新增 delPassword (預設0000)
+    let driverInfo = JSON.parse(localStorage.getItem('driver_info')) || { name: '', plate: '', id: '', delPassword: '0000' };
     let currentUserId = "";
 
     window.onload = function() {
       initTime();
       setCardType('敬老卡');
-      updateDashboard(); // 初始化儀表板
+      updateDashboard(); 
       renderList();
       document.getElementById('report-month-select').value = new Date().getMonth() + 1;
       
@@ -228,11 +218,13 @@
         } catch (err) { console.error(err); Swal.fire({ toast: true, position: 'top', icon: 'info', title: '離線模式' }); }
     }
 
-    // --- V8.0 核心：儀表板計算 ---
+    // --- V8.1 核心：階梯式獎金計算 ---
     function updateDashboard() {
         const now = new Date();
         const currentMonth = now.getMonth() + 1;
-        document.getElementById('current-month-badge').innerText = `${currentMonth}月`;
+        
+        // 更新頂部標題
+        document.getElementById('nav-title').innerText = `${currentMonth}月載送記錄表`;
 
         // 篩選本月資料
         const thisMonthRecords = records.filter(r => {
@@ -240,19 +232,32 @@
             return d.getMonth() + 1 === currentMonth && d.getFullYear() === now.getFullYear();
         });
 
-        // 計算金額
-        let total = 0;
-        thisMonthRecords.forEach(r => {
-            if(r.type === '敬老卡') total += parseInt(driverInfo.subsidyElder || 0);
-            else if(r.type === '愛心卡') total += parseInt(driverInfo.subsidyCare || 0);
-        });
+        const tripCount = thisMonthRecords.length;
+        let totalIncome = 0;
+        let statusMsg = "";
 
-        const syncCount = thisMonthRecords.filter(r => r.syncStatus === 'synced').length;
+        // ★★★ 獎金規則邏輯 ★★★
+        if (tripCount <= 50) {
+            totalIncome = 0;
+            statusMsg = `還差 ${51 - tripCount} 趟達標`;
+        } else if (tripCount > 100) {
+            totalIncome = 5000; // 上限 5000
+            statusMsg = "已達最高獎金";
+        } else {
+            // 51~100 趟，每趟 50
+            totalIncome = tripCount * 50;
+            statusMsg = "獎金累積中";
+        }
 
         // 動畫跳數字
-        animateValue("total-income", 0, total, 500);
-        document.getElementById("total-trips").innerText = thisMonthRecords.length;
-        document.getElementById("sync-count").innerText = syncCount;
+        animateValue("total-income", 0, totalIncome, 500);
+        document.getElementById("total-trips").innerText = tripCount;
+        document.getElementById("bonus-status").innerText = statusMsg;
+        
+        // 顏色警示：未達標顯示灰色/紅色，達標顯示綠色
+        const badge = document.getElementById("bonus-status");
+        if(tripCount <= 50) { badge.className = "text-xs bg-red-900/50 px-2 py-1 rounded text-red-200"; }
+        else { badge.className = "text-xs bg-green-900/50 px-2 py-1 rounded text-green-200"; }
     }
 
     function animateValue(id, start, end, duration) {
@@ -290,7 +295,7 @@
       localStorage.setItem('taxi_records_v6', JSON.stringify(records));
       
       renderList();
-      updateDashboard(); // 更新錢錢
+      updateDashboard(); 
       
       document.getElementById('input-pickup').value = '';
       document.getElementById('input-dropoff').value = '';
@@ -300,18 +305,33 @@
       syncToCloud(newRecord);
     }
 
-    // --- V7.1 刪除邏輯 ---
+    // --- V8.1 刪除鎖 (密碼保護) ---
     function deleteRecord(id) {
         Swal.fire({
-            title: '確定刪除?', text: "將同步刪除雲端資料", icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444', confirmButtonText: '刪除', cancelButtonText: '取消'
+            title: '輸入刪除密碼',
+            input: 'password',
+            inputAttributes: { autocapitalize: 'off' },
+            showCancelButton: true,
+            confirmButtonText: '驗證並刪除',
+            confirmButtonColor: '#ef4444',
+            showLoaderOnConfirm: true,
+            preConfirm: (inputPass) => {
+                // 比對密碼 (預設 0000)
+                const settingPass = driverInfo.delPassword || '0000';
+                if (inputPass !== settingPass) {
+                    Swal.showValidationMessage('密碼錯誤');
+                }
+                return inputPass === settingPass;
+            }
         }).then((result) => {
             if (result.isConfirmed) {
+                // 密碼正確，執行刪除
                 const targetRecord = records.find(r => r.id === id);
                 records = records.filter(r => r.id !== id);
                 localStorage.setItem('taxi_records_v6', JSON.stringify(records));
                 
                 renderList();
-                updateDashboard(); // 更新錢錢
+                updateDashboard();
 
                 if(currentUserId && API_URL && targetRecord) {
                     Swal.fire({ title: '同步刪除中...', timerProgressBar: true, didOpen: () => { Swal.showLoading(); } });
@@ -323,14 +343,13 @@
         });
     }
 
-    // --- 雲端功能 ---
     function syncToCloud(record) {
         if (!currentUserId) return;
         const payload = { ...record, userId: currentUserId, driverName: driverInfo.name, driverPlate: driverInfo.plate, driverId: driverInfo.id };
         fetch(API_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
         .then(() => {
             record.syncStatus = 'synced'; updateRecordStatus(record.id, 'synced');
-            updateDashboard(); // 同步狀態更新
+            updateDashboard(); // 同步後更新
             Swal.fire({ toast: true, position: 'top', showConfirmButton: false, timer: 1500, icon: 'success', title: '雲端備份成功' });
         })
         .catch(() => { updateRecordStatus(record.id, 'error'); });
@@ -356,7 +375,7 @@
         });
     }
 
-    // --- V8.0 設定頁面 (增加金額設定) ---
+    // --- V8.1 設定頁面 (增加密碼) ---
     function editDriverInfo() {
       Swal.fire({
         title: '設定與備份',
@@ -367,11 +386,8 @@
                 <input id="d-plate" class="swal2-input m-0 w-full mt-2" value="${driverInfo.plate}" placeholder="車牌號碼">
                 <input id="d-id" class="swal2-input m-0 w-full mt-2" value="${driverInfo.id}" placeholder="隊員編號">
                 
-                <label class="text-xs text-gray-500 font-bold mt-4 block">預估補助金額 (元/趟)</label>
-                <div class="flex gap-2">
-                    <input id="d-sub-elder" type="number" class="swal2-input m-0 w-1/2" value="${driverInfo.subsidyElder || 100}" placeholder="敬老">
-                    <input id="d-sub-care" type="number" class="swal2-input m-0 w-1/2" value="${driverInfo.subsidyCare || 100}" placeholder="愛心">
-                </div>
+                <label class="text-xs text-gray-500 font-bold mt-4 block text-red-500">刪除保護密碼 (預設0000)</label>
+                <input id="d-pass" type="text" class="swal2-input m-0 w-full" value="${driverInfo.delPassword || '0000'}" placeholder="設定密碼">
 
                 <hr class="my-2">
                 <button onclick="exportToCSV()" class="w-full bg-green-600 text-white py-2 rounded font-bold shadow hover:bg-green-700">
@@ -384,20 +400,17 @@
             name: document.getElementById('d-name').value, 
             plate: document.getElementById('d-plate').value, 
             id: document.getElementById('d-id').value,
-            subsidyElder: document.getElementById('d-sub-elder').value,
-            subsidyCare: document.getElementById('d-sub-care').value
+            delPassword: document.getElementById('d-pass').value
         })
       }).then((r) => { 
           if(r.isConfirmed) { 
               driverInfo = r.value; 
               localStorage.setItem('driver_info', JSON.stringify(driverInfo)); 
-              updateDashboard(); // 設定改了，錢也要重算
               const h = document.querySelector('.report-info'); if(h) generatePrintHTML(); 
           }
       });
     }
 
-    // --- 輔助函式 ---
     function clearAll() { Swal.fire({ title: '清空快取?', text: "僅清除手機畫面，雲端資料保留", icon: 'info', showCancelButton: true, confirmButtonColor: '#ef4444', confirmButtonText: '清空' }).then((r) => { if (r.isConfirmed) { records = []; localStorage.setItem('taxi_records_v6', JSON.stringify(records)); renderList(); updateDashboard(); } }); }
     function exportToCSV() { if(records.length === 0) return Swal.fire('無資料'); let c = "\uFEFF日期,類別,上車,下車,備註\n"; records.forEach(r => { c += `${formatDisplayTime(r.timeObj)},${r.type},${r.pickup},${r.dropoff},${r.remarks}\n`; }); const b = new Blob([c], { type: 'text/csv;charset=utf-8;' }); const u = URL.createObjectURL(b); const l = document.createElement("a"); l.href = u; l.download = `backup_${new Date().toISOString().slice(0,10)}.csv`; document.body.appendChild(l); l.click(); document.body.removeChild(l); }
     function initTime() { const now = new Date(); now.setMinutes(now.getMinutes() - now.getTimezoneOffset()); document.getElementById('input-time').value = now.toISOString().slice(0,16); }
@@ -406,25 +419,13 @@
     function setCardType(type) { document.getElementById('input-type').value = type; const el = (id) => document.getElementById(id); if(type === '敬老卡') { el('btn-elder').className = 'p-3 rounded-lg border-2 border-yellow-500 bg-yellow-50 text-yellow-700 font-bold shadow-md transform scale-105'; el('btn-care').className = 'p-3 rounded-lg border-2 border-transparent bg-gray-100 text-gray-400 font-bold opacity-70'; } else { el('btn-care').className = 'p-3 rounded-lg border-2 border-rose-500 bg-rose-50 text-rose-700 font-bold shadow-md transform scale-105'; el('btn-elder').className = 'p-3 rounded-lg border-2 border-transparent bg-gray-100 text-gray-400 font-bold opacity-70'; } }
     function setInput(id, val) { document.getElementById(id).value = val; }
     
-    // --- V8.0 列表渲染 (含搜尋過濾) ---
     function renderList() {
       const el = document.getElementById('record-list');
-      const keyword = document.getElementById('search-input').value.toLowerCase();
+      // V8.1 移除搜尋過濾，直接顯示所有資料
+      const listRecords = [...records].sort((a, b) => new Date(b.timeObj) - new Date(a.timeObj));
+      if (listRecords.length === 0) { el.innerHTML = '<div class="text-center text-gray-300 py-8 border-2 border-dashed border-gray-200 rounded-lg">無行程</div>'; return; }
       
-      // 1. 搜尋過濾
-      let filtered = records.filter(r => 
-          (r.pickup && r.pickup.includes(keyword)) || 
-          (r.dropoff && r.dropoff.includes(keyword)) || 
-          (r.remarks && r.remarks.includes(keyword)) ||
-          (r.type && r.type.includes(keyword))
-      );
-      
-      // 2. 排序 (新到舊)
-      filtered.sort((a, b) => new Date(b.timeObj) - new Date(a.timeObj));
-
-      if (filtered.length === 0) { el.innerHTML = '<div class="text-center text-gray-300 py-8 border-2 border-dashed border-gray-200 rounded-lg">無符合資料</div>'; return; }
-      
-      el.innerHTML = filtered.map((r) => `
+      el.innerHTML = listRecords.map((r, i) => `
         <div class="bg-white p-3 rounded-lg shadow-sm border-l-4 ${r.type==='敬老卡'?'border-yellow-400':'border-rose-400'} flex justify-between items-center relative">
             <div class="flex-1">
                 <div class="flex items-center text-sm text-gray-500 mb-1">
@@ -447,7 +448,6 @@
         return '<i class="fas fa-cloud-upload-alt text-gray-300 ml-2" title="尚未同步"></i>';
     }
 
-    // --- 列印相關 ---
     function generatePrintHTML() {
         const month = document.getElementById('report-month-select').value;
         const printArea = document.getElementById('print-area');
