@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>花蓮敬老愛心 乘車支援網 (V10.0 合體版)</title>
+  <title>花蓮敬老愛心 乘車支援網</title>
   
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -16,11 +16,10 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   
   <style>
-    /* 全局設定 */
-    body { margin: 0; padding: 0; font-family: "Microsoft JhengHei", -apple-system, sans-serif; overflow: hidden; background: #f0f0f0; -webkit-tap-highlight-color: transparent; }
+    body { margin: 0; padding: 0; font-family: -apple-system, system-ui, "Microsoft JhengHei", sans-serif; overflow: hidden; background: #f0f0f0; -webkit-tap-highlight-color: transparent; }
     
-    /* === 地圖層樣式 === */
-    #map { width: 100vw; height: 100vh; z-index: 1; }
+    /* === 地圖樣式 (還原備份) === */
+    #map { width: 100vw; height: 100vh; z-index: 1; transition: opacity 0.5s; }
     #hud {
       position: absolute; top: 15px; left: 15px; z-index: 999;
       background: rgba(30, 30, 30, 0.9); color: white; padding: 12px 20px;
@@ -41,43 +40,46 @@
       display: flex; flex-direction: column; justify-content: center; align-items: center;
       transition: all 0.2s; text-shadow: 0 1px 2px rgba(0,0,0,0.3); font-size: 15px;
     }
-    .circle-btn:active { transform: scale(0.85); }
+    .circle-btn:active { transform: scale(0.85); box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
     #btn-power { width: 85px; height: 85px; font-size: 20px; }
     
-    .bg-green  { background: linear-gradient(135deg, #2ecc71, #27ae60); }
-    .bg-red    { background: linear-gradient(135deg, #e74c3c, #c0392b); }
-    .bg-blue   { background: linear-gradient(135deg, #3498db, #2980b9); } 
-    .bg-gray   { background: linear-gradient(135deg, #bdc3c7, #95a5a6); }
-    .bg-purple { background: linear-gradient(135deg, #9b59b6, #8e44ad); }
+    .bg-green { background: linear-gradient(135deg, #2ecc71, #27ae60); }
+    .bg-red   { background: linear-gradient(135deg, #e74c3c, #c0392b); }
+    .bg-blue  { background: linear-gradient(135deg, #3498db, #2980b9); } 
+    .bg-gray  { background: linear-gradient(135deg, #bdc3c7, #95a5a6); }
+    .bg-purple { background: linear-gradient(135deg, #9b59b6, #8e44ad); } /* 記錄表按鈕專用 */
     .bg-orange { background: linear-gradient(135deg, #f39c12, #e67e22); }
-    
+
     .sub-text { font-size: 12px; opacity: 0.9; margin-top: 4px; }
-    
+    .leaflet-bottom { bottom: 140px !important; }
+
     /* === 記錄表覆蓋層 (Overlay) === */
     #record-app-view {
-        display: none; /* 預設隱藏 */
-        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background-color: #f3f4f6; z-index: 5000; overflow-y: auto;
-        padding-bottom: 100px; /* 預留底部空間 */
+        display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background-color: #f3f4f6; z-index: 5000; overflow-y: auto; padding-bottom: 100px;
     }
-    /* 記錄表內部樣式 */
     .chip:active { transform: scale(0.95); background-color: #e5e7eb; }
     .no-scrollbar::-webkit-scrollbar { display: none; }
     .glass-card { background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%); box-shadow: 0 8px 32px 0 rgba(194, 65, 12, 0.37); color: white; border-radius: 1rem 1rem 0 0; padding: 1.25rem; }
-    
+
     /* === 彈窗與遮罩 === */
-    .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.85); z-index: 6000; justify-content: center; align-items: center; }
-    .modal-content { background: white; width: 85%; max-width: 350px; border-radius: 24px; padding: 25px; text-align: center; }
+    .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.85); z-index: 6000; justify-content: center; align-items: center; backdrop-filter: blur(8px); }
+    .modal-content { background: white; width: 85%; max-width: 350px; border-radius: 24px; padding: 25px; box-sizing: border-box; text-align: center; }
+    
     #power-save-overlay { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: black; z-index: 2000; color: #444; flex-direction: column; justify-content: center; align-items: center; }
     #power-save-overlay.active { display: flex; }
     
-    /* === 列印設定 === */
-    @media print {
-        #map, #top-right-panel, #hud, #power-save-overlay { display: none !important; }
-        #record-app-view { display: block !important; position: static; overflow: visible; height: auto; }
-        .no-print { display: none !important; }
-        /* 這裡可以加入 V9.0 的列印樣式，但為了代碼長度，建議使用預覽視窗列印 */
-    }
+    #gps-instruction { text-align: left; background: #fff8e1; padding: 15px; border-radius: 10px; margin: 15px 0; border: 2px solid #ffecb3; }
+    #gps-instruction ol { padding-left: 20px; margin: 5px 0; color: #555; font-size: 15px; line-height: 1.6; }
+    
+    #passenger-carousel { position: absolute; bottom: 20px; left: 0; width: 100%; z-index: 1000; display: none; overflow-x: auto; gap: 12px; padding: 0 15px 15px 15px; box-sizing: border-box; scroll-snap-type: x mandatory; }
+    .driver-card { flex: 0 0 88%; max-width: 340px; background: white; border-radius: 20px; padding: 18px; box-shadow: 0 8px 25px rgba(0,0,0,0.2); scroll-snap-align: center; display: flex; align-items: center; justify-content: space-between; }
+    .driver-card .card-call-btn { text-decoration: none; font-size: 24px; width: 50px; height: 50px; background: #2ecc71; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(46, 204, 113, 0.4); }
+    
+    .form-group { margin-bottom: 15px; text-align: left; }
+    .form-group label { display: block; font-size: 13px; color: #666; margin-bottom: 5px; }
+    .form-group input { width: 100%; padding: 12px; border: 2px solid #eee; border-radius: 10px; box-sizing: border-box; font-size: 16px; }
+    .modal-btns button { width: 100%; padding: 15px; border-radius: 12px; border: none; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px; }
   </style>
 </head>
 <body>
@@ -96,56 +98,62 @@
     <button id="btn-share" class="circle-btn bg-blue" onclick="openShareModal()"><span>分享</span></button>
   </div>
 
-  <div id="power-save-overlay" onclick="togglePowerSaving()"><div style="font-size: 60px;">🅿️</div><p>省電模式中 (GPS背景運行)</p></div>
-
-  <div id="reg-modal" class="modal-overlay">
-    <div class="modal-content">
-      <h3 class="text-xl font-bold mb-4">司機註冊申請</h3>
-      <input type="text" id="reg-name" class="w-full p-3 border rounded mb-3" placeholder="姓名">
-      <input type="text" id="reg-car" class="w-full p-3 border rounded mb-3" placeholder="車牌 (ABC-1234)">
-      <input type="tel" id="reg-phone" class="w-full p-3 border rounded mb-3" placeholder="電話">
-      <button onclick="submitRegistration()" class="w-full bg-green-500 text-white p-3 rounded font-bold mb-2">送出申請</button>
-      <button onclick="closeModal('reg-modal')" class="w-full bg-gray-200 text-gray-700 p-3 rounded">取消</button>
-    </div>
-  </div>
+  <div id="power-save-overlay" onclick="togglePowerSaving()"><div style="font-size: 60px;">🅿️</div><p>排班/省電模式中</p><div style="font-size: 14px; color: #333; margin-top: 50px;">點擊螢幕回歸地圖</div></div>
 
   <div id="share-modal" class="modal-overlay">
     <div class="modal-content">
-      <h3 class="font-bold mb-2">掃碼加入好友</h3>
-      <img id="qrcode-img" src="" class="mx-auto my-4 w-48 h-48">
-      <button onclick="closeModal('share-modal')" class="w-full bg-gray-200 p-3 rounded">關閉</button>
+      <h3 style="margin-top:0;">掃碼加入好友</h3>
+      <div style="background:#f9f9f9; padding:15px; border-radius:15px; margin:15px 0;"><img id="qrcode-img" src="" style="width:200px;height:200px;"></div>
+      <div class="modal-btns"><button style="background:#eee; color:#333;" onclick="closeModal('share-modal')">關閉</button></div>
     </div>
   </div>
+
+  <div id="reg-modal" class="modal-overlay">
+    <div class="modal-content">
+      <h3 style="margin-top:0;">司機註冊申請</h3>
+      <div class="form-group"><label>LINE ID</label><input type="text" id="reg-uid" readonly style="background:#f0f0f0;"></div>
+      <div class="form-group"><label>司機暱稱</label><input type="text" id="reg-name" placeholder="請填寫姓名"></div>
+      <div class="form-group"><label>車牌號碼</label><input type="text" id="reg-car" placeholder="例如: ABC-1234"></div>
+      <div class="form-group"><label>連絡電話</label><input type="tel" id="reg-phone" placeholder="09xx-xxx-xxx"></div>
+      <div class="modal-btns">
+        <button style="background:#2ecc71; color:white;" onclick="submitRegistration()">送出資料</button>
+        <button style="background:#eee; color:#666;" onclick="closeModal('reg-modal')">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="gps-alert-modal" class="modal-overlay" style="z-index: 4000;">
+    <div class="modal-content">
+      <div style="font-size: 50px;">📍</div>
+      <h2 style="margin: 10px 0; color: #e74c3c;">無法讀取位置</h2>
+      <div id="gps-instruction"><ol><li>進入手機<b>【設定】</b></li><li>找到應用程式<b>【LINE】</b></li><li>開啟<b>【位置/定位】</b>權限</li></ol></div>
+      <div class="modal-btns">
+        <button style="background:#3498db; color:white;" onclick="retryGPS()">我開好了！重試</button>
+        <button style="background:#eee; color:#666; margin-top:8px;" onclick="closeModal('gps-alert-modal')">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="passenger-carousel"></div>
 
   <div id="record-app-view">
     <div class="bg-blue-700 text-white p-4 sticky top-0 z-50 shadow-md flex justify-between items-center no-print">
       <div class="flex items-center">
-        <button onclick="hideRecordApp()" class="mr-3 text-white bg-blue-600 hover:bg-blue-500 rounded-full w-10 h-10 flex items-center justify-center shadow-lg active:scale-95 transition">
-            <i class="fas fa-arrow-left text-lg"></i>
-        </button>
+        <button onclick="hideRecordApp()" class="mr-3 text-white bg-blue-600 hover:bg-blue-500 rounded-full w-10 h-10 flex items-center justify-center shadow-lg active:scale-95 transition"><i class="fas fa-arrow-left text-lg"></i></button>
         <h1 class="text-xl font-bold tracking-wider" id="record-nav-title">載送記錄</h1>
       </div>
-      <div class="flex items-center">
-          <div id="cloud-sync-status" class="mr-2 text-xs opacity-80"></div>
-          <button onclick="editDriverInfo()" class="text-sm bg-blue-800 px-3 py-1 rounded"><i class="fas fa-cog"></i></button>
-      </div>
+      <div class="flex items-center"><div id="cloud-sync-status" class="mr-2 text-xs opacity-80"></div><button onclick="editDriverInfo()" class="text-sm bg-blue-800 px-3 py-1 rounded"><i class="fas fa-cog"></i></button></div>
     </div>
 
     <div class="p-4 space-y-6">
       <div class="bg-white rounded-xl shadow-lg p-5 border border-blue-100 ring-4 ring-blue-50/50">
         <h2 class="text-lg font-bold text-gray-700 mb-4 border-b pb-2"><i class="fas fa-edit text-blue-500 mr-2"></i>新增行程</h2>
-        
-        <div class="mb-4">
-          <label class="block text-sm font-bold text-gray-500 mb-1">日期時間</label>
-          <input type="datetime-local" id="input-time" class="w-full p-3 border border-gray-300 rounded-lg bg-gray-50 text-lg font-mono">
-        </div>
-
+        <div class="mb-4"><label class="block text-sm font-bold text-gray-500 mb-1">日期時間</label><input type="datetime-local" id="input-time" class="w-full p-3 border border-gray-300 rounded-lg bg-gray-50 text-lg font-mono"></div>
         <div class="mb-4 grid grid-cols-2 gap-3">
           <button onclick="setCardType('敬老卡')" id="btn-elder" class="p-3 rounded-lg border-2 bg-gray-100 text-gray-600 font-bold transition">敬老卡</button>
           <button onclick="setCardType('愛心卡')" id="btn-care" class="p-3 rounded-lg border-2 bg-gray-100 text-gray-600 font-bold transition">愛心卡</button>
           <input type="hidden" id="input-type">
         </div>
-
         <div class="mb-4 space-y-3">
           <div><label class="text-sm font-bold text-gray-500">上車</label>
             <div class="flex gap-2 overflow-x-auto pb-2 mb-1 no-scrollbar">
@@ -169,12 +177,8 @@
             <input type="text" id="input-dropoff" placeholder="下車地點" class="w-full p-3 border border-gray-300 rounded-lg text-lg">
           </div>
         </div>
-        
         <input type="text" id="input-remarks" placeholder="備註 (選填)" class="w-full p-3 border border-gray-300 rounded-lg text-lg bg-yellow-50 mb-4">
-
-        <button onclick="addRecord()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl text-xl shadow-lg active:scale-95 transition flex justify-center items-center">
-           <i class="fas fa-paper-plane mr-2"></i> 寫入資料
-        </button>
+        <button onclick="addRecord()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl text-xl shadow-lg active:scale-95 transition flex justify-center items-center"><i class="fas fa-paper-plane mr-2"></i> 寫入資料</button>
       </div>
 
       <div>
@@ -201,43 +205,45 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
-    // ================== 全局變數 ==================
+    // ========= 設定區 (保留您的設定) =========
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbyfNTgci2gZE2Etxvv6SHaP3puw7Mxt8ineL4gZve7Zyh2UGrcna4Zxap6EOyRICQ/exec"; 
     const LIFF_ID = "2008907691-7ntMtfbA"; 
     const FIREBASE_URL = "https://hualientaxi-bb32f-default-rtdb.asia-southeast1.firebasedatabase.app/"; 
-    const GAS_URL = "https://script.google.com/macros/s/AKfycby_XYDJCTiio3PUqg_g2Ip6nB5tu5ap-OwqGxwBLJbiC-0PrW9hNOVoxCG2vqj0J_vb/exec"; // V9.0 GAS URL
+    // =====================================
 
-    // 地圖變數
     var map, markers = {};
     var currentUser = null;
     var isDriver = false;
     var myLat = null, myLng = null;
-    var currentWorkStatus = 'empty';
+    var myPhone = ""; 
+    
+    var currentWorkStatus = 'empty'; 
     var isOnline = false;
     var isPowerSaving = false;
-    var updateTimer = null, wakeLock = null;
+    var updateTimer = null;
+    var wakeLock = null;
+
     var lastUploadLat = 0, lastUploadLng = 0, lastUploadTime = 0;
-    
+    var hasCenteredMap = false; 
+    var isGpsAlertShown = false;
+
     // 記錄表變數
     let records = JSON.parse(localStorage.getItem('taxi_records_v6')) || [];
     let driverInfo = JSON.parse(localStorage.getItem('driver_info')) || { name: '', plate: '', id: '', delPassword: '0000' };
     let currentPage = 1;
     const itemsPerPage = 25;
 
-    // ================== 初始化流程 ==================
-    window.onload = async function() {
-      // 1. 初始化地圖
-      initMap();
-      
-      // 2. 初始化 LIFF
-      await initLiff();
+    const iconEmpty = L.divIcon({ html: '<div style="font-size:36px;">🚕</div>', className: '', iconSize: [36, 36], iconAnchor: [18, 18] });
+    const iconBusy = L.divIcon({ html: '<div style="font-size:36px; filter: grayscale(100%) opacity(0.6);">🚕</div>', className: '', iconSize: [36, 36], iconAnchor: [18, 18] });
+    const iconQueue = L.divIcon({ html: '<div style="font-size:36px; filter: hue-rotate(200deg);">🚕</div>', className: '', iconSize: [36, 36], iconAnchor: [18, 18] });
 
-      // 3. 初始化記錄表 (時間、載入資料)
-      initTime();
-      setCardType('敬老卡');
-      updateDashboard();
-      renderList();
+    window.onload = async function() {
+      initMap();
+      await initLiff();
       
-      // 4. 監聽 WakeLock
+      // 記錄表初始化
+      initTime(); setCardType('敬老卡'); updateDashboard(); renderList();
+      
       document.addEventListener('visibilitychange', async () => {
         if (wakeLock !== null && document.visibilityState === 'visible' && isOnline) {
           await requestWakeLock();
@@ -245,7 +251,18 @@
       });
     };
 
-    // ================== 地圖邏輯 (MAP) ==================
+    // --- 記錄表切換邏輯 ---
+    function showRecordApp() { document.getElementById('record-app-view').style.display = 'block'; initTime(); }
+    function hideRecordApp() { document.getElementById('record-app-view').style.display = 'none'; }
+
+    async function requestWakeLock() { if ('wakeLock' in navigator) try { wakeLock = await navigator.wakeLock.request('screen'); } catch (err) {} }
+    function releaseWakeLock() { if (wakeLock !== null) { wakeLock.release().then(() => wakeLock = null); } }
+
+    function openShareModal() {
+      document.getElementById('qrcode-img').src = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent("https://line.me/R/ti/p/@631ugnif")}`;
+      openModal('share-modal');
+    }
+
     function initMap() {
       map = L.map('map', { zoomControl: false }).setView([23.99000, 121.60684], 13);
       L.control.zoom({ position: 'bottomright' }).addTo(map);
@@ -262,231 +279,286 @@
         checkRole(currentUser.userId);
         fetchDrivers(); 
         setInterval(fetchDrivers, 5000); 
-
-        // 同步雲端記錄 (利用已取得的 UserID)
+        
+        // 順便載入雲端記錄
         fetchCloudRecords();
-
-      } catch (err) { console.error("LIFF Error:", err); }
+      } catch (err) { console.log("LIFF Error:", err); }
     }
 
-    // (簡化版定位邏輯)
+    // 🔥 核心修改：恢復備份中的 GPS 邏輯
     function startTrackingLocation() {
       if (navigator.geolocation) {
-        navigator.geolocation.watchPosition((pos) => {
+        navigator.geolocation.watchPosition(
+          (pos) => {
             myLat = pos.coords.latitude; myLng = pos.coords.longitude;
-            updateHUD(1); // 假裝有定位成功
-            if (!map.hasCentered) { map.setView([myLat, myLng], 15); map.hasCentered = true; }
-        }, (err) => { console.error(err); }, { enableHighAccuracy: true });
-      }
+            if (isGpsAlertShown) { closeModal('gps-alert-modal'); isGpsAlertShown = false; }
+            if (!hasCenteredMap) { map.setView([myLat, myLng], 15); hasCenteredMap = true; console.log("已自動定位"); }
+          }, 
+          (err) => {
+            console.error("GPS Error:", err);
+            if ((err.code === 1 || err.code === 2) && !isGpsAlertShown) { openModal('gps-alert-modal'); isGpsAlertShown = true; }
+          }, { enableHighAccuracy: true, maximumAge: 0 }
+        );
+      } else { alert("瀏覽器不支援定位"); }
     }
+    
+    function retryGPS() { closeModal('gps-alert-modal'); isGpsAlertShown = false; startTrackingLocation(); window.location.reload(); }
 
-    // 檢查身分
+    // 🔥 恢復 checkRole 邏輯
     function checkRole(uid) {
-      // 這裡假設是司機 (為了測試方便，您可以換回 fetch GAS)
-      // fetch(`${GAS_URL}?op=check_role&uid=${uid}`)...
-      // 為了整合代碼，這裡保留原本邏輯
-      fetch(`${GAS_URL}?userId=${uid}`) // 借用 V9.0 測試連線
-        .then(() => {
-             // 假設驗證通過
-             isDriver = true; // 強制設為司機方便測試
-             document.getElementById('btn-power').style.display = 'flex';
-             document.getElementById('btn-record').style.display = 'flex';
-             document.getElementById('btn-status').style.display = 'none'; // 預設隱藏，上線才顯示
-             document.getElementById('btn-save-power').style.display = 'none';
-        })
-        .catch(() => {
-             // 離線或其他狀況
-             isDriver = true;
-             document.getElementById('btn-power').style.display = 'flex';
-             document.getElementById('btn-record').style.display = 'flex';
+      fetch(`${GAS_URL}?op=check_role&uid=${uid}`)
+        .then(res => res.json())
+        .then(data => {
+          isDriver = (data.role === 'driver');
+          if (isDriver) {
+            if(data.phone) myPhone = data.phone; 
+            document.getElementById('btn-power').style.display = 'flex';
+            document.getElementById('btn-record').style.display = 'flex'; // 顯示記錄按鈕
+            document.getElementById('btn-register').style.display = 'none';
+            document.getElementById('passenger-carousel').style.display = 'none';
+          } else {
+            document.getElementById('btn-power').style.display = 'none';
+            document.getElementById('btn-register').style.display = 'flex';
+            document.getElementById('passenger-carousel').style.display = 'flex';
+          }
         });
     }
 
-    // 上線/下線
+    // 🔥 恢復 togglePower 邏輯
     function togglePower() {
-        isOnline = !isOnline;
+      try {
+        const nextState = !isOnline;
         const btnPower = document.getElementById('btn-power');
         const btnStatus = document.getElementById('btn-status');
         const btnSave = document.getElementById('btn-save-power');
-        
-        if(isOnline) {
-            btnPower.className = "circle-btn bg-red"; btnPower.innerHTML = `<span>下線</span><span class="sub-text">ON</span>`;
-            btnStatus.style.display = 'flex'; btnSave.style.display = 'flex';
-            currentWorkStatus = 'empty'; updateStatusButton();
-            requestWakeLock();
-            // 開始上傳位置...
+
+        if (nextState) {
+          isOnline = true; currentWorkStatus = 'empty';
+          btnPower.className = "circle-btn bg-red"; btnPower.innerHTML = `<span>下線</span><span class="sub-text">ON</span>`;
+          btnStatus.style.display = 'flex'; updateStatusButton(); btnSave.style.display = 'flex';
+          requestWakeLock(); resetUpdateTimer();
         } else {
-            btnPower.className = "circle-btn bg-green"; btnPower.innerHTML = `<span>上線</span><span class="sub-text">OFF</span>`;
-            btnStatus.style.display = 'none'; btnSave.style.display = 'none';
-            releaseWakeLock();
-            // 停止上傳...
+          isOnline = false;
+          btnPower.className = "circle-btn bg-green"; btnPower.innerHTML = `<span>上線</span><span class="sub-text">OFF</span>`;
+          btnStatus.style.display = 'none'; btnSave.style.display = 'none';
+          clearInterval(updateTimer); releaseWakeLock();
+          postData('offline', 'empty', 0, 0); 
+          if (isPowerSaving) togglePowerSaving();
         }
+      } catch (e) { alert("按鈕錯誤：" + e.message); }
     }
-    
+
     function toggleStatus() {
-        if(currentWorkStatus === 'empty') currentWorkStatus = 'queue';
-        else if(currentWorkStatus === 'queue') currentWorkStatus = 'busy';
-        else currentWorkStatus = 'empty';
-        updateStatusButton();
+      if (currentWorkStatus === 'empty') currentWorkStatus = 'queue';
+      else if (currentWorkStatus === 'queue') currentWorkStatus = 'busy';
+      else currentWorkStatus = 'empty';
+      updateStatusButton(); uploadLocation(true); 
     }
-    
+
     function updateStatusButton() {
-        const btn = document.getElementById('btn-status');
-        if(currentWorkStatus==='empty') { btn.className="circle-btn bg-green"; btn.innerHTML="<span>空車</span>"; }
-        else if(currentWorkStatus==='queue') { btn.className="circle-btn bg-blue"; btn.innerHTML="<span>排班</span>"; }
-        else { btn.className="circle-btn bg-red"; btn.innerHTML="<span>載客</span>"; }
+      const btnStatus = document.getElementById('btn-status');
+      if (currentWorkStatus === 'empty') { btnStatus.className = "circle-btn bg-green"; btnStatus.innerHTML = `<span>空車</span>`; } 
+      else if (currentWorkStatus === 'queue') { btnStatus.className = "circle-btn bg-blue"; btnStatus.innerHTML = `<span>排班</span>`; } 
+      else { btnStatus.className = "circle-btn bg-red"; btnStatus.innerHTML = `<span>載客</span>`; }
     }
 
     function togglePowerSaving() {
-        isPowerSaving = !isPowerSaving;
-        document.getElementById('power-save-overlay').className = isPowerSaving ? 'active' : '';
+      if (!isOnline) return;
+      isPowerSaving = !isPowerSaving;
+      const overlay = document.getElementById('power-save-overlay');
+      const btnSave = document.getElementById('btn-save-power');
+      if (isPowerSaving) { overlay.classList.add('active'); btnSave.style.background = "#2ecc71"; btnSave.innerHTML = `<span>正常</span>`; } 
+      else { overlay.classList.remove('active'); btnSave.style.background = "#34495e"; btnSave.innerHTML = `<span>省電</span>`; }
+      resetUpdateTimer();
     }
 
-    // 模擬 Firebase 周邊司機 (簡化版)
-    function fetchDrivers() { /* 您的 Firebase 邏輯保留 */ }
-    function updateHUD(n) { document.getElementById('hud').innerHTML = `<span class="status-dot bg-green-400"></span> GPS 正常`; }
-
-    // ================== 記錄表邏輯 (RECORD APP) ==================
-    
-    // ★ 切換顯示 (關鍵) ★
-    function showRecordApp() {
-        document.getElementById('record-app-view').style.display = 'block';
-        initTime(); // 每次打開自動更新時間
-    }
-    function hideRecordApp() {
-        document.getElementById('record-app-view').style.display = 'none';
+    function resetUpdateTimer() {
+      clearInterval(updateTimer); uploadLocation(); 
+      const baseInterval = isPowerSaving ? 120000 : 30000;
+      const jitter = Math.floor(Math.random() * 5000); 
+      updateTimer = setInterval(uploadLocation, baseInterval + jitter);
     }
 
-    function initTime() {
-        const now = new Date(); now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-        document.getElementById('input-time').value = now.toISOString().slice(0,16);
+    function uploadLocation(forceUpdate = false) {
+      if (!isOnline) return;
+      if (!navigator.geolocation) return;
+
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const curLat = pos.coords.latitude; const curLng = pos.coords.longitude;
+          const now = Date.now();
+          const dist = calculateDistance(lastUploadLat, lastUploadLng, curLat, curLng) * 1000; 
+          const timeDiff = now - lastUploadTime;
+          const distLimit = 30; const timeLimit = 10 * 60 * 1000; 
+
+          if (dist > distLimit || timeDiff > timeLimit || forceUpdate) {
+            postData('online', currentWorkStatus, curLat, curLng);
+            lastUploadLat = curLat; lastUploadLng = curLng; lastUploadTime = now;
+          }
+        },
+        (err) => { if(isOnline && err.code === 1) { openModal('gps-alert-modal'); togglePower(); } },
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+      );
     }
 
+    function postData(status, work, lat, lng) {
+      if (!currentUser) return;
+      const payload = { id: currentUser.userId, name: currentUser.displayName, phone: myPhone || "無電話", status: status, workStatus: work, lat: lat, lng: lng, lastUpdate: Date.now() };
+      fetch(`${FIREBASE_URL}drivers/${currentUser.userId}.json`, { method: 'PUT', body: JSON.stringify(payload) }).catch(e => console.warn(e));
+    }
+
+    function openModal(id) { if (id === 'reg-modal') document.getElementById('reg-uid').value = currentUser.userId; document.getElementById(id).style.display = 'flex'; }
+    function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+    async function submitRegistration() {
+      const name = document.getElementById('reg-name').value;
+      const car = document.getElementById('reg-car').value;
+      const phone = document.getElementById('reg-phone').value;
+      if (!name || !car || !phone) { alert("資料要填完整喔！"); return; }
+      const msg = `🚖 【司機註冊申請】\n暱稱：${name}\n車號：${car}\n電話：${phone}\nID：${currentUser.userId}`;
+      try {
+        if (!liff.isInClient()) throw new Error('Not in LINE client');
+        await liff.sendMessages([{ type: 'text', text: msg }]);
+        alert("資料已傳送！"); closeModal('reg-modal');
+      } catch (err) {
+        alert("將跳轉至 LINE 聊天室傳送");
+        window.location.href = `https://line.me/R/oaMessage/@103lybcd/?${encodeURIComponent(msg)}`;
+      }
+    }
+
+    // 🔥 恢復 fetchDrivers
+    function fetchDrivers() {
+      if (!myLat || !myLng) return;
+      fetch(`${FIREBASE_URL}drivers.json`).then(res => res.json()).then(data => {
+          if (!data) { updateHUD(0); renderCarousel([]); updateMap([]); return; }
+          const now = Date.now();
+          let allDrivers = Object.values(data).filter(d => {
+            if (d.status !== 'online') return false;
+            let timeoutLimit = d.workStatus === 'queue' ? 60*60*1000 : 10*60*1000;
+            return (now - d.lastUpdate < timeoutLimit);
+          });
+          let nearby = allDrivers.map(d => { d.distance = calculateDistance(myLat, myLng, d.lat, d.lng); return d; }).filter(d => d.distance <= 20);
+          nearby.sort((a, b) => a.distance - b.distance);
+          updateMap(nearby.slice(0, 10));
+          if (!isDriver) renderCarousel(nearby.slice(0, 5));
+          updateHUD(nearby.length); 
+      }).catch(err => console.error(err));
+    }
+
+    function calculateDistance(lat1, lon1, lat2, lon2) {
+      if (!lat1 || !lon1 || !lat2 || !lon2) return 9999;
+      const R = 6371; const dLat = (lat2 - lat1) * Math.PI / 180; const dLon = (lon2 - lon1) * Math.PI / 180;
+      const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon/2) * Math.sin(dLon/2);
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    }
+
+    function updateMap(drivers) {
+      for (let id in markers) { map.removeLayer(markers[id]); } markers = {};
+      drivers.forEach(d => {
+        let icon = d.workStatus === 'busy' ? iconBusy : (d.workStatus === 'queue' ? iconQueue : iconEmpty);
+        let statusText = d.workStatus === 'busy' ? '載客中' : (d.workStatus === 'queue' ? '排班中' : '目前空車');
+        let colorStyle = d.workStatus === 'busy' ? 'red' : (d.workStatus === 'queue' ? '#3498db' : 'green');
+        let marker = L.marker([d.lat, d.lng], {icon: icon}).addTo(map);
+        let phoneBtn = d.phone ? `<a href="tel:${d.phone}" style="display:block; margin-top:10px; padding:10px; background:#2ecc71; color:white; border-radius:10px; text-decoration:none; font-weight:bold;">📞 聯絡司機</a>` : '';
+        marker.bindPopup(`<div style="text-align:center;"><b>🚕 ${d.name}</b><br><span style="color:${colorStyle}; font-weight:bold;">● ${statusText}</span><br>${phoneBtn}</div>`);
+        markers[d.id] = marker;
+      });
+    }
+
+    function renderCarousel(drivers) {
+      const container = document.getElementById('passenger-carousel');
+      if (drivers.length === 0) { container.innerHTML = '<div style="flex:0 0 100%; text-align:center; padding:20px; background:white; border-radius:20px;">🔴 目前附近無司機服務</div>'; return; }
+      container.innerHTML = drivers.map(d => {
+        let statusText = d.workStatus === 'busy' ? '載客中' : (d.workStatus === 'queue' ? '排班中' : '目前空車');
+        let statusColor = d.workStatus === 'busy' ? 'red' : (d.workStatus === 'queue' ? '#3498db' : 'green');
+        return `<div class="driver-card" onclick="map.setView([${d.lat}, ${d.lng}], 15)"><div class="card-info"><div class="card-name">🚕 ${d.name}</div><div style="font-size:14px; margin:5px 0; color:${statusColor}; font-weight:bold;">● ${statusText}</div><div style="font-size:14px; color:#666;">📍 距離約 ${d.distance.toFixed(1)} km</div></div><a href="tel:${d.phone}" class="card-call-btn">📞</a></div>`;
+      }).join('');
+    }
+
+    function updateHUD(count) {
+      const hud = document.getElementById('hud');
+      if (count > 0) hud.innerHTML = `<span class="status-dot" style="background:#2ecc71;"></span> 附近運將：${count} 人`;
+      else hud.innerHTML = `<span class="status-dot" style="background:#e74c3c;"></span> 附近無司機`;
+    }
+
+    // ================== RECORD APP 邏輯 ==================
+    function initTime() { const now = new Date(); now.setMinutes(now.getMinutes() - now.getTimezoneOffset()); document.getElementById('input-time').value = now.toISOString().slice(0,16); }
     function updateDashboard() {
         const now = new Date(); const currentMonth = now.getMonth() + 1;
         document.getElementById('record-nav-title').innerText = `${currentMonth}月記錄表`;
-        
-        const thisMonthRecords = records.filter(r => {
-            const d = new Date(r.timeObj); return d.getMonth() + 1 === currentMonth && d.getFullYear() === now.getFullYear();
-        });
-        
+        const thisMonthRecords = records.filter(r => { const d = new Date(r.timeObj); return d.getMonth() + 1 === currentMonth && d.getFullYear() === now.getFullYear(); });
         const tripCount = thisMonthRecords.length;
         let totalIncome = 0; let statusMsg = "";
-        
         if (tripCount <= 50) { totalIncome = 0; statusMsg = `差 ${51 - tripCount} 趟`; }
         else if (tripCount > 100) { totalIncome = 5000; statusMsg = "最高獎金"; }
         else { totalIncome = tripCount * 50; statusMsg = "累積中"; }
-
         document.getElementById("total-income").innerText = totalIncome.toLocaleString();
         document.getElementById("total-trips").innerText = tripCount;
         document.getElementById("bonus-status").innerText = statusMsg;
     }
-
     function addRecord() {
-      const timeStr = document.getElementById('input-time').value;
-      const type = document.getElementById('input-type').value;
-      const pickup = document.getElementById('input-pickup').value.trim();
-      const dropoff = document.getElementById('input-dropoff').value.trim();
+      const timeStr = document.getElementById('input-time').value; const type = document.getElementById('input-type').value;
+      const pickup = document.getElementById('input-pickup').value.trim(); const dropoff = document.getElementById('input-dropoff').value.trim();
       const remarks = document.getElementById('input-remarks').value.trim();
-
       if (!timeStr || !pickup || !dropoff) return Swal.fire({icon: 'warning', title: '未填寫完整', timer: 1000, showConfirmButton: false});
-
       const dateObj = new Date(timeStr);
       const fmtTime = `${String(dateObj.getMonth()+1).padStart(2,'0')}/${String(dateObj.getDate()).padStart(2,'0')} ${String(dateObj.getHours()).padStart(2,'0')}:${String(dateObj.getMinutes()).padStart(2,'0')}`;
-      
       const newRecord = { id: Date.now(), timeObj: timeStr, formattedTime: fmtTime, type, pickup, dropoff, remarks, syncStatus: 'pending' };
-
-      records.push(newRecord);
-      records.sort((a, b) => new Date(a.timeObj) - new Date(b.timeObj));
+      records.push(newRecord); records.sort((a, b) => new Date(a.timeObj) - new Date(b.timeObj));
       localStorage.setItem('taxi_records_v6', JSON.stringify(records));
-      
       currentPage = 1; renderList(); updateDashboard();
-      
-      document.getElementById('input-pickup').value = '';
-      document.getElementById('input-dropoff').value = '';
-      document.getElementById('input-remarks').value = '';
-      initTime();
-
+      document.getElementById('input-pickup').value = ''; document.getElementById('input-dropoff').value = ''; document.getElementById('input-remarks').value = ''; initTime();
       syncToCloud(newRecord);
-      
-      // ★ 寫入成功後，問要不要返回地圖
-      Swal.fire({
-          toast: true, position: 'top', icon: 'success', title: '寫入成功', 
-          showConfirmButton: false, timer: 1500 
-      });
+      Swal.fire({ toast: true, position: 'top', icon: 'success', title: '寫入成功', showConfirmButton: false, timer: 1500 });
     }
-
     function deleteRecord(id) {
         Swal.fire({ title: '刪除密碼', input: 'password', showCancelButton: true, confirmButtonColor: '#ef4444' }).then((res) => {
             if (res.isConfirmed && res.value === (driverInfo.delPassword||'0000')) {
-                const target = records.find(r => r.id === id);
-                records = records.filter(r => r.id !== id);
-                localStorage.setItem('taxi_records_v6', JSON.stringify(records));
-                renderList(); updateDashboard();
-                if(target && currentUser) fetch(GAS_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify({action:'delete', id:target.id, userId: currentUser.userId}) });
+                const target = records.find(r => r.id === id); records = records.filter(r => r.id !== id);
+                localStorage.setItem('taxi_records_v6', JSON.stringify(records)); renderList(); updateDashboard();
+                if(target && currentUser) fetch(GAS_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({action:'delete', id:target.id, userId: currentUser.userId}) });
             } else if (res.isConfirmed) Swal.fire('密碼錯誤');
         });
     }
-
     function syncToCloud(record) {
         if (!currentUser) return;
         const payload = { ...record, userId: currentUser.userId, driverName: driverInfo.name, driverPlate: driverInfo.plate, driverId: driverInfo.id };
         document.getElementById('cloud-sync-status').innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-        fetch(GAS_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) })
-        .then(() => { 
-            record.syncStatus = 'synced'; updateRecordStatus(record.id, 'synced'); 
-            document.getElementById('cloud-sync-status').innerHTML = '<i class="fas fa-check text-green-300"></i>';
-        })
+        fetch(GAS_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+        .then(() => { record.syncStatus = 'synced'; updateRecordStatus(record.id, 'synced'); document.getElementById('cloud-sync-status').innerHTML = '<i class="fas fa-check text-green-300"></i>'; })
         .catch(() => { document.getElementById('cloud-sync-status').innerHTML = '<i class="fas fa-exclamation-triangle text-red-300"></i>'; });
     }
-
     function fetchCloudRecords() {
         if(!currentUser) return;
+        // 這裡我們需要一個特殊的 GET 參數來區分是「抓記錄」還是「檢查身分」
+        // 但因為我們共用同一個 GAS URL，只要參數不同，後端(V9.0)只會認 userId
+        // 所以直接呼叫即可
         fetch(`${GAS_URL}?userId=${currentUser.userId}`)
         .then(res => res.json())
         .then(data => {
-            if(data && Array.isArray(data)) {
+            if(data && Array.isArray(data)) { // 確保回傳的是陣列(記錄)，而不是物件(身分)
                 const exist = new Set(records.map(r=>r.id));
                 const newRecs = data.filter(r => !exist.has(r.id)).map(r => ({...r, syncStatus:'synced'}));
                 if(newRecs.length > 0) {
-                    records = [...records, ...newRecs];
-                    records.sort((a,b) => new Date(a.timeObj)-new Date(b.timeObj));
-                    localStorage.setItem('taxi_records_v6', JSON.stringify(records));
-                    renderList(); updateDashboard();
+                    records = [...records, ...newRecs]; records.sort((a,b) => new Date(a.timeObj)-new Date(b.timeObj));
+                    localStorage.setItem('taxi_records_v6', JSON.stringify(records)); renderList(); updateDashboard();
                 }
             }
         });
     }
-
     function renderList() {
-      const el = document.getElementById('record-list');
-      const ctrls = document.getElementById('pagination-controls');
+      const el = document.getElementById('record-list'); const ctrls = document.getElementById('pagination-controls');
       const list = [...records].sort((a, b) => new Date(b.timeObj) - new Date(a.timeObj));
       if(list.length === 0) { el.innerHTML = '<div class="text-center text-gray-400 py-10">尚無記錄</div>'; ctrls.innerHTML=''; return; }
-      
-      const totalPages = Math.ceil(list.length / itemsPerPage);
-      if(currentPage > totalPages) currentPage = totalPages;
+      const totalPages = Math.ceil(list.length / itemsPerPage); if(currentPage > totalPages) currentPage = totalPages;
       const display = list.slice((currentPage-1)*itemsPerPage, currentPage*itemsPerPage);
-      
       el.innerHTML = display.map((r, i) => `
         <div class="flex justify-between items-center p-3 border-b border-gray-100">
-           <div>
-              <div class="text-xs text-gray-500 mb-1">
-                 <span class="bg-gray-100 px-1 rounded mr-1">#${list.length - ((currentPage-1)*itemsPerPage + i)}</span>
-                 ${formatDisplayTime(r.timeObj || r.formattedTime)}
-                 <span class="${r.type==='敬老卡'?'text-yellow-600 bg-yellow-100':'text-rose-600 bg-rose-100'} px-2 rounded text-xs ml-1">${r.type}</span>
-              </div>
-              <div class="font-bold text-gray-800">${r.pickup} <i class="fas fa-arrow-right text-xs text-gray-400"></i> ${r.dropoff}</div>
-           </div>
+           <div><div class="text-xs text-gray-500 mb-1"><span class="bg-gray-100 px-1 rounded mr-1">#${list.length - ((currentPage-1)*itemsPerPage + i)}</span>${formatDisplayTime(r.timeObj || r.formattedTime)}<span class="${r.type==='敬老卡'?'text-yellow-600 bg-yellow-100':'text-rose-600 bg-rose-100'} px-2 rounded text-xs ml-1">${r.type}</span></div><div class="font-bold text-gray-800">${r.pickup} <i class="fas fa-arrow-right text-xs text-gray-400"></i> ${r.dropoff}</div></div>
            <button onclick="deleteRecord(${r.id})" class="text-gray-300 p-2"><i class="fas fa-trash-alt"></i></button>
         </div>`).join('');
-        
-      if(totalPages > 1) {
-          ctrls.innerHTML = `<button onclick="changePage(-1)" ${currentPage===1?'disabled class="opacity-30"':''}>上一頁</button><span>${currentPage}/${totalPages}</span><button onclick="changePage(1)" ${currentPage===totalPages?'disabled class="opacity-30"':''}>下一頁</button>`;
-      } else ctrls.innerHTML = '';
+      if(totalPages > 1) { ctrls.innerHTML = `<button onclick="changePage(-1)" ${currentPage===1?'disabled class="opacity-30"':''}>上一頁</button><span>${currentPage}/${totalPages}</span><button onclick="changePage(1)" ${currentPage===totalPages?'disabled class="opacity-30"':''}>下一頁</button>`; } else ctrls.innerHTML = '';
     }
-
-    // 輔助函式
     function changePage(d) { currentPage+=d; renderList(); }
     function setInput(id, val) { document.getElementById(id).value = val; }
     function setCardType(t) { document.getElementById('input-type').value=t; document.getElementById('btn-elder').className = t==='敬老卡'?'p-3 rounded-lg border-2 border-yellow-500 bg-yellow-50 text-yellow-700 font-bold':'p-3 rounded-lg border-2 bg-gray-100 text-gray-400'; document.getElementById('btn-care').className = t==='愛心卡'?'p-3 rounded-lg border-2 border-rose-500 bg-rose-50 text-rose-700 font-bold':'p-3 rounded-lg border-2 bg-gray-100 text-gray-400'; }
@@ -494,12 +566,6 @@
     function updateRecordStatus(id, s) { const idx=records.findIndex(r=>r.id===id); if(idx!==-1) { records[idx].syncStatus=s; localStorage.setItem('taxi_records_v6', JSON.stringify(records)); renderList(); } }
     function editDriverInfo() { Swal.fire({title:'設定', html:`<input id="d-name" class="swal2-input" value="${driverInfo.name}" placeholder="姓名">`, confirmButtonText:'存'}).then(r=>{if(r.isConfirmed){driverInfo.name=document.getElementById('d-name').value; localStorage.setItem('driver_info',JSON.stringify(driverInfo));}}); }
     function clearAll() { Swal.fire({title:'清空?', showCancelButton:true, confirmButtonText:'清'}).then(r=>{if(r.isConfirmed){records=[]; localStorage.setItem('taxi_records_v6','[]'); renderList(); updateDashboard();}}); }
-    function openModal(id) { document.getElementById(id).style.display='flex'; }
-    function closeModal(id) { document.getElementById(id).style.display='none'; }
-    function openShareModal() { document.getElementById('qrcode-img').src=`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=https://line.me/R/ti/p/@631ugnif`; openModal('share-modal'); }
-    async function requestWakeLock() { if('wakeLock' in navigator) try{wakeLock=await navigator.wakeLock.request('screen');}catch(e){} }
-    function releaseWakeLock() { if(wakeLock) wakeLock.release(); wakeLock=null; }
-
   </script>
 </body>
 </html>
