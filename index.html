@@ -37,15 +37,18 @@
     
     #btn-power { width: 85px; height: 85px; font-size: 20px; }
     #btn-status { width: 70px; height: 70px; font-size: 16px; display: none; }
+    #btn-record { width: 70px; height: 70px; font-size: 15px; display: none; } /* 新增記錄按鈕 */
     #btn-save-power { width: 70px; height: 70px; font-size: 14px; background: #34495e; display: none; }
     #btn-register { width: 75px; height: 75px; font-size: 15px; background: linear-gradient(135deg, #f39c12, #e67e22); display: none; }
     #btn-share { width: 60px; height: 60px; font-size: 13px; background: linear-gradient(135deg, #3498db, #2980b9); }
 
     /* 按鈕顏色樣式 */
-    .bg-green { background: linear-gradient(135deg, #2ecc71, #27ae60); }
-    .bg-red   { background: linear-gradient(135deg, #e74c3c, #c0392b); }
-    .bg-blue  { background: linear-gradient(135deg, #3498db, #2980b9); } 
-    .bg-gray  { background: linear-gradient(135deg, #bdc3c7, #95a5a6); }
+    .bg-green  { background: linear-gradient(135deg, #2ecc71, #27ae60); }
+    .bg-red    { background: linear-gradient(135deg, #e74c3c, #c0392b); }
+    .bg-blue   { background: linear-gradient(135deg, #3498db, #2980b9); } 
+    .bg-gray   { background: linear-gradient(135deg, #bdc3c7, #95a5a6); }
+    /* 新增紫色樣式 (給記錄用) */
+    .bg-purple { background: linear-gradient(135deg, #9b59b6, #8e44ad); }
     
     .sub-text { font-size: 12px; opacity: 0.9; margin-top: 4px; }
     .leaflet-bottom { bottom: 140px !important; }
@@ -70,26 +73,22 @@
       padding: 25px; box-sizing: border-box; text-align: center;
     }
 
-    /* 🔥 新增：定位權限教學彈窗樣式 */
     #gps-instruction { text-align: left; background: #fff8e1; padding: 15px; border-radius: 10px; margin: 15px 0; border: 2px solid #ffecb3; }
     #gps-instruction ol { padding-left: 20px; margin: 5px 0; color: #555; font-size: 15px; line-height: 1.6; }
     #gps-instruction b { color: #e67e22; }
 
-    /* QR Code 顯示區 */
     #qrcode-container {
       background: #f9f9f9; padding: 15px; border-radius: 15px; margin: 15px 0;
       display: flex; justify-content: center; align-items: center;
     }
     #qrcode-container img { width: 200px; height: 200px; }
 
-    /* 註冊表單 */
     .form-group { margin-bottom: 15px; text-align: left; }
     .form-group label { display: block; font-size: 13px; color: #666; margin-bottom: 5px; }
     .form-group input { width: 100%; padding: 12px; border: 2px solid #eee; border-radius: 10px; box-sizing: border-box; font-size: 16px; }
 
     .modal-btns button { width: 100%; padding: 15px; border-radius: 12px; border: none; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px; }
 
-    /* 底部卡片 */
     #passenger-carousel { position: absolute; bottom: 20px; left: 0; width: 100%; z-index: 1000; display: none; overflow-x: auto; gap: 12px; padding: 0 15px 15px 15px; box-sizing: border-box; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; }
     .driver-card { flex: 0 0 88%; max-width: 340px; background: white; border-radius: 20px; padding: 18px; box-shadow: 0 8px 25px rgba(0,0,0,0.2); scroll-snap-align: center; display: flex; align-items: center; justify-content: space-between; }
     .driver-card .card-call-btn { text-decoration: none; font-size: 24px; width: 50px; height: 50px; background: #2ecc71; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(46, 204, 113, 0.4); }
@@ -179,6 +178,10 @@
     <button id="btn-status" class="circle-btn bg-green" onclick="toggleStatus()">
       <span>空車</span>
     </button>
+
+    <button id="btn-record" class="circle-btn bg-purple" onclick="openRecordApp()">
+      <span>填寫<br>記錄</span>
+    </button>
     
     <button id="btn-save-power" class="circle-btn" onclick="togglePowerSaving()">
       <span>省電</span>
@@ -198,11 +201,11 @@
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
-    // ========= 設定區 =========
     const GAS_URL = "https://script.google.com/macros/s/AKfycbyfNTgci2gZE2Etxvv6SHaP3puw7Mxt8ineL4gZve7Zyh2UGrcna4Zxap6EOyRICQ/exec"; 
     const LIFF_ID = "2008907691-7ntMtfbA"; 
     const FIREBASE_URL = "https://hualientaxi-bb32f-default-rtdb.asia-southeast1.firebasedatabase.app/"; 
-    // =====================================
+    // 記錄表連結
+    const RECORD_APP_URL = "https://liff.line.me/2008907691-Ojnb8ANZ";
 
     var map, markers = {};
     var currentUser = null;
@@ -221,11 +224,8 @@
     var lastUploadTime = 0;
     
     var hasCenteredMap = false; 
-    
-    // 🔥 防止重複彈出警告
     var isGpsAlertShown = false;
 
-    // 定義圖示
     const iconEmpty = L.divIcon({ html: '<div style="font-size:36px;">🚕</div>', className: '', iconSize: [36, 36], iconAnchor: [18, 18] });
     const iconBusy = L.divIcon({ html: '<div style="font-size:36px; filter: grayscale(100%) opacity(0.6);">🚕</div>', className: '', iconSize: [36, 36], iconAnchor: [18, 18] });
     const iconQueue = L.divIcon({ html: '<div style="font-size:36px; filter: hue-rotate(200deg);">🚕</div>', className: '', iconSize: [36, 36], iconAnchor: [18, 18] });
@@ -257,6 +257,20 @@
       openModal('share-modal');
     }
 
+    // 🔥 新增：開啟記錄表功能
+    function openRecordApp() {
+        if (liff.isInClient()) {
+            // 在 LINE 內部開啟新的 LIFF
+            liff.openWindow({
+                url: RECORD_APP_URL,
+                external: false // false = 在 LINE 內開, true = 跳轉瀏覽器
+            });
+        } else {
+            // 瀏覽器直接跳轉
+            window.location.href = RECORD_APP_URL;
+        }
+    }
+
     function initMap() {
       map = L.map('map', { zoomControl: false }).setView([23.99000, 121.60684], 13);
       L.control.zoom({ position: 'bottomright' }).addTo(map);
@@ -272,7 +286,6 @@
         if (!liff.isLoggedIn()) { liff.login(); return; }
         currentUser = await liff.getProfile();
         
-        // 啟動定位追蹤 (包含錯誤處理)
         startTrackingLocation();
         
         checkRole(currentUser.userId);
@@ -281,22 +294,18 @@
       } catch (err) { console.log("LIFF Error:", err); }
     }
 
-    // 🔥 核心修改：定位與錯誤攔截
     function startTrackingLocation() {
       if (navigator.geolocation) {
         navigator.geolocation.watchPosition(
           (pos) => {
-            // 成功抓到位置
             myLat = pos.coords.latitude; 
             myLng = pos.coords.longitude;
             
-            // 如果之前彈過警告視窗，成功後自動關閉
             if (isGpsAlertShown) {
                closeModal('gps-alert-modal');
                isGpsAlertShown = false;
             }
 
-            // 第一次自動飛到使用者位置
             if (!hasCenteredMap) {
                map.setView([myLat, myLng], 15);
                hasCenteredMap = true; 
@@ -304,12 +313,10 @@
             }
           }, 
           (err) => {
-            // 失敗：攔截錯誤代碼
             console.error("GPS Error:", err);
-            // 代碼 1: 使用者拒絕 / 代碼 2: 抓不到位置 (沒開 GPS) / 代碼 3: 逾時
             if ((err.code === 1 || err.code === 2) && !isGpsAlertShown) {
                openModal('gps-alert-modal');
-               isGpsAlertShown = true; // 標記已顯示，避免一直閃爍
+               isGpsAlertShown = true; 
             }
           }, 
           { enableHighAccuracy: true, maximumAge: 0 }
@@ -319,13 +326,10 @@
       }
     }
     
-    // 按下「我開好了」的按鈕功能
     function retryGPS() {
        closeModal('gps-alert-modal');
        isGpsAlertShown = false;
-       // 重新觸發一次定位
        startTrackingLocation();
-       // 或是簡單的 location.reload(); 也可以
        window.location.reload();
     }
 
@@ -336,11 +340,17 @@
           isDriver = (data.role === 'driver');
           if (isDriver) {
             if(data.phone) myPhone = data.phone; 
+            // 司機模式顯示按鈕
             document.getElementById('btn-power').style.display = 'flex';
+            document.getElementById('btn-record').style.display = 'flex'; // 顯示記錄按鈕
+            
             document.getElementById('btn-register').style.display = 'none';
             document.getElementById('passenger-carousel').style.display = 'none';
           } else {
+            // 乘客模式
             document.getElementById('btn-power').style.display = 'none';
+            document.getElementById('btn-record').style.display = 'none'; // 隱藏記錄按鈕
+            
             document.getElementById('btn-register').style.display = 'flex';
             document.getElementById('passenger-carousel').style.display = 'flex';
           }
@@ -468,12 +478,10 @@
           }
         },
         (err) => {
-          // 這裡的錯誤處理主要針對司機背景上傳
           console.error("GPS Error:", err);
           if(isOnline && err.code === 1) {
-              // 司機上線中斷線，會跳出警示
               openModal('gps-alert-modal');
-              togglePower(); // 強制下線
+              togglePower(); 
           }
         },
         { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
@@ -529,9 +537,7 @@
       }
     }
 
-    // 🔥 V2.3 核心修改：20km限制 + 排序 + 數量切割
     function fetchDrivers() {
-      // 沒抓到使用者位置前，先不計算
       if (!myLat || !myLng) return;
 
       fetch(`${FIREBASE_URL}drivers.json`)
@@ -556,7 +562,6 @@
             return (now - d.lastUpdate < timeoutLimit);
           });
 
-          // 計算距離並過濾 20km 內
           let nearbyDrivers = allDrivers.map(d => {
               d.distance = calculateDistance(myLat, myLng, d.lat, d.lng);
               return d;
@@ -564,10 +569,8 @@
               return d.distance <= 20; 
           });
 
-          // 排序 (近 -> 遠)
           nearbyDrivers.sort((a, b) => a.distance - b.distance);
 
-          // 切割數量
           const mapDrivers = nearbyDrivers.slice(0, 10);
           const listDrivers = nearbyDrivers.slice(0, 5);
 
