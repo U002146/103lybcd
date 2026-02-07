@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>花蓮愛心計程車 (V6.2 完美排版)</title>
+  <title>花蓮愛心計程車 (V6.3 // 密碼防護版)</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -83,7 +83,7 @@
     <div class="bg-blue-700 text-white p-4 sticky top-0 z-50 shadow-md flex justify-between items-center">
       <div class="flex items-center" onclick="openSettings()">
         <i class="fas fa-cloud-upload-alt mr-2 text-blue-200"></i>
-        <h1 class="text-xl font-bold tracking-wider">雲端補單 V6.2</h1>
+        <h1 class="text-xl font-bold tracking-wider">雲端補單 V6.3</h1>
         <div id="cloud-status" class="ml-2 status-dot bg-gray-400" title="點擊設定連線"></div>
       </div>
       <button onclick="showPrintPreview()" class="bg-white text-blue-800 font-bold py-2 px-3 rounded shadow text-sm">
@@ -95,7 +95,7 @@
       <div class="bg-white rounded-xl shadow-lg p-5 mb-6 border border-gray-100">
         <div class="flex justify-between items-center mb-4 border-b pb-2">
             <h2 class="text-lg font-bold text-gray-700">新增行程</h2>
-            <button onclick="editDriverInfo()" class="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">司機設定</button>
+            <button onclick="editDriverInfo()" class="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">司機/密碼設定</button>
         </div>
         
         <div class="mb-4">
@@ -142,13 +142,13 @@
         </div>
 
         <button onclick="addRecord()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl text-xl shadow-lg active:scale-95 transition flex justify-center items-center">
-           <i class="fas fa-paper-plane mr-2"></i> 寫入資料
+            <i class="fas fa-paper-plane mr-2"></i> 寫入資料
         </button>
       </div>
 
       <div class="flex justify-between items-end mb-2 px-1">
         <h3 class="font-bold text-gray-500">本日記錄 (<span id="record-count">0</span>)</h3>
-        <button onclick="clearAll()" class="text-xs text-red-400 underline">清空</button>
+        <button onclick="clearAll()" class="text-xs text-red-400 underline">清空記錄</button>
       </div>
       <div id="record-list" class="space-y-3 pb-20"></div>
     </div>
@@ -179,7 +179,11 @@
 
   <script>
     let records = JSON.parse(localStorage.getItem('taxi_records_v6')) || [];
-    let driverInfo = JSON.parse(localStorage.getItem('driver_info')) || { name: '', plate: '', id: '' };
+    // 新增 password 欄位，預設 '0000'
+    let driverInfo = JSON.parse(localStorage.getItem('driver_info')) || { name: '', plate: '', id: '', password: '0000' };
+    // 舊版資料相容處理
+    if (!driverInfo.password) driverInfo.password = '0000';
+    
     let apiUrl = localStorage.getItem('gas_api_url') || '';
 
     window.onload = function() {
@@ -273,14 +277,35 @@
         now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
         document.getElementById('input-time').value = now.toISOString().slice(0,16);
     }
+
     function editDriverInfo() {
+      // 在此處增加密碼欄位
       Swal.fire({
-        title: '司機資料',
-        html: `<input id="d-name" class="swal2-input" value="${driverInfo.name}" placeholder="姓名"><input id="d-plate" class="swal2-input" value="${driverInfo.plate}" placeholder="車牌"><input id="d-id" class="swal2-input" value="${driverInfo.id}" placeholder="編號">`,
+        title: '司機/密碼設定',
+        html: `
+            <input id="d-name" class="swal2-input" value="${driverInfo.name}" placeholder="姓名">
+            <input id="d-plate" class="swal2-input" value="${driverInfo.plate}" placeholder="車牌">
+            <input id="d-id" class="swal2-input" value="${driverInfo.id}" placeholder="編號">
+            <div style="margin-top:15px; text-align:left; font-size:14px; color:#666; padding-left:20px;">刪除保護密碼 (預設0000):</div>
+            <input id="d-pwd" type="password" class="swal2-input" value="${driverInfo.password}" placeholder="密碼" style="margin-top:5px;">
+        `,
         confirmButtonText: '儲存',
-        preConfirm: () => ({ name: document.getElementById('d-name').value, plate: document.getElementById('d-plate').value, id: document.getElementById('d-id').value })
-      }).then((r) => { if(r.isConfirmed) { driverInfo = r.value; localStorage.setItem('driver_info', JSON.stringify(driverInfo)); }});
+        preConfirm: () => ({ 
+            name: document.getElementById('d-name').value, 
+            plate: document.getElementById('d-plate').value, 
+            id: document.getElementById('d-id').value,
+            password: document.getElementById('d-pwd').value 
+        })
+      }).then((r) => { 
+          if(r.isConfirmed) { 
+              driverInfo = r.value; 
+              if(!driverInfo.password) driverInfo.password = '0000'; // 防止空白
+              localStorage.setItem('driver_info', JSON.stringify(driverInfo)); 
+              renderPrintTitle(); // 若有改名需重整
+          }
+      });
     }
+
     function setCardType(type) {
       document.getElementById('input-type').value = type;
       const el = (id) => document.getElementById(id);
@@ -293,20 +318,57 @@
       }
     }
     function setInput(id, val) { document.getElementById(id).value = val; }
+
+    // --- 核心修改：密碼驗證刪除 ---
     function deleteRecord(id) {
-        if(confirm('刪除此筆？')) {
-            records = records.filter(r => r.id !== id);
-            localStorage.setItem('taxi_records_v6', JSON.stringify(records));
-            renderList();
-        }
+        Swal.fire({
+            title: '刪除確認',
+            text: '請輸入管理密碼以刪除此筆記錄',
+            input: 'password',
+            inputAttributes: {
+                autocapitalize: 'off',
+                placeholder: '預設 0000'
+            },
+            showCancelButton: true,
+            confirmButtonText: '確認刪除',
+            confirmButtonColor: '#d33',
+            cancelButtonText: '取消',
+        }).then((result) => {
+            if (result.isConfirmed) {
+                if (result.value === driverInfo.password) {
+                    records = records.filter(r => r.id !== id);
+                    localStorage.setItem('taxi_records_v6', JSON.stringify(records));
+                    renderList();
+                    Swal.fire('已刪除', '', 'success');
+                } else {
+                    Swal.fire('密碼錯誤', '無法刪除', 'error');
+                }
+            }
+        });
     }
+
     function clearAll() {
-        if(confirm('清空手機記錄？')) {
-            records = [];
-            localStorage.setItem('taxi_records_v6', JSON.stringify(records));
-            renderList();
-        }
+        Swal.fire({
+            title: '清空確認',
+            text: '這將刪除手機內所有記錄！請輸入密碼確認：',
+            input: 'password',
+            showCancelButton: true,
+            confirmButtonText: '全部清空',
+            confirmButtonColor: '#d33'
+        }).then((result) => {
+             if (result.isConfirmed) {
+                if (result.value === driverInfo.password) {
+                    records = [];
+                    localStorage.setItem('taxi_records_v6', JSON.stringify(records));
+                    renderList();
+                    Swal.fire('已清空', '', 'success');
+                } else {
+                    Swal.fire('密碼錯誤', '操作取消', 'error');
+                }
+             }
+        });
     }
+
     function renderList() {
       const el = document.getElementById('record-list');
       document.getElementById('record-count').innerText = records.length;
@@ -341,7 +403,7 @@
     }
     function closePreview() { document.getElementById('preview-modal').classList.add('hidden'); }
     
-    // --- 核心：V6.2 排版引擎 ---
+    // --- 核心：V6.3 排版引擎 (更新標題) ---
     function generatePrintHTML() {
         const month = document.getElementById('report-month-select').value;
         const printArea = document.getElementById('print-area');
@@ -365,7 +427,7 @@
                 </tr>
             `).join('');
 
-            // 自動補滿空行 (設計師堅持的細節)
+            // 自動補滿空行
             const remaining = recordsPerPage - chunk.length;
             if(remaining > 0) {
                 for(let j=0; j<remaining; j++) {
@@ -382,7 +444,7 @@
             finalHTML += `
                 <div class="print-page report-font">
                     <div class="report-header">
-                        115年度花蓮縣敬老愛心計程車補助計劃 <span style="text-decoration: underline; padding: 0 5px;"> ${month} </span> 月份載送記錄表
+                        敬老愛心補助計畫 載送記錄表 <span style="text-decoration: underline; padding: 0 5px;"> ${month} </span> 月份
                     </div>
                     <div class="report-info">
                         <div>駕駛姓名：<span class="px-2">${driverInfo.name}</span></div>
