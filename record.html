@@ -2,13 +2,23 @@
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>花蓮愛心計程車 (V6.2 完美排版)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>花蓮愛心計程車</title>
+  
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="花蓮車隊">
+  <meta name="theme-color" content="#1d4ed8"> <meta name="mobile-web-app-capable" content="yes">
+
+  <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3097/3097144.png">
+  <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/3097/3097144.png">
+
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
   <style>
-    body { font-family: "Microsoft JhengHei", sans-serif; background-color: #f3f4f6; -webkit-tap-highlight-color: transparent; }
+    body { font-family: "Microsoft JhengHei", sans-serif; background-color: #f3f4f6; -webkit-tap-highlight-color: transparent; overscroll-behavior-y: none; }
     input, select { font-size: 16px !important; }
     .chip:active { transform: scale(0.95); background-color: #e5e7eb; }
     
@@ -21,77 +31,61 @@
     .status-ok { background-color: #4ade80; box-shadow: 0 0 5px #4ade80; }
     .status-err { background-color: #ef4444; }
 
+    /* PWA 安裝提示按鈕 */
+    .pwa-btn { animation: pulse 2s infinite; }
+    @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+
     /* --- 列印核心設計 (Design Master 調校) --- */
     .screen-only { display: block; }
     .print-only { display: none; }
     
     @media print {
-      @page { 
-        size: A4 portrait; 
-        margin: 0; /* 清除瀏覽器預設邊距 */
-      }
+      @page { size: A4 portrait; margin: 0; }
       html, body { margin: 0; padding: 0; background: white; }
       .screen-only { display: none !important; }
       .print-only { display: block !important; }
       
-      /* 每一頁的容器 */
       .print-page { 
-        width: 210mm; 
-        height: 297mm; 
-        padding: 1.2cm 1.5cm; /* 上下邊距微調，左右保持 */
-        margin: 0 auto; 
-        box-sizing: border-box; 
-        page-break-after: always; 
-        position: relative; 
+        width: 210mm; height: 297mm; padding: 1.2cm 1.5cm; margin: 0 auto; 
+        box-sizing: border-box; page-break-after: always; position: relative; 
       }
       .print-page:last-child { page-break-after: avoid; }
       
-      /* 表格設計 */
-      .report-table { 
-        width: 100%; 
-        border-collapse: collapse; 
-        font-size: 11pt; /* 字體大小 */
-        margin-top: 5px; 
-        font-family: "標楷體", "DFKai-SB", serif; 
-        table-layout: fixed; /* 固定欄寬，避免跳動 */
-      }
+      .report-table { width: 100%; border-collapse: collapse; font-size: 11pt; margin-top: 5px; font-family: "標楷體", "DFKai-SB", serif; table-layout: fixed; }
+      .report-table th, .report-table td { border: 1px solid black; padding: 2px 4px; text-align: center; height: 29px; overflow: hidden; white-space: nowrap; }
+      .report-table th { background-color: #f0f0f0 !important; height: 35px; }
       
-      /* 格線與高度控制 */
-      .report-table th, .report-table td { 
-        border: 1px solid black; 
-        padding: 2px 4px; 
-        text-align: center; 
-        height: 29px; /* 強制高度，確保25筆剛好塞滿 */
-        overflow: hidden;
-        white-space: nowrap;
-      }
-      .report-table th { 
-        background-color: #f0f0f0 !important; 
-        height: 35px; /* 標題列稍微高一點 */
-      }
-      
-      /* 頁首頁尾 */
       .report-header { text-align: center; font-size: 18pt; font-weight: bold; margin-bottom: 15px; font-family: "標楷體"; letter-spacing: 1px; }
       .report-info { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 12pt; font-family: "標楷體"; }
       .page-number { position: absolute; bottom: 0.8cm; right: 1.5cm; font-size: 10pt; color: #444; font-family: "Times New Roman", serif; }
     }
   </style>
 </head>
-<body class="pb-24">
-
-  <div id="app-view" class="screen-only max-w-md mx-auto">
-    <div class="bg-blue-700 text-white p-4 sticky top-0 z-50 shadow-md flex justify-between items-center">
-      <div class="flex items-center" onclick="openSettings()">
-        <i class="fas fa-cloud-upload-alt mr-2 text-blue-200"></i>
-        <h1 class="text-xl font-bold tracking-wider">雲端補單 V6.2</h1>
-        <div id="cloud-status" class="ml-2 status-dot bg-gray-400" title="點擊設定連線"></div>
+<body class="pb-24 select-none"> <div id="app-view" class="screen-only max-w-md mx-auto min-h-screen flex flex-col">
+    <div class="bg-blue-700 text-white pt-safe-top pb-3 px-4 sticky top-0 z-50 shadow-md">
+      <div class="flex justify-between items-center mt-2">
+        <div class="flex items-center" onclick="openSettings()">
+          <i class="fas fa-taxi mr-2 text-yellow-300 text-xl"></i>
+          <div>
+            <h1 class="text-lg font-bold tracking-wider leading-tight">雲端補單 V6.3</h1>
+            <div class="text-[10px] text-blue-200 flex items-center">
+              <span id="pwa-mode-text">網頁版</span>
+              <div id="cloud-status" class="ml-2 status-dot bg-gray-400"></div>
+            </div>
+          </div>
+        </div>
+        <div class="flex space-x-2">
+           <button onclick="showInstallGuide()" id="btn-install" class="hidden bg-yellow-400 text-blue-900 font-bold py-1 px-3 rounded-full text-xs shadow-lg pwa-btn">
+             <i class="fas fa-download mr-1"></i>下載APP
+           </button>
+           <button onclick="showPrintPreview()" class="bg-blue-600 border border-blue-400 text-white font-bold py-1 px-3 rounded shadow text-xs">
+             <i class="fas fa-print mr-1"></i>預覽
+           </button>
+        </div>
       </div>
-      <button onclick="showPrintPreview()" class="bg-white text-blue-800 font-bold py-2 px-3 rounded shadow text-sm">
-         <i class="fas fa-print mr-1"></i> 預覽
-       </button>
     </div>
 
-    <div class="p-4">
+    <div class="p-4 flex-1">
       <div class="bg-white rounded-xl shadow-lg p-5 mb-6 border border-gray-100">
         <div class="flex justify-between items-center mb-4 border-b pb-2">
             <h2 class="text-lg font-bold text-gray-700">新增行程</h2>
@@ -100,55 +94,53 @@
         
         <div class="mb-4">
           <label class="block text-sm font-bold text-gray-500 mb-1">日期時間</label>
-          <input type="datetime-local" id="input-time" class="w-full p-3 border border-gray-300 rounded-lg bg-gray-50 text-lg font-mono">
+          <input type="datetime-local" id="input-time" class="w-full p-3 border border-gray-300 rounded-lg bg-gray-50 text-lg font-mono outline-none focus:ring-2 focus:ring-blue-500">
         </div>
 
         <div class="mb-4 grid grid-cols-2 gap-3">
-          <button onclick="setCardType('敬老卡')" id="btn-elder" class="p-3 rounded-lg border-2 bg-gray-100 text-gray-600 font-bold transition">敬老卡</button>
-          <button onclick="setCardType('愛心卡')" id="btn-care" class="p-3 rounded-lg border-2 bg-gray-100 text-gray-600 font-bold transition">愛心卡</button>
+          <button onclick="setCardType('敬老卡')" id="btn-elder" class="p-3 rounded-lg border-2 bg-gray-100 text-gray-600 font-bold transition duration-200">敬老卡</button>
+          <button onclick="setCardType('愛心卡')" id="btn-care" class="p-3 rounded-lg border-2 bg-gray-100 text-gray-600 font-bold transition duration-200">愛心卡</button>
           <input type="hidden" id="input-type">
         </div>
 
         <div class="mb-4 space-y-3">
           <div>
-            <label class="text-sm font-bold text-gray-500">上車 (可左右滑動)</label>
-            <div class="flex gap-2 overflow-x-auto pb-2 mb-1 no-scrollbar">
+            <label class="text-sm font-bold text-gray-500">上車地點</label>
+            <div class="flex gap-2 overflow-x-auto pb-2 mb-1 no-scrollbar touch-pan-x">
                 <span onclick="setInput('input-pickup', '前站')" class="chip px-3 py-2 bg-blue-50 text-blue-700 rounded-lg text-sm font-bold border border-blue-100 whitespace-nowrap shadow-sm">前站</span>
                 <span onclick="setInput('input-pickup', '後站')" class="chip px-3 py-2 bg-blue-50 text-blue-700 rounded-lg text-sm font-bold border border-blue-100 whitespace-nowrap shadow-sm">後站</span>
                 <span onclick="setInput('input-pickup', '慈濟')" class="chip px-3 py-2 bg-blue-50 text-blue-700 rounded-lg text-sm font-bold border border-blue-100 whitespace-nowrap shadow-sm">慈濟</span>
                 <span onclick="setInput('input-pickup', '門諾')" class="chip px-3 py-2 bg-blue-50 text-blue-700 rounded-lg text-sm font-bold border border-blue-100 whitespace-nowrap shadow-sm">門諾</span>
-                <span onclick="setInput('input-pickup', '花蓮醫院')" class="chip px-3 py-2 bg-blue-50 text-blue-700 rounded-lg text-sm font-bold border border-blue-100 whitespace-nowrap shadow-sm">花蓮醫院</span>
-                <span onclick="setInput('input-pickup', '國軍醫院')" class="chip px-3 py-2 bg-blue-50 text-blue-700 rounded-lg text-sm font-bold border border-blue-100 whitespace-nowrap shadow-sm">國軍醫院</span>
+                <span onclick="setInput('input-pickup', '國軍')" class="chip px-3 py-2 bg-blue-50 text-blue-700 rounded-lg text-sm font-bold border border-blue-100 whitespace-nowrap shadow-sm">國軍</span>
             </div>
-            <input type="text" id="input-pickup" placeholder="上車地點" class="w-full p-3 border border-gray-300 rounded-lg text-lg">
+            <input type="text" id="input-pickup" placeholder="輸入或點選上方地點" class="w-full p-3 border border-gray-300 rounded-lg text-lg outline-none focus:ring-2 focus:ring-blue-500">
           </div>
           <div>
-            <label class="text-sm font-bold text-gray-500">下車 (可左右滑動)</label>
-            <div class="flex gap-2 overflow-x-auto pb-2 mb-1 no-scrollbar">
+            <label class="text-sm font-bold text-gray-500">下車地點</label>
+            <div class="flex gap-2 overflow-x-auto pb-2 mb-1 no-scrollbar touch-pan-x">
                 <span onclick="setInput('input-dropoff', '前站')" class="chip px-3 py-2 bg-green-50 text-green-700 rounded-lg text-sm font-bold border border-green-100 whitespace-nowrap shadow-sm">前站</span>
                 <span onclick="setInput('input-dropoff', '後站')" class="chip px-3 py-2 bg-green-50 text-green-700 rounded-lg text-sm font-bold border border-green-100 whitespace-nowrap shadow-sm">後站</span>
                 <span onclick="setInput('input-dropoff', '慈濟')" class="chip px-3 py-2 bg-green-50 text-green-700 rounded-lg text-sm font-bold border border-green-100 whitespace-nowrap shadow-sm">慈濟</span>
                 <span onclick="setInput('input-dropoff', '門諾')" class="chip px-3 py-2 bg-green-50 text-green-700 rounded-lg text-sm font-bold border border-green-100 whitespace-nowrap shadow-sm">門諾</span>
-                <span onclick="setInput('input-dropoff', '花蓮醫院')" class="chip px-3 py-2 bg-green-50 text-green-700 rounded-lg text-sm font-bold border border-green-100 whitespace-nowrap shadow-sm">花蓮醫院</span>
-                <span onclick="setInput('input-dropoff', '國軍醫院')" class="chip px-3 py-2 bg-green-50 text-green-700 rounded-lg text-sm font-bold border border-green-100 whitespace-nowrap shadow-sm">國軍醫院</span>
+                <span onclick="setInput('input-dropoff', '回家')" class="chip px-3 py-2 bg-green-50 text-green-700 rounded-lg text-sm font-bold border border-green-100 whitespace-nowrap shadow-sm">回家</span>
             </div>
-            <input type="text" id="input-dropoff" placeholder="下車地點" class="w-full p-3 border border-gray-300 rounded-lg text-lg">
+            <input type="text" id="input-dropoff" placeholder="輸入或點選上方地點" class="w-full p-3 border border-gray-300 rounded-lg text-lg outline-none focus:ring-2 focus:ring-green-500">
           </div>
         </div>
         
         <div class="mb-6">
            <label class="text-sm font-bold text-gray-500">備註</label>
-           <input type="text" id="input-remarks" placeholder="例如：停靠全聯" class="w-full p-3 border border-gray-300 rounded-lg text-lg bg-yellow-50">
+           <input type="text" id="input-remarks" placeholder="例如：車資100元" class="w-full p-3 border border-gray-300 rounded-lg text-lg bg-yellow-50 outline-none focus:ring-2 focus:ring-yellow-500">
         </div>
 
         <button onclick="addRecord()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl text-xl shadow-lg active:scale-95 transition flex justify-center items-center">
-           <i class="fas fa-paper-plane mr-2"></i> 寫入資料
+           <i class="fas fa-save mr-2"></i> 寫入資料
         </button>
       </div>
 
       <div class="flex justify-between items-end mb-2 px-1">
         <h3 class="font-bold text-gray-500">本日記錄 (<span id="record-count">0</span>)</h3>
-        <button onclick="clearAll()" class="text-xs text-red-400 underline">清空</button>
+        <button onclick="clearAll()" class="text-xs text-red-400 underline p-2">清空</button>
       </div>
       <div id="record-list" class="space-y-3 pb-20"></div>
     </div>
@@ -158,19 +150,19 @@
     <div class="bg-white w-full max-w-2xl h-[90vh] rounded-lg shadow-2xl flex flex-col overflow-hidden">
         <div class="bg-gray-100 p-4 border-b flex justify-between items-center">
              <div class="flex items-center space-x-2">
-                <span class="font-bold text-gray-600">月份：</span>
+                <span class="font-bold text-gray-600">列印月份：</span>
                 <select id="report-month-select" onchange="generatePrintHTML()" class="font-bold text-lg text-blue-600 bg-transparent outline-none">
                     <option value="1">1月</option><option value="2">2月</option><option value="3">3月</option><option value="4">4月</option>
                     <option value="5">5月</option><option value="6">6月</option><option value="7">7月</option><option value="8">8月</option>
                     <option value="9">9月</option><option value="10">10月</option><option value="11">11月</option><option value="12">12月</option>
                 </select>
             </div>
-            <button onclick="closePreview()" class="text-gray-500"><i class="fas fa-times text-2xl"></i></button>
+            <button onclick="closePreview()" class="text-gray-500 w-10 h-10 flex items-center justify-center rounded-full hover:bg-gray-200"><i class="fas fa-times text-2xl"></i></button>
         </div>
         <div id="preview-content" class="flex-1 overflow-auto p-4 bg-gray-500 flex flex-col items-center gap-4"></div>
         <div class="p-4 border-t bg-white flex space-x-3">
-            <button onclick="window.print()" class="flex-1 bg-blue-600 text-white font-bold py-3 rounded-lg shadow-lg text-lg"><i class="fas fa-print mr-2"></i> 列印</button>
-            <button onclick="closePreview()" class="px-6 bg-gray-200 text-gray-700 font-bold rounded-lg">修改</button>
+            <button onclick="window.print()" class="flex-1 bg-blue-600 text-white font-bold py-3 rounded-lg shadow-lg text-lg active:bg-blue-800"><i class="fas fa-print mr-2"></i> 立即列印</button>
+            <button onclick="closePreview()" class="px-6 bg-gray-200 text-gray-700 font-bold rounded-lg active:bg-gray-300">關閉</button>
         </div>
     </div>
   </div>
@@ -187,10 +179,65 @@
       setCardType('敬老卡');
       renderList();
       checkApiStatus();
+      checkPWAMode();
       if(!driverInfo.name) editDriverInfo();
       document.getElementById('report-month-select').value = new Date().getMonth() + 1;
     };
 
+    // --- PWA 核心邏輯 (UX Driver 重點) ---
+    function checkPWAMode() {
+        const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+        const btnInstall = document.getElementById('btn-install');
+        const modeText = document.getElementById('pwa-mode-text');
+
+        if (isStandalone) {
+            // 已經是 APP 模式
+            modeText.innerText = "APP版";
+            modeText.classList.add("text-yellow-300", "font-bold");
+            btnInstall.classList.add('hidden');
+        } else {
+            // 還是網頁模式
+            modeText.innerText = "網頁版";
+            btnInstall.classList.remove('hidden');
+        }
+    }
+
+    function showInstallGuide() {
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+        
+        if (isIOS) {
+            Swal.fire({
+                title: '加入 iPhone 桌面',
+                html: `
+                    <div class="text-left text-sm space-y-3">
+                        <p>1. 點擊下方瀏覽器的 <i class="fas fa-share-square text-blue-500 text-lg"></i> <b>分享按鈕</b></p>
+                        <p>2. 往下滑動找到 <i class="far fa-plus-square text-gray-600 text-lg"></i> <b>加入主畫面</b></p>
+                        <p>3. 點擊右上角 <b>新增</b></p>
+                        <div class="mt-4 bg-gray-100 p-2 rounded text-center text-xs text-gray-500">
+                           以後直接點桌面圖示，不再有網址列！
+                        </div>
+                    </div>
+                `,
+                confirmButtonText: '知道了',
+                confirmButtonColor: '#2563eb'
+            });
+        } else {
+            Swal.fire({
+                title: '加入安卓桌面',
+                html: `
+                    <div class="text-left text-sm space-y-3">
+                        <p>1. 點擊瀏覽器右上角 <i class="fas fa-ellipsis-v text-gray-500"></i> <b>選單</b></p>
+                        <p>2. 選擇 <i class="fas fa-mobile-alt text-gray-600"></i> <b>安裝應用程式</b> 或 <b>加到主畫面</b></p>
+                        <p>3. 點擊 <b>安裝/新增</b></p>
+                    </div>
+                `,
+                confirmButtonText: '好，試試看',
+                confirmButtonColor: '#2563eb'
+            });
+        }
+    }
+
+    // --- 既有邏輯 ---
     function checkApiStatus() {
         const dot = document.getElementById('cloud-status');
         if(apiUrl && apiUrl.startsWith('http')) {
@@ -285,11 +332,11 @@
       document.getElementById('input-type').value = type;
       const el = (id) => document.getElementById(id);
       if(type === '敬老卡') {
-        el('btn-elder').className = 'p-3 rounded-lg border-2 border-yellow-500 bg-yellow-50 text-yellow-700 font-bold shadow-md transform scale-105';
-        el('btn-care').className = 'p-3 rounded-lg border-2 border-transparent bg-gray-100 text-gray-400 font-bold opacity-70';
+        el('btn-elder').className = 'p-3 rounded-lg border-2 border-yellow-500 bg-yellow-50 text-yellow-700 font-bold shadow-md transform scale-105 transition';
+        el('btn-care').className = 'p-3 rounded-lg border-2 border-transparent bg-gray-100 text-gray-400 font-bold opacity-70 transition';
       } else {
-        el('btn-care').className = 'p-3 rounded-lg border-2 border-rose-500 bg-rose-50 text-rose-700 font-bold shadow-md transform scale-105';
-        el('btn-elder').className = 'p-3 rounded-lg border-2 border-transparent bg-gray-100 text-gray-400 font-bold opacity-70';
+        el('btn-care').className = 'p-3 rounded-lg border-2 border-rose-500 bg-rose-50 text-rose-700 font-bold shadow-md transform scale-105 transition';
+        el('btn-elder').className = 'p-3 rounded-lg border-2 border-transparent bg-gray-100 text-gray-400 font-bold opacity-70 transition';
       }
     }
     function setInput(id, val) { document.getElementById(id).value = val; }
@@ -341,19 +388,17 @@
     }
     function closePreview() { document.getElementById('preview-modal').classList.add('hidden'); }
     
-    // --- 核心：V6.2 排版引擎 ---
+    // --- 核心：V6.2 排版引擎 (不變) ---
     function generatePrintHTML() {
         const month = document.getElementById('report-month-select').value;
         const printArea = document.getElementById('print-area');
         const previewContent = document.getElementById('preview-content');
-        const recordsPerPage = 25; // 黃金比例
+        const recordsPerPage = 25;
         const totalPages = Math.ceil(records.length / recordsPerPage);
         let finalHTML = '';
 
         for (let page = 0; page < totalPages; page++) {
             const chunk = records.slice(page * recordsPerPage, (page + 1) * recordsPerPage);
-            
-            // 資料行
             let rowsHTML = chunk.map((r, i) => `
                 <tr>
                     <td style="width: 8%">${(page * recordsPerPage) + i + 1}</td>
@@ -365,17 +410,11 @@
                 </tr>
             `).join('');
 
-            // 自動補滿空行 (設計師堅持的細節)
             const remaining = recordsPerPage - chunk.length;
             if(remaining > 0) {
                 for(let j=0; j<remaining; j++) {
                     const emptySeq = (page * recordsPerPage) + chunk.length + j + 1;
-                    rowsHTML += `
-                        <tr>
-                            <td style="color: #ddd;">${emptySeq}</td>
-                            <td></td><td></td><td></td><td></td><td></td>
-                        </tr>
-                    `;
+                    rowsHTML += `<tr><td style="color: #ddd;">${emptySeq}</td><td></td><td></td><td></td><td></td><td></td></tr>`;
                 }
             }
 
@@ -392,12 +431,8 @@
                     <table class="report-table">
                         <thead>
                             <tr>
-                                <th style="width: 8%">序號</th>
-                                <th style="width: 20%">日期/時間</th>
-                                <th style="width: 12%">乘客類別</th>
-                                <th style="width: 20%">上車地點</th>
-                                <th style="width: 20%">下車地點</th>
-                                <th style="width: 20%">備注</th>
+                                <th style="width: 8%">序號</th><th style="width: 20%">日期/時間</th><th style="width: 12%">乘客類別</th>
+                                <th style="width: 20%">上車地點</th><th style="width: 20%">下車地點</th><th style="width: 20%">備注</th>
                             </tr>
                         </thead>
                         <tbody>${rowsHTML}</tbody>
@@ -408,8 +443,6 @@
         }
         
         printArea.innerHTML = finalHTML;
-        
-        // 預覽縮放
         previewContent.innerHTML = finalHTML.replace(/print-page/g, 'print-page shadow-lg mb-4 bg-white'); 
         const previewPages = previewContent.querySelectorAll('.print-page');
         previewPages.forEach(p => {
@@ -419,5 +452,3 @@
   </script>
 </body>
 </html>
-
-```
