@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>花蓮車隊 - 司機端 (v3.3)</title>
+  <title>花蓮車隊 - 司機端 (v3.4 掛機版)</title>
   
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
@@ -14,7 +14,6 @@
     body { margin: 0; padding: 0; font-family: -apple-system, Roboto, sans-serif; overflow: hidden; background: #222; }
     #map { width: 100vw; height: 100vh; }
     
-    /* HUD 狀態列 */
     #hud { 
         position: absolute; top: 15px; left: 15px; z-index: 10; 
         background: rgba(0,0,0,0.85); color: white; 
@@ -24,7 +23,6 @@
     }
     .status-dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; margin-right: 8px; }
     
-    /* 右上角按鈕區 */
     #top-right-panel { position: absolute; top: 15px; right: 15px; z-index: 10; display: flex; flex-direction: column; gap: 15px; }
     
     .circle-btn { 
@@ -39,17 +37,15 @@
     .circle-btn:active { transform: scale(0.95); }
     .sub-text { font-size: 11px; opacity: 0.8; margin-top: 2px; font-weight: normal; }
 
-    /* 顏色定義 */
     .bg-off   { background: linear-gradient(145deg, #7f8c8d, #95a5a6); }
     .bg-on    { background: linear-gradient(145deg, #c0392b, #e74c3c); }
     .bg-empty { background: linear-gradient(145deg, #27ae60, #2ecc71); }
     .bg-queue { background: linear-gradient(145deg, #2980b9, #3498db); }
     .bg-busy  { background: linear-gradient(145deg, #d35400, #e67e22); }
-    .bg-dark  { background: linear-gradient(145deg, #2c3e50, #34495e); } /* 省電按鈕 */
+    .bg-dark  { background: linear-gradient(145deg, #2c3e50, #34495e); }
 
     #btn-power { display: none; }
     
-    /* 黑屏省電遮罩 */
     #saver-overlay {
         display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
         background: black; z-index: 9999; 
@@ -60,7 +56,6 @@
     .breathing-icon { font-size: 50px; animation: breathe 3s infinite; }
     @keyframes breathe { 0% { opacity: 0.2; } 50% { opacity: 0.8; color: #2ecc71; } 100% { opacity: 0.2; } }
 
-    /* 彈窗 */
     .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 10000; justify-content: center; align-items: center; }
     .modal-content { background: #333; color: #fff; width: 85%; max-width: 300px; border-radius: 15px; padding: 25px; text-align: center; border: 1px solid #555; }
     .modal-btns button { width: 100%; padding: 12px; margin-top: 15px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; background: #00bcd4; color: #000; font-size: 16px; }
@@ -69,12 +64,11 @@
 <body>
 
   <div id="hud"><span class="status-dot" style="background:gray;"></span> 系統啟動中...</div>
-  
   <div id="map"></div>
   
   <div id="saver-overlay" onclick="toggleSaver(false)">
       <div class="breathing-icon">🅿️</div>
-      <p>省電模式運作中</p>
+      <p>掛機待命模式</p>
       <p style="font-size:12px; margin-top:20px;">點擊螢幕喚醒</p>
   </div>
   
@@ -82,13 +76,11 @@
     <button id="btn-power" class="circle-btn bg-off" onclick="togglePower()">
         <span>上線</span><span class="sub-text">OFF</span>
     </button>
-    
     <button id="btn-status" class="circle-btn bg-empty" style="display:none;" onclick="toggleStatus()">
         <span>空車</span>
     </button>
-
     <button id="btn-saver" class="circle-btn bg-dark" style="display:none;" onclick="toggleSaver(true)">
-        <span>省電</span>
+        <span>掛機</span>
     </button>
   </div>
 
@@ -114,18 +106,16 @@
     var map, myMarker;
     var currentUser = null;
     var isOnline = false;
-    var currentWorkStatus = 'empty'; // empty | queue | busy
+    var currentWorkStatus = 'empty'; 
     var watchId = null;
     var wakeLock = null;
 
-    // GPS 節流變數
+    // GPS 節流
     var lastUploadTime = 0;
     var lastUploadLat = 0;
     var lastUploadLng = 0;
-    const UPDATE_INTERVAL = 15000; // 15秒
-    const DISTANCE_THRESHOLD = 0.1; // 100公尺 (單位: 公里, 這是簡單算法)
+    const UPDATE_INTERVAL = 15000; 
 
-    // SVG 圖標
     const getIcon = (color) => {
         return {
             path: "M10,0 C4.5,0 0,4.5 0,10 C0,18 10,30 10,30 C10,30 20,18 20,10 C20,4.5 15.5,0 10,0 Z",
@@ -151,6 +141,7 @@
             await liff.init({ liffId: LIFF_ID });
             if (!liff.isLoggedIn()) { liff.login(); return; }
             currentUser = await liff.getProfile();
+            
             checkIdentity(currentUser.userId);
         } catch (err) { showAlert("錯誤", "LIFF 初始化失敗"); }
     }
@@ -162,6 +153,13 @@
                 const d = snapshot.val();
                 document.getElementById('hud').innerHTML = `<span class="status-dot" style="background:#2ecc71;"></span> 嗨，${d.name}`;
                 document.getElementById('btn-power').style.display = 'flex';
+                
+                // ★ 自動恢復狀態 ★
+                const savedStatus = localStorage.getItem('isOnline');
+                if (savedStatus === 'true') {
+                    // 如果上次是上線，自動恢復上線
+                    togglePower(true); 
+                }
             } else {
                 showAlert("未授權", "無司機權限");
                 document.getElementById('hud').innerHTML = "🚫 無權限";
@@ -170,27 +168,30 @@
     }
 
     // --- 功能邏輯 ---
-    function togglePower() {
+    function togglePower(forceOn = false) {
         const btns = ['btn-status', 'btn-saver'];
         const btnPower = document.getElementById('btn-power');
         
-        if (!isOnline) {
+        // 如果 forceOn 為 true，強制上線
+        const nextState = forceOn ? true : !isOnline;
+        
+        if (nextState) {
             isOnline = true;
+            localStorage.setItem('isOnline', 'true'); // 記住狀態
             btnPower.className = "circle-btn bg-on";
             btnPower.innerHTML = `<span>下線</span><span class="sub-text">ON</span>`;
             btns.forEach(id => document.getElementById(id).style.display = 'flex');
-            
             requestWakeLock();
             startGPS();
         } else {
             isOnline = false;
+            localStorage.setItem('isOnline', 'false'); // 記住狀態
             btnPower.className = "circle-btn bg-off";
             btnPower.innerHTML = `<span>上線</span><span class="sub-text">OFF</span>`;
             btns.forEach(id => document.getElementById(id).style.display = 'none');
-            
             stopGPS();
             releaseWakeLock();
-            toggleSaver(false); // 強制關閉省電畫面
+            toggleSaver(false);
             if(myMarker) myMarker.setMap(null);
             
             if(currentUser) db.ref('drivers/' + currentUser.userId).update({ status: 'offline' });
@@ -202,9 +203,7 @@
         if (currentWorkStatus === 'empty') currentWorkStatus = 'queue';
         else if (currentWorkStatus === 'queue') currentWorkStatus = 'busy';
         else currentWorkStatus = 'empty';
-        
         updateStatusBtn();
-        // 狀態改變，強制上傳一次
         forceUpload();
     }
 
@@ -213,7 +212,7 @@
         const btn = document.getElementById('btn-saver');
         if(enable) {
             overlay.classList.add('active');
-            btn.className = "circle-btn bg-empty"; // 亮綠色表示開啟中
+            btn.className = "circle-btn bg-empty";
         } else {
             overlay.classList.remove('active');
             btn.className = "circle-btn bg-dark";
@@ -233,17 +232,14 @@
         if(myMarker) myMarker.setIcon(getIcon(colorCode));
     }
 
-    // --- GPS 核心 (含節流邏輯) ---
     function startGPS() {
         if (!navigator.geolocation) return;
-        
         watchId = navigator.geolocation.watchPosition(
             (pos) => {
                 const { latitude, longitude } = pos.coords;
                 const latLng = new google.maps.LatLng(latitude, longitude);
-                
-                // 1. 本地地圖更新 (永遠即時)
                 const color = currentWorkStatus==='busy'?'#e67e22':(currentWorkStatus==='queue'?'#3498db':'#2ecc71');
+                
                 if(!myMarker) {
                     myMarker = new google.maps.Marker({ position: latLng, map: map, icon: getIcon(color), title: "我" });
                     map.panTo(latLng);
@@ -251,11 +247,9 @@
                     myMarker.setPosition(latLng);
                     myMarker.setIcon(getIcon(color));
                     if(!document.getElementById('saver-overlay').classList.contains('active')) {
-                         map.panTo(latLng); // 省電模式時不需一直移動地圖
+                         map.panTo(latLng);
                     }
                 }
-
-                // 2. 雲端上傳 (智慧節流)
                 smartUpload(latitude, longitude);
             },
             (err) => console.error(err),
@@ -269,30 +263,22 @@
 
     function smartUpload(lat, lng) {
         if(!currentUser) return;
-        
         const now = Date.now();
-        // 計算距離 (簡單畢氏定理，小範圍足夠準)
-        // 1度緯度約 111km
         const distKm = Math.sqrt(Math.pow(lat - lastUploadLat, 2) + Math.pow(lng - lastUploadLng, 2)) * 111;
         const distM = distKm * 1000;
 
-        // 判斷：時間 < 15秒 且 距離 < 100m => 跳過不傳
+        // 智慧節流：雖然位置不更新，但如果時間超過 5 分鐘，還是要傳一次「心跳 (Heartbeat)」
+        // 這樣 Firebase 才知道這個人還活著，不會因為 1 小時沒動作就以為他死了
         if (now - lastUploadTime < UPDATE_INTERVAL && distM < 100) {
-            // console.log("省流模式：未達更新門檻");
-            return;
+             if (now - lastUploadTime < 300000) return; // 5分鐘內沒移動，跳過
         }
 
-        // 執行上傳
         forceUpload(lat, lng);
     }
 
     function forceUpload(lat, lng) {
         if(!currentUser) return;
-        // 如果沒傳參數，就抓目前位置
-        if(!lat && myMarker) {
-            const pos = myMarker.getPosition();
-            lat = pos.lat(); lng = pos.lng();
-        }
+        if(!lat && myMarker) { const pos = myMarker.getPosition(); lat = pos.lat(); lng = pos.lng(); }
 
         db.ref('drivers/' + currentUser.userId).update({
             lat: lat, lng: lng,
@@ -301,11 +287,7 @@
             lastUpdate: firebase.database.ServerValue.TIMESTAMP
         });
 
-        // 更新基準點
-        lastUploadLat = lat;
-        lastUploadLng = lng;
-        lastUploadTime = Date.now();
-
+        lastUploadLat = lat; lastUploadLng = lng; lastUploadTime = Date.now();
         const statusText = currentWorkStatus==='busy'?'載客':(currentWorkStatus==='queue'?'排班':'空車');
         document.getElementById('hud').innerHTML = `<span class="status-dot" style="background:#2ecc71;"></span> 連線中 (${statusText})`;
     }
