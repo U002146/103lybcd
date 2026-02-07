@@ -3,7 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>花蓮愛心計程車 (V6.2 完美排版)</title>
+  
+  <title>車隊接單系統</title>
+  <meta name="apple-mobile-web-app-title" content="車隊接單">
+  <meta name="application-name" content="車隊接單">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#1d4ed8"> <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2312/2312270.png">
+  <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/2312/2312270.png">
+
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -83,12 +92,20 @@
     <div class="bg-blue-700 text-white p-4 sticky top-0 z-50 shadow-md flex justify-between items-center">
       <div class="flex items-center" onclick="openSettings()">
         <i class="fas fa-cloud-upload-alt mr-2 text-blue-200"></i>
-        <h1 class="text-xl font-bold tracking-wider">雲端補單 V6.2</h1>
+        <div>
+            <h1 class="text-xl font-bold tracking-wider leading-none">雲端補單</h1>
+            <span class="text-[10px] text-blue-300">V6.3 桌面版</span>
+        </div>
         <div id="cloud-status" class="ml-2 status-dot bg-gray-400" title="點擊設定連線"></div>
       </div>
-      <button onclick="showPrintPreview()" class="bg-white text-blue-800 font-bold py-2 px-3 rounded shadow text-sm">
-         <i class="fas fa-print mr-1"></i> 預覽
-       </button>
+      <div class="flex gap-2">
+         <button onclick="showInstallHelp()" class="bg-blue-800 text-blue-100 text-xs py-1 px-2 rounded border border-blue-600">
+           <i class="fas fa-mobile-alt mr-1"></i> APP安裝
+         </button>
+         <button onclick="showPrintPreview()" class="bg-white text-blue-800 font-bold py-2 px-3 rounded shadow text-sm">
+           <i class="fas fa-print mr-1"></i> 預覽
+         </button>
+      </div>
     </div>
 
     <div class="p-4">
@@ -204,6 +221,31 @@
         }
     }
 
+    // --- 新增：安裝教學彈窗 ---
+    function showInstallHelp() {
+        Swal.fire({
+            title: '將系統安裝到桌面',
+            html: `
+              <div class="text-left text-sm space-y-3">
+                <p class="font-bold text-blue-600"><i class="fab fa-apple text-lg"></i> iPhone 用戶：</p>
+                <ol class="list-decimal pl-5 text-gray-600">
+                  <li>點擊下方 Safari 的 <span class="inline-block px-1 border rounded bg-gray-100"><i class="fas fa-share-square"></i> 分享</span> 按鈕</li>
+                  <li>往下滑找到 <strong>「加入主畫面」</strong></li>
+                  <li>按右上角的「加入」</li>
+                </ol>
+                <hr class="my-2">
+                <p class="font-bold text-green-600"><i class="fab fa-android text-lg"></i> Android 用戶：</p>
+                <ol class="list-decimal pl-5 text-gray-600">
+                  <li>點擊右上角的 <span class="inline-block px-1 border rounded bg-gray-100"><i class="fas fa-ellipsis-v"></i> 選單</span></li>
+                  <li>找到 <strong>「加到主畫面」</strong> 或 「安裝應用程式」</li>
+                  <li>按下確認即可</li>
+                </ol>
+              </div>
+            `,
+            confirmButtonText: '知道了'
+        });
+    }
+
     function openSettings() {
         Swal.fire({
             title: '雲端連線設定',
@@ -288,136 +330,4 @@
         el('btn-elder').className = 'p-3 rounded-lg border-2 border-yellow-500 bg-yellow-50 text-yellow-700 font-bold shadow-md transform scale-105';
         el('btn-care').className = 'p-3 rounded-lg border-2 border-transparent bg-gray-100 text-gray-400 font-bold opacity-70';
       } else {
-        el('btn-care').className = 'p-3 rounded-lg border-2 border-rose-500 bg-rose-50 text-rose-700 font-bold shadow-md transform scale-105';
-        el('btn-elder').className = 'p-3 rounded-lg border-2 border-transparent bg-gray-100 text-gray-400 font-bold opacity-70';
-      }
-    }
-    function setInput(id, val) { document.getElementById(id).value = val; }
-    function deleteRecord(id) {
-        if(confirm('刪除此筆？')) {
-            records = records.filter(r => r.id !== id);
-            localStorage.setItem('taxi_records_v6', JSON.stringify(records));
-            renderList();
-        }
-    }
-    function clearAll() {
-        if(confirm('清空手機記錄？')) {
-            records = [];
-            localStorage.setItem('taxi_records_v6', JSON.stringify(records));
-            renderList();
-        }
-    }
-    function renderList() {
-      const el = document.getElementById('record-list');
-      document.getElementById('record-count').innerText = records.length;
-      if (records.length === 0) { el.innerHTML = '<div class="text-center text-gray-300 py-8 border-2 border-dashed border-gray-200 rounded-lg">無行程</div>'; return; }
-      el.innerHTML = [...records].reverse().map((r, i) => `
-        <div class="bg-white p-3 rounded-lg shadow-sm border-l-4 ${r.type==='敬老卡'?'border-yellow-400':'border-rose-400'} flex justify-between items-center relative">
-            <div class="flex-1">
-                <div class="flex items-center text-sm text-gray-500 mb-1">
-                    <span class="font-mono bg-gray-100 px-2 rounded mr-2">#${records.length - i}</span>
-                    <span>${r.formattedTime}</span>
-                    <span class="${r.type==='敬老卡'?'bg-yellow-100 text-yellow-700':'bg-rose-100 text-rose-700'} text-xs font-bold px-2 py-0.5 rounded-full ml-2">${r.type}</span>
-                    ${getSyncIcon(r.syncStatus)}
-                </div>
-                <div class="text-gray-800 font-bold flex items-center flex-wrap">
-                    ${r.pickup} <i class="fas fa-arrow-right text-xs mx-2 text-gray-400"></i> ${r.dropoff}
-                </div>
-                ${r.remarks ? `<div class="text-xs text-gray-500 mt-1">備註: ${r.remarks}</div>` : ''}
-            </div>
-            <button onclick="deleteRecord(${r.id})" class="text-gray-300 hover:text-red-500 p-2 ml-2"><i class="fas fa-trash-alt"></i></button>
-        </div>
-      `).join('');
-    }
-    function getSyncIcon(status) {
-        if(status === 'synced') return '<i class="fas fa-check-circle text-green-500 ml-2" title="已備份"></i>';
-        if(status === 'error') return '<i class="fas fa-exclamation-circle text-red-500 ml-2" title="上傳失敗"></i>';
-        return '<i class="fas fa-cloud-upload-alt text-gray-300 ml-2" title="尚未同步"></i>';
-    }
-    function showPrintPreview() {
-        if(records.length === 0) return Swal.fire('沒有資料', '', 'warning');
-        generatePrintHTML();
-        document.getElementById('preview-modal').classList.remove('hidden');
-    }
-    function closePreview() { document.getElementById('preview-modal').classList.add('hidden'); }
-    
-    // --- 核心：V6.2 排版引擎 ---
-    function generatePrintHTML() {
-        const month = document.getElementById('report-month-select').value;
-        const printArea = document.getElementById('print-area');
-        const previewContent = document.getElementById('preview-content');
-        const recordsPerPage = 25; // 黃金比例
-        const totalPages = Math.ceil(records.length / recordsPerPage);
-        let finalHTML = '';
-
-        for (let page = 0; page < totalPages; page++) {
-            const chunk = records.slice(page * recordsPerPage, (page + 1) * recordsPerPage);
-            
-            // 資料行
-            let rowsHTML = chunk.map((r, i) => `
-                <tr>
-                    <td style="width: 8%">${(page * recordsPerPage) + i + 1}</td>
-                    <td style="width: 20%">${r.formattedTime}</td>
-                    <td style="width: 12%">${r.type}</td>
-                    <td style="width: 20%">${r.pickup}</td>
-                    <td style="width: 20%">${r.dropoff}</td>
-                    <td style="width: 20%">${r.remarks || ''}</td>
-                </tr>
-            `).join('');
-
-            // 自動補滿空行 (設計師堅持的細節)
-            const remaining = recordsPerPage - chunk.length;
-            if(remaining > 0) {
-                for(let j=0; j<remaining; j++) {
-                    const emptySeq = (page * recordsPerPage) + chunk.length + j + 1;
-                    rowsHTML += `
-                        <tr>
-                            <td style="color: #ddd;">${emptySeq}</td>
-                            <td></td><td></td><td></td><td></td><td></td>
-                        </tr>
-                    `;
-                }
-            }
-
-            finalHTML += `
-                <div class="print-page report-font">
-                    <div class="report-header">
-                        115年度花蓮縣敬老愛心計程車補助計劃 <span style="text-decoration: underline; padding: 0 5px;"> ${month} </span> 月份載送記錄表
-                    </div>
-                    <div class="report-info">
-                        <div>駕駛姓名：<span class="px-2">${driverInfo.name}</span></div>
-                        <div>車牌號碼：<span class="px-2">${driverInfo.plate}</span></div>
-                        <div>隊員編號：<span class="px-2">${driverInfo.id}</span></div>
-                    </div>
-                    <table class="report-table">
-                        <thead>
-                            <tr>
-                                <th style="width: 8%">序號</th>
-                                <th style="width: 20%">日期/時間</th>
-                                <th style="width: 12%">乘客類別</th>
-                                <th style="width: 20%">上車地點</th>
-                                <th style="width: 20%">下車地點</th>
-                                <th style="width: 20%">備注</th>
-                            </tr>
-                        </thead>
-                        <tbody>${rowsHTML}</tbody>
-                    </table>
-                    <div class="page-number">第 ${page + 1} 頁 / 共 ${totalPages} 頁</div>
-                </div>
-            `;
-        }
-        
-        printArea.innerHTML = finalHTML;
-        
-        // 預覽縮放
-        previewContent.innerHTML = finalHTML.replace(/print-page/g, 'print-page shadow-lg mb-4 bg-white'); 
-        const previewPages = previewContent.querySelectorAll('.print-page');
-        previewPages.forEach(p => {
-            p.style.transform = "scale(0.8)"; p.style.transformOrigin = "top center"; p.style.marginBottom = "-50mm"; p.style.pageBreakAfter = "auto";
-        });
-    }
-  </script>
-</body>
-</html>
-
-```
+        el('btn-care').className = 'p-3 rounded-lg border-2 border-rose-500 bg-rose-50 text-rose-700 font-bold shadow-md
