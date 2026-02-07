@@ -2,31 +2,28 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>花蓮車隊 - 數據搬家工具</title>
+    <title>花蓮車隊 - 全自動搬家工具</title>
     <style>
-        body { font-family: 'Courier New', monospace; background: #222; color: #0f0; padding: 20px; }
-        h1 { color: #fff; border-bottom: 1px solid #555; padding-bottom: 10px; }
-        textarea { width: 100%; height: 200px; background: #111; color: #fff; border: 1px solid #444; padding: 10px; font-size: 14px; }
-        button { background: #00bcd4; color: #000; font-size: 20px; font-weight: bold; padding: 15px 30px; border: none; cursor: pointer; margin-top: 10px; border-radius: 5px; }
-        button:hover { background: #00acc1; }
-        #log { margin-top: 20px; white-space: pre-wrap; color: #aaa; }
-        .success { color: #2ecc71; }
-        .error { color: #e74c3c; }
+        body { font-family: "Microsoft JhengHei", monospace; background: #222; color: #fff; padding: 20px; }
+        h1 { border-bottom: 1px solid #555; padding-bottom: 10px; color: #00bcd4; }
+        .card { background: #333; padding: 15px; margin-bottom: 10px; border-radius: 5px; border-left: 5px solid #555; }
+        .card.success { border-left-color: #2ecc71; }
+        .card.error { border-left-color: #e74c3c; }
+        button { background: #2ecc71; color: #fff; font-size: 22px; font-weight: bold; padding: 15px 40px; border: none; cursor: pointer; border-radius: 50px; box-shadow: 0 4px 15px rgba(46, 204, 113, 0.4); transition: transform 0.1s; }
+        button:active { transform: scale(0.95); }
+        #log { margin-top: 20px; }
     </style>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 </head>
 <body>
 
-    <h1>🚀 CSV to Firebase 搬家工具</h1>
-    <p>請將 CSV 內容貼在下方 (格式：ID, 姓名, 車號, 電話)</p>
-    <p style="color:yellow">注意：第一行如果是標題 (如 id,name...) 請不要複製，只複製資料部分。</p>
+    <h1>🚀 司機名單 -> Firebase 搬家工具</h1>
+    <p>我已經幫你整理好以下 7 位司機的資料，點擊按鈕即可上傳：</p>
     
-    <textarea id="csvInput" placeholder="U12345..., 王大明, TD-1234, 0912345678&#10;U67890..., 李小華, TD-5678, 0988777666"></textarea>
+    <button onclick="startMigration()">🚀 寫入 7 筆司機資料</button>
     
-    <button onclick="startMigration()">🚀 開始寫入資料庫</button>
-    
-    <div id="log">準備就緒...</div>
+    <div id="log"></div>
 
 <script>
     // 1. 初始化 Firebase
@@ -36,45 +33,47 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
+    // 2. 我幫你清洗好的資料 (JSON 格式)
+    const DRIVERS_DATA = [
+        { id: "U467348846c6b1fa433990d7b75c935b5", name: "銘", car: "TDP-1123", phone: "0976981123" },
+        { id: "U162efcb17ca7b3278023bc15bbc426ef", name: "隆", car: "TDP-1232", phone: "0935050681" },
+        { id: "U355b824bc65ac487d16f7b35cabf4295", name: "春", car: "TDP-1135", phone: "0939836422" },
+        { id: "U887e387fbc192f621c64ab139b9a05d8", name: "昇", car: "TDP-1107", phone: "0958551588" },
+        { id: "U2c8435bea724439172193bfcb9d8f790", name: "領航員", car: "900-E9", phone: "0921171579" },
+        { id: "U6553aef6bfaca5394d9afde914fde1fc", name: "小江", car: "TBA-227", phone: "0936739109" },
+        { id: "Ubc8e3de03eaf78f9c32fccf3cc7ba246", name: "姜福榮", car: "727-E9", phone: "0928703959" }
+    ];
+
     function log(msg, type = '') {
         const el = document.getElementById('log');
-        const span = document.createElement('div');
-        span.className = type;
-        span.innerText = msg;
-        el.prepend(span); // 新訊息在最上面
+        const div = document.createElement('div');
+        div.className = `card ${type}`;
+        div.innerHTML = msg;
+        el.prepend(div);
     }
 
     function startMigration() {
-        const input = document.getElementById('csvInput').value.trim();
-        if (!input) { alert("請先貼上 CSV 資料！"); return; }
+        if(!confirm("確定要將這 7 筆資料寫入 Firebase 嗎？")) return;
 
-        const rows = input.split('\n');
-        log(`偵測到 ${rows.length} 筆資料，開始處理...`);
-
-        rows.forEach((row, index) => {
-            // 簡單的 CSV 解析 (假設沒有逗號在內容中)
-            const cols = row.split(',').map(c => c.trim());
-            
-            // 欄位對應：0:ID, 1:Name, 2:Car, 3:Phone
-            if (cols.length < 4) {
-                log(`[跳過] 第 ${index+1} 行格式錯誤: ${row}`, 'error');
-                return;
-            }
-
-            const id = cols[0];
-            const data = {
-                name: cols[1],
-                car: cols[2],
-                phone: cols[3],
-                role: "driver", // 標記為司機
-                staticDataSynced: true,
-                lastUpdate: Date.now() // 給一個初始時間
+        DRIVERS_DATA.forEach(driver => {
+            // 準備要寫入的資料物件
+            const updateData = {
+                name: driver.name,
+                car: driver.car,
+                phone: driver.phone,
+                role: "driver",          // 標記身份
+                staticDataSynced: true,  // 標記已搬家
+                lastUpdate: Date.now()   // 更新時間
             };
 
-            // 使用 update 避免覆蓋現有的 GPS (如果有的話)
-            db.ref('drivers/' + id).update(data)
-                .then(() => log(`[成功] ${data.name} (${data.car}) 已寫入`, 'success'))
-                .catch(err => log(`[失敗] ${id}: ${err.message}`, 'error'));
+            // 寫入 Firebase (使用 update 以保留現有經緯度)
+            db.ref('drivers/' + driver.id).update(updateData)
+                .then(() => {
+                    log(`✅ <b>${driver.name}</b> (${driver.car}) 資料同步成功！`, 'success');
+                })
+                .catch(err => {
+                    log(`❌ <b>${driver.name}</b> 失敗: ${err.message}`, 'error');
+                });
         });
     }
 </script>
