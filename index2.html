@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>花蓮車隊 - 乘客叫車</title>
+  
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAIxc6PEhHgUs_A9lyRUg8dNbmwOpSamY8"></script>
+
+  <style>
+    /* --- UI: 清新明亮風格 (適合乘客) --- */
+    body { margin: 0; padding: 0; font-family: -apple-system, Roboto, sans-serif; overflow: hidden; }
+    #map { width: 100vw; height: 100vh; }
+
+    /* 底部叫車面板 */
+    #bottom-panel {
+        position: absolute; bottom: 0; left: 0; width: 100%;
+        background: white; border-top-left-radius: 20px; border-top-right-radius: 20px;
+        box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+        padding: 20px; box-sizing: border-box; z-index: 10;
+        text-align: center; transition: transform 0.3s;
+    }
+    
+    h2 { margin: 0 0 10px 0; color: #333; font-size: 20px; }
+    p { margin: 0 0 15px 0; color: #666; font-size: 14px; }
+
+    /* 叫車按鈕 */
+    .call-taxi-btn {
+        background: linear-gradient(135deg, #00C853, #64DD17);
+        color: white; border: none; padding: 15px 0; width: 100%;
+        border-radius: 50px; font-size: 18px; font-weight: bold;
+        box-shadow: 0 4px 15px rgba(0, 200, 83, 0.4);
+        cursor: pointer; text-decoration: none; display: block;
+    }
+    .call-taxi-btn:active { transform: scale(0.98); }
+
+    /* 附近車輛數提示 */
+    #nearby-count {
+        position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
+        background: rgba(255, 255, 255, 0.9); padding: 8px 15px;
+        border-radius: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        font-weight: bold; color: #333; z-index: 10; display: flex; align-items: center;
+    }
+    .dot { width: 10px; height: 10px; background: #2ecc71; border-radius: 50%; margin-right: 8px; }
+
+    /* 司機資訊彈窗 (Info Window) 樣式會由 Google Maps 決定，這裡只設全域 */
+    .driver-info-window { padding: 5px; text-align: center; }
+    .driver-name { font-weight: bold; font-size: 16px; margin-bottom: 5px; }
+    .driver-car { color: #666; font-size: 12px; margin-bottom: 8px; }
+    .driver-phone-btn {
+        background: #2ecc71; color: white; text-decoration: none;
+        padding: 5px 15px; border-radius: 15px; font-size: 14px; display: inline-block;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="nearby-count"><span class="dot"></span> 搜尋附近車輛中...</div>
+
+  <div id="map"></div>
+
+  <div id="bottom-panel">
+      <h2 id="status-title">正在定位您的位置...</h2>
+      <p>花蓮在地車隊，安全可靠，隨叫隨到</p>
+      <a href="https://line.me/R/ti/p/@YOUR_LINE_ID" class="call-taxi-btn">
+          📞 呼叫車隊 (LINE)
+      </a>
+  </div>
+
+  <script>
+    // --- Config ---
+    const firebaseConfig = { databaseURL: "https://hualientaxi-bb32f-default-rtdb.asia-southeast1.firebasedatabase.app/" };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    var map, userMarker;
+    var markers = {}; // 存放司機 Marker
+    var myLat = null, myLng = null;
+    var infoWindow; // 彈出視窗
+
+    // 司機圖標 (綠色=空車, 藍色=排班)
+    const getIcon = (color) => {
+        return {
+            path: "M10,0 C4.5,0 0,4.5 0,10 C0,18 10,30 10,30 C10,30 20,18 20,10 C20,4.5 15.5,0 10,0 Z",
+            fillColor: color, fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2, scale: 1.5, anchor: new google.maps.Point(10, 30)
+        };
+    };
+
+    window.onload = function() {
+        initMap();
+    };
+
+    function initMap() {
+        // 預設花蓮中心
+        map = new google.maps.Map(document.getElementById("map"), {
+            center: { lat: 23.991, lng: 121.601 }, zoom: 14,
+            disableDefaultUI: true, // 簡潔模式
+            zoomControl: true, // 允許乘客縮放
+        });
+
+        infoWindow = new google.maps.InfoWindow();
+
+        // 1. 抓乘客位置
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition((pos) => {
+                myLat = pos.coords.latitude;
+                myLng = pos.coords.longitude;
+                const latLng = { lat: myLat, lng: myLng };
+
+                // 顯示乘客自己
+                userMarker = new google.maps.Marker({
+                    position: latLng, map: map,
+                    icon: {
+                        path: google.maps.SymbolPath.CIRCLE,
+                        scale: 8, fillColor: "#4285F4", fillOpacity: 1, strokeColor: "white", strokeWeight: 2
+                    },
+                    title: "您的位置"
+                });
+
+                map.setCenter(latLng);
+                map.setZoom(15);
+                document.getElementById('status-title').innerText = "已鎖定您的位置";
+                
+                // 開始監聽司機
+                listenToDrivers();
+            }, () => {
+                document.getElementById('status-title').innerText = "無法取得定位，顯示預設地圖";
+                listenToDrivers(); // 就算沒定位也顯示車子
+            });
+        } else {
+            listenToDrivers();
+        }
+    }
+
+    function listenToDrivers() {
+        db.ref('drivers').on('value', (snapshot) => {
+            const data = snapshot.val();
+            if (!data) return;
+
+            const now = Date.now();
+            let count = 0;
+            const activeIds = new Set();
+
+            Object.keys(data).forEach(id => {
+                const d = data[id];
+
+                // --- 核心過濾邏輯 ---
+                // 1. 必須有位置
+                if (!d.lat || !d.lng) return;
+                // 2. 必須是上線狀態 (status == 'online')
+                if (d.status !== 'online') return;
+                // 3. 必須是空車或排班 (workStatus == 'empty' or 'queue')
+                // ★ 關鍵：載客中 (busy) 的車子直接隱形 ★
+                if (d.workStatus === 'busy') return;
+                // 4. 訊號必須新鮮 (10分鐘內)
+                if (now - d.lastUpdate > 600000) return;
+
+                activeIds.add(id);
+                count++;
+                
+                const pos = { lat: d.lat, lng: d.lng };
+                const color = d.workStatus === 'queue' ? '#3498db' : '#2ecc71'; // 藍=排班, 綠=空車
+
+                if (!markers[id]) {
+                    // 新增 Marker
+                    const marker = new google.maps.Marker({
+                        position: pos, map: map,
+                        icon: getIcon(color),
+                        title: d.name
+                    });
+
+                    // 點擊事件：顯示司機資訊 & 電話
+                    marker.addListener("click", () => {
+                        const content = `
+                            <div class="driver-info-window">
+                                <div class="driver-name">${d.name} 運將</div>
+                                <div class="driver-car">${d.car || '計程車'}</div>
+                                <a href="tel:${d.phone}" class="driver-phone-btn">📞 ${d.phone}</a>
+                            </div>
+                        `;
+                        infoWindow.setContent(content);
+                        infoWindow.open(map, marker);
+                    });
+                    
+                    markers[id] = marker;
+                } else {
+                    // 更新 Marker
+                    markers[id].setPosition(pos);
+                    markers[id].setIcon(getIcon(color));
+                }
+            });
+
+            // 清除已下線或載客的車
+            for (let id in markers) {
+                if (!activeIds.has(id)) {
+                    markers[id].setMap(null);
+                    delete markers[id];
+                }
+            }
+
+            // 更新上方提示
+            document.getElementById('nearby-count').innerHTML = 
+                `<span class="dot"></span> 附近有 ${count} 台空車`;
+        });
+    }
+  </script>
+</body>
+</html>
