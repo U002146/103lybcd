@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>花蓮車隊 - 數據搬家工具</title>
+    <style>
+        body { font-family: 'Courier New', monospace; background: #222; color: #0f0; padding: 20px; }
+        h1 { color: #fff; border-bottom: 1px solid #555; padding-bottom: 10px; }
+        textarea { width: 100%; height: 200px; background: #111; color: #fff; border: 1px solid #444; padding: 10px; font-size: 14px; }
+        button { background: #00bcd4; color: #000; font-size: 20px; font-weight: bold; padding: 15px 30px; border: none; cursor: pointer; margin-top: 10px; border-radius: 5px; }
+        button:hover { background: #00acc1; }
+        #log { margin-top: 20px; white-space: pre-wrap; color: #aaa; }
+        .success { color: #2ecc71; }
+        .error { color: #e74c3c; }
+    </style>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+</head>
+<body>
+
+    <h1>🚀 CSV to Firebase 搬家工具</h1>
+    <p>請將 CSV 內容貼在下方 (格式：ID, 姓名, 車號, 電話)</p>
+    <p style="color:yellow">注意：第一行如果是標題 (如 id,name...) 請不要複製，只複製資料部分。</p>
+    
+    <textarea id="csvInput" placeholder="U12345..., 王大明, TD-1234, 0912345678&#10;U67890..., 李小華, TD-5678, 0988777666"></textarea>
+    
+    <button onclick="startMigration()">🚀 開始寫入資料庫</button>
+    
+    <div id="log">準備就緒...</div>
+
+<script>
+    // 1. 初始化 Firebase
+    const firebaseConfig = {
+        databaseURL: "https://hualientaxi-bb32f-default-rtdb.asia-southeast1.firebasedatabase.app/",
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    function log(msg, type = '') {
+        const el = document.getElementById('log');
+        const span = document.createElement('div');
+        span.className = type;
+        span.innerText = msg;
+        el.prepend(span); // 新訊息在最上面
+    }
+
+    function startMigration() {
+        const input = document.getElementById('csvInput').value.trim();
+        if (!input) { alert("請先貼上 CSV 資料！"); return; }
+
+        const rows = input.split('\n');
+        log(`偵測到 ${rows.length} 筆資料，開始處理...`);
+
+        rows.forEach((row, index) => {
+            // 簡單的 CSV 解析 (假設沒有逗號在內容中)
+            const cols = row.split(',').map(c => c.trim());
+            
+            // 欄位對應：0:ID, 1:Name, 2:Car, 3:Phone
+            if (cols.length < 4) {
+                log(`[跳過] 第 ${index+1} 行格式錯誤: ${row}`, 'error');
+                return;
+            }
+
+            const id = cols[0];
+            const data = {
+                name: cols[1],
+                car: cols[2],
+                phone: cols[3],
+                role: "driver", // 標記為司機
+                staticDataSynced: true,
+                lastUpdate: Date.now() // 給一個初始時間
+            };
+
+            // 使用 update 避免覆蓋現有的 GPS (如果有的話)
+            db.ref('drivers/' + id).update(data)
+                .then(() => log(`[成功] ${data.name} (${data.car}) 已寫入`, 'success'))
+                .catch(err => log(`[失敗] ${id}: ${err.message}`, 'error'));
+        });
+    }
+</script>
+</body>
+</html>
