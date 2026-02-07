@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>花蓮縣敬老愛心計程車補助計劃</title>
+  <title>花蓮縣敬老愛心計程車補助計劃 (v9.0)</title>
   
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -24,7 +24,9 @@
     .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     .status-dot { height: 10px; width: 10px; border-radius: 50%; display: inline-block; }
     .status-ok { background-color: #4ade80; box-shadow: 0 0 5px #4ade80; }
-    .status-err { background-color: #ef4444; }
+    .status-wait { background-color: #fbbf24; animation: pulse 1.5s infinite; }
+    
+    @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
 
     div:where(.swal2-container) { z-index: 20000 !important; }
     #preview-modal { z-index: 9999; }
@@ -77,7 +79,7 @@
     <div class="bg-blue-700 text-white p-4 sticky top-0 z-50 shadow-md flex justify-between items-center">
       <div class="flex items-center" onclick="editDriverInfo()">
         <i class="fas fa-file-signature mr-2 text-yellow-300"></i>
-        <h1 class="text-xl font-bold tracking-wider" id="nav-title">載送記錄表</h1>
+        <h1 class="text-xl font-bold tracking-wider" id="nav-title">載送記錄表 v9.0</h1>
         <div id="cloud-status" class="ml-2 status-dot bg-gray-400" title="連線中..."></div>
       </div>
       <button onclick="showPrintPreview()" class="bg-white text-blue-800 font-bold py-2 px-3 rounded-full shadow text-sm active:scale-95 transition">
@@ -166,7 +168,7 @@
               <div id="record-list" class="space-y-3 pb-4 flex-1"></div>
               
               <div id="pagination-controls" class="flex justify-between items-center pt-4 border-t border-gray-100 mt-2">
-                  </div>
+              </div>
           </div>
       </div>
       
@@ -202,16 +204,16 @@
   <div id="print-area" class="print-only"></div>
 
   <script>
-    // ★★★ 設定區 ★★★
+    // ★★★ V9.0 設定區 ★★★
     const LIFF_ID = "2008907691-Ojnb8ANZ"; 
     const API_URL = "https://script.google.com/macros/s/AKfycby_XYDJCTiio3PUqg_g2Ip6nB5tu5ap-OwqGxwBLJbiC-0PrW9hNOVoxCG2vqj0J_vb/exec";
     
     // --- 系統變數 ---
-    let records = JSON.parse(localStorage.getItem('taxi_records_v6')) || [];
+    let records = JSON.parse(localStorage.getItem('taxi_records_v9')) || []; // 注意：Storage Key 改版為 v9
     let driverInfo = JSON.parse(localStorage.getItem('driver_info')) || { name: '', plate: '', id: '', delPassword: '0000' };
     let currentUserId = "";
     
-    // ★ V8.3 分頁變數
+    // 分頁變數
     let currentPage = 1;
     const itemsPerPage = 25;
 
@@ -232,18 +234,84 @@
             if (!liff.isLoggedIn()) { liff.login(); return; }
             const profile = await liff.getProfile();
             currentUserId = profile.userId;
+            
             const dot = document.getElementById('cloud-status');
             dot.classList.remove('bg-gray-400'); dot.classList.add('status-ok'); dot.title = `已登入: ${profile.displayName}`;
-            if(API_URL) fetchCloudRecords();
+            
+            if(API_URL) fetchCloudRecords_V9(); // 執行 V9 同步
         } catch (err) { console.error(err); Swal.fire({ toast: true, position: 'top', icon: 'info', title: '離線模式' }); }
     }
 
-    // --- V8.1 獎金規則 ---
+    // --- V9.0 核心：只抓本月雲端資料，並修正排序 ---
+    function fetchCloudRecords_V9() {
+        if(!currentUserId) return;
+        
+        const dot = document.getElementById('cloud-status');
+        if(dot) { dot.classList.remove('status-ok'); dot.classList.add('status-wait'); }
+
+        fetch(`${API_URL}?userId=${currentUserId}`)
+        .then(res => res.json())
+        .then(data => {
+            // data 是一個 JSON Array: [{ userId, timeObj, formattedTime, id, ... }, ...]
+            if(Array.isArray(data)) {
+                
+                // 1. 取得現有的 pending 資料 (尚未同步到雲端的)
+                const pendingRecords = records.filter(r => r.syncStatus === 'pending');
+                
+                // 2. 處理雲端資料：因為雲端 timeObj 是「寫入時間」，我們要重建「行程時間」以利排序
+                const currentYear = new Date().getFullYear();
+                
+                const cloudRecords = data.map(r => {
+                    // 嘗試從 formattedTime (例如 "02/06 10:00") 重建 Date 物件
+                    // 假設 formattedTime 格式為 MM/DD HH:mm
+                    let sortTimeObj = r.timeObj; // 預設用系統時間
+                    try {
+                        const parts = r.formattedTime.match(/(\d+)\/(\d+)\s+(\d+):(\d+)/);
+                        if (parts) {
+                            // 補上今年年份，建立可排序的 ISO 字串
+                            sortTimeObj = `${currentYear}-${parts[1].padStart(2,'0')}-${parts[2].padStart(2,'0')}T${parts[3].padStart(2,'0')}:${parts[4].padStart(2,'0')}`;
+                        }
+                    } catch(e) {}
+
+                    return {
+                        ...r, 
+                        timeObj: sortTimeObj, // 覆蓋為行程時間
+                        syncStatus: 'synced'
+                    };
+                });
+
+                // 3. 合併：保留本地待傳送 + 雲端最新 (直接以雲端為準，覆蓋本地舊的 synced)
+                // 這樣能確保如果從別台手機新增，這裡也會看到
+                records = [...pendingRecords, ...cloudRecords];
+                
+                // 4. 排序 (新 -> 舊)
+                records.sort((a, b) => new Date(b.timeObj) - new Date(a.timeObj));
+                
+                // 5. 存檔與渲染
+                localStorage.setItem('taxi_records_v9', JSON.stringify(records));
+                currentPage = 1;
+                renderList();
+                updateDashboard();
+                
+                Swal.fire({ toast: true, position: 'top', icon: 'success', title: `雲端同步完成 (${cloudRecords.length}筆)` });
+            }
+        })
+        .catch(err => {
+            console.error("V9 同步錯誤", err);
+        })
+        .finally(() => {
+            if(dot) { dot.classList.remove('status-wait'); dot.classList.add('status-ok'); }
+        });
+    }
+
+    // --- 獎金計算 ---
     function updateDashboard() {
         const now = new Date();
         const currentMonth = now.getMonth() + 1;
-        document.getElementById('nav-title').innerText = `${currentMonth}月載送記錄表`;
+        document.getElementById('nav-title').innerText = `${currentMonth}月記錄 (v9)`;
 
+        // V9 邏輯：records 裡理論上大多是本月的 (除非有 pending 的跨月資料)
+        // 但為了保險，還是過濾一下
         const thisMonthRecords = records.filter(r => {
             const d = new Date(r.timeObj);
             return d.getMonth() + 1 === currentMonth && d.getFullYear() === now.getFullYear();
@@ -285,7 +353,7 @@
         window.requestAnimationFrame(step);
     }
 
-    // --- 資料新增 ---
+    // --- 資料新增 (Payload 對應 V9 後端) ---
     function addRecord() {
       const timeStr = document.getElementById('input-time').value;
       const type = document.getElementById('input-type').value;
@@ -299,15 +367,19 @@
       const fmtTime = `${String(dateObj.getMonth()+1).padStart(2,'0')}/${String(dateObj.getDate()).padStart(2,'0')} ${String(dateObj.getHours()).padStart(2,'0')}:${String(dateObj.getMinutes()).padStart(2,'0')}`;
       
       const newRecord = { 
-          id: Date.now(), timeObj: timeStr, formattedTime: fmtTime, type, pickup, dropoff, remarks, 
+          id: Date.now(), 
+          timeObj: timeStr, 
+          formattedTime: fmtTime, 
+          type, pickup, dropoff, remarks, 
           syncStatus: 'pending' 
       };
 
       records.push(newRecord);
-      records.sort((a, b) => new Date(a.timeObj) - new Date(b.timeObj));
-      localStorage.setItem('taxi_records_v6', JSON.stringify(records));
+      records.sort((a, b) => new Date(a.timeObj) - new Date(b.timeObj)); // 保持舊到新? 還是新到舊? 列表通常是新到舊
+      records.sort((a, b) => new Date(b.timeObj) - new Date(a.timeObj));
+
+      localStorage.setItem('taxi_records_v9', JSON.stringify(records));
       
-      // 新增後跳回第一頁
       currentPage = 1;
       renderList();
       updateDashboard(); 
@@ -329,7 +401,6 @@
             showCancelButton: true,
             confirmButtonText: '驗證並刪除',
             confirmButtonColor: '#ef4444',
-            showLoaderOnConfirm: true,
             preConfirm: (inputPass) => {
                 const settingPass = driverInfo.delPassword || '0000';
                 if (inputPass !== settingPass) { Swal.showValidationMessage('密碼錯誤'); }
@@ -339,15 +410,20 @@
             if (result.isConfirmed) {
                 const targetRecord = records.find(r => r.id === id);
                 records = records.filter(r => r.id !== id);
-                localStorage.setItem('taxi_records_v6', JSON.stringify(records));
+                localStorage.setItem('taxi_records_v9', JSON.stringify(records));
                 
-                // 刪除後不跳頁，維持在當前頁，除非當前頁空了
                 renderList();
                 updateDashboard();
 
                 if(currentUserId && API_URL && targetRecord) {
                     Swal.fire({ title: '同步刪除中...', timerProgressBar: true, didOpen: () => { Swal.showLoading(); } });
-                    fetch(API_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'delete', id: targetRecord.id, userId: currentUserId }) })
+                    // V9 刪除 Payload
+                    fetch(API_URL, { 
+                        method: 'POST', 
+                        mode: 'no-cors', 
+                        headers: { 'Content-Type': 'application/json' }, 
+                        body: JSON.stringify({ action: 'delete', id: targetRecord.id, userId: currentUserId }) 
+                    })
                     .then(() => { Swal.fire({ toast: true, position: 'top', icon: 'success', title: '刪除成功', timer: 1500, showConfirmButton: false }); })
                     .catch(() => { Swal.fire({ toast: true, position: 'top', icon: 'warning', title: '僅本地刪除', timer: 2000 }); });
                 }
@@ -357,38 +433,26 @@
 
     function syncToCloud(record) {
         if (!currentUserId) return;
-        const payload = { ...record, userId: currentUserId, driverName: driverInfo.name, driverPlate: driverInfo.plate, driverId: driverInfo.id };
+        // V9 新增 Payload (符合 doPost)
+        const payload = { 
+            ...record, 
+            userId: currentUserId, 
+            driverName: driverInfo.name, 
+            driverPlate: driverInfo.plate, 
+            driverId: driverInfo.id 
+        };
+        
         fetch(API_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
         .then(() => {
-            record.syncStatus = 'synced'; updateRecordStatus(record.id, 'synced');
+            record.syncStatus = 'synced'; 
+            updateRecordStatus(record.id, 'synced');
             updateDashboard(); 
             Swal.fire({ toast: true, position: 'top', showConfirmButton: false, timer: 1500, icon: 'success', title: '雲端備份成功' });
         })
         .catch(() => { updateRecordStatus(record.id, 'error'); });
     }
 
-    function fetchCloudRecords() {
-        if(!currentUserId) return;
-        fetch(`${API_URL}?userId=${currentUserId}`)
-        .then(res => res.json())
-        .then(data => {
-            if(data && Array.isArray(data) && data.length > 0) {
-                const existingIds = new Set(records.map(r => r.id));
-                const newRecords = data.filter(r => !existingIds.has(r.id)).map(r => ({ ...r, id: r.id || Date.now() + Math.random(), syncStatus: 'synced' }));
-                if(newRecords.length > 0) {
-                    records = [...records, ...newRecords];
-                    records.sort((a, b) => new Date(a.timeObj) - new Date(b.timeObj));
-                    localStorage.setItem('taxi_records_v6', JSON.stringify(records));
-                    currentPage = 1; // 載入新資料後回首頁
-                    renderList();
-                    updateDashboard();
-                    Swal.fire({ toast: true, position: 'top', icon: 'success', title: `同步 ${newRecords.length} 筆資料` });
-                }
-            }
-        });
-    }
-
-    // --- V8.3 列表渲染 (含分頁) ---
+    // --- 列表渲染 ---
     function renderList() {
       const el = document.getElementById('record-list');
       const controls = document.getElementById('pagination-controls');
@@ -396,24 +460,22 @@
       const listRecords = [...records].sort((a, b) => new Date(b.timeObj) - new Date(a.timeObj));
       
       if (listRecords.length === 0) { 
-          el.innerHTML = '<div class="text-center text-gray-300 py-8 border-2 border-dashed border-gray-200 rounded-lg">尚無行程</div>'; 
+          el.innerHTML = '<div class="text-center text-gray-300 py-8 border-2 border-dashed border-gray-200 rounded-lg">本月尚無行程</div>'; 
           controls.innerHTML = '';
           return; 
       }
       
-      // 計算分頁
       const totalPages = Math.ceil(listRecords.length / itemsPerPage);
       if (currentPage > totalPages) currentPage = totalPages;
       const startIndex = (currentPage - 1) * itemsPerPage;
       const displayRecords = listRecords.slice(startIndex, startIndex + itemsPerPage);
       
-      // 渲染列表
       el.innerHTML = displayRecords.map((r, i) => `
         <div class="bg-white p-3 rounded-lg shadow-sm border-l-4 ${r.type==='敬老卡'?'border-yellow-400':'border-rose-400'} flex justify-between items-center relative border-b border-gray-100">
             <div class="flex-1">
                 <div class="flex items-center text-sm text-gray-500 mb-1">
                     <span class="font-mono bg-gray-100 px-2 rounded mr-2">#${listRecords.length - (startIndex + i)}</span>
-                    <span>${formatDisplayTime(r.timeObj || r.formattedTime)}</span>
+                    <span>${r.formattedTime}</span>
                     <span class="${r.type==='敬老卡'?'bg-yellow-100 text-yellow-700':'bg-rose-100 text-rose-700'} text-xs font-bold px-2 py-0.5 rounded-full ml-2">${r.type}</span>
                     ${getSyncIcon(r.syncStatus)}
                 </div>
@@ -426,7 +488,6 @@
         </div>
       `).join('');
 
-      // 渲染分頁按鈕
       if (totalPages > 1) {
           controls.innerHTML = `
             <button onclick="changePage(-1)" ${currentPage === 1 ? 'disabled class="text-gray-300 cursor-not-allowed"' : 'class="text-blue-600 font-bold"'}><i class="fas fa-chevron-left mr-1"></i> 上一頁</button>
@@ -441,7 +502,6 @@
     function changePage(delta) {
         currentPage += delta;
         renderList();
-        // 換頁後稍微滑動到列表頂部 (但不要蓋住儀表板)
         document.querySelector('.history-container').scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
@@ -481,11 +541,10 @@
       });
     }
 
-    function clearAll() { Swal.fire({ title: '清空快取?', text: "僅清除手機畫面，雲端資料保留", icon: 'info', showCancelButton: true, confirmButtonColor: '#ef4444', confirmButtonText: '清空' }).then((r) => { if (r.isConfirmed) { records = []; localStorage.setItem('taxi_records_v6', JSON.stringify(records)); currentPage = 1; renderList(); updateDashboard(); } }); }
-    function exportToCSV() { if(records.length === 0) return Swal.fire('無資料'); let c = "\uFEFF日期,類別,上車,下車,備註\n"; records.forEach(r => { c += `${formatDisplayTime(r.timeObj)},${r.type},${r.pickup},${r.dropoff},${r.remarks}\n`; }); const b = new Blob([c], { type: 'text/csv;charset=utf-8;' }); const u = URL.createObjectURL(b); const l = document.createElement("a"); l.href = u; l.download = `backup_${new Date().toISOString().slice(0,10)}.csv`; document.body.appendChild(l); l.click(); document.body.removeChild(l); }
+    function clearAll() { Swal.fire({ title: '清空快取?', text: "僅清除手機畫面，雲端資料保留", icon: 'info', showCancelButton: true, confirmButtonColor: '#ef4444', confirmButtonText: '清空' }).then((r) => { if (r.isConfirmed) { records = []; localStorage.setItem('taxi_records_v9', JSON.stringify(records)); currentPage = 1; renderList(); updateDashboard(); } }); }
+    function exportToCSV() { if(records.length === 0) return Swal.fire('無資料'); let c = "\uFEFF日期,類別,上車,下車,備註\n"; records.forEach(r => { c += `${r.formattedTime},${r.type},${r.pickup},${r.dropoff},${r.remarks}\n`; }); const b = new Blob([c], { type: 'text/csv;charset=utf-8;' }); const u = URL.createObjectURL(b); const l = document.createElement("a"); l.href = u; l.download = `backup_${new Date().toISOString().slice(0,10)}.csv`; document.body.appendChild(l); l.click(); document.body.removeChild(l); }
     function initTime() { const now = new Date(); now.setMinutes(now.getMinutes() - now.getTimezoneOffset()); document.getElementById('input-time').value = now.toISOString().slice(0,16); }
-    function formatDisplayTime(timeObj) { if (!timeObj) return "--/-- --:--"; const d = new Date(timeObj); if (isNaN(d.getTime())) return timeObj; return `${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; }
-    function updateRecordStatus(id, status) { const idx = records.findIndex(r => r.id === id); if(idx !== -1) { records[idx].syncStatus = status; localStorage.setItem('taxi_records_v6', JSON.stringify(records)); renderList(); } }
+    function updateRecordStatus(id, status) { const idx = records.findIndex(r => r.id === id); if(idx !== -1) { records[idx].syncStatus = status; localStorage.setItem('taxi_records_v9', JSON.stringify(records)); renderList(); } }
     function setCardType(type) { document.getElementById('input-type').value = type; const el = (id) => document.getElementById(id); if(type === '敬老卡') { el('btn-elder').className = 'p-3 rounded-lg border-2 border-yellow-500 bg-yellow-50 text-yellow-700 font-bold shadow-md transform scale-105'; el('btn-care').className = 'p-3 rounded-lg border-2 border-transparent bg-gray-100 text-gray-400 font-bold opacity-70'; } else { el('btn-care').className = 'p-3 rounded-lg border-2 border-rose-500 bg-rose-50 text-rose-700 font-bold shadow-md transform scale-105'; el('btn-elder').className = 'p-3 rounded-lg border-2 border-transparent bg-gray-100 text-gray-400 font-bold opacity-70'; } }
     function setInput(id, val) { document.getElementById(id).value = val; }
     
@@ -498,7 +557,10 @@
         const month = document.getElementById('report-month-select').value;
         const printArea = document.getElementById('print-area');
         const previewContent = document.getElementById('preview-content');
+        
+        // 列印排序 (時間早 -> 晚)
         const sortedRecords = [...records].sort((a, b) => new Date(a.timeObj) - new Date(b.timeObj));
+        
         const recordsPerPage = 25; 
         const totalPages = Math.ceil(sortedRecords.length / recordsPerPage);
         let finalHTML = '';
@@ -508,7 +570,7 @@
             let rowsHTML = chunk.map((r, i) => `
                 <tr>
                     <td style="width: 8%">${(page * recordsPerPage) + i + 1}</td>
-                    <td style="width: 20%">${formatDisplayTime(r.timeObj || r.formattedTime)}</td>
+                    <td style="width: 20%">${r.formattedTime}</td>
                     <td style="width: 12%">${r.type}</td>
                     <td style="width: 20%">${r.pickup}</td>
                     <td style="width: 20%">${r.dropoff}</td>
