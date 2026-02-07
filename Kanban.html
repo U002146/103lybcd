@@ -1,223 +1,248 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-TW">
 <head>
-    <title>花蓮車隊 - 排班數位看板</title>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>花蓮車隊 - 數位排班中控台</title>
     <style>
-        /* UI設計總監：左右分割，左邊地圖監控，右邊大字體看板 */
-        body { margin: 0; padding: 0; display: flex; height: 100vh; font-family: 'Microsoft JhengHei', sans-serif; background: #000; }
+        /* --- UI 設計總監：高對比戰情室風格 --- */
+        body { margin: 0; padding: 0; display: flex; height: 100vh; font-family: "Microsoft JhengHei", sans-serif; background: #000; overflow: hidden; }
         
-        /* 左側地圖區 (40%) */
-        #map { width: 40%; height: 100%; border-right: 2px solid #333; }
+        /* 左側：地圖監控區 (40%) */
+        #map { width: 40%; height: 100%; border-right: 3px solid #333; }
+
+        /* 右側：排班列表區 (60%) */
+        #dashboard { width: 60%; height: 100%; background-color: #121212; padding: 15px; box-sizing: border-box; display: flex; flex-direction: column; gap: 15px; overflow-y: auto; }
+
+        /* 排班區塊容器 */
+        .zone-container { background: #1e1e1e; border-radius: 12px; border: 1px solid #333; overflow: hidden; display: flex; flex-direction: column; }
         
-        /* 右側看板區 (60%) - 黑底黃字，高對比長輩友善 */
-        #dashboard { width: 60%; height: 100%; overflow-y: auto; background-color: #1a1a1a; padding: 10px; box-sizing: border-box; }
+        /* 區塊標題 */
+        .zone-header { background: linear-gradient(90deg, #004d40, #00695c); color: #fff; padding: 12px 20px; font-size: 24px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #000; }
+        .zone-count { background: #ffeb3b; color: #000; padding: 2px 12px; border-radius: 20px; font-size: 18px; font-weight: 800; }
+
+        /* 司機卡片列表 */
+        .driver-list { padding: 10px; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+
+        /* 司機卡片 (排班中) */
+        .driver-card { background: #2c2c2c; color: #fff; padding: 15px; border-radius: 8px; border-left: 5px solid #00bcd4; display: flex; flex-direction: column; align-items: center; box-shadow: 0 4px 6px rgba(0,0,0,0.3); animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
         
-        .zone-block { margin-bottom: 20px; border: 1px solid #444; border-radius: 8px; overflow: hidden; }
-        .zone-title { background: #FFD700; color: #000; padding: 10px 20px; font-size: 24px; font-weight: bold; display: flex; justify-content: space-between; }
-        .driver-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; padding: 10px; }
-        
-        /* 司機卡片：只有排班中的才會顯示在這裡 */
-        .driver-card { background: #333; color: #fff; padding: 15px; border-radius: 5px; text-align: center; border: 1px solid #555; animation: fadeIn 0.5s; }
-        .driver-card h3 { margin: 0; font-size: 32px; color: #00e5ff; } /* 車號超大 */
-        .driver-card p { margin: 5px 0 0; font-size: 16px; color: #aaa; }
-        
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .driver-name { font-size: 36px; font-weight: bold; color: #fff; margin: 5px 0; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+        .driver-phone { font-size: 18px; color: #aaa; margin-top: 5px; font-family: monospace; }
+        .driver-status { font-size: 14px; color: #00bcd4; margin-top: 5px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
+
+        /* 空狀態提示 */
+        .empty-zone { padding: 20px; text-align: center; color: #555; font-size: 18px; font-style: italic; }
+
+        @keyframes popIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
     </style>
 
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
-    <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&libraries=geometry"></script>
+
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAIxc6PEhHgUs_A9lyRUg8dNbmwOpSamY8&libraries=geometry"></script>
 </head>
 <body>
 
     <div id="map"></div>
     <div id="dashboard">
-        </div>
+        <div style="color:white; text-align:center; margin-top:50px;">正在連線至車隊系統...</div>
+    </div>
 
 <script>
-    // --- 1. 架構師配置：Firebase 設定 (請填入你 Project A 的設定) ---
+    // --- 1. 初始化 Firebase (使用 Project A 的設定) ---
+    // 你的 Project A 原始碼顯示 URL 是這個
     const firebaseConfig = {
-        apiKey: "YOUR_FIREBASE_API_KEY",
-        authDomain: "YOUR_PROJECT.firebaseapp.com",
-        databaseURL: "YOUR_DATABASE_URL",
-        projectId: "YOUR_PROJECT_ID",
+        databaseURL: "https://hualientaxi-bb32f-default-rtdb.asia-southeast1.firebasedatabase.app/",
     };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    // --- 2. 在地運將配置：四大排班區座標 (已從你的JSON轉換) ---
-    // 注意：Google Maps 格式是 {lat, lng}，順序跟 GeoJSON 相反
+    // --- 2. 定義電子圍籬 (Coordinates) ---
+    // 這是我們昨天定義的四個 JSON 轉換過來的
     const ZONES = {
         "花蓮前站": [
-            {lat: 23.991470, lng: 121.600260},
-            {lat: 23.990772, lng: 121.602020},
-            {lat: 23.992854, lng: 121.602981},
-            {lat: 23.993574, lng: 121.601245}
+            {lat: 23.991470, lng: 121.600260}, {lat: 23.990772, lng: 121.602020},
+            {lat: 23.992854, lng: 121.602981}, {lat: 23.993574, lng: 121.601245}
         ],
         "花蓮後站": [
-            {lat: 23.994816, lng: 121.599054},
-            {lat: 23.992354, lng: 121.597607},
-            {lat: 23.990972, lng: 121.599851},
-            {lat: 23.993979, lng: 121.601205}
+            {lat: 23.994816, lng: 121.599054}, {lat: 23.992354, lng: 121.597607},
+            {lat: 23.990972, lng: 121.599851}, {lat: 23.993979, lng: 121.601205}
         ],
         "慈濟醫院": [
-            {lat: 23.993878, lng: 121.593012},
-            {lat: 23.995653, lng: 121.594586},
-            {lat: 23.996174, lng: 121.594003},
-            {lat: 23.996475, lng: 121.592131},
+            {lat: 23.993878, lng: 121.593012}, {lat: 23.995653, lng: 121.594586},
+            {lat: 23.996174, lng: 121.594003}, {lat: 23.996475, lng: 121.592131},
             {lat: 23.995464, lng: 121.591121}
         ],
         "門諾醫院": [
-            {lat: 23.987043, lng: 121.623861},
-            {lat: 23.985999, lng: 121.625335},
-            {lat: 23.988932, lng: 121.627639},
-            {lat: 23.989904, lng: 121.626260}
+            {lat: 23.987043, lng: 121.623861}, {lat: 23.985999, lng: 121.625335},
+            {lat: 23.988932, lng: 121.627639}, {lat: 23.989904, lng: 121.626260}
         ]
     };
 
     let map;
-    let polygons = {}; // 存放地圖上的紅色圍籬
-    let drivers = {};  // 存放司機資料
-    let markers = {};  // 存放地圖上的車子圖標
+    let polygons = {}; 
+    let markers = {}; 
 
-    // --- 3. 初始化地圖與圍籬 ---
+    // --- 3. 自定義地圖圖標 (SVG) ---
+    const getIcon = (color) => {
+        return {
+            path: "M10,0 C4.5,0 0,4.5 0,10 C0,18 10,30 10,30 C10,30 20,18 20,10 C20,4.5 15.5,0 10,0 Z",
+            fillColor: color,
+            fillOpacity: 1,
+            strokeColor: '#fff',
+            strokeWeight: 2,
+            scale: 1.5,
+            anchor: new google.maps.Point(10, 30)
+        };
+    };
+
     function initMap() {
-        // 預設地圖中心 (花蓮火車站)
+        // 初始化地圖 (深色模式)
         map = new google.maps.Map(document.getElementById("map"), {
             center: { lat: 23.992, lng: 121.600 },
             zoom: 14,
-            disableDefaultUI: true, // 簡化介面
-            styles: [ // 夜間模式地圖樣式 (選用)
-                { elementType: "geometry", stylers: [{ color: "#242f3e" }] },
-                { elementType: "labels.text.stroke", stylers: [{ color: "#242f3e" }] },
-                { elementType: "labels.text.fill", stylers: [{ color: "#746855" }] },
-            ]
+            disableDefaultUI: true,
+            styles: [ { elementType: "geometry", stylers: [{ color: "#242f3e" }] }, { elementType: "labels.text.stroke", stylers: [{ color: "#242f3e" }] }, { elementType: "labels.text.fill", stylers: [{ color: "#746855" }] } ]
         });
 
-        // 畫出圍籬 (紅色半透明)
-        for (let zoneName in ZONES) {
-            const poly = new google.maps.Polygon({
-                paths: ZONES[zoneName],
-                strokeColor: "#FF0000",
-                strokeOpacity: 0.8,
-                strokeWeight: 2,
-                fillColor: "#FF0000",
-                fillOpacity: 0.15, // 淡紅色表示區域
+        // 畫出圍籬
+        for (let name in ZONES) {
+            polygons[name] = new google.maps.Polygon({
+                paths: ZONES[name],
+                strokeColor: "#00e5ff", strokeOpacity: 0.8, strokeWeight: 2,
+                fillColor: "#00e5ff", fillOpacity: 0.1,
                 map: map
             });
-            polygons[zoneName] = poly;
         }
 
-        // 開始監聽 Firebase 資料
-        listenToDrivers();
+        listenToData();
     }
 
-    // --- 4. 核心邏輯：監聽與判斷 ---
-    function listenToDrivers() {
-        // 假設你的資料路徑是 'drivers'，請依實際情況修改
+    function listenToData() {
+        // 監聽 Firebase 'drivers' 節點
         db.ref('drivers').on('value', (snapshot) => {
             const data = snapshot.val();
             if (!data) return;
 
+            const now = Date.now();
             const queueData = { "花蓮前站": [], "花蓮後站": [], "慈濟醫院": [], "門諾醫院": [] };
+            
+            // 標記目前存在的所有司機 ID，用於清除過期 Marker
+            const activeDriverIds = new Set();
 
-            // 遍歷每一位司機
-            Object.keys(data).forEach(driverId => {
-                const driver = data[driverId];
+            Object.keys(data).forEach(id => {
+                const d = data[id];
                 
-                // [過濾 1] 必須有經緯度
-                if (!driver.lat || !driver.lng) return;
+                // 1. 基本資料檢核 (過濾掉沒有位置或下線超過 30 分鐘的)
+                if (!d.lat || !d.lng) return;
+                if (now - d.lastUpdate > 30 * 60 * 1000) return; // 30分鐘無訊號視為失聯
 
-                const pos = new google.maps.LatLng(driver.lat, driver.lng);
-
-                // [地圖更新] 更新或建立 Marker
-                updateMarker(driverId, driver, pos);
-
-                // [過濾 2] 必須是「空車 (EMPTY)」或「排班 (QUEUE)」狀態
-                // 如果是「載客 (OCCUPIED)」，直接跳過，不進入排班計算
-                if (driver.status === 'OCCUPIED') {
-                    // 可以在這裡把地圖上的 Marker 隱藏或變色
-                    if(markers[driverId]) markers[driverId].setMap(null); // 隱藏載客車輛
+                // 2. 狀態判斷
+                // 如果是「載客 (busy)」，完全隱藏 (看板不顯示，地圖也不顯示)
+                if (d.workStatus === 'busy') {
+                    if (markers[id]) markers[id].setMap(null); // 確保從地圖移除
                     return; 
                 }
 
-                // [核心算法] 檢查這台車在哪個圍籬內？
+                // 現在只剩下「空車 (empty)」或 本來就是「排班 (queue)」的
+                activeDriverIds.add(id);
+                const pos = new google.maps.LatLng(d.lat, d.lng);
+                let isInAnyZone = false;
+                let currentZoneName = "";
+
+                // 3. 幾何運算：判斷是否在任何一個圍籬內
                 for (let zoneName in polygons) {
-                    // 使用 Google Geometry Library 判斷點是否在多邊形內
                     if (google.maps.geometry.poly.containsLocation(pos, polygons[zoneName])) {
-                        queueData[zoneName].push(driver);
-                        break; // 一台車只能在一個區域
+                        isInAnyZone = true;
+                        currentZoneName = zoneName;
+                        // 加入該區的排班列表
+                        queueData[zoneName].push(d);
+                        break; 
                     }
                 }
+
+                // 4. 更新地圖標記
+                updateMarker(id, d, pos, isInAnyZone);
             });
 
-            // 更新右側看板 UI
+            // 清除地圖上已經下線或載客的舊 Marker
+            for (let id in markers) {
+                if (!activeDriverIds.has(id)) {
+                    markers[id].setMap(null);
+                    delete markers[id];
+                }
+            }
+
+            // 5. 更新右側看板
             renderDashboard(queueData);
         });
     }
 
-    // --- 5. UI 渲染：更新地圖 Marker ---
-    function updateMarker(id, driver, pos) {
+    function updateMarker(id, driver, pos, isQueueing) {
+        // 排班中=藍色，遊蕩中=綠色
+        const color = isQueueing ? "#00e5ff" : "#2ecc71";
+        
         if (!markers[id]) {
             markers[id] = new google.maps.Marker({
-                position: pos,
-                map: map,
-                title: driver.carNumber || id,
-                // 可以換成你的車子 icon
-                icon: 'http://maps.google.com/mapfiles/kml/shapes/cabs.png' 
+                position: pos, map: map,
+                icon: getIcon(color),
+                title: driver.name || "司機"
             });
         } else {
             markers[id].setPosition(pos);
-            markers[id].setMap(map); // 確保顯示 (如果之前被隱藏)
+            markers[id].setIcon(getIcon(color));
+            markers[id].setMap(map);
         }
     }
 
-    // --- 6. UI 渲染：更新右側看板 ---
     function renderDashboard(queueData) {
         const dashboard = document.getElementById('dashboard');
-        dashboard.innerHTML = ""; // 清空
+        dashboard.innerHTML = ""; // 清空重繪
 
-        for (let zoneName in queueData) {
-            const driversInZone = queueData[zoneName];
+        for (let zoneName in ZONES) {
+            const list = queueData[zoneName];
             
-            // 該區塊標題
-            const zoneBlock = document.createElement('div');
-            zoneBlock.className = 'zone-block';
+            // 建立區塊
+            const zoneDiv = document.createElement('div');
+            zoneDiv.className = 'zone-container';
             
-            // 標題列：顯示區域名稱 + 車輛數
-            zoneBlock.innerHTML = `
-                <div class="zone-title">
+            // 標題
+            let html = `
+                <div class="zone-header">
                     <span>${zoneName}</span>
-                    <span>${driversInZone.length} 台</span>
+                    <span class="zone-count">${list.length}</span>
                 </div>
-                <div class="driver-list" id="list-${zoneName}"></div>
+                <div class="driver-list">
             `;
-            dashboard.appendCh1ild(zoneBlock);
 
-            // 插入司機卡片
-            const listDiv = zoneBlock.querySelector(`#list-${zoneName}`);
-            if (driversInZone.length === 0) {
-                listDiv.innerHTML = `<div style="color:#666; padding:10px;">目前無車輛排班</div>`;
+            // 內容
+            if (list.length === 0) {
+                html += `<div class="empty-zone">目前無車輛排班</div>`;
             } else {
-                driversInZone.forEach(driver => {
-                    const card = document.createElement('div');
-                    card.className = 'driver-card';
-                    // 顯示內容：車號 (大) + 司機名 (小)
-                    card.innerHTML = `
-                        <h3>${driver.carNumber || '未知車號'}</h3>
-                        <p>${driver.name || '司機'}</p>
+                // 依時間排序 (這裡先簡單排，進階可依進入時間)
+                list.forEach(d => {
+                    // Project A 的 postData 傳的是 name, phone。如果有車號更好，沒有就顯示 Name
+                    const displayName = d.name || "未命名";
+                    const displayPhone = d.phone || "無電話";
+
+                    html += `
+                        <div class="driver-card">
+                            <div class="driver-name">${displayName}</div>
+                            <div class="driver-phone">${displayPhone}</div>
+                            <div class="driver-status">排班中</div>
+                        </div>
                     `;
-                    listDiv.appendChild(card);
                 });
             }
+
+            html += `</div>`; // end driver-list
+            zoneDiv.innerHTML = html;
+            dashboard.appendChild(zoneDiv);
         }
     }
 
-    // 啟動地圖
-    window.onload = initMap;
-
+    window.onload = loadGoogleMaps;
 </script>
 </body>
 </html>
