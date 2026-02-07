@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>花蓮車隊 - 數位排班中控台</title>
+    
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAIxc6PEhHgUs_A9lyRUg8dNbmwOpSamY8&libraries=geometry"></script>
+
+    <style>
+        /* --- UI 設計總監：戰情室黑金風格 --- */
+        body { margin: 0; padding: 0; display: flex; height: 100vh; font-family: "Microsoft JhengHei", sans-serif; background: #000; overflow: hidden; }
+        
+        /* 左側地圖 (40%) */
+        #map { width: 40%; height: 100%; border-right: 3px solid #333; }
+
+        /* 右側看板 (60%) */
+        #dashboard { 
+            width: 60%; height: 100%; 
+            background-color: #121212; 
+            padding: 15px; box-sizing: border-box; 
+            display: flex; flex-direction: column; gap: 15px; 
+            overflow-y: auto; 
+        }
+
+        /* 標題列 */
+        .header { color: #888; text-align: right; font-size: 14px; padding-bottom: 10px; border-bottom: 1px solid #333; }
+
+        /* 排班區域容器 */
+        .zone-container { 
+            background: #1e1e1e; border-radius: 12px; 
+            border: 1px solid #333; overflow: hidden; 
+            display: flex; flex-direction: column; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+        
+        /* 區域名稱 */
+        .zone-header { 
+            background: linear-gradient(90deg, #004d40, #00695c); 
+            color: #fff; padding: 12px 20px; 
+            font-size: 28px; font-weight: bold; 
+            display: flex; justify-content: space-between; align-items: center; 
+            border-bottom: 2px solid #000; 
+        }
+        
+        /* 車輛計數器 */
+        .zone-count { 
+            background: #ffeb3b; color: #000; 
+            padding: 2px 15px; border-radius: 20px; 
+            font-size: 20px; font-weight: 800; 
+        }
+
+        /* 司機列表網格 */
+        .driver-list { 
+            padding: 15px; 
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); 
+            gap: 15px; 
+        }
+
+        /* 司機卡片 */
+        .driver-card { 
+            background: #2c2c2c; color: #fff; 
+            padding: 15px; border-radius: 8px; 
+            border-left: 6px solid #00bcd4; 
+            display: flex; flex-direction: column; align-items: center; 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3); 
+            animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
+            position: relative;
+        }
+        
+        .driver-name { font-size: 40px; font-weight: bold; color: #fff; margin: 5px 0; text-shadow: 0 2px 4px rgba(0,0,0,0.8); }
+        .driver-car { font-size: 22px; color: #ffeb3b; background: #000; padding: 2px 8px; border-radius: 4px; font-family: monospace; }
+        .driver-time { font-size: 14px; color: #aaa; margin-top: 8px; }
+
+        /* 空狀態 */
+        .empty-zone { padding: 30px; text-align: center; color: #444; font-size: 20px; font-style: italic; }
+
+        @keyframes popIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    </style>
+</head>
+<body>
+
+    <div id="map"></div>
+    <div id="dashboard">
+        <div class="header">花蓮車隊數位排班系統 • 即時連線中</div>
+        <div id="zones-area"></div>
+    </div>
+
+<script>
+    // --- 1. Firebase 設定 ---
+    const firebaseConfig = { databaseURL: "https://hualientaxi-bb32f-default-rtdb.asia-southeast1.firebasedatabase.app/" };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    // --- 2. 電子圍籬座標 (已從你的 JSON 轉換) ---
+    // Google Maps 格式: {lat, lng}
+    const ZONES = {
+        "花蓮前站": [
+            {lat: 23.991470, lng: 121.600259}, {lat: 23.990772, lng: 121.602020},
+            {lat: 23.992854, lng: 121.602981}, {lat: 23.993574, lng: 121.601245}
+        ],
+        "花蓮後站": [
+            {lat: 23.994816, lng: 121.599054}, {lat: 23.992354, lng: 121.597607},
+            {lat: 23.990972, lng: 121.599851}, {lat: 23.993979, lng: 121.601205}
+        ],
+        "慈濟醫院": [
+            {lat: 23.993878, lng: 121.593012}, {lat: 23.995653, lng: 121.594586},
+            {lat: 23.996174, lng: 121.594003}, {lat: 23.996475, lng: 121.592131},
+            {lat: 23.995464, lng: 121.591121}
+        ],
+        "門諾醫院": [
+            {lat: 23.987043, lng: 121.623861}, {lat: 23.985999, lng: 121.625335},
+            {lat: 23.988932, lng: 121.627639}, {lat: 23.989904, lng: 121.626260}
+        ]
+    };
+
+    let map;
+    let polygons = {}; 
+    let markers = {}; 
+
+    // 圖標產生器
+    const getIcon = (color) => {
+        return {
+            path: "M10,0 C4.5,0 0,4.5 0,10 C0,18 10,30 10,30 C10,30 20,18 20,10 C20,4.5 15.5,0 10,0 Z",
+            fillColor: color, fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2, scale: 1.5, anchor: new google.maps.Point(10, 30)
+        };
+    };
+
+    function initMap() {
+        // 地圖初始化 (深色模式)
+        map = new google.maps.Map(document.getElementById("map"), {
+            center: { lat: 23.992, lng: 121.600 },
+            zoom: 14, disableDefaultUI: true,
+            styles: [ { elementType: "geometry", stylers: [{ color: "#242f3e" }] }, { elementType: "labels.text.stroke", stylers: [{ color: "#242f3e" }] }, { elementType: "labels.text.fill", stylers: [{ color: "#746855" }] } ]
+        });
+
+        // 繪製電子圍籬 (紅色半透明)
+        for (let name in ZONES) {
+            polygons[name] = new google.maps.Polygon({
+                paths: ZONES[name],
+                strokeColor: "#ff5252", strokeOpacity: 0.8, strokeWeight: 2,
+                fillColor: "#ff5252", fillOpacity: 0.15,
+                map: map
+            });
+            
+            // 在地圖上標示區域名稱
+            new google.maps.Marker({
+                position: ZONES[name][0], map: map,
+                label: { text: name, color: "white", fontSize: "12px", fontWeight: "bold" },
+                icon: { path: google.maps.SymbolPath.CIRCLE, scale: 0 } // 隱藏圖標只顯示文字
+            });
+        }
+
+        listenToDrivers();
+    }
+
+    function listenToDrivers() {
+        db.ref('drivers').on('value', (snapshot) => {
+            const data = snapshot.val();
+            if (!data) return;
+
+            const now = Date.now();
+            const queueData = { "花蓮前站": [], "花蓮後站": [], "慈濟醫院": [], "門諾醫院": [] };
+            const activeDriverIds = new Set();
+
+            Object.keys(data).forEach(id => {
+                const d = data[id];
+                
+                // 1. 基本過濾：無座標或失聯超過30分 -> 忽略
+                if (!d.lat || !d.lng) return;
+                if (now - d.lastUpdate > 1800000) return; 
+
+                // 2. 狀態過濾：載客中(busy) -> 忽略 (不顯示在看板)
+                if (d.workStatus === 'busy') {
+                    if (markers[id]) markers[id].setMap(null);
+                    return; 
+                }
+
+                // 3. 準備資料
+                activeDriverIds.add(id);
+                const pos = new google.maps.LatLng(d.lat, d.lng);
+                let isInZone = false;
+
+                // 4. 判斷是否在任何排班區內
+                for (let zoneName in polygons) {
+                    if (google.maps.geometry.poly.containsLocation(pos, polygons[zoneName])) {
+                        isInZone = true;
+                        // 加入該區列表 (使用 Firebase 裡的新資料)
+                        queueData[zoneName].push({
+                            name: d.name || "未命名",
+                            car: d.car || "計程車",
+                            time: d.lastUpdate
+                        });
+                        break; // 一台車只會屬於一個區
+                    }
+                }
+
+                // 5. 更新地圖 Marker (藍色=排班, 綠色=遊蕩)
+                const color = isInZone ? "#00bcd4" : "#2ecc71"; 
+                updateMarker(id, d.name, pos, color);
+            });
+
+            // 清除無效 Marker
+            for (let id in markers) {
+                if (!activeDriverIds.has(id)) {
+                    markers[id].setMap(null);
+                    delete markers[id];
+                }
+            }
+
+            // 6. 渲染右側看板
+            renderDashboard(queueData);
+        });
+    }
+
+    function updateMarker(id, name, pos, color) {
+        if (!markers[id]) {
+            markers[id] = new google.maps.Marker({
+                position: pos, map: map,
+                icon: getIcon(color), title: name
+            });
+        } else {
+            markers[id].setPosition(pos);
+            markers[id].setIcon(getIcon(color));
+            markers[id].setMap(map);
+        }
+    }
+
+    function renderDashboard(queueData) {
+        const container = document.getElementById('zones-area');
+        container.innerHTML = "";
+
+        for (let zoneName in ZONES) {
+            const list = queueData[zoneName];
+            
+            // 建立區塊 HTML
+            const zoneHtml = `
+                <div class="zone-container">
+                    <div class="zone-header">
+                        <span>${zoneName}</span>
+                        <span class="zone-count">${list.length}</span>
+                    </div>
+                    <div class="driver-list">
+                        ${list.length === 0 ? '<div class="empty-zone">目前無車輛</div>' : 
+                          list.map(d => `
+                            <div class="driver-card">
+                                <div class="driver-name">${d.name}</div>
+                                <div class="driver-car">${d.car}</div>
+                                <div class="driver-time">連線中</div>
+                            </div>
+                          `).join('')}
+                    </div>
+                </div>
+            `;
+            container.innerHTML += zoneHtml;
+        }
+    }
+
+    window.onload = initMap;
+</script>
+</body>
+</html>
