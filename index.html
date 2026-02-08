@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>花蓮車隊 - 司機端 (v4.3)</title>
+  <title>花蓮車隊 - 司機端 (v4.5)</title>
   
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
@@ -11,7 +11,6 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
   <style>
-    /* UI: 保持極簡全螢幕 */
     body { margin: 0; padding: 0; font-family: -apple-system, Roboto, sans-serif; overflow: hidden; background: #222; }
     #map { width: 100vw; height: 100vh; }
     
@@ -32,9 +31,12 @@
     .breathing-icon { font-size: 60px; animation: breathe 3s infinite; margin-bottom: 20px; }
     @keyframes breathe { 0% { opacity: 0.3; text-shadow: 0 0 10px #2ecc71; } 50% { opacity: 1; text-shadow: 0 0 30px #2ecc71; } 100% { opacity: 0.3; text-shadow: 0 0 10px #2ecc71; } }
 
+    /* v4.5: 升級版彈窗 (給叫車通知用) */
     .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 10000; justify-content: center; align-items: center; }
-    .modal-content { background: #333; color: #fff; width: 85%; max-width: 300px; border-radius: 15px; padding: 25px; text-align: center; border: 1px solid #555; }
-    .modal-btns button { width: 100%; padding: 12px; margin-top: 15px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; background: #00bcd4; color: #000; font-size: 16px; }
+    .modal-content { background: #222; color: #fff; width: 85%; max-width: 320px; border-radius: 15px; padding: 25px; text-align: center; border: 1px solid #444; box-shadow: 0 10px 40px rgba(0,0,0,0.8); }
+    .modal-btns button { width: 100%; padding: 15px; margin-top: 15px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; font-size: 18px; }
+    .btn-nav { background: #00C853; color: white; }
+    .btn-ignore { background: #444; color: #ccc; font-size: 14px; padding: 10px !important; }
   </style>
 </head>
 <body>
@@ -54,8 +56,20 @@
     <button id="btn-saver" class="circle-btn bg-dark" style="display:none;" onclick="toggleSaver(true)"><span>掛機</span></button>
   </div>
 
+  <div id="request-modal" class="modal-overlay">
+    <div class="modal-content">
+        <i class="fa-solid fa-bell" style="font-size:40px; color:#f1c40f; margin-bottom:15px;"></i>
+        <h2 style="margin:0 0 10px 0;">有人叫車！</h2>
+        <p style="color:#aaa; font-size:14px;">乘客正在撥打您的電話...</p>
+        <div class="modal-btns">
+            <button class="btn-nav" id="btn-go-nav"><i class="fa-solid fa-location-arrow"></i> 導航去接人</button>
+            <button class="btn-ignore" onclick="ignoreRequest()">關閉通知</button>
+        </div>
+    </div>
+  </div>
+
   <div id="alert-modal" class="modal-overlay">
-    <div class="modal-content"><h2 id="alert-title">提示</h2><p id="alert-msg">內容</p><div class="modal-btns"><button onclick="closeModal()">收到</button></div></div>
+    <div class="modal-content"><h2 id="alert-title">提示</h2><p id="alert-msg">內容</p><div class="modal-btns"><button onclick="closeModal()" style="background:#00bcd4;color:black;">收到</button></div></div>
   </div>
 
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
@@ -69,37 +83,16 @@
     var currentWorkStatus = 'empty'; 
     var watchId = null, wakeLock = null, heartbeatInterval = null;
     var lastUploadTime = 0, lastUploadLat = 0, lastUploadLng = 0;
-    
-    // v4.3 新增：排班中心點紀錄 (用來抓幽靈車)
     var queueCenter = null; 
 
-    // 省電與節流設定
     const UPDATE_INTERVAL = 15000; 
     const HEARTBEAT_TIME = 180000; 
     const MIN_DIST = 100;
 
-    // v4.3 新增：圓形箭頭圖示 (導航風格)
-    const getNavIcon = (color) => {
-        return {
-            path: google.maps.SymbolPath.CIRCLE,
-            scale: 10,
-            fillColor: color,
-            fillOpacity: 1,
-            strokeWeight: 2,
-            strokeColor: 'white'
-        };
-    };
-    // 箭頭另外疊加 (因為 Google Maps Icon 旋轉比較麻煩，我們簡化用圓點代表位置)
-    // 或者我們直接用一個 SVG 路徑畫出「圓底+箭頭」
     const getArrowIcon = (color, heading) => {
         return {
-            path: "M0,-12 L10,10 L0,5 L-10,10 Z", // 類似紙飛機/導航箭頭
-            fillColor: color,
-            fillOpacity: 1,
-            scale: 1.5,
-            strokeColor: "white",
-            strokeWeight: 2,
-            rotation: heading || 0 // 旋轉角度
+            path: "M0,-12 L10,10 L0,5 L-10,10 Z", 
+            fillColor: color, fillOpacity: 1, scale: 1.5, strokeColor: "white", strokeWeight: 2, rotation: heading || 0 
         };
     };
 
@@ -125,13 +118,45 @@
                 document.getElementById('btn-power').style.display = 'flex';
                 if (currentUser && currentUser.pictureUrl) db.ref('drivers/' + uid).update({ photo: currentUser.pictureUrl });
                 if (localStorage.getItem('isOnline') === 'true') togglePower(true);
+                
+                // v4.5: 啟動叫車監聽器
+                listenForRequests(uid);
+
             } else {
                 const msg = `您的 ID 是：\n${uid}\n\n請截圖或複製傳給管理員開通權限。`;
                 showAlert("🚫 未授權", msg);
                 document.getElementById('hud').innerHTML = `<span style="color:red">ID: ${uid.substring(0,6)}...</span>`;
-                document.body.insertAdjacentHTML('beforeend', `<div style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:white;color:black;padding:25px;z-index:99999;text-align:center;border-radius:15px;box-shadow:0 10px 40px rgba(0,0,0,0.6);width:80%;max-width:300px;"><h3 style="margin-top:0;">尚未開通權限</h3><p style="color:#555;font-size:14px;">請複製下方 ID 傳給管理員：</p><input type="text" value="${uid}" style="width:100%;padding:12px;font-size:16px;text-align:center;margin:10px 0;background:#f0f0f0;border:1px solid #ccc;border-radius:5px;" onclick="this.select();document.execCommand('copy');alert('已複製 ID')"><p style="font-size:12px;color:#999;">(點擊框框可複製)</p></div>`);
             }
         });
+    }
+
+    // v4.5: 監聽叫車請求
+    function listenForRequests(uid) {
+        db.ref('drivers/' + uid + '/request').on('value', snapshot => {
+            const req = snapshot.val();
+            if (req) {
+                // 收到請求，顯示彈窗
+                const modal = document.getElementById('request-modal');
+                const btnNav = document.getElementById('btn-go-nav');
+                
+                // 設定導航按鈕行為
+                btnNav.onclick = function() {
+                    // 打開 Google Maps 導航
+                    window.location.href = `https://www.google.com/maps/dir/?api=1&destination=${req.lat},${req.lng}&travelmode=driving`;
+                    ignoreRequest(); // 點擊後關閉彈窗
+                };
+                
+                modal.style.display = 'flex';
+                // 可以加一個震動
+                if (navigator.vibrate) navigator.vibrate([500, 200, 500]);
+            }
+        });
+    }
+
+    function ignoreRequest() {
+        document.getElementById('request-modal').style.display = 'none';
+        // 清除請求，避免重複跳出
+        if(currentUser) db.ref('drivers/' + currentUser.userId + '/request').remove();
     }
 
     function togglePower(forceOn=false) {
@@ -148,11 +173,9 @@
             btns.forEach(id => document.getElementById(id).style.display = 'none');
             stopGPS(); releaseWakeLock(); toggleSaver(false);
             if(myMarker) myMarker.setMap(null);
-            db.ref('drivers').off(); 
             if (heartbeatInterval) clearInterval(heartbeatInterval);
             if (currentUser) db.ref('drivers/' + currentUser.userId).update({ status: 'offline' });
             document.getElementById('hud').innerHTML = `💤 已下線`;
-            // 下線時清除排班鎖定
             queueCenter = null;
         }
     }
@@ -160,20 +183,10 @@
     function toggleStatus(){ 
         if(currentWorkStatus==='empty') {
             currentWorkStatus='queue';
-            // v4.3: 進入排班時，紀錄當下位置作為中心點
-            if(myMarker) {
-                const pos = myMarker.getPosition();
-                queueCenter = { lat: pos.lat(), lng: pos.lng() };
-            }
+            if(myMarker) { const pos = myMarker.getPosition(); queueCenter = { lat: pos.lat(), lng: pos.lng() }; }
         }
-        else if(currentWorkStatus==='queue') {
-            currentWorkStatus='busy';
-            queueCenter = null; // 離開排班，清除鎖定
-        }
-        else {
-            currentWorkStatus='empty';
-            queueCenter = null;
-        }
+        else if(currentWorkStatus==='queue') { currentWorkStatus='busy'; queueCenter = null; }
+        else { currentWorkStatus='empty'; queueCenter = null; }
         updateStatusBtn(); forceUpload(); 
     }
     
@@ -188,16 +201,8 @@
             const latLng = new google.maps.LatLng(latitude, longitude);
             const color = currentWorkStatus==='busy'?'#e67e22':(currentWorkStatus==='queue'?'#3498db':'#2ecc71');
             
-            // v4.3: 更新圖示 (圓底箭頭) 並旋轉
-            if(!myMarker){ 
-                myMarker = new google.maps.Marker({ position: latLng, map: map, icon: getArrowIcon(color, heading), title: "我" }); 
-                map.panTo(latLng); 
-            } else { 
-                myMarker.setPosition(latLng); 
-                myMarker.setIcon(getArrowIcon(color, heading)); // 更新旋轉角度
-                if(!document.getElementById('saver-overlay').classList.contains('active')) map.panTo(latLng); 
-            }
-            
+            if(!myMarker){ myMarker = new google.maps.Marker({ position: latLng, map: map, icon: getArrowIcon(color, heading), title: "我" }); map.panTo(latLng); } 
+            else { myMarker.setPosition(latLng); myMarker.setIcon(getArrowIcon(color, heading)); if(!document.getElementById('saver-overlay').classList.contains('active')) map.panTo(latLng); }
             smartUpload(latitude, longitude);
         }, (err) => console.error(err), { enableHighAccuracy: true, maximumAge: 0 });
     }
@@ -210,19 +215,11 @@
         const distKm = Math.sqrt(Math.pow(lat - lastUploadLat, 2) + Math.pow(lng - lastUploadLng, 2)) * 111;
         const distM = distKm * 1000;
 
-        // v4.3: 幽靈車偵測 (排班區自動踢出)
-        // 如果現在是「排班」狀態，且距離排班中心點超過 500 公尺 -> 自動切回空車
         if (currentWorkStatus === 'queue' && queueCenter) {
             const distFromQueue = Math.sqrt(Math.pow(lat - queueCenter.lat, 2) + Math.pow(lng - queueCenter.lng, 2)) * 111000;
-            if (distFromQueue > 500) {
-                currentWorkStatus = 'empty';
-                queueCenter = null;
-                updateStatusBtn();
-                showAlert("⚠️ 離開排班區", "系統偵測您已離開排班點，自動切換為「空車」。");
-            }
+            if (distFromQueue > 500) { currentWorkStatus = 'empty'; queueCenter = null; updateStatusBtn(); showAlert("⚠️ 離開排班區", "系統偵測您已離開排班點，自動切換為「空車」。"); }
         }
 
-        // 節流邏輯 (15秒 & 100公尺)
         if (distM < MIN_DIST) { updateHUD(false, "📍 待命中 (省電)"); return; }
         if (now - lastUploadTime < UPDATE_INTERVAL) { return; }
 
@@ -231,30 +228,13 @@
 
     function forceUpload(lat, lng) {
         if(!currentUser) return;
-        if(!lat&&myMarker){const pos=myMarker.getPosition();lat=pos.lat();lng=pos.lng()} 
-        if(!lat)return; 
-        
+        if(!lat&&myMarker){const pos=myMarker.getPosition();lat=pos.lat();lng=pos.lng()} if(!lat)return; 
         updateHUD(true, "⚡ 資料上傳...");
-
-        db.ref('drivers/'+currentUser.userId).update({
-            lat:lat, lng:lng, status:'online', workStatus:currentWorkStatus, lastUpdate:firebase.database.ServerValue.TIMESTAMP
-        }).then(() => {
-            setTimeout(() => {
-                 const statusText=currentWorkStatus==='busy'?'載客':(currentWorkStatus==='queue'?'排班':'空車');
-                 updateHUD(false, `🟢 連線中 (${statusText})`);
-            }, 1000);
-        });
-
+        db.ref('drivers/'+currentUser.userId).update({ lat:lat, lng:lng, status:'online', workStatus:currentWorkStatus, lastUpdate:firebase.database.ServerValue.TIMESTAMP }).then(() => { setTimeout(() => { const statusText=currentWorkStatus==='busy'?'載客':(currentWorkStatus==='queue'?'排班':'空車'); updateHUD(false, `🟢 連線中 (${statusText})`); }, 1000); });
         lastUploadLat=lat; lastUploadLng=lng; lastUploadTime=Date.now(); 
     }
 
-    function updateHUD(isUploading, text) {
-        const hud = document.getElementById('hud');
-        hud.innerHTML = `<span class="status-dot" style="background:${isUploading ? '#00C853' : '#2ecc71'};"></span> ${text}`;
-        if(isUploading) hud.classList.add('hud-uploading');
-        else hud.classList.remove('hud-uploading');
-    }
-
+    function updateHUD(isUploading, text) { const hud = document.getElementById('hud'); hud.innerHTML = `<span class="status-dot" style="background:${isUploading ? '#00C853' : '#2ecc71'};"></span> ${text}`; if(isUploading) hud.classList.add('hud-uploading'); else hud.classList.remove('hud-uploading'); }
     async function requestWakeLock() { try { if('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch(e){} }
     function releaseWakeLock() { if(wakeLock) wakeLock.release(); }
     function showAlert(t,m){ document.getElementById('alert-title').innerText=t;document.getElementById('alert-msg').innerText=m;document.getElementById('alert-modal').style.display='flex'; }
