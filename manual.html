@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>花蓮車隊 - 使用說明</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    /* --- 基礎設定 --- */
+    body {
+      margin: 0; padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background-color: #f5f5f5;
+      color: #333;
+      padding-bottom: 80px; /* 留給底部按鈕空間 */
+    }
+
+    /* --- 頂部標題 --- */
+    .header {
+      background: linear-gradient(135deg, #00C853, #64DD17);
+      color: white;
+      padding: 20px;
+      text-align: center;
+      border-bottom-left-radius: 20px;
+      border-bottom-right-radius: 20px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+    .header h1 { margin: 0; font-size: 22px; font-weight: bold; }
+    .header p { margin: 5px 0 0; font-size: 14px; opacity: 0.9; }
+
+    /* --- 卡片樣式 --- */
+    .container { padding: 15px; max-width: 600px; margin: 0 auto; }
+    
+    .card {
+      background: white;
+      border-radius: 15px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      border-left: 5px solid #ccc; /* 預設邊框色 */
+    }
+
+    /* 不同類型的卡片邊框色 */
+    .card.loc { border-left-color: #FF5722; }
+    .card.cache { border-left-color: #FFC107; }
+    .card.reset { border-left-color: #2196F3; }
+    .card.app { border-left-color: #9C27B0; }
+
+    .card-title {
+      font-size: 18px;
+      font-weight: bold;
+      margin-bottom: 15px;
+      display: flex;
+      align-items: center;
+      color: #444;
+    }
+    .card-title i { margin-right: 10px; font-size: 20px; }
+    
+    /* --- 步驟列表 --- */
+    ol { margin: 0; padding-left: 20px; }
+    li { margin-bottom: 8px; font-size: 15px; line-height: 1.6; }
+    
+    .highlight {
+      color: #00C853;
+      font-weight: bold;
+      background: rgba(0, 200, 83, 0.1);
+      padding: 2px 5px;
+      border-radius: 4px;
+    }
+    .warning { color: #d32f2f; font-weight: bold; }
+
+    /* --- OS 標籤 --- */
+    .os-badge {
+      display: inline-block; padding: 3px 8px; border-radius: 4px;
+      font-size: 12px; font-weight: bold; color: white; margin-bottom: 5px;
+    }
+    .ios { background: #555; }
+    .android { background: #3DDC84; color: #004d40; }
+
+    /* --- 底部懸浮按鈕 --- */
+    .footer-btn {
+      position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+      width: 90%; max-width: 400px;
+      background: #333; color: white;
+      text-align: center; padding: 15px;
+      border-radius: 30px;
+      text-decoration: none;
+      font-weight: bold; font-size: 16px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+      display: flex; justify-content: center; align-items: center;
+      z-index: 99;
+    }
+    .footer-btn i { margin-right: 8px; }
+    .footer-btn:active { transform: translateX(-50%) scale(0.95); }
+
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <h1><i class="fa-solid fa-book-open"></i> 使用說明書</h1>
+    <p>簡單幾步，解決定位與卡頓問題</p>
+  </div>
+
+  <div class="container">
+
+    <div class="card loc">
+      <div class="card-title" style="color:#FF5722">
+        <i class="fa-solid fa-location-dot"></i> 定位不準確？
+      </div>
+      <p style="font-size:14px; color:#666; margin-top:0;">請檢查您的 LINE 是否有開啟定位權限：</p>
+      
+      <hr style="border:0; border-top:1px solid #eee; margin:10px 0;">
+
+      <span class="os-badge ios"><i class="fa-brands fa-apple"></i> iOS (iPhone)</span>
+      <ol>
+        <li>進入手機的 <span class="highlight">設定</span> ⚙️</li>
+        <li>滑到最下方找到 <span class="highlight">LINE</span></li>
+        <li>點選 <span class="highlight">位置</span></li>
+        <li>選擇 <b>「使用 App 期間」</b> 或 <b>「永遠」</b></li>
+      </ol>
+
+      <div style="height:10px;"></div>
+
+      <span class="os-badge android"><i class="fa-brands fa-android"></i> Android (安卓)</span>
+      <ol>
+        <li>進入手機的 <span class="highlight">設定</span> ⚙️</li>
+        <li>點選 <span class="highlight">應用程式</span> > 找到 <b>LINE</b></li>
+        <li>點選 <span class="highlight">權限</span> > <b>位置</b></li>
+        <li>選擇 <b>「僅在使用該應用程式時允許」</b></li>
+      </ol>
+    </div>
+
+    <div class="card cache">
+      <div class="card-title" style="color:#FFB300">
+        <i class="fa-solid fa-broom"></i> 畫面卡住？清除快取
+      </div>
+      <ol>
+        <li>回到 LINE 的 <span class="highlight">主頁</span> 🏠 (左下角)</li>
+        <li>點擊右上角 <span class="highlight">設定</span> ⚙️ (齒輪)</li>
+        <li>往下滑找到 <span class="highlight">聊天</span></li>
+        <li>點選 <span class="highlight">刪除資料</span></li>
+        <li><span class="warning">只勾選「快取資料」</span> (不要勾到照片喔！)</li>
+        <li>按下 <b>「刪除所選資料」</b></li>
+      </ol>
+    </div>
+
+    <div class="card reset">
+      <div class="card-title" style="color:#2196F3">
+        <i class="fa-solid fa-rotate-right"></i> 身分錯誤？重設連動
+      </div>
+      <ol>
+        <li>回到 LINE 的 <span class="highlight">主頁</span> 🏠</li>
+        <li>點擊右上角 <span class="highlight">設定</span> ⚙️</li>
+        <li>點選 <span class="highlight">我的帳號</span></li>
+        <li>點選 <span class="highlight">連動中的應用程式</span></li>
+        <li>找到 <b>「個人車行 劉學銘 TDP-1123」</b></li>
+        <li>點進去選擇 <span class="warning">解除連動</span></li>
+        <li>完成後，重新點擊叫車連結即可！</li>
+      </ol>
+    </div>
+
+    <div class="card app">
+      <div class="card-title" style="color:#9C27B0">
+        <i class="fa-solid fa-mobile-screen"></i> 放在桌面 (安卓限定)
+      </div>
+      <ol>
+        <li>在我們的 LINE 聊天室畫面</li>
+        <li>點擊右上角的 <span class="highlight">三</span> (選單)</li>
+        <li>點擊 <span class="highlight">設定</span> ⚙️</li>
+        <li>選擇 <span class="highlight">建立聊天室捷徑</span></li>
+        <li>回到桌面，就會看到圖示囉！</li>
+      </ol>
+    </div>
+
+    <div style="text-align:center; color:#999; font-size:12px; margin-top:20px;">
+      花蓮計程車隊 v4.10<br>Designed for Hualien
+    </div>
+
+  </div>
+
+  <a href="https://line.me/R/ti/p/@853jdocd" class="footer-btn">
+    <i class="fa-solid fa-headset"></i> 還有問題？聯絡客服
+  </a>
+
+</body>
+</html>
