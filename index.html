@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>花蓮車隊 - 司機端 (v4.5)</title>
+  <title>花蓮車隊 - 司機端 (v4.6)</title>
   
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
-  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAIxc6PEhHgUs_A9lyRUg8dNbmwOpSamY8"></script>
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAIxc6PEhHgUs_A9lyRUg8dNbmwOpSamY8&libraries=geometry"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
   <style>
@@ -31,12 +31,23 @@
     .breathing-icon { font-size: 60px; animation: breathe 3s infinite; margin-bottom: 20px; }
     @keyframes breathe { 0% { opacity: 0.3; text-shadow: 0 0 10px #2ecc71; } 50% { opacity: 1; text-shadow: 0 0 30px #2ecc71; } 100% { opacity: 0.3; text-shadow: 0 0 10px #2ecc71; } }
 
-    /* v4.5: 升級版彈窗 (給叫車通知用) */
+    /* v4.6: 接單任務面板 (出現在下方) */
+    #mission-panel {
+        display: none; position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
+        width: 90%; max-width: 350px; background: #222; border: 1px solid #FFD700;
+        border-radius: 15px; padding: 15px; box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+        z-index: 20; text-align: center; color: white;
+    }
+    .mission-title { color: #FFD700; font-size: 18px; font-weight: bold; margin-bottom: 5px; }
+    .mission-info { font-size: 14px; color: #ccc; margin-bottom: 15px; }
+    .btn-finish {
+        background: #00C853; color: white; border: none; padding: 10px 20px;
+        border-radius: 25px; font-weight: bold; font-size: 16px; cursor: pointer; width: 100%;
+    }
+
     .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 10000; justify-content: center; align-items: center; }
-    .modal-content { background: #222; color: #fff; width: 85%; max-width: 320px; border-radius: 15px; padding: 25px; text-align: center; border: 1px solid #444; box-shadow: 0 10px 40px rgba(0,0,0,0.8); }
-    .modal-btns button { width: 100%; padding: 15px; margin-top: 15px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; font-size: 18px; }
-    .btn-nav { background: #00C853; color: white; }
-    .btn-ignore { background: #444; color: #ccc; font-size: 14px; padding: 10px !important; }
+    .modal-content { background: #333; color: #fff; width: 85%; max-width: 300px; border-radius: 15px; padding: 25px; text-align: center; border: 1px solid #555; }
+    .modal-btns button { width: 100%; padding: 12px; margin-top: 15px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; background: #00bcd4; color: #000; font-size: 16px; }
   </style>
 </head>
 <body>
@@ -56,23 +67,15 @@
     <button id="btn-saver" class="circle-btn bg-dark" style="display:none;" onclick="toggleSaver(true)"><span>掛機</span></button>
   </div>
 
-  <div id="request-modal" class="modal-overlay">
-    <div class="modal-content">
-        <i class="fa-solid fa-bell" style="font-size:40px; color:#f1c40f; margin-bottom:15px;"></i>
-        <h2 style="margin:0 0 10px 0;">有人叫車！</h2>
-        <p style="color:#aaa; font-size:14px;">乘客正在撥打您的電話...</p>
-        <div class="modal-btns">
-            <button class="btn-nav" id="btn-go-nav"><i class="fa-solid fa-location-arrow"></i> 導航去接人</button>
-            <button class="btn-ignore" onclick="ignoreRequest()">關閉通知</button>
-        </div>
-    </div>
+  <div id="mission-panel">
+      <div class="mission-title"><i class="fa-solid fa-flag-checkered"></i> 乘客位置已標記</div>
+      <div class="mission-info" id="mission-dist">距離計算中...</div>
+      <button class="btn-finish" onclick="finishMission()">🏁 已接到乘客 (清除)</button>
   </div>
 
   <div id="alert-modal" class="modal-overlay">
-    <div class="modal-content"><h2 id="alert-title">提示</h2><p id="alert-msg">內容</p><div class="modal-btns"><button onclick="closeModal()" style="background:#00bcd4;color:black;">收到</button></div></div>
+    <div class="modal-content"><h2 id="alert-title">提示</h2><p id="alert-msg">內容</p><div class="modal-btns"><button onclick="closeModal()">收到</button></div></div>
   </div>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script>
@@ -86,6 +89,10 @@
     var watchId = null, wakeLock = null, heartbeatInterval = null;
     var lastUploadTime = 0, lastUploadLat = 0, lastUploadLng = 0;
     var queueCenter = null; 
+
+    // v4.6: 乘客標記與路線
+    var passengerMarker = null;
+    var routeLine = null;
 
     const UPDATE_INTERVAL = 15000; 
     const HEARTBEAT_TIME = 180000; 
@@ -121,9 +128,8 @@
                 if (currentUser && currentUser.pictureUrl) db.ref('drivers/' + uid).update({ photo: currentUser.pictureUrl });
                 if (localStorage.getItem('isOnline') === 'true') togglePower(true);
                 
-                // v4.5: 啟動叫車監聽器
+                // v4.6: 監聽器
                 listenForRequests(uid);
-
             } else {
                 const msg = `您的 ID 是：\n${uid}\n\n請截圖或複製傳給管理員開通權限。`;
                 showAlert("🚫 未授權", msg);
@@ -132,33 +138,69 @@
         });
     }
 
-    // v4.5: 監聽叫車請求
+    // v4.6: 戰術地圖模式
     function listenForRequests(uid) {
         db.ref('drivers/' + uid + '/request').on('value', snapshot => {
             const req = snapshot.val();
             if (req) {
-                // 收到請求，顯示彈窗
-                const modal = document.getElementById('request-modal');
-                const btnNav = document.getElementById('btn-go-nav');
+                // 1. 在地圖上標記乘客
+                const pLoc = new google.maps.LatLng(req.lat, req.lng);
                 
-                // 設定導航按鈕行為
-                btnNav.onclick = function() {
-                    // 打開 Google Maps 導航
-                    window.location.href = `https://www.google.com/maps/dir/?api=1&destination=${req.lat},${req.lng}&travelmode=driving`;
-                    ignoreRequest(); // 點擊後關閉彈窗
-                };
-                
-                modal.style.display = 'flex';
-                // 可以加一個震動
-                if (navigator.vibrate) navigator.vibrate([500, 200, 500]);
+                if(!passengerMarker) {
+                    passengerMarker = new google.maps.Marker({
+                        position: pLoc,
+                        map: map,
+                        label: { text: "客", color: "white" },
+                        icon: { path: google.maps.SymbolPath.CIRCLE, scale: 10, fillColor: "#FF0000", fillOpacity: 1, strokeColor: "white", strokeWeight: 2 },
+                        animation: google.maps.Animation.BOUNCE
+                    });
+                } else {
+                    passengerMarker.setPosition(pLoc);
+                }
+
+                // 2. 顯示任務面板
+                document.getElementById('mission-panel').style.display = 'block';
+
+                // 3. 調整地圖視野，同時看到司機和乘客
+                if(myMarker) {
+                    const bounds = new google.maps.LatLngBounds();
+                    bounds.extend(myMarker.getPosition());
+                    bounds.extend(pLoc);
+                    map.fitBounds(bounds);
+                    
+                    // 畫線 (直線導引)
+                    if(routeLine) routeLine.setMap(null);
+                    routeLine = new google.maps.Polyline({
+                        path: [myMarker.getPosition(), pLoc],
+                        geodesic: true,
+                        strokeColor: '#FFD700',
+                        strokeOpacity: 0.8,
+                        strokeWeight: 4,
+                        icons: [{ icon: {path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW}, offset: '100%' }],
+                        map: map
+                    });
+                }
+
+                // 震動提醒
+                if (navigator.vibrate) navigator.vibrate([500, 200, 500, 200, 500]);
             }
         });
     }
 
-    function ignoreRequest() {
-        document.getElementById('request-modal').style.display = 'none';
-        // 清除請求，避免重複跳出
+    function finishMission() {
+        // 清除任務
+        if(passengerMarker) { passengerMarker.setMap(null); passengerMarker = null; }
+        if(routeLine) { routeLine.setMap(null); routeLine = null; }
+        document.getElementById('mission-panel').style.display = 'none';
+        
+        // 清除資料庫請求
         if(currentUser) db.ref('drivers/' + currentUser.userId + '/request').remove();
+        
+        // 回到司機視角
+        if(myMarker) {
+            map.panTo(myMarker.getPosition());
+            map.setZoom(15);
+        }
     }
 
     function togglePower(forceOn=false) {
@@ -204,7 +246,20 @@
             const color = currentWorkStatus==='busy'?'#e67e22':(currentWorkStatus==='queue'?'#3498db':'#2ecc71');
             
             if(!myMarker){ myMarker = new google.maps.Marker({ position: latLng, map: map, icon: getArrowIcon(color, heading), title: "我" }); map.panTo(latLng); } 
-            else { myMarker.setPosition(latLng); myMarker.setIcon(getArrowIcon(color, heading)); if(!document.getElementById('saver-overlay').classList.contains('active')) map.panTo(latLng); }
+            else { 
+                myMarker.setPosition(latLng); 
+                myMarker.setIcon(getArrowIcon(color, heading)); 
+                // 如果沒有正在執行任務(沒有routeLine)，才自動追蹤司機位置。
+                // 如果有任務，就讓司機自己縮放地圖，不要強制拉回中心，以免看不到乘客。
+                if(!routeLine && !document.getElementById('saver-overlay').classList.contains('active')) map.panTo(latLng); 
+                
+                // 如果有任務，更新連線
+                if(routeLine && passengerMarker) {
+                    routeLine.setPath([latLng, passengerMarker.getPosition()]);
+                    const dist = google.maps.geometry.spherical.computeDistanceBetween(latLng, passengerMarker.getPosition());
+                    document.getElementById('mission-dist').innerText = `乘客距離：${Math.round(dist)} 公尺`;
+                }
+            }
             smartUpload(latitude, longitude);
         }, (err) => console.error(err), { enableHighAccuracy: true, maximumAge: 0 });
     }
