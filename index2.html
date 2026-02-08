@@ -37,7 +37,8 @@
     .tag-queue { background: #e3f2fd; color: #1565c0; }
     .d-meta { font-size: 13px; color: #666; display: flex; gap: 10px; }
     
-    .btn-call { width: 50px; height: 50px; border-radius: 50%; background: linear-gradient(135deg, #00C853, #64DD17); color: white; display: flex; justify-content: center; align-items: center; text-decoration: none; font-size: 20px; box-shadow: 0 4px 10px rgba(76, 175, 80, 0.3); transition: transform 0.1s; }
+    /* v4.5: 按鈕改為 cursor pointer 且不直接設 href */
+    .btn-call { width: 50px; height: 50px; border-radius: 50%; background: linear-gradient(135deg, #00C853, #64DD17); color: white; display: flex; justify-content: center; align-items: center; text-decoration: none; font-size: 20px; box-shadow: 0 4px 10px rgba(76, 175, 80, 0.3); transition: transform 0.1s; cursor: pointer; border: none; }
     .btn-call:active { transform: scale(0.9); }
 
     #btn-loc { position: absolute; bottom: 220px; right: 20px; width: 45px; height: 45px; background: white; border-radius: 50%; box-shadow: 0 4px 15px rgba(0,0,0,0.15); display: flex; justify-content: center; align-items: center; font-size: 20px; color: #666; cursor: pointer; z-index: 15; }
@@ -63,23 +64,16 @@
     const db = firebase.database();
     
     var map, userMarker, markers = {};
+    var myLat = null, myLng = null; // 暫存乘客位置
 
-    // v4.4: 水滴造型 + 文字 (空/排)
     const getPinIcon = (type) => {
-        // 設定顏色與文字
         const isQueue = type === 'queue';
-        const color = isQueue ? '#00B0FF' : '#00C853'; // 藍色 / 綠色
+        const color = isQueue ? '#00B0FF' : '#00C853';
         const labelText = isQueue ? "排" : "空";
-        
         return {
-            // SVG 水滴路徑
             path: "M0-48c-9.8 0-17.7 7.8-17.7 17.4 0 15.5 17.7 30.6 17.7 30.6s17.7-15.4 17.7-30.6c0-9.6-7.9-17.4-17.7-17.4z",
-            fillColor: color,
-            fillOpacity: 1,
-            strokeColor: "#fff",
-            strokeWeight: 2,
-            scale: 1.1,
-            labelOrigin: new google.maps.Point(0, -28) // 文字位置
+            fillColor: color, fillOpacity: 1, strokeColor: "#fff", strokeWeight: 2, scale: 1.1,
+            labelOrigin: new google.maps.Point(0, -28)
         };
     };
 
@@ -95,11 +89,18 @@
             disableDefaultUI: true, styles: [ { featureType: "poi", elementType: "labels", stylers: [{ visibility: "off" }] } ]
         });
         if(navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(pos => {
-                const p = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-                userMarker = new google.maps.Marker({ position: p, map: map, icon: { path: google.maps.SymbolPath.CIRCLE, scale: 8, fillColor: "#4285F4", fillOpacity: 1, strokeColor: "white", strokeWeight: 2 }, title: "我" });
-                map.panTo(p);
-                getAddress(p.lat, p.lng);
+            navigator.geolocation.watchPosition(pos => {
+                myLat = pos.coords.latitude;
+                myLng = pos.coords.longitude;
+                const p = { lat: myLat, lng: myLng };
+                
+                if(!userMarker) {
+                    userMarker = new google.maps.Marker({ position: p, map: map, icon: { path: google.maps.SymbolPath.CIRCLE, scale: 8, fillColor: "#4285F4", fillOpacity: 1, strokeColor: "white", strokeWeight: 2 }, title: "我" });
+                    map.panTo(p);
+                } else {
+                    userMarker.setPosition(p);
+                }
+                getAddress(myLat, myLng);
             });
         }
     }
@@ -116,26 +117,20 @@
 
             Object.keys(data).forEach(key => {
                 const d = data[key];
-                
-                // 防幽靈車邏輯：排班60分，空車10分
                 const timeout = d.workStatus === 'queue' ? 3600000 : 600000;
                 
                 if (d.status !== 'online') return;
                 if (now - d.lastUpdate > timeout) return; 
-                if (d.workStatus === 'busy') return; // 不顯示載客中
+                if (d.workStatus === 'busy') return; 
 
                 activeIds.add(key);
                 const pos = { lat: d.lat, lng: d.lng };
-                
-                // v4.4: 判斷要顯示 "空" 還是 "排"
                 const iconType = d.workStatus === 'queue' ? 'queue' : 'empty';
                 const labelText = d.workStatus === 'queue' ? '排' : '空';
 
                 if (!markers[key]) {
                     markers[key] = new google.maps.Marker({
-                        position: pos,
-                        map: map,
-                        icon: getPinIcon(iconType),
+                        position: pos, map: map, icon: getPinIcon(iconType),
                         label: { text: labelText, color: "white", fontSize: "14px", fontWeight: "bold" },
                         title: d.name
                     });
@@ -145,14 +140,13 @@
                     });
                 } else {
                     markers[key].setPosition(pos);
-                    // 更新狀態圖示
                     markers[key].setIcon(getPinIcon(iconType));
                     markers[key].setLabel({ text: labelText, color: "white", fontSize: "14px", fontWeight: "bold" });
                 }
 
                 let distUser = 999;
-                if(userMarker) {
-                    distUser = google.maps.geometry.spherical.computeDistanceBetween(userMarker.getPosition(), new google.maps.LatLng(d.lat, d.lng)) / 1000;
+                if(myLat && myLng) {
+                    distUser = google.maps.geometry.spherical.computeDistanceBetween(new google.maps.LatLng(myLat, myLng), new google.maps.LatLng(d.lat, d.lng)) / 1000;
                 }
                 d.id = key;
                 d.distUser = distUser;
@@ -177,6 +171,8 @@
             card.className = 'driver-card';
             card.id = `card-${d.id}`;
             card.onclick = () => map.panTo({lat:d.lat, lng:d.lng});
+            
+            // v4.5: 按鈕改為呼叫 function，帶入 driverId 和 phone
             card.innerHTML = `
                 <div class="d-avatar"><img src="${avatar}"></div>
                 <div class="d-info">
@@ -186,10 +182,26 @@
                         <span><i class="fa-solid fa-location-arrow"></i> ${distText}</span>
                     </div>
                 </div>
-                <a href="tel:${d.phone}" class="btn-call"><i class="fa-solid fa-phone"></i></a>
+                <button class="btn-call" onclick="callDriver('${d.id}', '${d.phone}')"><i class="fa-solid fa-phone"></i></button>
             `;
             container.appendChild(card);
         });
+    }
+
+    // v4.5: 核心功能 - 叫車並傳送位置
+    function callDriver(driverId, phone) {
+        // 1. 如果有定位，先傳送位置給司機
+        if (myLat && myLng) {
+            db.ref('drivers/' + driverId + '/request').set({
+                lat: myLat,
+                lng: myLng,
+                timestamp: Date.now()
+            });
+        }
+        // 2. 撥打電話 (延遲一點點確保資料寫入)
+        setTimeout(() => {
+            window.location.href = `tel:${phone}`;
+        }, 100);
     }
 
     function centerMap(){ if(userMarker) { map.panTo(userMarker.getPosition()); map.setZoom(15); } }
