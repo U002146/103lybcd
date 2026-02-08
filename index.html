@@ -116,7 +116,21 @@
                 // 更新頭像
                 if (currentUser && currentUser.pictureUrl) db.ref('drivers/' + uid).update({ photo: currentUser.pictureUrl });
                 if (localStorage.getItem('isOnline') === 'true') togglePower(true);
-            } else { showAlert("未授權", "無司機權限"); }
+            } else {
+                // ★ 新增：未授權時顯示大大的 ID ★
+                const msg = `您的 ID 是：\n${uid}\n\n請截圖或複製傳給管理員開通權限。`;
+                showAlert("🚫 未授權", msg);
+                document.getElementById('hud').innerHTML = `<span style="color:red">ID: ${uid.substring(0,6)}...</span>`;
+                
+                document.body.insertAdjacentHTML('beforeend', `
+                    <div style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:white;color:black;padding:25px;z-index:99999;text-align:center;border-radius:15px;box-shadow:0 10px 40px rgba(0,0,0,0.6);width:80%;max-width:300px;">
+                        <h3 style="margin-top:0;">尚未開通權限</h3>
+                        <p style="color:#555;font-size:14px;">請複製下方 ID 傳給管理員：</p>
+                        <input type="text" value="${uid}" style="width:100%;padding:12px;font-size:16px;text-align:center;margin:10px 0;background:#f0f0f0;border:1px solid #ccc;border-radius:5px;" onclick="this.select();document.execCommand('copy');alert('已複製 ID')">
+                        <p style="font-size:12px;color:#999;">(點擊框框可複製)</p>
+                    </div>
+                `);
+            }
         });
     }
 
@@ -126,19 +140,18 @@
             isOnline = true; localStorage.setItem('isOnline', 'true');
             btnPower.className = "circle-btn bg-on"; btnPower.innerHTML = `<span>下線</span><span class="sub-text">ON</span>`;
             btns.forEach(id => document.getElementById(id).style.display = 'flex');
-            document.getElementById('driver-carousel').style.display = 'flex'; // 顯示夥伴名單
-            requestWakeLock(); startGPS(); listenToPartners(); // 開始監聽夥伴
+            document.getElementById('driver-carousel').style.display = 'flex'; 
+            requestWakeLock(); startGPS(); listenToPartners(); 
             if (heartbeatInterval) clearInterval(heartbeatInterval); heartbeatInterval = setInterval(() => forceUpload(), HEARTBEAT_TIME);
         } else {
             isOnline = false; localStorage.setItem('isOnline', 'false');
             btnPower.className = "circle-btn bg-off"; btnPower.innerHTML = `<span>上線</span><span class="sub-text">OFF</span>`;
             btns.forEach(id => document.getElementById(id).style.display = 'none');
-            document.getElementById('driver-carousel').style.display = 'none'; // 隱藏夥伴名單
+            document.getElementById('driver-carousel').style.display = 'none'; 
             stopGPS(); releaseWakeLock(); toggleSaver(false);
             if(myMarker) myMarker.setMap(null);
-            // 清除夥伴 Marker
             for(let id in markers){ markers[id].setMap(null); delete markers[id]; }
-            db.ref('drivers').off(); // 停止監聽
+            db.ref('drivers').off(); 
             if (heartbeatInterval) clearInterval(heartbeatInterval);
             if (currentUser) db.ref('drivers/' + currentUser.userId).update({ status: 'offline' });
             document.getElementById('hud').innerHTML = `💤 已下線`;
@@ -164,7 +177,6 @@
     function smartUpload(lat, lng) { if(!currentUser)return; const now=Date.now(); const distM = Math.sqrt(Math.pow(lat-lastUploadLat,2)+Math.pow(lng-lastUploadLng,2))*111000; if(now-lastUploadTime<UPDATE_INTERVAL&&distM<100) return; forceUpload(lat, lng); }
     function forceUpload(lat, lng) { if(!currentUser)return; if(!lat&&myMarker){const pos=myMarker.getPosition();lat=pos.lat();lng=pos.lng()} if(!lat)return; db.ref('drivers/'+currentUser.userId).update({lat:lat,lng:lng,status:'online',workStatus:currentWorkStatus,lastUpdate:firebase.database.ServerValue.TIMESTAMP}); lastUploadLat=lat; lastUploadLng=lng; lastUploadTime=Date.now(); const statusText=currentWorkStatus==='busy'?'載客':(currentWorkStatus==='queue'?'排班':'空車'); document.getElementById('hud').innerHTML=`<span class="status-dot" style="background:#2ecc71;"></span> 連線中 (${statusText})`; }
 
-    // --- 監聽夥伴 (新增功能) ---
     function listenToPartners() {
         db.ref('drivers').on('value', (snapshot) => {
             if (!isOnline) return;
@@ -175,13 +187,11 @@
 
             Object.keys(data).forEach(id => {
                 const d = data[id];
-                // 過濾自己、下線、過久沒訊號的
                 if (id === currentUser.userId) return;
                 if (d.status !== 'online' || now - d.lastUpdate > 3600000) return;
                 if (!d.lat || !d.lng) return;
 
                 activeIds.add(id);
-                // 司機可以看到「載客中」的夥伴 (因為是內部轉單)
                 const color = d.workStatus === 'busy' ? '#e67e22' : (d.workStatus === 'queue' ? '#3498db' : '#2ecc71');
                 const pos = { lat: d.lat, lng: d.lng };
 
@@ -197,7 +207,6 @@
                     markers[id].setIcon(getCarIcon(color));
                 }
                 
-                // 計算距離 (如果有我的位置)
                 let dist = 999;
                 if (myMarker) {
                     const myPos = myMarker.getPosition();
@@ -207,10 +216,7 @@
                 partners.push(d);
             });
 
-            // 清除無效 Marker
             for (let id in markers) { if (!activeIds.has(id)) { markers[id].setMap(null); delete markers[id]; } }
-            
-            // 排序並渲染列表
             partners.sort((a,b) => a.dist - b.dist);
             renderPartnerList(partners);
         });
