@@ -1,187 +1,199 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>花蓮車隊 - 數位排班看板 (v1.1)</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>花蓮車隊 - 數位排班看板 (v4.3)</title>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAIxc6PEhHgUs_A9lyRUg8dNbmwOpSamY8&libraries=geometry"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    body { margin: 0; padding: 0; background: #121212; color: white; font-family: 'Segoe UI', sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
     
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
-    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAIxc6PEhHgUs_A9lyRUg8dNbmwOpSamY8&libraries=geometry"></script>
+    /* 上半部地圖 (40%) */
+    #map-container { height: 40%; width: 100%; position: relative; border-bottom: 3px solid #00C853; }
+    #map { width: 100%; height: 100%; }
 
-    <style>
-        /* --- UI 設計總監：上下分割戰情室 --- */
-        body { margin: 0; padding: 0; display: flex; flex-direction: column; height: 100vh; font-family: "Microsoft JhengHei", sans-serif; background: #000; overflow: hidden; }
-        
-        /* 上半部：地圖 (40%) */
-        #map { width: 100%; height: 40%; border-bottom: 3px solid #333; }
+    /* 下半部排班表 (60%) */
+    #board-container { height: 60%; width: 100%; display: flex; flex-direction: column; background: #1e1e1e; }
+    
+    .zone-header { padding: 10px 20px; background: #2c3e50; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #444; }
+    .zone-title { font-size: 24px; font-weight: bold; color: #fff; display: flex; align-items: center; }
+    .zone-count { background: #f1c40f; color: #000; padding: 5px 15px; border-radius: 20px; font-weight: bold; font-size: 20px; }
+    
+    .driver-list { flex: 1; overflow-y: auto; padding: 10px; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; align-content: start; }
+    
+    .driver-card { background: #333; border-radius: 12px; padding: 15px; display: flex; align-items: center; border-left: 5px solid #00C853; box-shadow: 0 4px 10px rgba(0,0,0,0.3); position: relative; }
+    .driver-card.queue { border-left-color: #3498db; }
+    .d-rank { position: absolute; top: -5px; right: -5px; width: 30px; height: 30px; background: #e74c3c; color: white; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: bold; font-size: 14px; box-shadow: 0 2px 5px rgba(0,0,0,0.3); z-index: 5; }
+    
+    .d-avatar { width: 60px; height: 60px; border-radius: 50%; background: #555; overflow: hidden; margin-right: 15px; border: 2px solid #fff; }
+    .d-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    
+    .d-info h3 { margin: 0; font-size: 22px; color: #fff; }
+    .d-info p { margin: 5px 0 0; font-size: 16px; color: #bbb; background: #000; display: inline-block; padding: 2px 8px; border-radius: 4px; }
 
-        /* 下半部：看板 (60%) */
-        #dashboard { 
-            width: 100%; height: 60%; 
-            background-color: #121212; 
-            padding: 10px; box-sizing: border-box; 
-            display: flex; flex-direction: column; gap: 10px; 
-            overflow-y: auto; 
-        }
-
-        .header { color: #888; text-align: center; font-size: 14px; padding-bottom: 5px; border-bottom: 1px solid #333; margin-bottom: 5px; }
-
-        /* 排班區域容器 */
-        .zone-container { 
-            background: #1e1e1e; border-radius: 8px; 
-            border: 1px solid #333; overflow: hidden; 
-            display: flex; flex-direction: column; 
-            margin-bottom: 10px;
-        }
-        
-        .zone-header { 
-            background: linear-gradient(90deg, #004d40, #00695c); 
-            color: #fff; padding: 8px 15px; 
-            font-size: 20px; font-weight: bold; 
-            display: flex; justify-content: space-between; align-items: center; 
-            border-bottom: 1px solid #000; 
-        }
-        
-        .zone-count { 
-            background: #ffeb3b; color: #000; 
-            padding: 2px 10px; border-radius: 15px; 
-            font-size: 16px; font-weight: 800; 
-        }
-
-        /* 司機列表 (橫向排列) */
-        .driver-list { 
-            padding: 10px; 
-            display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); 
-            gap: 10px; 
-        }
-
-        /* 司機卡片 (縮小一點以適應版面) */
-        .driver-card { 
-            background: #2c2c2c; color: #fff; 
-            padding: 10px; border-radius: 6px; 
-            border-left: 4px solid #00bcd4; 
-            display: flex; flex-direction: column; align-items: center; 
-            box-shadow: 0 2px 4px rgba(0,0,0,0.3); 
-            animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
-        }
-        
-        .driver-name { font-size: 24px; font-weight: bold; color: #fff; margin: 2px 0; }
-        .driver-car { font-size: 16px; color: #ffeb3b; background: #000; padding: 1px 6px; border-radius: 4px; font-family: monospace; }
-        .driver-time { font-size: 12px; color: #aaa; margin-top: 5px; }
-
-        .empty-zone { padding: 15px; text-align: center; color: #444; font-size: 16px; font-style: italic; }
-
-        @keyframes popIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-    </style>
+    /* 跑馬燈 */
+    .marquee { background: #000; color: #00C853; padding: 8px; font-size: 16px; white-space: nowrap; overflow: hidden; text-align: center; }
+  </style>
 </head>
 <body>
 
-    <div id="map"></div>
-    <div id="dashboard">
-        <div class="header">花蓮車隊數位排班系統 • 即時連線中</div>
-        <div id="zones-area"></div>
-    </div>
+  <div id="map-container"><div id="map"></div></div>
+  
+  <div class="marquee">花蓮車隊數位排班系統 • 即時連線中 • <span id="clock"></span></div>
 
-<script>
-    // --- Config ---
+  <div id="board-container">
+    <div id="zones-wrapper" style="height:100%; overflow-y:auto;">
+      </div>
+  </div>
+
+  <script>
     const firebaseConfig = { databaseURL: "https://hualientaxi-bb32f-default-rtdb.asia-southeast1.firebasedatabase.app/" };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
+    
+    var map, markers = {};
 
-    // --- 電子圍籬 ---
-    const ZONES = {
-        "花蓮前站": [ {lat: 23.991470, lng: 121.600259}, {lat: 23.990772, lng: 121.602020}, {lat: 23.992854, lng: 121.602981}, {lat: 23.993574, lng: 121.601245} ],
-        "花蓮後站": [ {lat: 23.994816, lng: 121.599054}, {lat: 23.992354, lng: 121.597607}, {lat: 23.990972, lng: 121.599851}, {lat: 23.993979, lng: 121.601205} ],
-        "慈濟醫院": [ {lat: 23.993878, lng: 121.593012}, {lat: 23.995653, lng: 121.594586}, {lat: 23.996174, lng: 121.594003}, {lat: 23.996475, lng: 121.592131}, {lat: 23.995464, lng: 121.591121} ],
-        "門諾醫院": [ {lat: 23.987043, lng: 121.623861}, {lat: 23.985999, lng: 121.625335}, {lat: 23.988932, lng: 121.627639}, {lat: 23.989904, lng: 121.626260} ]
+    // 預設排班區與圍籬 (半徑公尺)
+    const ZONES = [
+      { id: 'hualien_station', name: '花蓮前站', lat: 23.991, lng: 121.601, radius: 200 },
+      { id: 'hualien_back', name: '花蓮後站', lat: 23.990, lng: 121.598, radius: 150 },
+      { id: 'tzu_chi', name: '慈濟醫院', lat: 23.993, lng: 121.593, radius: 150 },
+      { id: 'men_no', name: '門諾醫院', lat: 23.999, lng: 121.618, radius: 150 }
+    ];
+
+    const getArrowIcon = (color, heading) => {
+        return {
+            path: "M0,-12 L10,10 L0,5 L-10,10 Z",
+            fillColor: color, fillOpacity: 1, scale: 1.5, strokeColor: "white", strokeWeight: 2, rotation: heading || 0
+        };
     };
 
-    let map;
-    let polygons = {}; 
-    let markers = {}; 
-
-    const getIcon = (color) => {
-        return { path: "M10,0 C4.5,0 0,4.5 0,10 C0,18 10,30 10,30 C10,30 20,18 20,10 C20,4.5 15.5,0 10,0 Z", fillColor: color, fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2, scale: 1.5, anchor: new google.maps.Point(10, 30) };
+    window.onload = function() {
+        initMap();
+        listenToDrivers();
+        setInterval(() => document.getElementById('clock').innerText = new Date().toLocaleString(), 1000);
     };
 
     function initMap() {
         map = new google.maps.Map(document.getElementById("map"), {
-            center: { lat: 23.992, lng: 121.600 }, zoom: 14, disableDefaultUI: true,
-            styles: [ { elementType: "geometry", stylers: [{ color: "#242f3e" }] }, { elementType: "labels.text.stroke", stylers: [{ color: "#242f3e" }] }, { elementType: "labels.text.fill", stylers: [{ color: "#746855" }] } ]
+            center: { lat: 23.991, lng: 121.601 }, zoom: 14,
+            disableDefaultUI: true, styles: [ { elementType: "geometry", stylers: [{ color: "#212121" }] }, { elementType: "labels.text.stroke", stylers: [{ color: "#212121" }] }, { elementType: "labels.text.fill", stylers: [{ color: "#757575" }] } ]
         });
-
-        for (let name in ZONES) {
-            polygons[name] = new google.maps.Polygon({
-                paths: ZONES[name], strokeColor: "#ff5252", strokeOpacity: 0.8, strokeWeight: 2, fillColor: "#ff5252", fillOpacity: 0.15, map: map
+        
+        // 畫出排班區圓圈
+        ZONES.forEach(z => {
+            new google.maps.Circle({
+                strokeColor: "#00C853", strokeOpacity: 0.8, strokeWeight: 2,
+                fillColor: "#00C853", fillOpacity: 0.1,
+                map, center: { lat: z.lat, lng: z.lng }, radius: z.radius
             });
-            new google.maps.Marker({
-                position: ZONES[name][0], map: map, label: { text: name, color: "white", fontSize: "12px", fontWeight: "bold" }, icon: { path: google.maps.SymbolPath.CIRCLE, scale: 0 }
-            });
-        }
-        listenToDrivers();
+            // 建立排班表容器
+            const wrapper = document.getElementById('zones-wrapper');
+            wrapper.innerHTML += `
+                <div class="zone-block" id="zone-${z.id}">
+                    <div class="zone-header">
+                        <div class="zone-title"><i class="fa-solid fa-map-pin" style="margin-right:10px;"></i> ${z.name}</div>
+                        <div class="zone-count" id="count-${z.id}">0</div>
+                    </div>
+                    <div class="driver-list" id="list-${z.id}"></div>
+                </div>
+            `;
+        });
     }
 
     function listenToDrivers() {
-        db.ref('drivers').on('value', (snapshot) => {
+        db.ref('drivers').on('value', snapshot => {
             const data = snapshot.val();
             if (!data) return;
-
             const now = Date.now();
-            const queueData = { "花蓮前站": [], "花蓮後站": [], "慈濟醫院": [], "門諾醫院": [] };
-            const activeDriverIds = new Set();
+            const zoneDrivers = {}; 
+            ZONES.forEach(z => zoneDrivers[z.id] = []);
+            const activeIds = new Set();
 
-            Object.keys(data).forEach(id => {
-                const d = data[id];
-                if (!d.lat || !d.lng) return;
-                // 放寬到 1 小時 (配合司機端掛機模式)
-                if (now - d.lastUpdate > 3600000) return; 
-                if (d.workStatus === 'busy') { if (markers[id]) markers[id].setMap(null); return; }
+            Object.keys(data).forEach(key => {
+                const d = data[key];
 
-                activeDriverIds.add(id);
+                // v4.3: 雙重逾時判斷
+                // 排班狀態 (Queue) -> 60分鐘
+                // 其他狀態 (Empty/Busy) -> 10分鐘
+                const timeout = d.workStatus === 'queue' ? 3600000 : 600000;
+                
+                if (d.status !== 'online') return;
+                if (now - d.lastUpdate > timeout) return;
+
+                activeIds.add(key);
                 const pos = new google.maps.LatLng(d.lat, d.lng);
-                let isInZone = false;
+                const color = d.workStatus === 'busy' ? '#e67e22' : (d.workStatus === 'queue' ? '#3498db' : '#2ecc71');
 
-                for (let zoneName in polygons) {
-                    if (google.maps.geometry.poly.containsLocation(pos, polygons[zoneName])) {
-                        isInZone = true;
-                        queueData[zoneName].push({ name: d.name || "未命名", car: d.car || "計程車", time: d.lastUpdate });
-                        break;
+                // 計算角度
+                let heading = 0;
+                if (markers[key]) {
+                    heading = google.maps.geometry.spherical.computeHeading(markers[key].getPosition(), pos);
+                }
+
+                if (!markers[key]) {
+                    markers[key] = new google.maps.Marker({ position: pos, map: map, icon: getArrowIcon(color, 0), title: d.name });
+                } else {
+                    markers[key].setPosition(pos);
+                    const dist = google.maps.geometry.spherical.computeDistanceBetween(markers[key].getPosition(), pos);
+                    if(dist > 5) markers[key].setIcon(getArrowIcon(color, heading));
+                    else {
+                        const oldIcon = markers[key].getIcon();
+                        markers[key].setIcon(getArrowIcon(color, oldIcon.rotation));
                     }
                 }
-                const color = isInZone ? "#00bcd4" : "#2ecc71"; 
-                updateMarker(id, d.name, pos, color);
+
+                // 判斷是否在排班區
+                if (d.workStatus === 'queue' || d.workStatus === 'empty') {
+                    ZONES.forEach(z => {
+                        const dist = google.maps.geometry.spherical.computeDistanceBetween(pos, new google.maps.LatLng(z.lat, z.lng));
+                        if (dist <= z.radius) {
+                            d.enterTime = d.lastUpdate; // 暫用最後更新時間當排序
+                            zoneDrivers[z.id].push(d);
+                        }
+                    });
+                }
             });
 
-            for (let id in markers) { if (!activeDriverIds.has(id)) { markers[id].setMap(null); delete markers[id]; } }
-            renderDashboard(queueData);
+            // 清除下線 Marker
+            for(let k in markers) { if(!activeIds.has(k)) { markers[k].setMap(null); delete markers[k]; } }
+
+            // 更新排班表
+            ZONES.forEach(z => {
+                const list = document.getElementById(`list-${z.id}`);
+                const count = document.getElementById(`count-${z.id}`);
+                list.innerHTML = "";
+                
+                // 排序：先進先出 (可改成依 enterTime)
+                // 這裡簡單依 lastUpdate 排序 (越早更新的越前面? 不，應該是維持穩定)
+                // 實務上 Firebase 應該要存 enterQueueTime，這裡暫時依 lastUpdate
+                zoneDrivers[z.id].sort((a,b) => a.lastUpdate - b.lastUpdate);
+                
+                count.innerText = zoneDrivers[z.id].length;
+                if(zoneDrivers[z.id].length === 0) {
+                    list.innerHTML = `<div style="padding:20px;color:#666;width:100%;text-align:center;">目前無車輛</div>`;
+                } else {
+                    zoneDrivers[z.id].forEach((d, index) => {
+                        const statusClass = d.workStatus === 'queue' ? 'queue' : '';
+                        const avatar = d.photo || 'https://cdn-icons-png.flaticon.com/512/3237/3237472.png';
+                        list.innerHTML += `
+                            <div class="driver-card ${statusClass}">
+                                <div class="d-rank">${index + 1}</div>
+                                <div class="d-avatar"><img src="${avatar}"></div>
+                                <div class="d-info">
+                                    <h3>${d.name}</h3>
+                                    <p>${d.car}</p>
+                                </div>
+                            </div>
+                        `;
+                    });
+                }
+            });
         });
     }
-
-    function updateMarker(id, name, pos, color) {
-        if (!markers[id]) { markers[id] = new google.maps.Marker({ position: pos, map: map, icon: getIcon(color), title: name }); } 
-        else { markers[id].setPosition(pos); markers[id].setIcon(getIcon(color)); markers[id].setMap(map); }
-    }
-
-    function renderDashboard(queueData) {
-        const container = document.getElementById('zones-area');
-        container.innerHTML = "";
-
-        for (let zoneName in ZONES) {
-            const list = queueData[zoneName];
-            const zoneHtml = `
-                <div class="zone-container">
-                    <div class="zone-header"><span>${zoneName}</span><span class="zone-count">${list.length}</span></div>
-                    <div class="driver-list">
-                        ${list.length === 0 ? '<div class="empty-zone">目前無車輛</div>' : 
-                          list.map(d => `<div class="driver-card"><div class="driver-name">${d.name}</div><div class="driver-car">${d.car}</div></div>`).join('')}
-                    </div>
-                </div>`;
-            container.innerHTML += zoneHtml;
-        }
-    }
-
-    window.onload = initMap;
-</script>
+  </script>
 </body>
 </html>
