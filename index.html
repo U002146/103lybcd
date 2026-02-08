@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>花蓮車隊 - 司機端 (v4.8)</title>
+  <title>花蓮車隊 - 司機端 (v4.9)</title>
   
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
@@ -47,10 +47,18 @@
 
     #btn-power { display: none; }
 
-    #saver-overlay { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: black; z-index: 9999; flex-direction: column; justify-content: center; align-items: center; color: #444; }
+    /* v4.9: 全黑掛機畫面 + 長按邏輯 */
+    #saver-overlay { 
+        display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; 
+        background: black; z-index: 9999; 
+        flex-direction: column; justify-content: center; align-items: center; 
+        color: #555; /* 預設灰暗字體，不刺眼 */
+        user-select: none; -webkit-user-select: none; /* 禁止選取文字 */
+    }
     #saver-overlay.active { display: flex; }
-    .breathing-icon { font-size: 60px; animation: breathe 3s infinite; margin-bottom: 20px; }
-    @keyframes breathe { 0% { opacity: 0.3; text-shadow: 0 0 10px #2ecc71; } 50% { opacity: 1; text-shadow: 0 0 30px #2ecc71; } 100% { opacity: 0.3; text-shadow: 0 0 10px #2ecc71; } }
+    
+    /* 按住時文字變亮 */
+    #saver-overlay.pressing p { color: #00C853; transition: color 0.3s; }
 
     #mission-panel {
         display: none; position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
@@ -77,10 +85,8 @@
   
   <video id="no-sleep-video" playsinline loop muted style="position:absolute; width:1px; height:1px; opacity:0; pointer-events:none;"></video>
 
-  <div id="saver-overlay" onclick="toggleSaver(false)">
-      <div class="breathing-icon">🅿️</div>
-      <p style="color:#2ecc71; font-size: 24px; font-weight:bold;">掛機待命中</p>
-      <p style="font-size:14px; margin-top:10px;">GPS 持續連線 • 點擊喚醒</p>
+  <div id="saver-overlay">
+      <p style="font-size:14px; letter-spacing: 1px;">GPS 持續連線 • 長按喚醒</p>
   </div>
   
   <div id="top-right-panel">
@@ -112,12 +118,11 @@
     var lastUploadTime = 0, lastUploadLat = 0, lastUploadLng = 0;
     var queueCenter = null; 
     var passengerMarker = null, routeLine = null;
+    var pressTimer = null; // 長按計時器
 
     const UPDATE_INTERVAL = 15000; 
     const HEARTBEAT_TIME = 180000; 
     const MIN_DIST = 100;
-
-    // v4.8: 隱形影片 Source (微型 MP4)
     const NO_SLEEP_VIDEO_SRC = "data:video/mp4;base64,AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAAIZnJlZQAAAs1tZGF0AAACrgYF//+//7UcjmTjwAAAAJZnJlZQAAAMBmcmVlAAACAgAAABl3aWRlAAACW21vb3YAAABsbXZoAAAAAMg+u8DIPruwAAABAAAAAQAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAnh0cmFrAAAAXHRraGQAAAAByD67wMg+u7AAAAABAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAAQAAAAEAAAAAAQAAAAEAAAAAACRlZHRzAAAAHGVsc3QAAAAAAAAAAQAAAAEAAAAAAQAAAAAAIW1kaWEAAAAgbWQoZAAAAADIPrvAyD67sAAAAAEAAAAAVQAAAAAALnNvdW4AAAAAAAAAAAAAAABzb3VuZGFyIGFwcGxlIHNvdW5kIG1lZGlhIGhhbmRsZXIAAAABOG1pbmYAAAAQc21oZAAAAAAAAAAAAAAAJGRpbmYAAAAcZHJlZgAAAAAAAAABAAAADHVybCAAAAABAAABEHN0YmwAAABkc3RzZAAAAAAAAAABAAAAVG1wNGEAAAAAAAAAAQAAAAAAAAAAAAIAEAAAAAAATAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAABhzdHRzAAAAAAAAAAEAAAAFAAAABAAAABBzdHNjAAAAAAAAAAEAAAABAAAABQAAAAEAAAAUc3RzegAAAAAAAAAEAAAAAQAAABBzdGNvAAAAAAAAAAEAAALHAAAAY3VkdGEAAAArd2xvYwAAAAAAAAABAAAAG2BkYXQAAAAAAADHAAAB4gAAAMQAAAAAAAEAAACbdHJhawAAAFx0a2hkAAAAAsg+u8DIPruwAAAAAgAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAAQAAAAEAAAAAAQAAAAEAAAAAACRlZHRzAAAAHGVsc3QAAAAAAAAAAQAAAAEAAAAAAQAAAAAAIW1kaWEAAAAgbWQoZAAAAADIPrvAyD67sAAAAAEAAAAAVQAAAAAALmhkbHIAAAAAAAAAAHZpZGUAAAAAAAAAAAAAAAB2aWRlbyBoYW5kbGVyAAAAAThtaW5mAAAAFHZtaGQAAAABAAAAAAAAAAAAAAAkZGluZgAAABxkcmVmAAAAAAAAAAEAAAAMdXJsICAAAAABAAABM3N0YmwAAABpc3RzZAAAAAAAAAABAAAAW2F2YzEAAAAAAAAAAQABAAAAAQABAAEAAABAvqcQAAAAFUJpZyBCdWNrIEJ1bm55AAAAAAH/4QAZZ2NjLgAAACAgICAgICAgICAgICAgICAgAAABcGF2Y0MKAAAABv//AAIAAAAkYXZjQwH0AAr/4QAaZ2NjLgAAACAgICAgICAgICAgICAgICAgAAAAABhzdHRzAAAAAAAAAAEAAAAFAAAABAAAABBzdHNjAAAAAAAAAAEAAAABAAAABQAAAAEAAAAUc3RzegAAAAAAAAAEAAAAAQAAABBzdGNvAAAAAAAAAAEAAALQAAAAY3VkdGEAAAArd2xvYwAAAAAAAAABAAAAG2BkYXQAAAAAAADHAAAB4gAAAMQAAAAAAAE=";
 
     const getArrowIcon = (color, heading) => {
@@ -127,7 +132,7 @@
         };
     };
 
-    window.onload = async function() { initGoogleMap(); await initLiff(); };
+    window.onload = async function() { initGoogleMap(); await initLiff(); setupSaverEvents(); };
 
     function initGoogleMap() {
         map = new google.maps.Map(document.getElementById("map"), {
@@ -202,10 +207,7 @@
             btnPower.className = "circle-btn bg-on"; btnPower.innerHTML = `<span>下線</span><span class="sub-text">ON</span>`;
             btns.forEach(id => document.getElementById(id).style.display = 'flex');
             
-            // v4.8: 雙重保險防休眠
-            requestWakeLock(); // 原本的方法
-            enableNoSleepVideo(); // 新增的隱形影片大法
-
+            requestWakeLock(); enableNoSleepVideo();
             startGPS(); 
             if (heartbeatInterval) clearInterval(heartbeatInterval); heartbeatInterval = setInterval(() => forceUpload(), HEARTBEAT_TIME);
         } else {
@@ -231,7 +233,44 @@
         updateStatusBtn(); forceUpload(); 
     }
     
-    function toggleSaver(enable){ const overlay=document.getElementById('saver-overlay');const btn=document.getElementById('btn-saver'); if(enable){overlay.classList.add('active');btn.className="circle-btn bg-empty"}else{overlay.classList.remove('active');btn.className="circle-btn bg-dark"} }
+    // v4.9: 長按喚醒邏輯
+    function setupSaverEvents() {
+        const overlay = document.getElementById('saver-overlay');
+        
+        // 手指按下 / 滑鼠按下
+        const startPress = (e) => {
+            e.preventDefault();
+            overlay.classList.add('pressing'); // 視覺回饋
+            pressTimer = setTimeout(() => {
+                toggleSaver(false);
+                if(navigator.vibrate) navigator.vibrate(100); // 震動提示
+            }, 1500); // 1.5秒
+        };
+
+        // 手指放開 / 滑鼠放開 / 手指移開
+        const cancelPress = () => {
+            overlay.classList.remove('pressing');
+            clearTimeout(pressTimer);
+        };
+
+        overlay.addEventListener('touchstart', startPress);
+        overlay.addEventListener('touchend', cancelPress);
+        overlay.addEventListener('mousedown', startPress);
+        overlay.addEventListener('mouseup', cancelPress);
+    }
+
+    function toggleSaver(enable){ 
+        const overlay=document.getElementById('saver-overlay');
+        const btn=document.getElementById('btn-saver'); 
+        if(enable){
+            overlay.classList.add('active');
+            btn.className="circle-btn bg-empty";
+        }else{
+            overlay.classList.remove('active');
+            overlay.classList.remove('pressing'); // 確保復原
+            btn.className="circle-btn bg-dark";
+        } 
+    }
     
     function updateStatusBtn(){ const btn=document.getElementById('btn-status');let colorCode='#2ecc71'; if(currentWorkStatus==='empty'){btn.className="circle-btn bg-empty";btn.innerHTML="空車"}else if(currentWorkStatus==='queue'){btn.className="circle-btn bg-queue";btn.innerHTML="排班";colorCode='#3498db'}else{btn.className="circle-btn bg-busy";btn.innerHTML="載客";colorCode='#e67e22'} if(myMarker)myMarker.setIcon(getArrowIcon(colorCode, 0)); }
 
@@ -280,7 +319,6 @@
     }
     function updateHUD(isUploading, text) { const hud = document.getElementById('hud'); hud.innerHTML = `<span class="status-dot" style="background:${isUploading ? '#00C853' : '#2ecc71'};"></span> ${text}`; if(isUploading) hud.classList.add('hud-uploading'); else hud.classList.remove('hud-uploading'); }
     
-    // v4.8: 隱形影片控制邏輯
     function enableNoSleepVideo() {
         const video = document.getElementById('no-sleep-video');
         video.src = NO_SLEEP_VIDEO_SRC;
