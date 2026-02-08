@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>花蓮車隊 - 司機端 (v4.6)</title>
+  <title>花蓮車隊 - 司機端 (v4.7)</title>
   
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
@@ -11,19 +11,42 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
   <style>
-    body { margin: 0; padding: 0; font-family: -apple-system, Roboto, sans-serif; overflow: hidden; background: #222; }
+    body { margin: 0; padding: 0; font-family: -apple-system, Roboto, sans-serif; overflow: hidden; background: #f0f0f0; } /* 背景改淺色 */
     #map { width: 100vw; height: 100vh; }
     
-    #hud { position: absolute; top: 15px; left: 15px; z-index: 10; background: rgba(0,0,0,0.85); color: white; padding: 10px 20px; border-radius: 30px; font-weight: bold; font-size: 16px; border: 1px solid #444; display: flex; align-items: center; pointer-events: none; transition: all 0.3s; }
+    /* HUD 狀態列 - 改為深色半透明，對比亮色地圖比較清楚 */
+    #hud { 
+        position: absolute; top: 15px; left: 15px; z-index: 10; 
+        background: rgba(33, 33, 33, 0.9); color: white; 
+        padding: 10px 20px; border-radius: 30px; 
+        font-weight: bold; font-size: 16px; 
+        box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        display: flex; align-items: center; pointer-events: none; transition: all 0.3s; 
+    }
     .status-dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; margin-right: 8px; }
     .hud-uploading { border-color: #00C853 !important; box-shadow: 0 0 15px rgba(0, 200, 83, 0.5); }
 
     #top-right-panel { position: absolute; top: 15px; right: 15px; z-index: 10; display: flex; flex-direction: column; gap: 15px; }
-    .circle-btn { width: 70px; height: 70px; border-radius: 50%; border: 3px solid rgba(255,255,255,0.2); color: white; font-weight: bold; font-size: 16px; box-shadow: 0 6px 20px rgba(0,0,0,0.6); cursor: pointer; display: flex; flex-direction: column; justify-content: center; align-items: center; backdrop-filter: blur(4px); }
+    .circle-btn { 
+        width: 70px; height: 70px; border-radius: 50%; 
+        border: 2px solid rgba(255,255,255,0.8); color: white; 
+        font-weight: bold; font-size: 16px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3); 
+        cursor: pointer; display: flex; flex-direction: column; 
+        justify-content: center; align-items: center; 
+        backdrop-filter: blur(4px); 
+    }
     .circle-btn:active { transform: scale(0.95); }
-    .sub-text { font-size: 10px; opacity: 0.8; margin-top: 2px; font-weight: normal; }
+    .sub-text { font-size: 10px; opacity: 0.9; margin-top: 2px; font-weight: normal; }
     
-    .bg-off { background: linear-gradient(145deg, #7f8c8d, #95a5a6); } .bg-on { background: linear-gradient(145deg, #c0392b, #e74c3c); } .bg-empty { background: linear-gradient(145deg, #27ae60, #2ecc71); } .bg-queue { background: linear-gradient(145deg, #2980b9, #3498db); } .bg-busy { background: linear-gradient(145deg, #d35400, #e67e22); } .bg-dark { background: linear-gradient(145deg, #2c3e50, #34495e); }
+    /* 顏色微調，讓在亮色地圖上更明顯 */
+    .bg-off   { background: linear-gradient(145deg, #7f8c8d, #95a5a6); }
+    .bg-on    { background: linear-gradient(145deg, #d32f2f, #ef5350); } /* 紅色加深 */
+    .bg-empty { background: linear-gradient(145deg, #2e7d32, #43a047); } /* 綠色加深 */
+    .bg-queue { background: linear-gradient(145deg, #1565c0, #1976d2); } /* 藍色加深 */
+    .bg-busy  { background: linear-gradient(145deg, #ef6c00, #fb8c00); } /* 橘色加深 */
+    .bg-dark  { background: linear-gradient(145deg, #37474f, #455a64); }
+
     #btn-power { display: none; }
 
     #saver-overlay { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: black; z-index: 9999; flex-direction: column; justify-content: center; align-items: center; color: #444; }
@@ -31,11 +54,10 @@
     .breathing-icon { font-size: 60px; animation: breathe 3s infinite; margin-bottom: 20px; }
     @keyframes breathe { 0% { opacity: 0.3; text-shadow: 0 0 10px #2ecc71; } 50% { opacity: 1; text-shadow: 0 0 30px #2ecc71; } 100% { opacity: 0.3; text-shadow: 0 0 10px #2ecc71; } }
 
-    /* v4.6: 接單任務面板 (出現在下方) */
     #mission-panel {
         display: none; position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
-        width: 90%; max-width: 350px; background: #222; border: 1px solid #FFD700;
-        border-radius: 15px; padding: 15px; box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+        width: 90%; max-width: 350px; background: #222; border: 2px solid #FFD700;
+        border-radius: 15px; padding: 15px; box-shadow: 0 10px 40px rgba(0,0,0,0.5);
         z-index: 20; text-align: center; color: white;
     }
     .mission-title { color: #FFD700; font-size: 18px; font-weight: bold; margin-bottom: 5px; }
@@ -45,9 +67,9 @@
         border-radius: 25px; font-weight: bold; font-size: 16px; cursor: pointer; width: 100%;
     }
 
-    .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 10000; justify-content: center; align-items: center; }
-    .modal-content { background: #333; color: #fff; width: 85%; max-width: 300px; border-radius: 15px; padding: 25px; text-align: center; border: 1px solid #555; }
-    .modal-btns button { width: 100%; padding: 12px; margin-top: 15px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; background: #00bcd4; color: #000; font-size: 16px; }
+    .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; justify-content: center; align-items: center; }
+    .modal-content { background: white; color: #333; width: 85%; max-width: 300px; border-radius: 15px; padding: 25px; text-align: center; box-shadow: 0 5px 20px rgba(0,0,0,0.3); }
+    .modal-btns button { width: 100%; padding: 12px; margin-top: 15px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; background: #00bcd4; color: white; font-size: 16px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
   </style>
 </head>
 <body>
@@ -89,8 +111,6 @@
     var watchId = null, wakeLock = null, heartbeatInterval = null;
     var lastUploadTime = 0, lastUploadLat = 0, lastUploadLng = 0;
     var queueCenter = null; 
-
-    // v4.6: 乘客標記與路線
     var passengerMarker = null;
     var routeLine = null;
 
@@ -98,19 +118,25 @@
     const HEARTBEAT_TIME = 180000; 
     const MIN_DIST = 100;
 
+    // v4.7: 箭頭圖示稍微改深一點，因為地圖變亮了
     const getArrowIcon = (color, heading) => {
         return {
             path: "M0,-12 L10,10 L0,5 L-10,10 Z", 
-            fillColor: color, fillOpacity: 1, scale: 1.5, strokeColor: "white", strokeWeight: 2, rotation: heading || 0 
+            fillColor: color, fillOpacity: 1, scale: 1.5, 
+            strokeColor: "#333", // 邊框改深色
+            strokeWeight: 1, 
+            rotation: heading || 0 
         };
     };
 
     window.onload = async function() { initGoogleMap(); await initLiff(); };
 
     function initGoogleMap() {
+        // v4.7: 移除 styles 設定，回歸 Google 標準原廠地圖
         map = new google.maps.Map(document.getElementById("map"), {
-            center: { lat: 23.991, lng: 121.601 }, zoom: 15,
-            disableDefaultUI: true, styles: [ { elementType: "geometry", stylers: [{ color: "#242f3e" }] }, { elementType: "labels.text.stroke", stylers: [{ color: "#242f3e" }] }, { elementType: "labels.text.fill", stylers: [{ color: "#746855" }] } ]
+            center: { lat: 23.991, lng: 121.601 }, 
+            zoom: 15,
+            disableDefaultUI: true // 保持介面乾淨
         });
     }
 
@@ -119,7 +145,7 @@
     }
 
     function checkIdentity(uid) {
-        document.getElementById('hud').innerHTML = `<span class="status-dot" style="background:yellow;"></span> 驗證中...`;
+        document.getElementById('hud').innerHTML = `<span class="status-dot" style="background:orange;"></span> 驗證中...`;
         db.ref('drivers/' + uid).once('value').then((snapshot) => {
             if (snapshot.exists()) {
                 const d = snapshot.val();
@@ -127,8 +153,6 @@
                 document.getElementById('btn-power').style.display = 'flex';
                 if (currentUser && currentUser.pictureUrl) db.ref('drivers/' + uid).update({ photo: currentUser.pictureUrl });
                 if (localStorage.getItem('isOnline') === 'true') togglePower(true);
-                
-                // v4.6: 監聽器
                 listenForRequests(uid);
             } else {
                 const msg = `您的 ID 是：\n${uid}\n\n請截圖或複製傳給管理員開通權限。`;
@@ -138,69 +162,43 @@
         });
     }
 
-    // v4.6: 戰術地圖模式
     function listenForRequests(uid) {
         db.ref('drivers/' + uid + '/request').on('value', snapshot => {
             const req = snapshot.val();
             if (req) {
-                // 1. 在地圖上標記乘客
                 const pLoc = new google.maps.LatLng(req.lat, req.lng);
-                
                 if(!passengerMarker) {
                     passengerMarker = new google.maps.Marker({
-                        position: pLoc,
-                        map: map,
-                        label: { text: "客", color: "white" },
-                        icon: { path: google.maps.SymbolPath.CIRCLE, scale: 10, fillColor: "#FF0000", fillOpacity: 1, strokeColor: "white", strokeWeight: 2 },
+                        position: pLoc, map: map, label: { text: "客", color: "white" },
+                        icon: { path: google.maps.SymbolPath.CIRCLE, scale: 10, fillColor: "#D50000", fillOpacity: 1, strokeColor: "white", strokeWeight: 2 },
                         animation: google.maps.Animation.BOUNCE
                     });
-                } else {
-                    passengerMarker.setPosition(pLoc);
-                }
-
-                // 2. 顯示任務面板
+                } else { passengerMarker.setPosition(pLoc); }
                 document.getElementById('mission-panel').style.display = 'block';
-
-                // 3. 調整地圖視野，同時看到司機和乘客
                 if(myMarker) {
                     const bounds = new google.maps.LatLngBounds();
-                    bounds.extend(myMarker.getPosition());
-                    bounds.extend(pLoc);
+                    bounds.extend(myMarker.getPosition()); bounds.extend(pLoc);
                     map.fitBounds(bounds);
-                    
-                    // 畫線 (直線導引)
                     if(routeLine) routeLine.setMap(null);
+                    // v4.7: 路線顏色改為深藍色，對比比較清楚
                     routeLine = new google.maps.Polyline({
-                        path: [myMarker.getPosition(), pLoc],
-                        geodesic: true,
-                        strokeColor: '#FFD700',
-                        strokeOpacity: 0.8,
-                        strokeWeight: 4,
+                        path: [myMarker.getPosition(), pLoc], geodesic: true,
+                        strokeColor: '#2962FF', strokeOpacity: 0.8, strokeWeight: 5,
                         icons: [{ icon: {path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW}, offset: '100%' }],
                         map: map
                     });
                 }
-
-                // 震動提醒
                 if (navigator.vibrate) navigator.vibrate([500, 200, 500, 200, 500]);
             }
         });
     }
 
     function finishMission() {
-        // 清除任務
         if(passengerMarker) { passengerMarker.setMap(null); passengerMarker = null; }
         if(routeLine) { routeLine.setMap(null); routeLine = null; }
         document.getElementById('mission-panel').style.display = 'none';
-        
-        // 清除資料庫請求
         if(currentUser) db.ref('drivers/' + currentUser.userId + '/request').remove();
-        
-        // 回到司機視角
-        if(myMarker) {
-            map.panTo(myMarker.getPosition());
-            map.setZoom(15);
-        }
+        if(myMarker) { map.panTo(myMarker.getPosition()); map.setZoom(15); }
     }
 
     function togglePower(forceOn=false) {
@@ -249,11 +247,7 @@
             else { 
                 myMarker.setPosition(latLng); 
                 myMarker.setIcon(getArrowIcon(color, heading)); 
-                // 如果沒有正在執行任務(沒有routeLine)，才自動追蹤司機位置。
-                // 如果有任務，就讓司機自己縮放地圖，不要強制拉回中心，以免看不到乘客。
                 if(!routeLine && !document.getElementById('saver-overlay').classList.contains('active')) map.panTo(latLng); 
-                
-                // 如果有任務，更新連線
                 if(routeLine && passengerMarker) {
                     routeLine.setPath([latLng, passengerMarker.getPosition()]);
                     const dist = google.maps.geometry.spherical.computeDistanceBetween(latLng, passengerMarker.getPosition());
