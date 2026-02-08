@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>花蓮車隊 - 司機端 (v4.7)</title>
+  <title>花蓮車隊 - 司機端 (v4.8)</title>
   
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
@@ -11,10 +11,9 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
   <style>
-    body { margin: 0; padding: 0; font-family: -apple-system, Roboto, sans-serif; overflow: hidden; background: #f0f0f0; } /* 背景改淺色 */
+    body { margin: 0; padding: 0; font-family: -apple-system, Roboto, sans-serif; overflow: hidden; background: #f0f0f0; }
     #map { width: 100vw; height: 100vh; }
     
-    /* HUD 狀態列 - 改為深色半透明，對比亮色地圖比較清楚 */
     #hud { 
         position: absolute; top: 15px; left: 15px; z-index: 10; 
         background: rgba(33, 33, 33, 0.9); color: white; 
@@ -39,12 +38,11 @@
     .circle-btn:active { transform: scale(0.95); }
     .sub-text { font-size: 10px; opacity: 0.9; margin-top: 2px; font-weight: normal; }
     
-    /* 顏色微調，讓在亮色地圖上更明顯 */
     .bg-off   { background: linear-gradient(145deg, #7f8c8d, #95a5a6); }
-    .bg-on    { background: linear-gradient(145deg, #d32f2f, #ef5350); } /* 紅色加深 */
-    .bg-empty { background: linear-gradient(145deg, #2e7d32, #43a047); } /* 綠色加深 */
-    .bg-queue { background: linear-gradient(145deg, #1565c0, #1976d2); } /* 藍色加深 */
-    .bg-busy  { background: linear-gradient(145deg, #ef6c00, #fb8c00); } /* 橘色加深 */
+    .bg-on    { background: linear-gradient(145deg, #d32f2f, #ef5350); }
+    .bg-empty { background: linear-gradient(145deg, #2e7d32, #43a047); }
+    .bg-queue { background: linear-gradient(145deg, #1565c0, #1976d2); }
+    .bg-busy  { background: linear-gradient(145deg, #ef6c00, #fb8c00); }
     .bg-dark  { background: linear-gradient(145deg, #37474f, #455a64); }
 
     #btn-power { display: none; }
@@ -77,6 +75,8 @@
   <div id="hud"><span class="status-dot" style="background:gray;"></span> 系統啟動中...</div>
   <div id="map"></div>
   
+  <video id="no-sleep-video" playsinline loop muted style="position:absolute; width:1px; height:1px; opacity:0; pointer-events:none;"></video>
+
   <div id="saver-overlay" onclick="toggleSaver(false)">
       <div class="breathing-icon">🅿️</div>
       <p style="color:#2ecc71; font-size: 24px; font-weight:bold;">掛機待命中</p>
@@ -111,32 +111,27 @@
     var watchId = null, wakeLock = null, heartbeatInterval = null;
     var lastUploadTime = 0, lastUploadLat = 0, lastUploadLng = 0;
     var queueCenter = null; 
-    var passengerMarker = null;
-    var routeLine = null;
+    var passengerMarker = null, routeLine = null;
 
     const UPDATE_INTERVAL = 15000; 
     const HEARTBEAT_TIME = 180000; 
     const MIN_DIST = 100;
 
-    // v4.7: 箭頭圖示稍微改深一點，因為地圖變亮了
+    // v4.8: 隱形影片 Source (微型 MP4)
+    const NO_SLEEP_VIDEO_SRC = "data:video/mp4;base64,AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAAIZnJlZQAAAs1tZGF0AAACrgYF//+//7UcjmTjwAAAAJZnJlZQAAAMBmcmVlAAACAgAAABl3aWRlAAACW21vb3YAAABsbXZoAAAAAMg+u8DIPruwAAABAAAAAQAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAnh0cmFrAAAAXHRraGQAAAAByD67wMg+u7AAAAABAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAAQAAAAEAAAAAAQAAAAEAAAAAACRlZHRzAAAAHGVsc3QAAAAAAAAAAQAAAAEAAAAAAQAAAAAAIW1kaWEAAAAgbWQoZAAAAADIPrvAyD67sAAAAAEAAAAAVQAAAAAALnNvdW4AAAAAAAAAAAAAAABzb3VuZGFyIGFwcGxlIHNvdW5kIG1lZGlhIGhhbmRsZXIAAAABOG1pbmYAAAAQc21oZAAAAAAAAAAAAAAAJGRpbmYAAAAcZHJlZgAAAAAAAAABAAAADHVybCAAAAABAAABEHN0YmwAAABkc3RzZAAAAAAAAAABAAAAVG1wNGEAAAAAAAAAAQAAAAAAAAAAAAIAEAAAAAAATAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAABhzdHRzAAAAAAAAAAEAAAAFAAAABAAAABBzdHNjAAAAAAAAAAEAAAABAAAABQAAAAEAAAAUc3RzegAAAAAAAAAEAAAAAQAAABBzdGNvAAAAAAAAAAEAAALHAAAAY3VkdGEAAAArd2xvYwAAAAAAAAABAAAAG2BkYXQAAAAAAADHAAAB4gAAAMQAAAAAAAEAAACbdHJhawAAAFx0a2hkAAAAAsg+u8DIPruwAAAAAgAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAAQAAAAEAAAAAAQAAAAEAAAAAACRlZHRzAAAAHGVsc3QAAAAAAAAAAQAAAAEAAAAAAQAAAAAAIW1kaWEAAAAgbWQoZAAAAADIPrvAyD67sAAAAAEAAAAAVQAAAAAALmhkbHIAAAAAAAAAAHZpZGUAAAAAAAAAAAAAAAB2aWRlbyBoYW5kbGVyAAAAAThtaW5mAAAAFHZtaGQAAAABAAAAAAAAAAAAAAAkZGluZgAAABxkcmVmAAAAAAAAAAEAAAAMdXJsICAAAAABAAABM3N0YmwAAABpc3RzZAAAAAAAAAABAAAAW2F2YzEAAAAAAAAAAQABAAAAAQABAAEAAABAvqcQAAAAFUJpZyBCdWNrIEJ1bm55AAAAAAH/4QAZZ2NjLgAAACAgICAgICAgICAgICAgICAgAAABcGF2Y0MKAAAABv//AAIAAAAkYXZjQwH0AAr/4QAaZ2NjLgAAACAgICAgICAgICAgICAgICAgAAAAABhzdHRzAAAAAAAAAAEAAAAFAAAABAAAABBzdHNjAAAAAAAAAAEAAAABAAAABQAAAAEAAAAUc3RzegAAAAAAAAAEAAAAAQAAABBzdGNvAAAAAAAAAAEAAALQAAAAY3VkdGEAAAArd2xvYwAAAAAAAAABAAAAG2BkYXQAAAAAAADHAAAB4gAAAMQAAAAAAAE=";
+
     const getArrowIcon = (color, heading) => {
         return {
             path: "M0,-12 L10,10 L0,5 L-10,10 Z", 
-            fillColor: color, fillOpacity: 1, scale: 1.5, 
-            strokeColor: "#333", // 邊框改深色
-            strokeWeight: 1, 
-            rotation: heading || 0 
+            fillColor: color, fillOpacity: 1, scale: 1.5, strokeColor: "#333", strokeWeight: 1, rotation: heading || 0 
         };
     };
 
     window.onload = async function() { initGoogleMap(); await initLiff(); };
 
     function initGoogleMap() {
-        // v4.7: 移除 styles 設定，回歸 Google 標準原廠地圖
         map = new google.maps.Map(document.getElementById("map"), {
-            center: { lat: 23.991, lng: 121.601 }, 
-            zoom: 15,
-            disableDefaultUI: true // 保持介面乾淨
+            center: { lat: 23.991, lng: 121.601 }, zoom: 15, disableDefaultUI: true
         });
     }
 
@@ -180,7 +175,6 @@
                     bounds.extend(myMarker.getPosition()); bounds.extend(pLoc);
                     map.fitBounds(bounds);
                     if(routeLine) routeLine.setMap(null);
-                    // v4.7: 路線顏色改為深藍色，對比比較清楚
                     routeLine = new google.maps.Polyline({
                         path: [myMarker.getPosition(), pLoc], geodesic: true,
                         strokeColor: '#2962FF', strokeOpacity: 0.8, strokeWeight: 5,
@@ -207,13 +201,18 @@
             isOnline = true; localStorage.setItem('isOnline', 'true');
             btnPower.className = "circle-btn bg-on"; btnPower.innerHTML = `<span>下線</span><span class="sub-text">ON</span>`;
             btns.forEach(id => document.getElementById(id).style.display = 'flex');
-            requestWakeLock(); startGPS(); 
+            
+            // v4.8: 雙重保險防休眠
+            requestWakeLock(); // 原本的方法
+            enableNoSleepVideo(); // 新增的隱形影片大法
+
+            startGPS(); 
             if (heartbeatInterval) clearInterval(heartbeatInterval); heartbeatInterval = setInterval(() => forceUpload(), HEARTBEAT_TIME);
         } else {
             isOnline = false; localStorage.setItem('isOnline', 'false');
             btnPower.className = "circle-btn bg-off"; btnPower.innerHTML = `<span>上線</span><span class="sub-text">OFF</span>`;
             btns.forEach(id => document.getElementById(id).style.display = 'none');
-            stopGPS(); releaseWakeLock(); toggleSaver(false);
+            stopGPS(); releaseWakeLock(); disableNoSleepVideo(); toggleSaver(false);
             if(myMarker) myMarker.setMap(null);
             if (heartbeatInterval) clearInterval(heartbeatInterval);
             if (currentUser) db.ref('drivers/' + currentUser.userId).update({ status: 'offline' });
@@ -259,24 +258,19 @@
     }
     
     function stopGPS() { if (watchId) navigator.geolocation.clearWatch(watchId); }
-
     function smartUpload(lat, lng) {
         if(!currentUser) return;
         const now = Date.now();
         const distKm = Math.sqrt(Math.pow(lat - lastUploadLat, 2) + Math.pow(lng - lastUploadLng, 2)) * 111;
         const distM = distKm * 1000;
-
         if (currentWorkStatus === 'queue' && queueCenter) {
             const distFromQueue = Math.sqrt(Math.pow(lat - queueCenter.lat, 2) + Math.pow(lng - queueCenter.lng, 2)) * 111000;
             if (distFromQueue > 500) { currentWorkStatus = 'empty'; queueCenter = null; updateStatusBtn(); showAlert("⚠️ 離開排班區", "系統偵測您已離開排班點，自動切換為「空車」。"); }
         }
-
         if (distM < MIN_DIST) { updateHUD(false, "📍 待命中 (省電)"); return; }
         if (now - lastUploadTime < UPDATE_INTERVAL) { return; }
-
         forceUpload(lat, lng);
     }
-
     function forceUpload(lat, lng) {
         if(!currentUser) return;
         if(!lat&&myMarker){const pos=myMarker.getPosition();lat=pos.lat();lng=pos.lng()} if(!lat)return; 
@@ -284,8 +278,19 @@
         db.ref('drivers/'+currentUser.userId).update({ lat:lat, lng:lng, status:'online', workStatus:currentWorkStatus, lastUpdate:firebase.database.ServerValue.TIMESTAMP }).then(() => { setTimeout(() => { const statusText=currentWorkStatus==='busy'?'載客':(currentWorkStatus==='queue'?'排班':'空車'); updateHUD(false, `🟢 連線中 (${statusText})`); }, 1000); });
         lastUploadLat=lat; lastUploadLng=lng; lastUploadTime=Date.now(); 
     }
-
     function updateHUD(isUploading, text) { const hud = document.getElementById('hud'); hud.innerHTML = `<span class="status-dot" style="background:${isUploading ? '#00C853' : '#2ecc71'};"></span> ${text}`; if(isUploading) hud.classList.add('hud-uploading'); else hud.classList.remove('hud-uploading'); }
+    
+    // v4.8: 隱形影片控制邏輯
+    function enableNoSleepVideo() {
+        const video = document.getElementById('no-sleep-video');
+        video.src = NO_SLEEP_VIDEO_SRC;
+        video.play().catch(e => console.log("Video Play Error:", e));
+    }
+    function disableNoSleepVideo() {
+        const video = document.getElementById('no-sleep-video');
+        video.pause();
+    }
+
     async function requestWakeLock() { try { if('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch(e){} }
     function releaseWakeLock() { if(wakeLock) wakeLock.release(); }
     function showAlert(t,m){ document.getElementById('alert-title').innerText=t;document.getElementById('alert-msg').innerText=m;document.getElementById('alert-modal').style.display='flex'; }
