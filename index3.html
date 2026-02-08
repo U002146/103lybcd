@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>花蓮車隊 - 數位排班看板 (v4.4)</title>
+  <title>花蓮車隊 - 數位排班看板 (v4.5)</title>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
   <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAIxc6PEhHgUs_A9lyRUg8dNbmwOpSamY8&libraries=geometry"></script>
@@ -50,38 +50,42 @@
     const db = firebase.database();
     
     var map, markers = {};
+    var zonePolygons = {}; // 用來存儲 Google Maps Polygon 物件
 
-    // v4.4: 定義排班區 (改用多邊形路徑，恢復紅色框框)
-    // 這裡我盡量畫出矩形框框，如果不準您可以自己微調 lat/lng
+    // v4.5: 使用您提供的精準座標 (Source 1~4)
+    // 注意：GeoJSON 格式通常是 [lng, lat]，Google Maps 需要 {lat, lng}，我已幫您轉換。
     const ZONES = [
       { 
         id: 'hualien_station', name: '花蓮前站', 
-        type: 'polygon', // 標記為多邊形
         paths: [
-            { lat: 23.9915, lng: 121.6008 },
-            { lat: 23.9915, lng: 121.6015 },
-            { lat: 23.9905, lng: 121.6015 },
-            { lat: 23.9905, lng: 121.6008 }
-        ],
-        center: { lat: 23.991, lng: 121.601 } // 判斷距離用的中心點
+            { lat: 23.991470, lng: 121.600259 }, { lat: 23.990772, lng: 121.602020 }, 
+            { lat: 23.992854, lng: 121.602981 }, { lat: 23.993574, lng: 121.601245 }
+        [cite_start]] [cite: 4]
       },
       { 
         id: 'hualien_back', name: '花蓮後站', 
-        type: 'polygon',
         paths: [
-            { lat: 23.9908, lng: 121.5985 },
-            { lat: 23.9908, lng: 121.5995 },
-            { lat: 23.9898, lng: 121.5995 },
-            { lat: 23.9898, lng: 121.5985 }
-        ],
-        center: { lat: 23.990, lng: 121.599 }
+            { lat: 23.994816, lng: 121.599054 }, { lat: 23.992354, lng: 121.597607 }, 
+            { lat: 23.990972, lng: 121.599851 }, { lat: 23.993979, lng: 121.601205 }
+        [cite_start]] [cite: 2]
       },
-      // 醫院可以維持圓形或也改成框框，這裡先維持圓形簡單判定，但只畫圓圈線
-      { id: 'tzu_chi', name: '慈濟醫院', type: 'circle', center: { lat: 23.993, lng: 121.593 }, radius: 150 },
-      { id: 'men_no', name: '門諾醫院', type: 'circle', center: { lat: 23.999, lng: 121.618 }, radius: 150 }
+      { 
+        id: 'tzu_chi', name: '慈濟醫院', 
+        paths: [
+            { lat: 23.993878, lng: 121.593012 }, { lat: 23.995653, lng: 121.594586 }, 
+            { lat: 23.996174, lng: 121.594003 }, { lat: 23.996475, lng: 121.592131 }, 
+            { lat: 23.995464, lng: 121.591121 }
+        [cite_start]] [cite: 1]
+      },
+      { 
+        id: 'men_no', name: '門諾醫院', 
+        paths: [
+            { lat: 23.987043, lng: 121.623861 }, { lat: 23.985999, lng: 121.625335 }, 
+            { lat: 23.988932, lng: 121.627639 }, { lat: 23.989904, lng: 121.626260 }
+        [cite_start]] [cite: 3]
+      }
     ];
 
-    // v4.4: 統一圖示 (水滴 + 文字)
     const getPinIcon = (type) => {
         const isQueue = type === 'queue';
         const color = isQueue ? '#00B0FF' : '#00C853';
@@ -100,28 +104,26 @@
     };
 
     function initMap() {
+        // v4.5: 移除深色 Style，回歸 Google 原廠亮色地圖
         map = new google.maps.Map(document.getElementById("map"), {
             center: { lat: 23.991, lng: 121.601 }, zoom: 14,
-            disableDefaultUI: true, styles: [ { elementType: "geometry", stylers: [{ color: "#212121" }] }, { elementType: "labels.text.stroke", stylers: [{ color: "#212121" }] }, { elementType: "labels.text.fill", stylers: [{ color: "#757575" }] } ]
+            disableDefaultUI: true
         });
         
-        // 畫出排班區 (紅色框框)
         const wrapper = document.getElementById('zones-wrapper');
+        
+        // 繪製排班區多邊形
         ZONES.forEach(z => {
-            if (z.type === 'polygon') {
-                new google.maps.Polygon({
-                    paths: z.paths,
-                    strokeColor: "#FF0000", strokeOpacity: 0.8, strokeWeight: 2,
-                    fillColor: "#FF0000", fillOpacity: 0.1,
-                    map: map
-                });
-            } else {
-                new google.maps.Circle({
-                    strokeColor: "#FF0000", strokeOpacity: 0.8, strokeWeight: 2,
-                    fillColor: "#FF0000", fillOpacity: 0.1,
-                    map: map, center: z.center, radius: z.radius
-                });
-            }
+            // 建立 Polygon 物件
+            const polygon = new google.maps.Polygon({
+                paths: z.paths,
+                strokeColor: "#FF0000", strokeOpacity: 0.8, strokeWeight: 2,
+                fillColor: "#FF0000", fillOpacity: 0.15, // 紅色半透明
+                map: map
+            });
+            
+            // 存起來，等一下用來判斷司機有沒有在裡面
+            zonePolygons[z.id] = polygon;
 
             // 建立排班表介面
             wrapper.innerHTML += `
@@ -157,7 +159,7 @@
                 activeIds.add(key);
                 const pos = new google.maps.LatLng(d.lat, d.lng);
                 
-                // v4.4: 圖示文字化
+                // 圖示
                 const iconType = d.workStatus === 'queue' ? 'queue' : 'empty';
                 const labelText = d.workStatus === 'queue' ? '排' : '空';
 
@@ -174,21 +176,12 @@
                     markers[key].setLabel({ text: labelText, color: "white", fontSize: "14px", fontWeight: "bold" });
                 }
 
-                // 判斷是否在排班區
+                // v4.5: 精準排班判定 (Point in Polygon)
                 if (d.workStatus === 'queue' || d.workStatus === 'empty') {
                     ZONES.forEach(z => {
-                        let isInside = false;
-                        if (z.type === 'polygon') {
-                            // 簡易判斷：檢查是否在中心點半徑範圍內 (為了代碼簡潔，不用複雜的多邊形演算法)
-                            // 實際運作時，只要司機把車停在車站附近，就算排班
-                            const dist = google.maps.geometry.spherical.computeDistanceBetween(pos, new google.maps.LatLng(z.center.lat, z.center.lng));
-                            if (dist <= 200) isInside = true; 
-                        } else {
-                            const dist = google.maps.geometry.spherical.computeDistanceBetween(pos, new google.maps.LatLng(z.center.lat, z.center.lng));
-                            if (dist <= z.radius) isInside = true;
-                        }
-                        
-                        if (isInside) {
+                        const poly = zonePolygons[z.id];
+                        // 使用 Geometry Library 判斷座標是否在多邊形內
+                        if (google.maps.geometry.poly.containsLocation(pos, poly)) {
                             d.enterTime = d.lastUpdate; 
                             zoneDrivers[z.id].push(d);
                         }
