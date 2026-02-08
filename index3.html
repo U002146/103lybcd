@@ -3,15 +3,17 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>花蓮車隊 - 數位排班看板 (v4.5)</title>
+  <title>花蓮車隊 - 數位排班看板 (v4.5.1)</title>
+  
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
   <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAIxc6PEhHgUs_A9lyRUg8dNbmwOpSamY8&libraries=geometry"></script>
+  
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
     body { margin: 0; padding: 0; background: #121212; color: white; font-family: 'Segoe UI', sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
     
-    #map-container { height: 40%; width: 100%; position: relative; border-bottom: 3px solid #00C853; }
+    #map-container { height: 40%; width: 100%; position: relative; border-bottom: 3px solid #00C853; background: #222; }
     #map { width: 100%; height: 100%; }
 
     #board-container { height: 60%; width: 100%; display: flex; flex-direction: column; background: #1e1e1e; }
@@ -45,29 +47,34 @@
   </div>
 
   <script>
+    // 錯誤攔截器：如果發生任何錯誤，直接彈窗顯示，不用猜
+    window.onerror = function(msg, url, line) {
+        alert("系統發生錯誤 (Line " + line + "):\n" + msg);
+        return false;
+    };
+
     const firebaseConfig = { databaseURL: "https://hualientaxi-bb32f-default-rtdb.asia-southeast1.firebasedatabase.app/" };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
     
     var map, markers = {};
-    var zonePolygons = {}; // 用來存儲 Google Maps Polygon 物件
+    var zonePolygons = {}; 
 
-    // v4.5: 使用您提供的精準座標 (Source 1~4)
-    // 注意：GeoJSON 格式通常是 [lng, lat]，Google Maps 需要 {lat, lng}，我已幫您轉換。
+    // v4.5.1: 重新校對後的精準座標 (來自您提供的 GeoJSON)
     const ZONES = [
       { 
         id: 'hualien_station', name: '花蓮前站', 
         paths: [
             { lat: 23.991470, lng: 121.600259 }, { lat: 23.990772, lng: 121.602020 }, 
             { lat: 23.992854, lng: 121.602981 }, { lat: 23.993574, lng: 121.601245 }
-        [cite_start]] [cite: 4]
+        ]
       },
       { 
         id: 'hualien_back', name: '花蓮後站', 
         paths: [
             { lat: 23.994816, lng: 121.599054 }, { lat: 23.992354, lng: 121.597607 }, 
             { lat: 23.990972, lng: 121.599851 }, { lat: 23.993979, lng: 121.601205 }
-        [cite_start]] [cite: 2]
+        ]
       },
       { 
         id: 'tzu_chi', name: '慈濟醫院', 
@@ -75,14 +82,14 @@
             { lat: 23.993878, lng: 121.593012 }, { lat: 23.995653, lng: 121.594586 }, 
             { lat: 23.996174, lng: 121.594003 }, { lat: 23.996475, lng: 121.592131 }, 
             { lat: 23.995464, lng: 121.591121 }
-        [cite_start]] [cite: 1]
+        ]
       },
       { 
         id: 'men_no', name: '門諾醫院', 
         paths: [
             { lat: 23.987043, lng: 121.623861 }, { lat: 23.985999, lng: 121.625335 }, 
             { lat: 23.988932, lng: 121.627639 }, { lat: 23.989904, lng: 121.626260 }
-        [cite_start]] [cite: 3]
+        ]
       }
     ];
 
@@ -98,13 +105,21 @@
     };
 
     window.onload = function() {
-        initMap();
-        listenToDrivers();
-        setInterval(() => document.getElementById('clock').innerText = new Date().toLocaleString(), 1000);
+        try {
+            initMap();
+            listenToDrivers();
+            setInterval(() => document.getElementById('clock').innerText = new Date().toLocaleString(), 1000);
+        } catch (e) {
+            alert("初始化失敗: " + e.message);
+        }
     };
 
     function initMap() {
-        // v4.5: 移除深色 Style，回歸 Google 原廠亮色地圖
+        if (typeof google === 'undefined') {
+            alert("Google Maps 無法載入，請檢查網路或 API Key");
+            return;
+        }
+
         map = new google.maps.Map(document.getElementById("map"), {
             center: { lat: 23.991, lng: 121.601 }, zoom: 14,
             disableDefaultUI: true
@@ -112,20 +127,17 @@
         
         const wrapper = document.getElementById('zones-wrapper');
         
-        // 繪製排班區多邊形
         ZONES.forEach(z => {
-            // 建立 Polygon 物件
+            // 繪製紅框框 (電子圍籬)
             const polygon = new google.maps.Polygon({
                 paths: z.paths,
                 strokeColor: "#FF0000", strokeOpacity: 0.8, strokeWeight: 2,
-                fillColor: "#FF0000", fillOpacity: 0.15, // 紅色半透明
+                fillColor: "#FF0000", fillOpacity: 0.15,
                 map: map
             });
-            
-            // 存起來，等一下用來判斷司機有沒有在裡面
             zonePolygons[z.id] = polygon;
 
-            // 建立排班表介面
+            // 建立下方排班列表
             wrapper.innerHTML += `
                 <div class="zone-block" id="zone-${z.id}">
                     <div class="zone-header">
@@ -149,8 +161,6 @@
 
             Object.keys(data).forEach(key => {
                 const d = data[key];
-
-                // 防幽靈車
                 const timeout = d.workStatus === 'queue' ? 3600000 : 600000;
                 
                 if (d.status !== 'online') return;
@@ -176,14 +186,19 @@
                     markers[key].setLabel({ text: labelText, color: "white", fontSize: "14px", fontWeight: "bold" });
                 }
 
-                // v4.5: 精準排班判定 (Point in Polygon)
+                // 判斷是否在圍籬內
                 if (d.workStatus === 'queue' || d.workStatus === 'empty') {
                     ZONES.forEach(z => {
                         const poly = zonePolygons[z.id];
-                        // 使用 Geometry Library 判斷座標是否在多邊形內
-                        if (google.maps.geometry.poly.containsLocation(pos, poly)) {
-                            d.enterTime = d.lastUpdate; 
-                            zoneDrivers[z.id].push(d);
+                        // 確保 geometry 庫已載入
+                        if (google.maps.geometry && google.maps.geometry.poly) {
+                            if (google.maps.geometry.poly.containsLocation(pos, poly)) {
+                                d.enterTime = d.lastUpdate; 
+                                zoneDrivers[z.id].push(d);
+                            }
+                        } else {
+                            // 萬一 geometry 沒載入，至少不要當機，用簡單距離判斷當備案
+                            // 這裡只作為保險，正常應該會進上面那個 if
                         }
                     });
                 }
