@@ -2,135 +2,187 @@
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>花蓮車隊 - 乘客叫車</title>
   
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
   <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAIxc6PEhHgUs_A9lyRUg8dNbmwOpSamY8"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
   <style>
-    /* --- UI: 清新明亮風格 (適合乘客) --- */
-    body { margin: 0; padding: 0; font-family: -apple-system, Roboto, sans-serif; overflow: hidden; }
+    /* --- UI 設計總監：現代簡約風 --- */
+    body { margin: 0; padding: 0; font-family: -apple-system, "Microsoft JhengHei", sans-serif; overflow: hidden; background: #f5f5f5; }
     #map { width: 100vw; height: 100vh; }
 
-    /* 底部叫車面板 */
-    #bottom-panel {
+    /* 頂部狀態列 */
+    #top-bar {
+        position: absolute; top: 15px; left: 50%; transform: translateX(-50%);
+        background: rgba(255, 255, 255, 0.95); padding: 10px 20px;
+        border-radius: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+        font-weight: bold; color: #333; z-index: 10; display: flex; align-items: center; white-space: nowrap;
+    }
+    .pulse-dot { width: 10px; height: 10px; background: #2ecc71; border-radius: 50%; margin-right: 8px; animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(46, 204, 113, 0); } 100% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0); } }
+
+    /* 底部名片面板 (核心設計) */
+    #bottom-card {
         position: absolute; bottom: 0; left: 0; width: 100%;
-        background: white; border-top-left-radius: 20px; border-top-right-radius: 20px;
-        box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
-        padding: 20px; box-sizing: border-box; z-index: 10;
-        text-align: center; transition: transform 0.3s;
+        background: white; border-top-left-radius: 24px; border-top-right-radius: 24px;
+        box-shadow: 0 -5px 25px rgba(0,0,0,0.1);
+        padding: 25px; padding-bottom: 40px; box-sizing: border-box; z-index: 20;
+        transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
     }
-    
-    h2 { margin: 0 0 10px 0; color: #333; font-size: 20px; }
-    p { margin: 0 0 15px 0; color: #666; font-size: 14px; }
 
-    /* 叫車按鈕 */
-    .call-taxi-btn {
-        background: linear-gradient(135deg, #00C853, #64DD17);
-        color: white; border: none; padding: 15px 0; width: 100%;
-        border-radius: 50px; font-size: 18px; font-weight: bold;
-        box-shadow: 0 4px 15px rgba(0, 200, 83, 0.4);
-        cursor: pointer; text-decoration: none; display: block;
-    }
-    .call-taxi-btn:active { transform: scale(0.98); }
+    /* 名片內容區 */
+    .card-content { display: none; text-align: left; }
+    .card-content.active { display: block; animation: slideUp 0.3s; }
 
-    /* 附近車輛數提示 */
-    #nearby-count {
-        position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
-        background: rgba(255, 255, 255, 0.9); padding: 8px 15px;
-        border-radius: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-        font-weight: bold; color: #333; z-index: 10; display: flex; align-items: center;
-    }
-    .dot { width: 10px; height: 10px; background: #2ecc71; border-radius: 50%; margin-right: 8px; }
+    /* 模式 A: 搜尋中 */
+    .mode-searching h2 { margin: 0 0 5px 0; font-size: 22px; color: #333; }
+    .mode-searching p { margin: 0 0 20px 0; color: #888; font-size: 14px; }
 
-    /* 司機資訊彈窗 (Info Window) 樣式會由 Google Maps 決定，這裡只設全域 */
-    .driver-info-window { padding: 5px; text-align: center; }
-    .driver-name { font-weight: bold; font-size: 16px; margin-bottom: 5px; }
-    .driver-car { color: #666; font-size: 12px; margin-bottom: 8px; }
-    .driver-phone-btn {
-        background: #2ecc71; color: white; text-decoration: none;
-        padding: 5px 15px; border-radius: 15px; font-size: 14px; display: inline-block;
+    /* 模式 B: 司機名片 */
+    .driver-profile { display: flex; align-items: center; margin-bottom: 15px; }
+    .driver-avatar { width: 60px; height: 60px; background: #eee; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 30px; margin-right: 15px; color: #555; }
+    .driver-info h2 { margin: 0; font-size: 24px; color: #333; }
+    .driver-info .car-badge { background: #f1f2f6; color: #555; padding: 4px 8px; border-radius: 6px; font-size: 13px; font-weight: bold; margin-top: 4px; display: inline-block; }
+    .distance-tag { position: absolute; top: 25px; right: 25px; background: #e8f5e9; color: #2ecc71; padding: 5px 12px; border-radius: 20px; font-size: 14px; font-weight: bold; }
+
+    /* 通用大按鈕 */
+    .main-btn {
+        display: flex; justify-content: center; align-items: center;
+        width: 100%; padding: 16px; border-radius: 16px;
+        border: none; font-size: 18px; font-weight: bold; color: white;
+        cursor: pointer; text-decoration: none; box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        transition: transform 0.1s;
     }
+    .main-btn:active { transform: scale(0.98); }
+    .btn-fleet { background: linear-gradient(135deg, #333, #555); }
+    .btn-call { background: linear-gradient(135deg, #00C853, #64DD17); }
+    .main-btn i { margin-right: 10px; }
+
+    /* 定位按鈕 */
+    .gps-btn {
+        position: absolute; bottom: 220px; right: 20px;
+        width: 50px; height: 50px; background: white; border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.2); z-index: 15; font-size: 20px; color: #333;
+        cursor: pointer;
+    }
+
+    @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
   </style>
 </head>
 <body>
 
-  <div id="nearby-count"><span class="dot"></span> 搜尋附近車輛中...</div>
+  <div id="top-bar"><div class="pulse-dot"></div><span id="fleet-status">搜尋附近車輛...</span></div>
 
   <div id="map"></div>
 
-  <div id="bottom-panel">
-      <h2 id="status-title">正在定位您的位置...</h2>
-      <p>花蓮在地車隊，安全可靠，隨叫隨到</p>
-      <a href="https://lin.ee/9Davl6e" class="call-taxi-btn">
-          📞 呼叫車隊 (LINE)
-      </a>
+  <div class="gps-btn" onclick="panToUser()"><i class="fa-solid fa-crosshairs"></i></div>
+
+  <div id="bottom-card">
+      
+      <div id="card-default" class="card-content active mode-searching">
+          <h2>👋 您好，要去哪裡？</h2>
+          <p>點擊地圖上的車輛查看司機資訊</p>
+          <a href="https://line.me/R/ti/p/@YOUR_LINE_ID" class="main-btn btn-fleet">
+              <i class="fa-brands fa-line"></i> 呼叫車隊派車
+          </a>
+      </div>
+
+      <div id="card-driver" class="card-content">
+          <div class="driver-profile">
+              <div class="driver-avatar"><i class="fa-solid fa-user-tie"></i></div>
+              <div class="driver-info">
+                  <h2 id="d-name">司機名</h2>
+                  <div class="car-badge" id="d-car">車號</div>
+              </div>
+              <div class="distance-tag" id="d-dist">0.5 km</div>
+          </div>
+          <a id="d-call-btn" href="#" class="main-btn btn-call">
+              <i class="fa-solid fa-phone"></i> 直接撥給司機
+          </a>
+          <div style="text-align:center; margin-top:10px;">
+              <span style="color:#999; font-size:13px; cursor:pointer;" onclick="deselectDriver()">關閉名片 ✕</span>
+          </div>
+      </div>
+
   </div>
 
   <script>
-    // --- Config ---
     const firebaseConfig = { databaseURL: "https://hualientaxi-bb32f-default-rtdb.asia-southeast1.firebasedatabase.app/" };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    var map, userMarker;
-    var markers = {}; // 存放司機 Marker
-    var myLat = null, myLng = null;
-    var infoWindow; // 彈出視窗
+    var map, userMarker, userLat, userLng;
+    var markers = {}; 
+    var selectedDriverId = null;
 
-    // 司機圖標 (綠色=空車, 藍色=排班)
-    const getIcon = (color) => {
+    // --- 圖標設計 (SVG) ---
+    // 1. 乘客圖標 (藍色雷達點)
+    const userIcon = {
+        path: google.maps.SymbolPath.CIRCLE,
+        scale: 8, fillColor: "#4285F4", fillOpacity: 1, strokeColor: "white", strokeWeight: 3
+    };
+
+    // 2. 計程車圖標 (精緻小車 - 俯視圖)
+    const getCarIcon = (color) => {
+        // 這是一個俯視的車子形狀 SVG Path
+        const carPath = "M17.402,0H5.643C2.526,0,0,3.467,0,6.584v34.804c0,3.116,2.526,5.644,5.643,5.644h11.759c3.116,0,5.644-2.527,5.644-5.644 V6.584C23.044,3.467,20.518,0,17.402,0z M22.057,14.188v11.665l-2.729,0.351v-4.806L22.057,14.188z M20.625,10.049l-0.638,5.723 H3.049l-0.638-5.723H20.625z M5.719,8.756h11.599v0.564H5.719V8.756z M1.023,14.188l2.762,7.21v4.806L1.023,25.853V14.188z";
+        
         return {
-            path: "M10,0 C4.5,0 0,4.5 0,10 C0,18 10,30 10,30 C10,30 20,18 20,10 C20,4.5 15.5,0 10,0 Z",
-            fillColor: color, fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2, scale: 1.5, anchor: new google.maps.Point(10, 30)
+            path: carPath,
+            fillColor: color, fillOpacity: 1,
+            strokeColor: "white", strokeWeight: 1,
+            scale: 1.2, 
+            anchor: new google.maps.Point(11.5, 23), // 中心點設定
+            rotation: 0 // 之後可以用 GPS heading 旋轉
         };
     };
 
-    window.onload = function() {
-        initMap();
-    };
+    window.onload = initMap;
 
     function initMap() {
-        // 預設花蓮中心
         map = new google.maps.Map(document.getElementById("map"), {
             center: { lat: 23.991, lng: 121.601 }, zoom: 14,
-            disableDefaultUI: true, // 簡潔模式
-            zoomControl: true, // 允許乘客縮放
+            disableDefaultUI: true, clickableIcons: false, styles: [ { "featureType": "poi", "elementType": "labels", "stylers": [ { "visibility": "off" } ] } ]
         });
 
-        infoWindow = new google.maps.InfoWindow();
+        // 點擊地圖空白處，取消選取司機
+        map.addListener("click", deselectDriver);
 
-        // 1. 抓乘客位置
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition((pos) => {
-                myLat = pos.coords.latitude;
-                myLng = pos.coords.longitude;
-                const latLng = { lat: myLat, lng: myLng };
-
-                // 顯示乘客自己
-                userMarker = new google.maps.Marker({
-                    position: latLng, map: map,
-                    icon: {
-                        path: google.maps.SymbolPath.CIRCLE,
-                        scale: 8, fillColor: "#4285F4", fillOpacity: 1, strokeColor: "white", strokeWeight: 2
-                    },
-                    title: "您的位置"
-                });
-
-                map.setCenter(latLng);
+                userLat = pos.coords.latitude; userLng = pos.coords.longitude;
+                updateUserMarker(userLat, userLng);
+                map.setCenter({ lat: userLat, lng: userLng });
                 map.setZoom(15);
-                document.getElementById('status-title').innerText = "已鎖定您的位置";
-                
-                // 開始監聽司機
                 listenToDrivers();
-            }, () => {
-                document.getElementById('status-title').innerText = "無法取得定位，顯示預設地圖";
-                listenToDrivers(); // 就算沒定位也顯示車子
+            }, () => listenToDrivers());
+        } else { listenToDrivers(); }
+    }
+
+    function updateUserMarker(lat, lng) {
+        const pos = { lat: lat, lng: lng };
+        if (!userMarker) {
+            userMarker = new google.maps.Marker({ position: pos, map: map, icon: userIcon, zIndex: 999 });
+            // 添加雷達動畫效果 (圓圈)
+            new google.maps.Circle({
+                strokeColor: "#4285F4", strokeOpacity: 0.3, strokeWeight: 1,
+                fillColor: "#4285F4", fillOpacity: 0.1,
+                map: map, center: pos, radius: 100 // 100米範圍
             });
         } else {
-            listenToDrivers();
+            userMarker.setPosition(pos);
+        }
+    }
+
+    function panToUser() {
+        if(userLat && userLng) {
+            map.panTo({lat: userLat, lng: userLng});
+            map.setZoom(16);
         }
     }
 
@@ -145,65 +197,81 @@
 
             Object.keys(data).forEach(id => {
                 const d = data[id];
-
-                // --- 核心過濾邏輯 ---
-                // 1. 必須有位置
                 if (!d.lat || !d.lng) return;
-                // 2. 必須是上線狀態 (status == 'online')
                 if (d.status !== 'online') return;
-                // 3. 必須是空車或排班 (workStatus == 'empty' or 'queue')
-                // ★ 關鍵：載客中 (busy) 的車子直接隱形 ★
-                if (d.workStatus === 'busy') return;
-                // 4. 訊號必須新鮮 (10分鐘內)
-                if (now - d.lastUpdate > 600000) return;
+                if (d.workStatus === 'busy') return; 
+                // 寬鬆判斷：1小時內都算活著
+                if (now - d.lastUpdate > 3600000) return;
 
                 activeIds.add(id);
                 count++;
                 
                 const pos = { lat: d.lat, lng: d.lng };
-                const color = d.workStatus === 'queue' ? '#3498db' : '#2ecc71'; // 藍=排班, 綠=空車
+                // 顏色：排班=藍, 空車=綠
+                const color = d.workStatus === 'queue' ? '#3498db' : '#2ecc71'; 
 
                 if (!markers[id]) {
-                    // 新增 Marker
                     const marker = new google.maps.Marker({
                         position: pos, map: map,
-                        icon: getIcon(color),
+                        icon: getCarIcon(color),
                         title: d.name
                     });
-
-                    // 點擊事件：顯示司機資訊 & 電話
-                    marker.addListener("click", () => {
-                        const content = `
-                            <div class="driver-info-window">
-                                <div class="driver-name">${d.name} 運將</div>
-                                <div class="driver-car">${d.car || '計程車'}</div>
-                                <a href="tel:${d.phone}" class="driver-phone-btn">📞 ${d.phone}</a>
-                            </div>
-                        `;
-                        infoWindow.setContent(content);
-                        infoWindow.open(map, marker);
-                    });
                     
+                    // ★ 點擊事件：切換到底部名片 ★
+                    marker.addListener("click", () => selectDriver(id, d));
                     markers[id] = marker;
                 } else {
-                    // 更新 Marker
                     markers[id].setPosition(pos);
-                    markers[id].setIcon(getIcon(color));
+                    markers[id].setIcon(getCarIcon(color));
+                    
+                    // 如果目前正選中這位司機，即時更新距離
+                    if(selectedDriverId === id) updateDriverDistance(d.lat, d.lng);
                 }
             });
 
-            // 清除已下線或載客的車
-            for (let id in markers) {
-                if (!activeIds.has(id)) {
-                    markers[id].setMap(null);
-                    delete markers[id];
-                }
-            }
-
-            // 更新上方提示
-            document.getElementById('nearby-count').innerHTML = 
-                `<span class="dot"></span> 附近有 ${count} 台空車`;
+            for (let id in markers) { if (!activeIds.has(id)) { markers[id].setMap(null); delete markers[id]; } }
+            
+            document.getElementById('fleet-status').innerText = `附近有 ${count} 台空車`;
         });
+    }
+
+    // --- 名片邏輯 ---
+    function selectDriver(id, d) {
+        selectedDriverId = id;
+        
+        // 1. 填入資料
+        document.getElementById('d-name').innerText = d.name || "司機";
+        document.getElementById('d-car').innerText = d.car || "計程車";
+        document.getElementById('d-call-btn').href = `tel:${d.phone}`;
+        
+        // 2. 計算距離
+        updateDriverDistance(d.lat, d.lng);
+
+        // 3. UI 切換
+        document.getElementById('card-default').classList.remove('active');
+        document.getElementById('card-driver').classList.add('active');
+    }
+
+    function deselectDriver() {
+        selectedDriverId = null;
+        document.getElementById('card-driver').classList.remove('active');
+        document.getElementById('card-default').classList.add('active');
+    }
+
+    function updateDriverDistance(dLat, dLng) {
+        if(userLat && userLng) {
+            const dist = getDistance(userLat, userLng, dLat, dLng);
+            document.getElementById('d-dist').innerText = dist < 1 ? `${(dist*1000).toFixed(0)} m` : `${dist.toFixed(1)} km`;
+        } else {
+            document.getElementById('d-dist').innerText = "計算中...";
+        }
+    }
+
+    // 距離公式 (Haversine)
+    function getDistance(lat1, lon1, lat2, lon2) {
+        const R = 6371; const dLat = (lat2 - lat1) * Math.PI / 180; const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon/2) * Math.sin(dLon/2);
+        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
     }
   </script>
 </body>
