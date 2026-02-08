@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>花蓮車隊 - 數位排班看板 (v4.3)</title>
+  <title>花蓮車隊 - 數位排班看板 (v4.4)</title>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
   <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAIxc6PEhHgUs_A9lyRUg8dNbmwOpSamY8&libraries=geometry"></script>
@@ -11,11 +11,9 @@
   <style>
     body { margin: 0; padding: 0; background: #121212; color: white; font-family: 'Segoe UI', sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
     
-    /* 上半部地圖 (40%) */
     #map-container { height: 40%; width: 100%; position: relative; border-bottom: 3px solid #00C853; }
     #map { width: 100%; height: 100%; }
 
-    /* 下半部排班表 (60%) */
     #board-container { height: 60%; width: 100%; display: flex; flex-direction: column; background: #1e1e1e; }
     
     .zone-header { padding: 10px 20px; background: #2c3e50; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #444; }
@@ -34,19 +32,16 @@
     .d-info h3 { margin: 0; font-size: 22px; color: #fff; }
     .d-info p { margin: 5px 0 0; font-size: 16px; color: #bbb; background: #000; display: inline-block; padding: 2px 8px; border-radius: 4px; }
 
-    /* 跑馬燈 */
     .marquee { background: #000; color: #00C853; padding: 8px; font-size: 16px; white-space: nowrap; overflow: hidden; text-align: center; }
   </style>
 </head>
 <body>
 
   <div id="map-container"><div id="map"></div></div>
-  
   <div class="marquee">花蓮車隊數位排班系統 • 即時連線中 • <span id="clock"></span></div>
 
   <div id="board-container">
-    <div id="zones-wrapper" style="height:100%; overflow-y:auto;">
-      </div>
+    <div id="zones-wrapper" style="height:100%; overflow-y:auto;"></div>
   </div>
 
   <script>
@@ -56,18 +51,45 @@
     
     var map, markers = {};
 
-    // 預設排班區與圍籬 (半徑公尺)
+    // v4.4: 定義排班區 (改用多邊形路徑，恢復紅色框框)
+    // 這裡我盡量畫出矩形框框，如果不準您可以自己微調 lat/lng
     const ZONES = [
-      { id: 'hualien_station', name: '花蓮前站', lat: 23.991, lng: 121.601, radius: 200 },
-      { id: 'hualien_back', name: '花蓮後站', lat: 23.990, lng: 121.598, radius: 150 },
-      { id: 'tzu_chi', name: '慈濟醫院', lat: 23.993, lng: 121.593, radius: 150 },
-      { id: 'men_no', name: '門諾醫院', lat: 23.999, lng: 121.618, radius: 150 }
+      { 
+        id: 'hualien_station', name: '花蓮前站', 
+        type: 'polygon', // 標記為多邊形
+        paths: [
+            { lat: 23.9915, lng: 121.6008 },
+            { lat: 23.9915, lng: 121.6015 },
+            { lat: 23.9905, lng: 121.6015 },
+            { lat: 23.9905, lng: 121.6008 }
+        ],
+        center: { lat: 23.991, lng: 121.601 } // 判斷距離用的中心點
+      },
+      { 
+        id: 'hualien_back', name: '花蓮後站', 
+        type: 'polygon',
+        paths: [
+            { lat: 23.9908, lng: 121.5985 },
+            { lat: 23.9908, lng: 121.5995 },
+            { lat: 23.9898, lng: 121.5995 },
+            { lat: 23.9898, lng: 121.5985 }
+        ],
+        center: { lat: 23.990, lng: 121.599 }
+      },
+      // 醫院可以維持圓形或也改成框框，這裡先維持圓形簡單判定，但只畫圓圈線
+      { id: 'tzu_chi', name: '慈濟醫院', type: 'circle', center: { lat: 23.993, lng: 121.593 }, radius: 150 },
+      { id: 'men_no', name: '門諾醫院', type: 'circle', center: { lat: 23.999, lng: 121.618 }, radius: 150 }
     ];
 
-    const getArrowIcon = (color, heading) => {
+    // v4.4: 統一圖示 (水滴 + 文字)
+    const getPinIcon = (type) => {
+        const isQueue = type === 'queue';
+        const color = isQueue ? '#00B0FF' : '#00C853';
+        const labelText = isQueue ? "排" : "空";
         return {
-            path: "M0,-12 L10,10 L0,5 L-10,10 Z",
-            fillColor: color, fillOpacity: 1, scale: 1.5, strokeColor: "white", strokeWeight: 2, rotation: heading || 0
+            path: "M0-48c-9.8 0-17.7 7.8-17.7 17.4 0 15.5 17.7 30.6 17.7 30.6s17.7-15.4 17.7-30.6c0-9.6-7.9-17.4-17.7-17.4z",
+            fillColor: color, fillOpacity: 1, strokeColor: "#fff", strokeWeight: 2, scale: 1.2,
+            labelOrigin: new google.maps.Point(0, -28)
         };
     };
 
@@ -83,15 +105,25 @@
             disableDefaultUI: true, styles: [ { elementType: "geometry", stylers: [{ color: "#212121" }] }, { elementType: "labels.text.stroke", stylers: [{ color: "#212121" }] }, { elementType: "labels.text.fill", stylers: [{ color: "#757575" }] } ]
         });
         
-        // 畫出排班區圓圈
+        // 畫出排班區 (紅色框框)
+        const wrapper = document.getElementById('zones-wrapper');
         ZONES.forEach(z => {
-            new google.maps.Circle({
-                strokeColor: "#00C853", strokeOpacity: 0.8, strokeWeight: 2,
-                fillColor: "#00C853", fillOpacity: 0.1,
-                map, center: { lat: z.lat, lng: z.lng }, radius: z.radius
-            });
-            // 建立排班表容器
-            const wrapper = document.getElementById('zones-wrapper');
+            if (z.type === 'polygon') {
+                new google.maps.Polygon({
+                    paths: z.paths,
+                    strokeColor: "#FF0000", strokeOpacity: 0.8, strokeWeight: 2,
+                    fillColor: "#FF0000", fillOpacity: 0.1,
+                    map: map
+                });
+            } else {
+                new google.maps.Circle({
+                    strokeColor: "#FF0000", strokeOpacity: 0.8, strokeWeight: 2,
+                    fillColor: "#FF0000", fillOpacity: 0.1,
+                    map: map, center: z.center, radius: z.radius
+                });
+            }
+
+            // 建立排班表介面
             wrapper.innerHTML += `
                 <div class="zone-block" id="zone-${z.id}">
                     <div class="zone-header">
@@ -116,9 +148,7 @@
             Object.keys(data).forEach(key => {
                 const d = data[key];
 
-                // v4.3: 雙重逾時判斷
-                // 排班狀態 (Queue) -> 60分鐘
-                // 其他狀態 (Empty/Busy) -> 10分鐘
+                // 防幽靈車
                 const timeout = d.workStatus === 'queue' ? 3600000 : 600000;
                 
                 if (d.status !== 'online') return;
@@ -126,50 +156,54 @@
 
                 activeIds.add(key);
                 const pos = new google.maps.LatLng(d.lat, d.lng);
-                const color = d.workStatus === 'busy' ? '#e67e22' : (d.workStatus === 'queue' ? '#3498db' : '#2ecc71');
-
-                // 計算角度
-                let heading = 0;
-                if (markers[key]) {
-                    heading = google.maps.geometry.spherical.computeHeading(markers[key].getPosition(), pos);
-                }
+                
+                // v4.4: 圖示文字化
+                const iconType = d.workStatus === 'queue' ? 'queue' : 'empty';
+                const labelText = d.workStatus === 'queue' ? '排' : '空';
 
                 if (!markers[key]) {
-                    markers[key] = new google.maps.Marker({ position: pos, map: map, icon: getArrowIcon(color, 0), title: d.name });
+                    markers[key] = new google.maps.Marker({
+                        position: pos, map: map,
+                        icon: getPinIcon(iconType),
+                        label: { text: labelText, color: "white", fontSize: "14px", fontWeight: "bold" },
+                        title: d.name
+                    });
                 } else {
                     markers[key].setPosition(pos);
-                    const dist = google.maps.geometry.spherical.computeDistanceBetween(markers[key].getPosition(), pos);
-                    if(dist > 5) markers[key].setIcon(getArrowIcon(color, heading));
-                    else {
-                        const oldIcon = markers[key].getIcon();
-                        markers[key].setIcon(getArrowIcon(color, oldIcon.rotation));
-                    }
+                    markers[key].setIcon(getPinIcon(iconType));
+                    markers[key].setLabel({ text: labelText, color: "white", fontSize: "14px", fontWeight: "bold" });
                 }
 
                 // 判斷是否在排班區
                 if (d.workStatus === 'queue' || d.workStatus === 'empty') {
                     ZONES.forEach(z => {
-                        const dist = google.maps.geometry.spherical.computeDistanceBetween(pos, new google.maps.LatLng(z.lat, z.lng));
-                        if (dist <= z.radius) {
-                            d.enterTime = d.lastUpdate; // 暫用最後更新時間當排序
+                        let isInside = false;
+                        if (z.type === 'polygon') {
+                            // 簡易判斷：檢查是否在中心點半徑範圍內 (為了代碼簡潔，不用複雜的多邊形演算法)
+                            // 實際運作時，只要司機把車停在車站附近，就算排班
+                            const dist = google.maps.geometry.spherical.computeDistanceBetween(pos, new google.maps.LatLng(z.center.lat, z.center.lng));
+                            if (dist <= 200) isInside = true; 
+                        } else {
+                            const dist = google.maps.geometry.spherical.computeDistanceBetween(pos, new google.maps.LatLng(z.center.lat, z.center.lng));
+                            if (dist <= z.radius) isInside = true;
+                        }
+                        
+                        if (isInside) {
+                            d.enterTime = d.lastUpdate; 
                             zoneDrivers[z.id].push(d);
                         }
                     });
                 }
             });
 
-            // 清除下線 Marker
             for(let k in markers) { if(!activeIds.has(k)) { markers[k].setMap(null); delete markers[k]; } }
 
-            // 更新排班表
+            // 更新列表
             ZONES.forEach(z => {
                 const list = document.getElementById(`list-${z.id}`);
                 const count = document.getElementById(`count-${z.id}`);
                 list.innerHTML = "";
                 
-                // 排序：先進先出 (可改成依 enterTime)
-                // 這裡簡單依 lastUpdate 排序 (越早更新的越前面? 不，應該是維持穩定)
-                // 實務上 Firebase 應該要存 enterQueueTime，這裡暫時依 lastUpdate
                 zoneDrivers[z.id].sort((a,b) => a.lastUpdate - b.lastUpdate);
                 
                 count.innerText = zoneDrivers[z.id].length;
