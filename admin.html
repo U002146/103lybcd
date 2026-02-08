@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>花蓮車隊 - 人事管理後台</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <style>
+        body { font-family: -apple-system, sans-serif; background: #f0f2f5; padding: 20px; max-width: 600px; margin: 0 auto; }
+        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        h2 { margin-top: 0; color: #333; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; color: #555; }
+        input { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
+        button { width: 100%; padding: 15px; background: #2ecc71; color: white; border: none; border-radius: 8px; font-size: 18px; font-weight: bold; cursor: pointer; }
+        button:hover { background: #27ae60; }
+        .del-btn { background: #e74c3c; margin-top: 5px; padding: 8px; font-size: 14px; }
+        #driver-list { list-style: none; padding: 0; }
+        .driver-item { background: #fff; border-bottom: 1px solid #eee; padding: 15px; display: flex; justify-content: space-between; align-items: center; }
+        .driver-info span { display: block; font-size: 14px; color: #666; }
+        .driver-info b { font-size: 18px; color: #333; }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <h2>👮‍♂️ 新增/修改司機</h2>
+        <div class="form-group">
+            <label>LINE ID (從司機端複製)</label>
+            <input type="text" id="uid" placeholder="Uxxxxxxxx...">
+        </div>
+        <div class="form-group">
+            <label>姓名 (暱稱)</label>
+            <input type="text" id="name" placeholder="例如：銘哥">
+        </div>
+        <div class="form-group">
+            <label>車號</label>
+            <input type="text" id="car" placeholder="例如：TDP-1234">
+        </div>
+        <div class="form-group">
+            <label>電話</label>
+            <input type="tel" id="phone" placeholder="09xx-xxx-xxx">
+        </div>
+        <button onclick="saveDriver()">💾 儲存資料</button>
+    </div>
+
+    <div class="card">
+        <h2>📋 現有司機名單 (<span id="count">0</span>)</h2>
+        <div id="driver-list">載入中...</div>
+    </div>
+
+<script>
+    // Config
+    const firebaseConfig = { databaseURL: "https://hualientaxi-bb32f-default-rtdb.asia-southeast1.firebasedatabase.app/" };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    // 讀取列表
+    db.ref('drivers').on('value', snapshot => {
+        const list = document.getElementById('driver-list');
+        list.innerHTML = '';
+        let count = 0;
+        const data = snapshot.val();
+        
+        if(data) {
+            Object.keys(data).forEach(key => {
+                const d = data[key];
+                if(d.role === 'driver') {
+                    count++;
+                    const item = document.createElement('div');
+                    item.className = 'driver-item';
+                    item.innerHTML = `
+                        <div class="driver-info">
+                            <b>${d.name}</b>
+                            <span>${d.car} | ${d.phone}</span>
+                            <span style="font-size:10px;color:#aaa;">${key}</span>
+                        </div>
+                        <button class="del-btn" style="width:auto;" onclick="deleteDriver('${key}', '${d.name}')">刪除</button>
+                    `;
+                    // 點擊項目可帶入編輯
+                    item.onclick = (e) => { 
+                        if(e.target.tagName !== 'BUTTON') fillForm(key, d); 
+                    };
+                    list.appendChild(item);
+                }
+            });
+        }
+        document.getElementById('count').innerText = count;
+    });
+
+    function saveDriver() {
+        const uid = document.getElementById('uid').value.trim();
+        const name = document.getElementById('name').value.trim();
+        const car = document.getElementById('car').value.trim();
+        const phone = document.getElementById('phone').value.trim();
+
+        if(!uid || !name || !car || !phone) { alert("所有欄位都要填喔！"); return; }
+
+        db.ref('drivers/' + uid).update({
+            name: name,
+            car: car,
+            phone: phone,
+            role: 'driver',
+            staticDataSynced: true,
+            lastUpdate: Date.now() // 給一個初始時間
+        }).then(() => {
+            alert("✅ 儲存成功！");
+            clearForm();
+        }).catch(err => alert("錯誤：" + err.message));
+    }
+
+    function deleteDriver(uid, name) {
+        if(confirm(`確定要刪除「${name}」的權限嗎？\n他將無法再登入司機端。`)) {
+            db.ref('drivers/' + uid).remove();
+        }
+    }
+
+    function fillForm(uid, d) {
+        document.getElementById('uid').value = uid;
+        document.getElementById('name').value = d.name;
+        document.getElementById('car').value = d.car;
+        document.getElementById('phone').value = d.phone;
+        window.scrollTo(0,0);
+    }
+
+    function clearForm() {
+        document.getElementById('uid').value = '';
+        document.getElementById('name').value = '';
+        document.getElementById('car').value = '';
+        document.getElementById('phone').value = '';
+    }
+</script>
+</body>
+</html>
