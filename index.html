@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>花蓮車隊 - 司機端 (v4.9)</title>
+  <title>花蓮車隊 - 司機端 (v4.10)</title>
   
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
@@ -47,17 +47,14 @@
 
     #btn-power { display: none; }
 
-    /* v4.9: 全黑掛機畫面 + 長按邏輯 */
     #saver-overlay { 
         display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; 
         background: black; z-index: 9999; 
         flex-direction: column; justify-content: center; align-items: center; 
-        color: #555; /* 預設灰暗字體，不刺眼 */
-        user-select: none; -webkit-user-select: none; /* 禁止選取文字 */
+        color: #555; 
+        user-select: none; -webkit-user-select: none;
     }
     #saver-overlay.active { display: flex; }
-    
-    /* 按住時文字變亮 */
     #saver-overlay.pressing p { color: #00C853; transition: color 0.3s; }
 
     #mission-panel {
@@ -116,13 +113,24 @@
     var currentWorkStatus = 'empty'; 
     var watchId = null, wakeLock = null, heartbeatInterval = null;
     var lastUploadTime = 0, lastUploadLat = 0, lastUploadLng = 0;
+    
+    // v4.10: 新增本地渲染節流變數
+    var lastRenderTime = 0; 
+    var lastRenderLat = 0, lastRenderLng = 0;
+
     var queueCenter = null; 
     var passengerMarker = null, routeLine = null;
-    var pressTimer = null; // 長按計時器
+    var pressTimer = null; 
 
+    // 上傳維持 15秒 / 100米
     const UPDATE_INTERVAL = 15000; 
     const HEARTBEAT_TIME = 180000; 
     const MIN_DIST = 100;
+    
+    // v4.10: 本地畫面更新過濾器 (2秒 或 5公尺)
+    const RENDER_INTERVAL = 2000; 
+    const RENDER_MIN_DIST = 5; 
+
     const NO_SLEEP_VIDEO_SRC = "data:video/mp4;base64,AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAAIZnJlZQAAAs1tZGF0AAACrgYF//+//7UcjmTjwAAAAJZnJlZQAAAMBmcmVlAAACAgAAABl3aWRlAAACW21vb3YAAABsbXZoAAAAAMg+u8DIPruwAAABAAAAAQAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAnh0cmFrAAAAXHRraGQAAAAByD67wMg+u7AAAAABAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAAQAAAAEAAAAAAQAAAAEAAAAAACRlZHRzAAAAHGVsc3QAAAAAAAAAAQAAAAEAAAAAAQAAAAAAIW1kaWEAAAAgbWQoZAAAAADIPrvAyD67sAAAAAEAAAAAVQAAAAAALnNvdW4AAAAAAAAAAAAAAABzb3VuZGFyIGFwcGxlIHNvdW5kIG1lZGlhIGhhbmRsZXIAAAABOG1pbmYAAAAQc21oZAAAAAAAAAAAAAAAJGRpbmYAAAAcZHJlZgAAAAAAAAABAAAADHVybCAAAAABAAABEHN0YmwAAABkc3RzZAAAAAAAAAABAAAAVG1wNGEAAAAAAAAAAQAAAAAAAAAAAAIAEAAAAAAATAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAABhzdHRzAAAAAAAAAAEAAAAFAAAABAAAABBzdHNjAAAAAAAAAAEAAAABAAAABQAAAAEAAAAUc3RzegAAAAAAAAAEAAAAAQAAABBzdGNvAAAAAAAAAAEAAALHAAAAY3VkdGEAAAArd2xvYwAAAAAAAAABAAAAG2BkYXQAAAAAAADHAAAB4gAAAMQAAAAAAAEAAACbdHJhawAAAFx0a2hkAAAAAsg+u8DIPruwAAAAAgAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAAQAAAAEAAAAAAQAAAAEAAAAAACRlZHRzAAAAHGVsc3QAAAAAAAAAAQAAAAEAAAAAAQAAAAAAIW1kaWEAAAAgbWQoZAAAAADIPrvAyD67sAAAAAEAAAAAVQAAAAAALmhkbHIAAAAAAAAAAHZpZGUAAAAAAAAAAAAAAAB2aWRlbyBoYW5kbGVyAAAAAThtaW5mAAAAFHZtaGQAAAABAAAAAAAAAAAAAAAkZGluZgAAABxkcmVmAAAAAAAAAAEAAAAMdXJsICAAAAABAAABM3N0YmwAAABpc3RzZAAAAAAAAAABAAAAW2F2YzEAAAAAAAAAAQABAAAAAQABAAEAAABAvqcQAAAAFUJpZyBCdWNrIEJ1bm55AAAAAAH/4QAZZ2NjLgAAACAgICAgICAgICAgICAgICAgAAABcGF2Y0MKAAAABv//AAIAAAAkYXZjQwH0AAr/4QAaZ2NjLgAAACAgICAgICAgICAgICAgICAgAAAAABhzdHRzAAAAAAAAAAEAAAAFAAAABAAAABBzdHNjAAAAAAAAAAEAAAABAAAABQAAAAEAAAAUc3RzegAAAAAAAAAEAAAAAQAAABBzdGNvAAAAAAAAAAEAAALQAAAAY3VkdGEAAAArd2xvYwAAAAAAAAABAAAAG2BkYXQAAAAAAADHAAAB4gAAAMQAAAAAAAE=";
 
     const getArrowIcon = (color, heading) => {
@@ -206,7 +214,6 @@
             isOnline = true; localStorage.setItem('isOnline', 'true');
             btnPower.className = "circle-btn bg-on"; btnPower.innerHTML = `<span>下線</span><span class="sub-text">ON</span>`;
             btns.forEach(id => document.getElementById(id).style.display = 'flex');
-            
             requestWakeLock(); enableNoSleepVideo();
             startGPS(); 
             if (heartbeatInterval) clearInterval(heartbeatInterval); heartbeatInterval = setInterval(() => forceUpload(), HEARTBEAT_TIME);
@@ -233,26 +240,20 @@
         updateStatusBtn(); forceUpload(); 
     }
     
-    // v4.9: 長按喚醒邏輯
     function setupSaverEvents() {
         const overlay = document.getElementById('saver-overlay');
-        
-        // 手指按下 / 滑鼠按下
         const startPress = (e) => {
             e.preventDefault();
-            overlay.classList.add('pressing'); // 視覺回饋
+            overlay.classList.add('pressing'); 
             pressTimer = setTimeout(() => {
                 toggleSaver(false);
-                if(navigator.vibrate) navigator.vibrate(100); // 震動提示
-            }, 1500); // 1.5秒
+                if(navigator.vibrate) navigator.vibrate(100); 
+            }, 1500); 
         };
-
-        // 手指放開 / 滑鼠放開 / 手指移開
         const cancelPress = () => {
             overlay.classList.remove('pressing');
             clearTimeout(pressTimer);
         };
-
         overlay.addEventListener('touchstart', startPress);
         overlay.addEventListener('touchend', cancelPress);
         overlay.addEventListener('mousedown', startPress);
@@ -262,14 +263,8 @@
     function toggleSaver(enable){ 
         const overlay=document.getElementById('saver-overlay');
         const btn=document.getElementById('btn-saver'); 
-        if(enable){
-            overlay.classList.add('active');
-            btn.className="circle-btn bg-empty";
-        }else{
-            overlay.classList.remove('active');
-            overlay.classList.remove('pressing'); // 確保復原
-            btn.className="circle-btn bg-dark";
-        } 
+        if(enable){ overlay.classList.add('active'); btn.className="circle-btn bg-empty"; }
+        else{ overlay.classList.remove('active'); overlay.classList.remove('pressing'); btn.className="circle-btn bg-dark"; } 
     }
     
     function updateStatusBtn(){ const btn=document.getElementById('btn-status');let colorCode='#2ecc71'; if(currentWorkStatus==='empty'){btn.className="circle-btn bg-empty";btn.innerHTML="空車"}else if(currentWorkStatus==='queue'){btn.className="circle-btn bg-queue";btn.innerHTML="排班";colorCode='#3498db'}else{btn.className="circle-btn bg-busy";btn.innerHTML="載客";colorCode='#e67e22'} if(myMarker)myMarker.setIcon(getArrowIcon(colorCode, 0)); }
@@ -281,22 +276,38 @@
             const latLng = new google.maps.LatLng(latitude, longitude);
             const color = currentWorkStatus==='busy'?'#e67e22':(currentWorkStatus==='queue'?'#3498db':'#2ecc71');
             
-            if(!myMarker){ myMarker = new google.maps.Marker({ position: latLng, map: map, icon: getArrowIcon(color, heading), title: "我" }); map.panTo(latLng); } 
-            else { 
-                myMarker.setPosition(latLng); 
-                myMarker.setIcon(getArrowIcon(color, heading)); 
-                if(!routeLine && !document.getElementById('saver-overlay').classList.contains('active')) map.panTo(latLng); 
-                if(routeLine && passengerMarker) {
-                    routeLine.setPath([latLng, passengerMarker.getPosition()]);
-                    const dist = google.maps.geometry.spherical.computeDistanceBetween(latLng, passengerMarker.getPosition());
-                    document.getElementById('mission-dist').innerText = `乘客距離：${Math.round(dist)} 公尺`;
+            // v4.10: 智慧節流 (畫面更新)
+            const now = Date.now();
+            const distKm = Math.sqrt(Math.pow(latitude - lastRenderLat, 2) + Math.pow(longitude - lastRenderLng, 2)) * 111;
+            const distM = distKm * 1000;
+            
+            // 規則：如果距離小於5米 且 時間小於2秒 -> 不更新地圖 (省電)
+            // 例外：如果是第一次定位(!myMarker)，一定要畫
+            if (myMarker && distM < RENDER_MIN_DIST && (now - lastRenderTime < RENDER_INTERVAL)) {
+                // 雖然不畫圖，但還是要繼續往下檢查上傳邏輯
+            } else {
+                // 更新畫面
+                if(!myMarker){ myMarker = new google.maps.Marker({ position: latLng, map: map, icon: getArrowIcon(color, heading), title: "我" }); map.panTo(latLng); } 
+                else { 
+                    myMarker.setPosition(latLng); 
+                    myMarker.setIcon(getArrowIcon(color, heading)); 
+                    if(!routeLine && !document.getElementById('saver-overlay').classList.contains('active')) map.panTo(latLng); 
+                    if(routeLine && passengerMarker) {
+                        routeLine.setPath([latLng, passengerMarker.getPosition()]);
+                        const dist = google.maps.geometry.spherical.computeDistanceBetween(latLng, passengerMarker.getPosition());
+                        document.getElementById('mission-dist').innerText = `乘客距離：${Math.round(dist)} 公尺`;
+                    }
                 }
+                // 紀錄這次畫圖的座標與時間
+                lastRenderLat = latitude; lastRenderLng = longitude; lastRenderTime = now;
             }
+
             smartUpload(latitude, longitude);
         }, (err) => console.error(err), { enableHighAccuracy: true, maximumAge: 0 });
     }
     
     function stopGPS() { if (watchId) navigator.geolocation.clearWatch(watchId); }
+    
     function smartUpload(lat, lng) {
         if(!currentUser) return;
         const now = Date.now();
@@ -310,6 +321,7 @@
         if (now - lastUploadTime < UPDATE_INTERVAL) { return; }
         forceUpload(lat, lng);
     }
+    
     function forceUpload(lat, lng) {
         if(!currentUser) return;
         if(!lat&&myMarker){const pos=myMarker.getPosition();lat=pos.lat();lng=pos.lng()} if(!lat)return; 
@@ -317,6 +329,7 @@
         db.ref('drivers/'+currentUser.userId).update({ lat:lat, lng:lng, status:'online', workStatus:currentWorkStatus, lastUpdate:firebase.database.ServerValue.TIMESTAMP }).then(() => { setTimeout(() => { const statusText=currentWorkStatus==='busy'?'載客':(currentWorkStatus==='queue'?'排班':'空車'); updateHUD(false, `🟢 連線中 (${statusText})`); }, 1000); });
         lastUploadLat=lat; lastUploadLng=lng; lastUploadTime=Date.now(); 
     }
+    
     function updateHUD(isUploading, text) { const hud = document.getElementById('hud'); hud.innerHTML = `<span class="status-dot" style="background:${isUploading ? '#00C853' : '#2ecc71'};"></span> ${text}`; if(isUploading) hud.classList.add('hud-uploading'); else hud.classList.remove('hud-uploading'); }
     
     function enableNoSleepVideo() {
