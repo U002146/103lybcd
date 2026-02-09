@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>花蓮車隊 - 電子圍籬繪製器</title> <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <style>
+        body { margin: 0; padding: 0; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        #map { height: 100vh; width: 100vw; z-index: 1; }
+        
+        /* 懸浮控制面板 - 針對 iPad 優化尺寸 */
+        .control-panel {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            display: flex;
+            gap: 15px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 15px;
+            border-radius: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            backdrop-filter: blur(5px);
+        }
+
+        .btn {
+            padding: 12px 24px;
+            font-size: 18px; /* 大字體 */
+            font-weight: bold;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            transition: transform 0.1s;
+        }
+        .btn:active { transform: scale(0.95); }
+        
+        .btn-add { background-color: #3498db; color: white; } /* 藍色：標記 */
+        .btn-undo { background-color: #f39c12; color: white; } /* 橘色：復原 */
+        .btn-clear { background-color: #e74c3c; color: white; } /* 紅色：清除 */
+        .btn-save { background-color: #2ecc71; color: white; } /* 綠色：輸出 */
+
+        /* 頂部提示條 */
+        .header-bar {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 8px 20px;
+            border-radius: 50px;
+            font-size: 16px;
+            pointer-events: none; /* 讓點擊穿透 */
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header-bar">📍 點擊地圖以建立圍籬頂點 (iPad Pencil Ready)</div>
+
+    <div id="map"></div>
+
+    <div class="control-panel">
+        <button class="btn btn-undo" onclick="undoPoint()">↩️ 復原</button>
+        <button class="btn btn-clear" onclick="clearMap()">🗑️ 重畫</button>
+        <button class="btn btn-save" onclick="exportCoords()">✅ 輸出代碼</button>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+        const VERSION = "v3.2"; // iPad 優化版 - 支援觸控與 SweetAlert 輸出
+
+        // 1. 初始化地圖 (預設花蓮車站)
+        // 使用 OpenStreetMap (免費，無需 API Key)
+        var map = L.map('map', { tap: true }).setView([23.9936, 121.6015], 16);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        // 2. 變數儲存
+        var points = [];      // 存座標 [lat, lng]
+        var markers = [];     // 存標記圖層
+        var polygon = null;   // 存多邊形圖層
+
+        // 3. 點擊地圖事件 (支援手指/筆)
+        map.on('click', function(e) {
+            var lat = e.latlng.lat;
+            var lng = e.latlng.lng;
+            addPoint(lat, lng);
+        });
+
+        function addPoint(lat, lng) {
+            // 存入數據
+            points.push([lat, lng]);
+
+            // 畫點 (Marker)
+            var marker = L.circleMarker([lat, lng], {
+                color: '#e74c3c',
+                fillColor: '#fff',
+                fillOpacity: 1,
+                radius: 6
+            }).addTo(map);
+            markers.push(marker);
+
+            // 畫線/面 (Polygon)
+            drawPolygon();
+        }
+
+        function drawPolygon() {
+            // 如果舊的有畫，先移除
+            if (polygon) {
+                map.removeLayer(polygon);
+            }
+            
+            // 至少3點才能構成面，但為了視覺回饋，2點我們畫線，3點以上畫紅區
+            if (points.length > 0) {
+                polygon = L.polygon(points, {
+                    color: '#3498db',
+                    fillColor: '#3498db',
+                    fillOpacity: 0.3,
+                    weight: 3
+                }).addTo(map);
+            }
+        }
+
+        // 4. 功能按鈕邏輯
+        function undoPoint() {
+            if (points.length === 0) return;
+            
+            // 移除數據
+            points.pop();
+            
+            // 移除地圖上的最後一個標記
+            var lastMarker = markers.pop();
+            map.removeLayer(lastMarker);
+
+            // 重繪多邊形
+            drawPolygon();
+        }
+
+        function clearMap() {
+            points = [];
+            // 移除所有標記
+            markers.forEach(m => map.removeLayer(m));
+            markers = [];
+            // 移除多邊形
+            if (polygon) map.removeLayer(polygon);
+            polygon = null;
+        }
+
+        function exportCoords() {
+            if (points.length < 3) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: '點數不足',
+                    text: '電子圍籬至少需要 3 個點才能圍成一個區域喔！',
+                    confirmButtonColor: '#3498db'
+                });
+                return;
+            }
+
+            // 格式化為 JSON 字串
+            const jsonOutput = JSON.stringify(points, null, 2);
+
+            // 使用 SweetAlert 顯示並複製
+            Swal.fire({
+                title: '圍籬座標產生完畢',
+                html: `<p>已生成 ${points.length} 個頂點座標</p>
+                       <textarea id="codeArea" style="width:100%; height:150px; border-radius:10px; border:1px solid #ccc; padding:10px;">${jsonOutput}</textarea>`,
+                showCancelButton: true,
+                confirmButtonText: '📋 複製代碼',
+                cancelButtonText: '關閉',
+                confirmButtonColor: '#2ecc71',
+                preConfirm: () => {
+                    var copyText = document.getElementById("codeArea");
+                    copyText.select();
+                    document.execCommand("copy");
+                }
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: '已複製！',
+                        text: '請回到 VS Code 貼上即可。',
+                        timer: 1500,
+                        showConfirmButton: false
+                    });
+                }
+            });
+        }
+    </script>
+</body>
+</html> // v3.2 觸控優化版
