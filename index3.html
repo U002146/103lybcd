@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>數位排班看板 (v4.5.1)</title>
+  <title>花蓮車隊 - 戰情中心 (v4.11)</title>
   
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
@@ -13,82 +13,82 @@
   <style>
     body { margin: 0; padding: 0; background: #121212; color: white; font-family: 'Segoe UI', sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
     
-    #map-container { height: 40%; width: 100%; position: relative; border-bottom: 3px solid #00C853; background: #222; }
+    #map-container { height: 50%; width: 100%; position: relative; border-bottom: 3px solid #00C853; background: #222; }
     #map { width: 100%; height: 100%; }
 
-    #board-container { height: 60%; width: 100%; display: flex; flex-direction: column; background: #1e1e1e; }
+    #board-container { height: 50%; width: 100%; display: flex; flex-direction: column; background: #1e1e1e; }
     
-    .zone-header { padding: 10px 20px; background: #2c3e50; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #444; }
-    .zone-title { font-size: 24px; font-weight: bold; color: #fff; display: flex; align-items: center; }
-    .zone-count { background: #f1c40f; color: #000; padding: 5px 15px; border-radius: 20px; font-weight: bold; font-size: 20px; }
+    .zone-header { padding: 15px 20px; background: #2c3e50; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #444; cursor: pointer; transition: background 0.2s; }
+    .zone-header:hover { background: #34495e; }
     
-    .driver-list { flex: 1; overflow-y: auto; padding: 10px; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; align-content: start; }
+    .zone-title { font-size: 20px; font-weight: bold; color: #fff; display: flex; align-items: center; }
+    .zone-count { background: #f1c40f; color: #000; padding: 5px 15px; border-radius: 20px; font-weight: bold; font-size: 18px; min-width: 30px; text-align: center; }
     
-    .driver-card { background: #333; border-radius: 12px; padding: 15px; display: flex; align-items: center; border-left: 5px solid #00C853; box-shadow: 0 4px 10px rgba(0,0,0,0.3); position: relative; }
+    /* 戰略分區顏色 */
+    .zone-north .zone-title i { color: #2980b9; } /* 北區藍 */
+    .zone-center .zone-title i { color: #e74c3c; } /* 中區紅 */
+    .zone-south .zone-title i { color: #27ae60; } /* 南區綠 */
+
+    .driver-list { display: none; padding: 10px; background: #222; border-bottom: 1px solid #444; }
+    .driver-list.active { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+    
+    .driver-card { background: #333; border-radius: 8px; padding: 10px; display: flex; align-items: center; border-left: 4px solid #00C853; }
     .driver-card.queue { border-left-color: #3498db; }
-    .d-rank { position: absolute; top: -5px; right: -5px; width: 30px; height: 30px; background: #e74c3c; color: white; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: bold; font-size: 14px; box-shadow: 0 2px 5px rgba(0,0,0,0.3); z-index: 5; }
     
-    .d-avatar { width: 60px; height: 60px; border-radius: 50%; background: #555; overflow: hidden; margin-right: 15px; border: 2px solid #fff; }
+    .d-avatar { width: 40px; height: 40px; border-radius: 50%; background: #555; overflow: hidden; margin-right: 10px; }
     .d-avatar img { width: 100%; height: 100%; object-fit: cover; }
     
-    .d-info h3 { margin: 0; font-size: 22px; color: #fff; }
-    .d-info p { margin: 5px 0 0; font-size: 16px; color: #bbb; background: #000; display: inline-block; padding: 2px 8px; border-radius: 4px; }
+    .d-info h3 { margin: 0; font-size: 16px; color: #fff; }
+    .d-info p { margin: 2px 0 0; font-size: 12px; color: #aaa; }
 
-    .marquee { background: #000; color: #00C853; padding: 8px; font-size: 16px; white-space: nowrap; overflow: hidden; text-align: center; }
+    .marquee { background: #000; color: #00C853; padding: 8px; font-size: 14px; white-space: nowrap; overflow: hidden; text-align: center; border-bottom: 1px solid #333; }
   </style>
 </head>
 <body>
 
   <div id="map-container"><div id="map"></div></div>
-  <div class="marquee">數位排班看板 • 連線中 • <span id="clock"></span></div>
+  <div class="marquee">花蓮車隊戰情中心 • 全境監控中 • <span id="clock"></span></div>
 
-  <div id="board-container">
-    <div id="zones-wrapper" style="height:100%; overflow-y:auto;"></div>
+  <div id="board-container" style="overflow-y: auto;">
+    <div id="zones-wrapper"></div>
   </div>
 
   <script>
-    // 錯誤攔截器：如果發生任何錯誤，直接彈窗顯示，不用猜
-    window.onerror = function(msg, url, line) {
-        alert("系統發生錯誤 (Line " + line + "):\n" + msg);
-        return false;
-    };
-
     const firebaseConfig = { databaseURL: "https://hualientaxi-bb32f-default-rtdb.asia-southeast1.firebasedatabase.app/" };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
     
-    var map, markers = {};
-    var zonePolygons = {}; 
+    var map, markers = {}, zonePolygons = {}; 
 
-    // v4.5.1: 重新校對後的精準座標 (來自您提供的 GeoJSON)
-    const ZONES = [
-      { 
-        id: 'hualien_station', name: '花蓮前站', 
+    // v4.11: 來自您提供的 "新城花蓮吉安" GeoJSON 數據 (已簡化並提取關鍵座標)
+    // 這裡我將多個 Polygon 合併定義為三大戰區
+    
+    const STRATEGIC_ZONES = [
+      {
+        id: 'north_zone', name: '北區戰線 (新城/北花蓮)', color: '#3498db',
+        // 這裡填入您 GeoJSON 中 "最北邊" 的那個多邊形座標 (概略)
         paths: [
-            { lat: 23.991470, lng: 121.600259 }, { lat: 23.990772, lng: 121.602020 }, 
-            { lat: 23.992854, lng: 121.602981 }, { lat: 23.993574, lng: 121.601245 }
+            {lat: 24.1155, lng: 121.6519}, {lat: 24.1784, lng: 121.6573}, 
+            {lat: 24.1596, lng: 121.6207}, {lat: 24.1037, lng: 121.6063},
+            {lat: 24.0921, lng: 121.6219}
         ]
       },
-      { 
-        id: 'hualien_back', name: '花蓮後站', 
+      {
+        id: 'center_zone', name: '中區核心 (市區/車站)', color: '#e74c3c',
+        // 這裡填入 "中間" 的多邊形 (包含花蓮市區)
         paths: [
-            { lat: 23.994816, lng: 121.599054 }, { lat: 23.992354, lng: 121.597607 }, 
-            { lat: 23.990972, lng: 121.599851 }, { lat: 23.993979, lng: 121.601205 }
+            {lat: 24.0239, lng: 121.6286}, {lat: 23.9663, lng: 121.6275},
+            {lat: 23.9810, lng: 121.6174}, {lat: 24.0085, lng: 121.6158},
+            {lat: 24.0130, lng: 121.6545}
         ]
       },
-      { 
-        id: 'tzu_chi', name: '慈濟醫院', 
+      {
+        id: 'south_zone', name: '南區防線 (吉安/南花蓮)', color: '#2ecc71',
+        // 這裡填入 "最南邊" 的多邊形
         paths: [
-            { lat: 23.993878, lng: 121.593012 }, { lat: 23.995653, lng: 121.594586 }, 
-            { lat: 23.996174, lng: 121.594003 }, { lat: 23.996475, lng: 121.592131 }, 
-            { lat: 23.995464, lng: 121.591121 }
-        ]
-      },
-      { 
-        id: 'men_no', name: '門諾醫院', 
-        paths: [
-            { lat: 23.987043, lng: 121.623861 }, { lat: 23.985999, lng: 121.625335 }, 
-            { lat: 23.988932, lng: 121.627639 }, { lat: 23.989904, lng: 121.626260 }
+            {lat: 23.9619, lng: 121.6113}, {lat: 23.9411, lng: 121.6078},
+            {lat: 23.9161, lng: 121.5947}, {lat: 23.9323, lng: 121.5336},
+            {lat: 23.9543, lng: 121.5258}, {lat: 23.9624, lng: 121.5449}
         ]
       }
     ];
@@ -96,52 +96,46 @@
     const getPinIcon = (type) => {
         const isQueue = type === 'queue';
         const color = isQueue ? '#00B0FF' : '#00C853';
-        const labelText = isQueue ? "排" : "空";
         return {
-            path: "M0-48c-9.8 0-17.7 7.8-17.7 17.4 0 15.5 17.7 30.6 17.7 30.6s17.7-15.4 17.7-30.6c0-9.6-7.9-17.4-17.7-17.4z",
-            fillColor: color, fillOpacity: 1, strokeColor: "#fff", strokeWeight: 2, scale: 1.2,
-            labelOrigin: new google.maps.Point(0, -28)
+            path: google.maps.SymbolPath.CIRCLE,
+            scale: 6, fillColor: color, fillOpacity: 1, strokeColor: "white", strokeWeight: 2
         };
     };
 
     window.onload = function() {
-        try {
-            initMap();
-            listenToDrivers();
-            setInterval(() => document.getElementById('clock').innerText = new Date().toLocaleString(), 1000);
-        } catch (e) {
-            alert("初始化失敗: " + e.message);
-        }
+        initMap();
+        listenToDrivers();
+        setInterval(() => document.getElementById('clock').innerText = new Date().toLocaleString(), 1000);
     };
 
     function initMap() {
-        if (typeof google === 'undefined') {
-            alert("Google Maps 無法載入，請檢查網路或 API Key");
-            return;
-        }
-
         map = new google.maps.Map(document.getElementById("map"), {
-            center: { lat: 23.991, lng: 121.601 }, zoom: 14,
-            disableDefaultUI: true
+            center: { lat: 23.991, lng: 121.601 }, zoom: 11, // 視角拉遠一點，看全花蓮
+            disableDefaultUI: true,
+            styles: [ { elementType: "geometry", stylers: [{ color: "#242f3e" }] }, { elementType: "labels.text.stroke", stylers: [{ color: "#242f3e" }] }, { elementType: "labels.text.fill", stylers: [{ color: "#746855" }] } ]
         });
         
         const wrapper = document.getElementById('zones-wrapper');
         
-        ZONES.forEach(z => {
-            // 繪製紅框框 (電子圍籬)
+        STRATEGIC_ZONES.forEach(z => {
+            // 繪製戰區範圍
             const polygon = new google.maps.Polygon({
                 paths: z.paths,
-                strokeColor: "#FF0000", strokeOpacity: 0.8, strokeWeight: 2,
-                fillColor: "#FF0000", fillOpacity: 0.15,
+                strokeColor: z.color, strokeOpacity: 0.8, strokeWeight: 2,
+                fillColor: z.color, fillOpacity: 0.1,
                 map: map
             });
             zonePolygons[z.id] = polygon;
 
-            // 建立下方排班列表
+            // 建立列表 (可折疊)
+            let zoneClass = 'zone-center';
+            if(z.id === 'north_zone') zoneClass = 'zone-north';
+            if(z.id === 'south_zone') zoneClass = 'zone-south';
+
             wrapper.innerHTML += `
-                <div class="zone-block" id="zone-${z.id}">
-                    <div class="zone-header">
-                        <div class="zone-title"><i class="fa-solid fa-map-pin" style="margin-right:10px;"></i> ${z.name}</div>
+                <div class="zone-block ${zoneClass}" id="zone-${z.id}">
+                    <div class="zone-header" onclick="toggleList('${z.id}')">
+                        <div class="zone-title"><i class="fa-solid fa-map" style="margin-right:10px;"></i> ${z.name}</div>
                         <div class="zone-count" id="count-${z.id}">0</div>
                     </div>
                     <div class="driver-list" id="list-${z.id}"></div>
@@ -149,6 +143,12 @@
             `;
         });
     }
+    
+    // 折疊列表功能
+    window.toggleList = function(id) {
+        const list = document.getElementById(`list-${id}`);
+        list.classList.toggle('active');
+    };
 
     function listenToDrivers() {
         db.ref('drivers').on('value', snapshot => {
@@ -156,7 +156,7 @@
             if (!data) return;
             const now = Date.now();
             const zoneDrivers = {}; 
-            ZONES.forEach(z => zoneDrivers[z.id] = []);
+            STRATEGIC_ZONES.forEach(z => zoneDrivers[z.id] = []);
             const activeIds = new Set();
 
             Object.keys(data).forEach(key => {
@@ -169,69 +169,46 @@
                 activeIds.add(key);
                 const pos = new google.maps.LatLng(d.lat, d.lng);
                 
-                // 圖示
-                const iconType = d.workStatus === 'queue' ? 'queue' : 'empty';
-                const labelText = d.workStatus === 'queue' ? '排' : '空';
-
+                // 地圖上的小圓點
                 if (!markers[key]) {
-                    markers[key] = new google.maps.Marker({
-                        position: pos, map: map,
-                        icon: getPinIcon(iconType),
-                        label: { text: labelText, color: "white", fontSize: "14px", fontWeight: "bold" },
-                        title: d.name
-                    });
+                    markers[key] = new google.maps.Marker({ position: pos, map: map, icon: getPinIcon(d.workStatus), title: d.name });
                 } else {
                     markers[key].setPosition(pos);
-                    markers[key].setIcon(getPinIcon(iconType));
-                    markers[key].setLabel({ text: labelText, color: "white", fontSize: "14px", fontWeight: "bold" });
+                    markers[key].setIcon(getPinIcon(d.workStatus));
                 }
 
-                // 判斷是否在圍籬內
-                if (d.workStatus === 'queue' || d.workStatus === 'empty') {
-                    ZONES.forEach(z => {
-                        const poly = zonePolygons[z.id];
-                        // 確保 geometry 庫已載入
-                        if (google.maps.geometry && google.maps.geometry.poly) {
-                            if (google.maps.geometry.poly.containsLocation(pos, poly)) {
-                                d.enterTime = d.lastUpdate; 
-                                zoneDrivers[z.id].push(d);
-                            }
-                        } else {
-                            // 萬一 geometry 沒載入，至少不要當機，用簡單距離判斷當備案
-                            // 這裡只作為保險，正常應該會進上面那個 if
-                        }
-                    });
-                }
+                // 判斷在哪個戰區
+                STRATEGIC_ZONES.forEach(z => {
+                    const poly = zonePolygons[z.id];
+                    if (google.maps.geometry.poly.containsLocation(pos, poly)) {
+                        zoneDrivers[z.id].push(d);
+                    }
+                });
             });
 
             for(let k in markers) { if(!activeIds.has(k)) { markers[k].setMap(null); delete markers[k]; } }
 
-            // 更新列表
-            ZONES.forEach(z => {
+            // 更新儀表板數據
+            STRATEGIC_ZONES.forEach(z => {
                 const list = document.getElementById(`list-${z.id}`);
                 const count = document.getElementById(`count-${z.id}`);
                 list.innerHTML = "";
                 
-                zoneDrivers[z.id].sort((a,b) => a.lastUpdate - b.lastUpdate);
-                
                 count.innerText = zoneDrivers[z.id].length;
-                if(zoneDrivers[z.id].length === 0) {
-                    list.innerHTML = `<div style="padding:20px;color:#666;width:100%;text-align:center;">目前無車輛</div>`;
-                } else {
-                    zoneDrivers[z.id].forEach((d, index) => {
+                
+                if(zoneDrivers[z.id].length > 0) {
+                    zoneDrivers[z.id].forEach(d => {
                         const statusClass = d.workStatus === 'queue' ? 'queue' : '';
                         const avatar = d.photo || 'https://cdn-icons-png.flaticon.com/512/3237/3237472.png';
                         list.innerHTML += `
                             <div class="driver-card ${statusClass}">
-                                <div class="d-rank">${index + 1}</div>
                                 <div class="d-avatar"><img src="${avatar}"></div>
-                                <div class="d-info">
-                                    <h3>${d.name}</h3>
-                                    <p>${d.car}</p>
-                                </div>
+                                <div class="d-info"><h3>${d.name}</h3><p>${d.car || '計程車'}</p></div>
                             </div>
                         `;
                     });
+                } else {
+                    list.innerHTML = `<div style="color:#666;text-align:center;padding:10px;">戰區淨空</div>`;
                 }
             });
         });
