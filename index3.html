@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>花蓮車隊 - 戰情中心 (v4.11)</title>
+  <title>花蓮車隊 - 戰情中心 (v4.12)</title>
   
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
@@ -18,17 +18,12 @@
 
     #board-container { height: 50%; width: 100%; display: flex; flex-direction: column; background: #1e1e1e; }
     
-    .zone-header { padding: 15px 20px; background: #2c3e50; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #444; cursor: pointer; transition: background 0.2s; }
+    .zone-header { padding: 12px 20px; background: #2c3e50; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #444; cursor: pointer; transition: background 0.2s; }
     .zone-header:hover { background: #34495e; }
     
-    .zone-title { font-size: 20px; font-weight: bold; color: #fff; display: flex; align-items: center; }
-    .zone-count { background: #f1c40f; color: #000; padding: 5px 15px; border-radius: 20px; font-weight: bold; font-size: 18px; min-width: 30px; text-align: center; }
+    .zone-title { font-size: 18px; font-weight: bold; color: #fff; display: flex; align-items: center; }
+    .zone-count { background: #f1c40f; color: #000; padding: 2px 12px; border-radius: 20px; font-weight: bold; font-size: 16px; min-width: 30px; text-align: center; }
     
-    /* 戰略分區顏色 */
-    .zone-north .zone-title i { color: #2980b9; } /* 北區藍 */
-    .zone-center .zone-title i { color: #e74c3c; } /* 中區紅 */
-    .zone-south .zone-title i { color: #27ae60; } /* 南區綠 */
-
     .driver-list { display: none; padding: 10px; background: #222; border-bottom: 1px solid #444; }
     .driver-list.active { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
     
@@ -37,7 +32,6 @@
     
     .d-avatar { width: 40px; height: 40px; border-radius: 50%; background: #555; overflow: hidden; margin-right: 10px; }
     .d-avatar img { width: 100%; height: 100%; object-fit: cover; }
-    
     .d-info h3 { margin: 0; font-size: 16px; color: #fff; }
     .d-info p { margin: 2px 0 0; font-size: 12px; color: #aaa; }
 
@@ -60,37 +54,32 @@
     
     var map, markers = {}, zonePolygons = {}; 
 
-    // v4.11: 來自您提供的 "新城花蓮吉安" GeoJSON 數據 (已簡化並提取關鍵座標)
-    // 這裡我將多個 Polygon 合併定義為三大戰區
-    
+    // v4.12: 八大戰區定義 (直接引用您提供的 GeoJSON 座標)
     const STRATEGIC_ZONES = [
-      {
-        id: 'north_zone', name: '北區戰線 (新城/北花蓮)', color: '#3498db',
-        // 這裡填入您 GeoJSON 中 "最北邊" 的那個多邊形座標 (概略)
-        paths: [
-            {lat: 24.1155, lng: 121.6519}, {lat: 24.1784, lng: 121.6573}, 
-            {lat: 24.1596, lng: 121.6207}, {lat: 24.1037, lng: 121.6063},
-            {lat: 24.0921, lng: 121.6219}
-        ]
-      },
-      {
-        id: 'center_zone', name: '中區核心 (市區/車站)', color: '#e74c3c',
-        // 這裡填入 "中間" 的多邊形 (包含花蓮市區)
-        paths: [
-            {lat: 24.0239, lng: 121.6286}, {lat: 23.9663, lng: 121.6275},
-            {lat: 23.9810, lng: 121.6174}, {lat: 24.0085, lng: 121.6158},
-            {lat: 24.0130, lng: 121.6545}
-        ]
-      },
-      {
-        id: 'south_zone', name: '南區防線 (吉安/南花蓮)', color: '#2ecc71',
-        // 這裡填入 "最南邊" 的多邊形
-        paths: [
-            {lat: 23.9619, lng: 121.6113}, {lat: 23.9411, lng: 121.6078},
-            {lat: 23.9161, lng: 121.5947}, {lat: 23.9323, lng: 121.5336},
-            {lat: 23.9543, lng: 121.5258}, {lat: 23.9624, lng: 121.5449}
-        ]
-      }
+      { id: 'zone_front', name: '花蓮前站', color: '#e74c3c', paths: [
+        {lat: 24.002572, lng: 121.615389}, {lat: 24.002427, lng: 121.613679}, {lat: 24.002609, lng: 121.613247}, {lat: 24.002705, lng: 121.611896}, {lat: 24.002320, lng: 121.610751}, {lat: 23.997598, lng: 121.611793}, {lat: 23.989744, lng: 121.607680}, {lat: 23.983744, lng: 121.610493}, {lat: 23.981124, lng: 121.610414}, {lat: 23.979328, lng: 121.613916}, {lat: 23.981384, lng: 121.614217}, {lat: 23.981659, lng: 121.615976}, {lat: 23.981051, lng: 121.617465}, {lat: 23.966344, lng: 121.627550}, {lat: 24.013049, lng: 121.654582}, {lat: 24.023939, lng: 121.628669}, {lat: 24.008515, lng: 121.615893}, {lat: 24.006653, lng: 121.616222}, {lat: 24.002572, lng: 121.615389}
+      ]},
+      { id: 'zone_back', name: '花蓮後站', color: '#3498db', paths: [
+        {lat: 23.984718, lng: 121.596928}, {lat: 23.982712, lng: 121.607351}, {lat: 23.984543, lng: 121.610068}, {lat: 23.989699, lng: 121.607606}, {lat: 23.997632, lng: 121.611692}, {lat: 24.002304, lng: 121.610680}, {lat: 24.005288, lng: 121.611261}, {lat: 24.008085, lng: 121.608395}, {lat: 23.984718, lng: 121.596928}
+      ]},
+      { id: 'zone_meilun', name: '美崙區', color: '#9b59b6', paths: [
+        {lat: 23.984526, lng: 121.610081}, {lat: 23.982696, lng: 121.607336}, {lat: 23.984684, lng: 121.596907}, {lat: 23.980681, lng: 121.594905}, {lat: 23.974145, lng: 121.591774}, {lat: 23.972668, lng: 121.589878}, {lat: 23.968695, lng: 121.594566}, {lat: 23.965400, lng: 121.598629}, {lat: 23.963940, lng: 121.602483}, {lat: 23.962177, lng: 121.611334}, {lat: 23.976222, lng: 121.620666}, {lat: 23.981024, lng: 121.617466}, {lat: 23.981645, lng: 121.615971}, {lat: 23.981366, lng: 121.614234}, {lat: 23.979300, lng: 121.613933}, {lat: 23.981110, lng: 121.610397}, {lat: 23.983729, lng: 121.610474}, {lat: 23.984526, lng: 121.610081}
+      ]},
+      { id: 'zone_beipu', name: '北埔區', color: '#f1c40f', paths: [
+        {lat: 24.092128, lng: 121.621902}, {lat: 24.115561, lng: 121.651916}, {lat: 24.141880, lng: 121.667370}, {lat: 24.178480, lng: 121.657309}, {lat: 24.159688, lng: 121.620720}, {lat: 24.154884, lng: 121.619862}, {lat: 24.137640, lng: 121.631556}, {lat: 24.103750, lng: 121.606357}, {lat: 24.100887, lng: 121.608756}, {lat: 24.100360, lng: 121.615998}, {lat: 24.092128, lng: 121.621902}
+      ]},
+      { id: 'zone_xincheng', name: '新城區', color: '#1abc9c', paths: [
+        {lat: 24.091929, lng: 121.621899}, {lat: 24.100232, lng: 121.615914}, {lat: 24.100773, lng: 121.608685}, {lat: 24.103802, lng: 121.606197}, {lat: 24.104586, lng: 121.597101}, {lat: 24.097130, lng: 121.609620}, {lat: 24.048328, lng: 121.582412}, {lat: 24.019984, lng: 121.576428}, {lat: 24.018857, lng: 121.580009}, {lat: 24.016493, lng: 121.582898}, {lat: 24.014129, lng: 121.585095}, {lat: 24.014348, lng: 121.591114}, {lat: 24.012947, lng: 121.592709}, {lat: 24.013167, lng: 121.608355}, {lat: 24.008135, lng: 121.608461}, {lat: 24.005273, lng: 121.611371}, {lat: 24.002395, lng: 121.610810}, {lat: 24.002802, lng: 121.611961}, {lat: 24.002644, lng: 121.613400}, {lat: 24.002631, lng: 121.615342}, {lat: 24.006627, lng: 121.616148}, {lat: 24.008519, lng: 121.615817}, {lat: 24.024010, lng: 121.628654}, {lat: 24.017442, lng: 121.644355}, {lat: 24.091929, lng: 121.621899}
+      ]},
+      { id: 'zone_city', name: '花蓮市區', color: '#e67e22', paths: [
+        {lat: 23.986263, lng: 121.545355}, {lat: 23.984684, lng: 121.552458}, {lat: 23.986663, lng: 121.554937}, {lat: 23.987150, lng: 121.559286}, {lat: 23.987266, lng: 121.562184}, {lat: 23.983092, lng: 121.569926}, {lat: 23.976571, lng: 121.581953}, {lat: 23.986943, lng: 121.588248}, {lat: 23.987048, lng: 121.587924}, {lat: 23.991959, lng: 121.590895}, {lat: 23.992810, lng: 121.591620}, {lat: 23.994374, lng: 121.593011}, {lat: 23.995054, lng: 121.593621}, {lat: 23.996213, lng: 121.594606}, {lat: 24.008887, lng: 121.585425}, {lat: 24.012921, lng: 121.592648}, {lat: 24.014327, lng: 121.591103}, {lat: 24.014095, lng: 121.585069}, {lat: 24.016468, lng: 121.582849}, {lat: 24.018821, lng: 121.579990}, {lat: 24.020122, lng: 121.575885}, {lat: 24.015266, lng: 121.533302}, {lat: 23.986263, lng: 121.545355}
+      ]},
+      { id: 'zone_jian', name: '吉安區', color: '#2ecc71', paths: [
+        {lat: 23.961930, lng: 121.611305}, {lat: 23.962721, lng: 121.608321}, {lat: 23.963904, lng: 121.602475}, {lat: 23.965367, lng: 121.598618}, {lat: 23.972622, lng: 121.589878}, {lat: 23.974142, lng: 121.588108}, {lat: 23.975301, lng: 121.586346}, {lat: 23.976663, lng: 121.582243}, {lat: 23.976513, lng: 121.581985}, {lat: 23.980526, lng: 121.574595}, {lat: 23.987237, lng: 121.562159}, {lat: 23.986643, lng: 121.554976}, {lat: 23.984642, lng: 121.552480}, {lat: 23.986184, lng: 121.545386}, {lat: 23.962442, lng: 121.544927}, {lat: 23.954371, lng: 121.525800}, {lat: 23.968379, lng: 121.495451}, {lat: 23.961343, lng: 121.499089}, {lat: 23.947542, lng: 121.517872}, {lat: 23.932314, lng: 121.533626}, {lat: 23.919727, lng: 121.566912}, {lat: 23.916164, lng: 121.594746}, {lat: 23.941105, lng: 121.607807}, {lat: 23.961930, lng: 121.611305}
+      ]},
+      { id: 'zone_tzuchi', name: '慈濟區', color: '#7f8c8d', paths: [
+        {lat: 24.008869, lng: 121.585530}, {lat: 23.996212, lng: 121.594636}, {lat: 23.992778, lng: 121.591602}, {lat: 23.991951, lng: 121.590901}, {lat: 23.990310, lng: 121.589905}, {lat: 23.987049, lng: 121.587939}, {lat: 23.986948, lng: 121.588268}, {lat: 23.976733, lng: 121.582090}, {lat: 23.975331, lng: 121.586392}, {lat: 23.972703, lng: 121.589876}, {lat: 23.974182, lng: 121.591771}, {lat: 23.980759, lng: 121.594907}, {lat: 23.990020, lng: 121.599475}, {lat: 24.008252, lng: 121.608388}, {lat: 24.013099, lng: 121.608283}, {lat: 24.012866, lng: 121.592706}, {lat: 24.008869, lng: 121.585530}
+      ]}
     ];
 
     const getPinIcon = (type) => {
@@ -110,7 +99,7 @@
 
     function initMap() {
         map = new google.maps.Map(document.getElementById("map"), {
-            center: { lat: 23.991, lng: 121.601 }, zoom: 11, // 視角拉遠一點，看全花蓮
+            center: { lat: 23.991, lng: 121.601 }, zoom: 12, // 拉遠看全局
             disableDefaultUI: true,
             styles: [ { elementType: "geometry", stylers: [{ color: "#242f3e" }] }, { elementType: "labels.text.stroke", stylers: [{ color: "#242f3e" }] }, { elementType: "labels.text.fill", stylers: [{ color: "#746855" }] } ]
         });
@@ -118,7 +107,7 @@
         const wrapper = document.getElementById('zones-wrapper');
         
         STRATEGIC_ZONES.forEach(z => {
-            // 繪製戰區範圍
+            // 繪製戰區多邊形
             const polygon = new google.maps.Polygon({
                 paths: z.paths,
                 strokeColor: z.color, strokeOpacity: 0.8, strokeWeight: 2,
@@ -127,15 +116,13 @@
             });
             zonePolygons[z.id] = polygon;
 
-            // 建立列表 (可折疊)
-            let zoneClass = 'zone-center';
-            if(z.id === 'north_zone') zoneClass = 'zone-north';
-            if(z.id === 'south_zone') zoneClass = 'zone-south';
-
+            // 建立下方儀表板
             wrapper.innerHTML += `
-                <div class="zone-block ${zoneClass}" id="zone-${z.id}">
+                <div class="zone-block" id="zone-${z.id}">
                     <div class="zone-header" onclick="toggleList('${z.id}')">
-                        <div class="zone-title"><i class="fa-solid fa-map" style="margin-right:10px;"></i> ${z.name}</div>
+                        <div class="zone-title">
+                            <i class="fa-solid fa-map-location-dot" style="margin-right:10px; color:${z.color};"></i> ${z.name}
+                        </div>
                         <div class="zone-count" id="count-${z.id}">0</div>
                     </div>
                     <div class="driver-list" id="list-${z.id}"></div>
@@ -144,7 +131,7 @@
         });
     }
     
-    // 折疊列表功能
+    // 折疊功能
     window.toggleList = function(id) {
         const list = document.getElementById(`list-${id}`);
         list.classList.toggle('active');
@@ -169,7 +156,6 @@
                 activeIds.add(key);
                 const pos = new google.maps.LatLng(d.lat, d.lng);
                 
-                // 地圖上的小圓點
                 if (!markers[key]) {
                     markers[key] = new google.maps.Marker({ position: pos, map: map, icon: getPinIcon(d.workStatus), title: d.name });
                 } else {
@@ -177,7 +163,7 @@
                     markers[key].setIcon(getPinIcon(d.workStatus));
                 }
 
-                // 判斷在哪個戰區
+                // 精準判定在哪個戰區
                 STRATEGIC_ZONES.forEach(z => {
                     const poly = zonePolygons[z.id];
                     if (google.maps.geometry.poly.containsLocation(pos, poly)) {
@@ -188,7 +174,7 @@
 
             for(let k in markers) { if(!activeIds.has(k)) { markers[k].setMap(null); delete markers[k]; } }
 
-            // 更新儀表板數據
+            // 更新儀表板
             STRATEGIC_ZONES.forEach(z => {
                 const list = document.getElementById(`list-${z.id}`);
                 const count = document.getElementById(`count-${z.id}`);
