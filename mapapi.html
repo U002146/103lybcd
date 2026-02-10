@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>個人車行：叫車服務 (v3.6)</title>
+    <title>個人車行：叫車服務 (v3.6.1 Fix)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
@@ -137,7 +137,7 @@
     <div id="time-selector-modal" onclick="closeModernTimeSelector(event)">
         <div id="time-selector-content" onclick="event.stopPropagation()">
             <div class="flex justify-between items-center mb-4 pb-2 border-b border-gray-100">
-                <div class="flex items-baseline"><h3 class="text-xl font-bold text-slate-800 mr-2">選擇預約時間</h3><span class="text-[10px] text-emerald-600 font-mono font-bold">v3.6</span></div>
+                <div class="flex items-baseline"><h3 class="text-xl font-bold text-slate-800 mr-2">選擇預約時間</h3><span class="text-[10px] text-emerald-600 font-mono font-bold">v3.6.1</span></div>
                 <button type="button" onclick="closeModernTimeSelector()" class="w-8 h-8 rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
             </div>
             <button type="button" onclick="selectNowAndClose()" id="btn-quick-now" class="w-full bg-slate-800 text-white py-3 rounded-xl font-bold mb-4 flex items-center justify-center shadow-md active:scale-[0.98] transition-transform"><i class="fa-solid fa-bolt mr-2 text-yellow-400"></i> 現在出發 (即時)</button>
@@ -154,10 +154,10 @@
         const API_KEY = 'AIzaSyAIxc6PEhHgUs_A9lyRUg8dNbmwOpSamY8'; 
         const LIFF_ID = '2008907691-MAdAtfyf'; 
         
-        // 您的 Project B (數位看板) LIFF 連結
+        // 數位看板 (Project B) 的 LIFF 連結
         const PROJECT_B_URL = 'https://liff.line.me/2008907691-1mAjwojZ'; 
 
-        // 您的個人司機 ID (確保這裡跟 Project B 裡看到的一樣)
+        // 您的個人司機 ID
         const MY_DRIVER_ID = 'U467348846c6b1fa433990d7b75c935b5'; 
 
         const firebaseConfig = { databaseURL: "https://hualientaxi-bb32f-default-rtdb.asia-southeast1.firebasedatabase.app/" };
@@ -186,10 +186,8 @@
             initLiff();
             loadGoogleMaps();
             
-            // v3.6: 自動填入上次電話
             const savedPhone = localStorage.getItem('taxi_user_phone');
             if(savedPhone) document.getElementById('phone').value = savedPhone;
-            
             const savedPayment = localStorage.getItem('taxi_selected_payment');
             if(savedPayment) { const method = PAYMENT_METHODS.find(m => m.label === savedPayment); if(method) updatePaymentUI(method.label, method.icon, method.color); }
         };
@@ -264,11 +262,10 @@
         window.selectNowAndClose = function() { document.getElementById('booking-mode').value = 'NOW'; document.getElementById('booking-time-val').value = ''; const display = document.getElementById('time-display'); display.innerText = "現在 (即時叫車)"; display.classList.remove('text-blue-600'); display.classList.add('text-slate-800'); document.getElementById('time-icon').className = "fa-solid fa-clock input-icon text-slate-400"; document.getElementById('submit-btn-text').innerText = "確認叫車 (即時)"; closeModernTimeSelector(); }
         function applyBookingTime() { document.getElementById('booking-mode').value = 'RESERVE'; const dateObj = pickerState.dates[pickerState.dateIndex]; const hStr = pickerState.hour.toString().padStart(2, '0'); const timeStr = `${dateObj.fullDate} ${hStr}:${pickerState.minute}`; document.getElementById('booking-time-val').value = timeStr; const display = document.getElementById('time-display'); display.innerText = timeStr; display.classList.remove('text-slate-800'); display.classList.add('text-blue-600'); document.getElementById('time-icon').className = "fa-solid fa-calendar-check input-icon text-blue-600"; document.getElementById('submit-btn-text').innerText = "確認預約"; }
 
-        // --- 送出訂單 (v3.6: 整合版) ---
+        // --- 送出訂單 (v3.6.1: 修復網址亂碼) ---
         async function submitOrder() {
             const phone = document.getElementById('phone').value;
             const pickup = document.getElementById('address-text').innerText;
-            // v3.6: 下車地點若為空，自動帶入
             let dropoff = document.getElementById('dropoff').value.trim();
             if (!dropoff) dropoff = "上車告知 / 未指定";
 
@@ -285,14 +282,23 @@
             btn.disabled = true;
             btn.innerHTML = '<div class="loader mr-3 w-5 h-5 border-2 border-white border-t-transparent"></div> 處理中...';
 
-            const googleMapUrl = `http://googleusercontent.com/maps.google.com/8{currentCenter.lat},${currentCenter.lng}`;
-            const dropoffMapUrl = `http://googleusercontent.com/maps.google.com/8{encodeURIComponent(dropoff)}`;
+            // ⚠️ 修正點：使用標準字串連接，避免 Template Literal 語法錯誤
+            const googleMapUrl = "https://www.google.com/maps/search/?api=1&query=" + currentCenter.lat + "," + currentCenter.lng;
+            const dropoffMapUrl = "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(dropoff);
+            
             const nowTimeStr = new Date().toLocaleTimeString('zh-TW', {hour:'2-digit', minute:'2-digit', hour12:false});
-            let headerTitle = bookingMode === 'NOW' ? `即時單 ${nowTimeStr}` : `預約單 ${bookingTime}`;
-            let headerColor = bookingMode === 'NOW' ? "#000000" : "#1d4ed8";
+            let headerTitle = "";
+            let headerColor = "";
 
-            // 1. 寫入 Firebase (讓司機端響鈴)
-            // ⚠️ 只有「即時單」才觸發司機端警報
+            if (bookingMode === 'NOW') {
+                headerTitle = `即時單 ${nowTimeStr}`;
+                headerColor = "#000000";
+            } else {
+                headerTitle = `預約單 ${bookingTime}`;
+                headerColor = "#1d4ed8";
+            }
+
+            // 1. 寫入 Firebase
             if (bookingMode === 'NOW') {
                 try {
                     await db.ref(`drivers/${MY_DRIVER_ID}/request`).set({
@@ -306,7 +312,7 @@
                 }
             }
 
-            // 2. 產生 Flex Message (含 Project B 連結)
+            // 2. 產生 Flex Message
             const flexMsg = {
                 type: "flex",
                 altText: bookingMode === 'NOW' ? "🚕 即時叫車" : "📅 預約叫車",
@@ -342,7 +348,6 @@
                             }
                         ]
                     },
-                    // v3.6: 新增 Footer 按鈕
                     footer: {
                         type: "box", layout: "vertical", spacing: "sm", contents: [
                             {
@@ -359,7 +364,6 @@
                     await liff.sendMessages([flexMsg]);
                     liff.closeWindow(); 
                 } else {
-                    // Debug 模式
                     Swal.fire({ icon: 'info', title: '發送模擬成功', text: 'Firebase 已寫入，訂單卡片已包含「查看位置」按鈕。' });
                     btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-taxi mr-2"></i>確認叫車';
                 }
