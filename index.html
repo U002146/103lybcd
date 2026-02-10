@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>花蓮車隊 - 司機端 (v5.9 Self-Check)</title>
+  <title>花蓮車隊 - 司機端 (v5.9.1 UI Fix)</title>
   
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
@@ -49,6 +49,9 @@
     .ac-header { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 5px; opacity: 0.9; }
     .ac-route { font-size: 20px; font-weight: bold; margin-bottom: 10px; display: flex; align-items: center; gap: 10px; }
     .btn-grab { flex: 1; background: #fff; color: #d32f2f; border: none; padding: 12px; border-radius: 25px; font-weight: 900; font-size: 18px; cursor: pointer; width: 100%; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+
+    /* v5.9.1 修復：強制提升 SweetAlert2 的層級到最高 */
+    .swal2-container { z-index: 99999 !important; }
 
     .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 10000; flex-direction: column; }
     .modal-header { padding: 15px; background: #222; color: white; font-size: 18px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #444; }
@@ -140,13 +143,12 @@
     var watchId = null, wakeLock = null, heartbeatInterval = null;
     var lastUploadTime = 0, lastUploadLat = 0, lastUploadLng = 0;
     var queueCenter = null; var myMissions = []; var pressTimer = null;
-    var checkConnectionInterval = null; // v5.9: 斷線檢查器
+    var checkConnectionInterval = null; 
 
     const UPDATE_INTERVAL = 15000; 
     const HEARTBEAT_TIME = 180000; 
     const MIN_UPLOAD_DIST = 100; 
     const STATIONARY_THRESHOLD = 20;
-    // v5.9: 斷線容許時間 (10分鐘)
     const CONNECTION_TIMEOUT = 600000; 
     
     const RENDER_MIN_DIST = 5; 
@@ -205,7 +207,6 @@
         });
     }
 
-    // --- GPS 與 上傳邏輯 ---
     function startGPS() {
         if (!navigator.geolocation) return;
         watchId = navigator.geolocation.watchPosition((pos) => {
@@ -252,11 +253,8 @@
             lastUpdate: firebase.database.ServerValue.TIMESTAMP
         }).then(() => {
             setTimeout(() => { updateHUD(false, `🟢 上線中 (${getWorkStatusText()})`); }, 1000);
-            lastUploadTime = Date.now(); // 成功上傳更新時間
-        }).catch(e => {
-            console.error("Upload failed", e);
-            // 上傳失敗不更新時間，讓 checkConnection 去抓
-        });
+            lastUploadTime = Date.now(); 
+        }).catch(e => { console.error("Upload failed", e); });
         lastUploadLat = lat; lastUploadLng = lng; 
     }
 
@@ -266,28 +264,19 @@
         if(isUploading) hud.classList.add('hud-uploading'); else hud.classList.remove('hud-uploading');
     }
 
-    // --- v5.9: 斷線自我檢查 (Self-Ghosting Check) ---
     function startConnectionCheck() {
         if(checkConnectionInterval) clearInterval(checkConnectionInterval);
         checkConnectionInterval = setInterval(() => {
             if(!isOnline) return;
             const now = Date.now();
-            // 如果超過 10 分鐘沒更新 (lastUploadTime 在 forceUpload 成功時才會更新)
             if (now - lastUploadTime > CONNECTION_TIMEOUT) {
-                // 觸發斷線警報
                 playSound('alert');
-                Swal.fire({
-                    icon: 'error',
-                    title: '⚠️ 連線逾時',
-                    text: '系統已超過 10 分鐘無法上傳資料。\n請檢查網路連線！',
-                    confirmButtonText: '我知道了'
-                });
-                togglePower(false); // 強制下線保護
+                Swal.fire({ icon: 'error', title: '⚠️ 連線逾時', text: '系統已超過 10 分鐘無法上傳資料。\n請檢查網路連線！', confirmButtonText: '我知道了' });
+                togglePower(false); 
             }
-        }, 60000); // 每分鐘檢查一次
+        }, 60000); 
     }
 
-    // --- 按鈕與狀態 ---
     function togglePower(forceOn=false) {
         const btn = document.getElementById('btn-power');
         const subBtns = ['btn-status', 'btn-saver', 'btn-sos', 'btn-mission'];
@@ -295,8 +284,8 @@
             isOnline = true; localStorage.setItem('isOnline', 'true');
             btn.className = "circle-btn bg-on"; btn.innerHTML = `<i class="fa-solid fa-power-off"></i><span class="sub-text">ON</span>`;
             subBtns.forEach(id => document.getElementById(id).style.display = 'flex');
-            requestWakeLock(); startGPS(); startConnectionCheck(); // 啟動檢查
-            lastUploadTime = Date.now(); // 重置計時器，避免一上線就報錯
+            requestWakeLock(); startGPS(); startConnectionCheck(); 
+            lastUploadTime = Date.now(); 
             if (heartbeatInterval) clearInterval(heartbeatInterval); 
             heartbeatInterval = setInterval(() => { if(Date.now() - lastUploadTime > HEARTBEAT_TIME) forceUpload(); }, 60000);
         } else {
@@ -305,12 +294,11 @@
             document.getElementById('hud').innerHTML = `<span class="status-dot" style="background:gray;"></span> 系統待命`;
             subBtns.forEach(id => document.getElementById(id).style.display = 'none');
             if (watchId) navigator.geolocation.clearWatch(watchId);
-            if (checkConnectionInterval) clearInterval(checkConnectionInterval); // 停止檢查
+            if (checkConnectionInterval) clearInterval(checkConnectionInterval); 
             db.ref('drivers/' + currentUser.userId).update({ status: 'offline' });
         }
     }
 
-    // --- 其餘維持不變 (狀態、任務、發單...) ---
     function toggleStatus(){ const btn = document.getElementById('btn-status'); const txt = document.getElementById('txt-status'); if(currentWorkStatus === 'empty') { currentWorkStatus = 'queue'; btn.className = "circle-btn bg-queue"; txt.innerText = "排班"; if(myMarker) { const pos = myMarker.getPosition(); queueCenter = { lat: pos.lat(), lng: pos.lng() }; } } else if (currentWorkStatus === 'queue') { currentWorkStatus = 'busy'; btn.className = "circle-btn bg-busy"; txt.innerText = "載客"; queueCenter = null; } else { currentWorkStatus = 'empty'; btn.className = "circle-btn bg-empty"; txt.innerText = "空車"; queueCenter = null; } forceUpload(); }
     function getWorkStatusText() { return currentWorkStatus==='queue'?'排班':(currentWorkStatus==='busy'?'載客':'空車'); }
     function listenForOrders() { const container = document.getElementById('alert-container'); db.ref('orders').on('child_added', snapshot => { const order = snapshot.val(); const oid = snapshot.key; if(order.status !== 'pending') return; if(currentUser && order.ownerId === currentUser.userId) return; playSound('alert'); if(navigator.vibrate) navigator.vibrate([300, 100, 300, 100, 300]); document.body.classList.add('flashing'); setTimeout(() => { document.body.classList.remove('flashing'); }, 5000); const card = document.createElement('div'); card.className = 'alert-card'; card.id = `alert-${oid}`; const cardTag = order.isCard ? `<span style="background:white;color:red;padding:2px 5px;border-radius:4px;font-size:12px;font-weight:bold;">💳 刷卡</span>` : ''; card.innerHTML = `<div class="ac-header"><span>⏱ ${order.time}</span><span>${order.ownerName}</span></div><div class="ac-route"><i class="fa-solid fa-location-dot"></i> ${order.from}</div><div style="margin-bottom:10px; font-size:14px; color:#ddd;"><i class="fa-solid fa-arrow-right"></i> ${order.to} ${cardTag}</div><div class="ac-footer"><button class="btn-grab" onclick="grabOrder('${oid}')">⚡ 搶單接客</button></div>`; container.appendChild(card); }); db.ref('orders').on('child_removed', snap => { const el = document.getElementById(`alert-${snap.key}`); if(el) el.remove(); }); db.ref('orders').on('child_changed', snap => { if(snap.val().status !== 'pending') { const el = document.getElementById(`alert-${snap.key}`); if(el) el.remove(); } }); }
@@ -327,7 +315,7 @@
     function submitPost() { const time = document.getElementById('post-time').value; const from = document.getElementById('post-from').value; const to = document.getElementById('post-to').value || "上車議 / 未指定"; const phone = document.getElementById('post-phone').value || ""; const isCard = document.getElementById('post-card').checked; if(!from) { Swal.fire('請填寫上車地點'); return; } const order = { ownerId: currentUser.userId, ownerName: currentUser.displayName, time: time, from: from, to: to, phone: phone, isCard: isCard, status: 'pending', timestamp: firebase.database.ServerValue.TIMESTAMP }; db.ref('orders').push(order); closePostModal(); document.getElementById('post-from').value = ""; document.getElementById('post-to').value = ""; document.getElementById('post-phone').value = ""; document.getElementById('post-card').checked = false; Swal.fire({icon:'success', title:'廣播已發送', timer: 1500, showConfirmButton: false}); }
     function listenForMyMissions(uid) { db.ref('orders').on('value', snapshot => { const data = snapshot.val(); myMissions = []; if(data) { Object.keys(data).forEach(key => { const order = data[key]; if(order.takerId === uid && order.status === 'taken') { order.id = key; myMissions.push(order); } }); } updateMissionBadge(); renderMissionList(); }); }
     function updateMissionBadge() { const badge = document.getElementById('mission-badge'); const btn = document.getElementById('btn-mission'); if(myMissions.length > 0) { badge.style.display = 'flex'; badge.innerText = myMissions.length; btn.classList.add('bg-mission'); } else { badge.style.display = 'none'; } }
-    function renderMissionList() { const container = document.getElementById('my-mission-list'); if(myMissions.length === 0) { container.innerHTML = `<div style="text-align:center; color:#666; margin-top:50px;">目前沒有執行中的任務</div>`; return; } container.innerHTML = ''; myMissions.forEach(m => { const phoneBtn = m.phone ? `<a href="tel:${m.phone}" class="btn-action btn-call"><i class="fa-solid fa-phone"></i> 撥給乘客</a>` : `<button class="btn-action btn-call" disabled style="opacity:0.5"><i class="fa-solid fa-phone-slash"></i> 無電話</button>`; const navUrl = `http://googleusercontent.com/maps.google.com/4{encodeURIComponent(m.from)}`; container.innerHTML += `<div class="mission-card"><div style="font-weight:bold; font-size:18px; color:#000; margin-bottom:5px;"><i class="fa-solid fa-location-dot" style="color:#d32f2f"></i> ${m.from}</div><div style="font-size:14px; color:#555; margin-bottom:5px;"><i class="fa-solid fa-flag-checkered"></i> ${m.to}</div><div style="font-size:14px; color:#888;">發單人: ${m.ownerName} (${m.time})</div><div class="mc-actions">${phoneBtn}<a href="${navUrl}" target="_blank" class="btn-action btn-nav"><i class="fa-solid fa-diamond-turn-right"></i> 導航</a></div><button class="btn-done" onclick="completeMission('${m.id}')">✅ 任務完成 (結案)</button></div>`; }); }
+    function renderMissionList() { const container = document.getElementById('my-mission-list'); if(myMissions.length === 0) { container.innerHTML = `<div style="text-align:center; color:#666; margin-top:50px;">目前沒有執行中的任務</div>`; return; } container.innerHTML = ''; myMissions.forEach(m => { const phoneBtn = m.phone ? `<a href="tel:${m.phone}" class="btn-action btn-call"><i class="fa-solid fa-phone"></i> 撥給乘客</a>` : `<button class="btn-action btn-call" disabled style="opacity:0.5"><i class="fa-solid fa-phone-slash"></i> 無電話</button>`; const navUrl = `http://googleusercontent.com/maps.google.com/5{encodeURIComponent(m.from)}`; container.innerHTML += `<div class="mission-card"><div style="font-weight:bold; font-size:18px; color:#000; margin-bottom:5px;"><i class="fa-solid fa-location-dot" style="color:#d32f2f"></i> ${m.from}</div><div style="font-size:14px; color:#555; margin-bottom:5px;"><i class="fa-solid fa-flag-checkered"></i> ${m.to}</div><div style="font-size:14px; color:#888;">發單人: ${m.ownerName} (${m.time})</div><div class="mc-actions">${phoneBtn}<a href="${navUrl}" target="_blank" class="btn-action btn-nav"><i class="fa-solid fa-diamond-turn-right"></i> 導航</a></div><button class="btn-done" onclick="completeMission('${m.id}')">✅ 任務完成 (結案)</button></div>`; }); }
     function completeMission(oid) { Swal.fire({ title: '確認結案?', text: "任務將從列表中移除", icon: 'question', showCancelButton: true, confirmButtonColor: '#3085d6', cancelButtonColor: '#d33', confirmButtonText: '是的，已完成!' }).then((result) => { if (result.isConfirmed) { db.ref(`orders/${oid}`).update({ status: 'completed' }); Swal.fire('已結案!', '辛苦了，繼續接單吧。', 'success'); } }) }
     function submitRegistration() { const name = document.getElementById('reg-name').value; const car = document.getElementById('reg-car').value; const phone = document.getElementById('reg-phone').value; const uid = document.getElementById('reg-uid').value; if(!name || !car || !phone) return alert("請填寫完整"); liff.sendMessages([{type:'text', text:`【申請入隊】\n姓名:${name}\n車號:${car}\n電話:${phone}\nID:${uid}`}]) .then(() => { alert("已送出申請"); document.querySelector('.btn-submit').disabled=true; }).catch(() => alert("請手動複製ID給管理員: " + uid)); }
   </script>
