@@ -3,185 +3,170 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>花蓮車隊 - 司機端 (v5.5 Anti-Freeze)</title>
+  <title>花蓮車隊 - 司機端 (v5.6 Mission Ready)</title>
   
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
   <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAIxc6PEhHgUs_A9lyRUg8dNbmwOpSamY8&libraries=geometry"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
   <style>
     body { margin: 0; padding: 0; font-family: -apple-system, Roboto, sans-serif; overflow: hidden; background: #121212; color: white; }
     #map { width: 100vw; height: 100vh; display: none; } 
     
-    /* 啟動鎖定畫面 */
-    #unlock-screen {
-        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background: #000; z-index: 20000;
-        display: flex; flex-direction: column; justify-content: center; align-items: center;
-        text-align: center;
-    }
-    .btn-unlock {
-        width: 120px; height: 120px; border-radius: 50%;
-        background: radial-gradient(circle, #00C853 0%, #009624 100%);
-        border: 4px solid #fff; box-shadow: 0 0 30px rgba(0,200,83,0.6);
-        color: white; font-size: 24px; font-weight: bold; cursor: pointer;
-        animation: pulse-green 2s infinite;
-        display: flex; flex-direction: column; justify-content: center; align-items: center;
-        transition: transform 0.1s;
-    }
+    /* 啟動畫面 */
+    #unlock-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 20000; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
+    .btn-unlock { width: 120px; height: 120px; border-radius: 50%; background: radial-gradient(circle, #00C853 0%, #009624 100%); border: 4px solid #fff; box-shadow: 0 0 30px rgba(0,200,83,0.6); color: white; font-size: 24px; font-weight: bold; cursor: pointer; animation: pulse-green 2s infinite; display: flex; flex-direction: column; justify-content: center; align-items: center; }
     .btn-unlock:active { transform: scale(0.9); }
-    .btn-unlock i { font-size: 40px; margin-bottom: 5px; }
     @keyframes pulse-green { 0% { box-shadow: 0 0 0 0 rgba(0, 200, 83, 0.7); } 70% { box-shadow: 0 0 0 20px rgba(0, 200, 83, 0); } 100% { box-shadow: 0 0 0 0 rgba(0, 200, 83, 0); } }
 
-    /* 載入中提示 */
-    #loading-text { margin-top: 20px; color: #aaa; font-size: 14px; letter-spacing: 1px; }
-
     /* UI 層 */
-    #ui-layer { display: none; }
-    #hud { 
-        position: absolute; top: 15px; left: 15px; z-index: 10; 
-        background: rgba(33, 33, 33, 0.9); color: white; 
-        padding: 10px 20px; border-radius: 30px; 
-        font-weight: bold; font-size: 16px; 
-        box-shadow: 0 4px 10px rgba(0,0,0,0.5);
-        display: flex; align-items: center; 
-    }
+    #ui-layer { display: none; pointer-events: none; width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 10; }
+    #hud { pointer-events: auto; position: absolute; top: 15px; left: 15px; background: rgba(33, 33, 33, 0.9); color: white; padding: 10px 20px; border-radius: 30px; font-weight: bold; font-size: 16px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); display: flex; align-items: center; }
     .status-dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; margin-right: 8px; }
-    .hud-uploading { border-color: #00C853 !important; box-shadow: 0 0 15px rgba(0, 200, 83, 0.5); }
 
-    #top-right-panel { position: absolute; top: 15px; right: 15px; z-index: 10; display: flex; flex-direction: column; gap: 15px; }
-    .circle-btn { 
-        width: 70px; height: 70px; border-radius: 50%; 
-        border: 2px solid rgba(255,255,255,0.8); color: white; 
-        font-weight: bold; font-size: 16px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.5); 
-        cursor: pointer; display: flex; flex-direction: column; 
-        justify-content: center; align-items: center; 
-        backdrop-filter: blur(4px); position: relative;
+    /* 右上角按鈕群 */
+    #top-right-panel { pointer-events: auto; position: absolute; top: 15px; right: 15px; display: flex; flex-direction: column; gap: 15px; }
+    .circle-btn { width: 60px; height: 60px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.8); color: white; font-weight: bold; font-size: 14px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); cursor: pointer; display: flex; flex-direction: column; justify-content: center; align-items: center; backdrop-filter: blur(4px); position: relative; }
+    .circle-btn i { font-size: 20px; margin-bottom: 2px; }
+    
+    .bg-off { background: linear-gradient(145deg, #7f8c8d, #95a5a6); }
+    .bg-on { background: linear-gradient(145deg, #d32f2f, #ef5350); }
+    .bg-mission { background: linear-gradient(145deg, #FFD700, #FFA000); color: black; border-color: black; }
+    .bg-sos { background: linear-gradient(145deg, #D50000, #FF1744); }
+    
+    .badge { position: absolute; top: -5px; right: -5px; background: red; color: white; border-radius: 50%; width: 22px; height: 22px; font-size: 12px; display: flex; justify-content: center; align-items: center; border: 2px solid white; font-weight: bold; display: none; }
+
+    /* 底部搶單通知區 (Incoming Alert) */
+    #alert-container {
+        pointer-events: auto; position: absolute; bottom: 20px; left: 5%; width: 90%;
+        display: flex; flex-direction: column; gap: 10px; justify-content: flex-end;
     }
-    .sub-text { font-size: 10px; opacity: 0.9; margin-top: 2px; font-weight: normal; }
     
-    .bg-off   { background: linear-gradient(145deg, #7f8c8d, #95a5a6); }
-    .bg-on    { background: linear-gradient(145deg, #d32f2f, #ef5350); }
-    .bg-empty { background: linear-gradient(145deg, #2e7d32, #43a047); }
-    .bg-queue { background: linear-gradient(145deg, #1565c0, #1976d2); }
-    .bg-busy  { background: linear-gradient(145deg, #ef6c00, #fb8c00); }
-    .bg-dark  { background: linear-gradient(145deg, #37474f, #455a64); }
-    .bg-radio { background: linear-gradient(145deg, #D50000, #FF1744); animation: pulse-red 2s infinite; }
-    @keyframes pulse-red { 0% { box-shadow: 0 0 0 0 rgba(255, 23, 68, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(255, 23, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 23, 68, 0); } }
-    .badge { position: absolute; top: 0; right: 0; background: red; color: white; border-radius: 50%; width: 20px; height: 20px; font-size: 12px; display: flex; justify-content: center; align-items: center; border: 2px solid white; display: none; }
-
-    #btn-power { display: none; }
-
-    /* 註冊畫面 */
-    #register-modal {
-        display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background: #121212; z-index: 30000;
-        flex-direction: column; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box;
+    /* 紅色急件卡 */
+    .alert-card {
+        background: linear-gradient(145deg, #b71c1c, #d32f2f);
+        border: 2px solid #ff5252; border-radius: 15px; padding: 15px;
+        color: white; box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+        animation: slideUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     }
-    .reg-box { width: 100%; max-width: 400px; background: #222; padding: 25px; border-radius: 15px; border: 1px solid #444; }
-    .reg-title { font-size: 24px; font-weight: bold; margin-bottom: 20px; text-align: center; color: #FFD700; }
-    .reg-input { width: 100%; padding: 15px; margin-bottom: 15px; background: #333; border: 1px solid #555; border-radius: 8px; color: white; font-size: 18px; box-sizing: border-box; }
-    .reg-input:read-only { background: #1a1a1a; color: #777; cursor: not-allowed; }
-    .btn-submit { width: 100%; padding: 15px; background: #00C853; color: white; border: none; border-radius: 8px; font-size: 18px; font-weight: bold; cursor: pointer; margin-top: 10px; }
-
-    /* 搶單大廳 */
-    #hall-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 10000; flex-direction: column; }
-    #hall-header { padding: 15px; background: #222; color: white; font-size: 18px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #444; }
-    #hall-content { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 15px; }
-    .post-box { background: #333; padding: 15px; border-radius: 12px; border: 1px solid #555; margin-bottom: 20px; }
-    .form-row { display: flex; gap: 10px; margin-bottom: 12px; align-items: center; }
-    .form-input { flex: 1; background: #444; border: none; padding: 12px; border-radius: 8px; color: white; font-size: 16px; }
-    .checkbox-container { display: flex; align-items: center; background: #444; padding: 10px 15px; border-radius: 8px; flex: 1; cursor: pointer; }
-    .checkbox-container input { transform: scale(1.5); margin-right: 10px; accent-color: #FFD700; }
-    .checkbox-text { font-size: 16px; font-weight: bold; color: #FFD700; }
-    .btn-post { width: 100%; background: #D50000; color: white; padding: 15px; border: none; border-radius: 8px; font-weight: bold; font-size: 18px; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 10px; }
+    @keyframes slideUp { from { transform: translateY(100px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
     
-    .order-card { background: white; border-radius: 12px; padding: 15px; position: relative; border-left: 5px solid #D50000; animation: slideIn 0.3s ease-out; margin-bottom: 10px; color: #333; }
-    @keyframes slideIn { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-    .o-header { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px; color: #666; }
-    .o-route { font-size: 18px; font-weight: bold; color: #333; margin-bottom: 8px; }
-    .tag { font-size: 12px; padding: 3px 8px; border-radius: 4px; margin-right: 5px; font-weight: bold; }
-    .tag-time { background: #E3F2FD; color: #1565C0; }
-    .tag-card { background: #FFF8E1; color: #FF6F00; border: 1px solid #FFD54F; }
-    .btn-grab { width: 100%; background: #00C853; color: white; padding: 12px; border: none; border-radius: 25px; font-weight: bold; font-size: 16px; cursor: pointer; box-shadow: 0 4px 10px rgba(0,200,83,0.3); margin-top: 10px; }
+    .ac-header { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 5px; opacity: 0.9; }
+    .ac-route { font-size: 20px; font-weight: bold; margin-bottom: 10px; display: flex; align-items: center; gap: 10px; }
+    .ac-footer { display: flex; gap: 10px; }
+    .btn-grab { flex: 1; background: #fff; color: #d32f2f; border: none; padding: 12px; border-radius: 25px; font-weight: 900; font-size: 18px; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+    .btn-grab:active { transform: scale(0.95); background: #eee; }
 
-    /* 其他元素 */
-    #mission-panel { display: none; position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); width: 90%; max-width: 350px; background: #222; border: 2px solid #FFD700; border-radius: 15px; padding: 15px; box-shadow: 0 10px 40px rgba(0,0,0,0.5); z-index: 20; text-align: center; color: white; }
-    .mission-title { color: #FFD700; font-size: 18px; font-weight: bold; margin-bottom: 5px; }
-    .btn-finish { background: #00C853; color: white; border: none; padding: 10px 20px; border-radius: 25px; font-weight: bold; font-size: 16px; cursor: pointer; width: 100%; }
-    
-    .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; justify-content: center; align-items: center; }
-    .modal-content { background: white; color: #333; width: 85%; max-width: 300px; border-radius: 15px; padding: 25px; text-align: center; box-shadow: 0 5px 20px rgba(0,0,0,0.3); }
-    .modal-btns button { width: 100%; padding: 12px; margin-top: 15px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; background: #00bcd4; color: white; font-size: 16px; }
+    /* 模態視窗通用樣式 */
+    .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 10000; flex-direction: column; }
+    .modal-header { padding: 15px; background: #222; color: white; font-size: 18px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #444; }
+    .modal-content { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 15px; }
+
+    /* 表單樣式 */
+    .form-group { margin-bottom: 15px; }
+    .form-label { display: block; margin-bottom: 5px; color: #aaa; font-size: 14px; }
+    .form-input { width: 100%; padding: 12px; background: #333; border: 1px solid #555; border-radius: 8px; color: white; font-size: 16px; box-sizing: border-box; }
+    .btn-post { width: 100%; background: #D50000; color: white; padding: 15px; border: none; border-radius: 8px; font-weight: bold; font-size: 18px; cursor: pointer; }
+
+    /* 任務列表卡片 */
+    .mission-card { background: #fff; color: #333; border-radius: 10px; padding: 15px; border-left: 5px solid #FFD700; margin-bottom: 10px; }
+    .mc-actions { display: flex; gap: 10px; margin-top: 10px; border-top: 1px solid #eee; padding-top: 10px; }
+    .btn-action { flex: 1; padding: 10px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 5px; color: white; }
+    .btn-call { background: #00C853; }
+    .btn-nav { background: #2962FF; }
+    .btn-done { width: 100%; margin-top: 10px; background: #333; color: white; padding: 12px; border-radius: 8px; font-weight: bold; border: none; }
+
+    /* 註冊框 */
+    #register-box { width: 90%; max-width: 400px; background: #222; padding: 25px; border-radius: 15px; border: 1px solid #444; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: none; z-index: 30000; }
   </style>
 </head>
 <body>
 
   <div id="unlock-screen">
       <button class="btn-unlock" onclick="systemStart()">
-          <i class="fa-solid fa-power-off"></i>
-          START
+          <i class="fa-solid fa-power-off"></i> START
       </button>
-      <div id="loading-text">請點擊啟動系統</div>
-  </div>
-
-  <div id="register-modal">
-      <div class="reg-box">
-          <div class="reg-title">📋 司機入隊申請</div>
-          <p style="color:#aaa; font-size:14px; margin-bottom:15px; text-align:center;">您的資料未建檔，請填寫申請。</p>
-          <input type="text" id="reg-name" class="reg-input" placeholder="真實姓名">
-          <input type="text" id="reg-car" class="reg-input" placeholder="車牌號碼 (例: TDP-123)">
-          <input type="tel" id="reg-phone" class="reg-input" placeholder="手機號碼">
-          <div style="margin-bottom:5px; color:#888; font-size:12px;">系統 ID:</div>
-          <input type="text" id="reg-uid" class="reg-input" readonly>
-          <button class="btn-submit" onclick="submitRegistration()">傳送至聊天室審核</button>
-      </div>
-  </div>
-
-  <div id="ui-layer">
-      <div id="hud"><span class="status-dot" style="background:gray;"></span> 系統待命</div>
-      <div id="top-right-panel">
-        <button id="btn-power" class="circle-btn bg-off" onclick="togglePower()"><span>上線</span><span class="sub-text">OFF</span></button>
-        <button id="btn-status" class="circle-btn bg-empty" style="display:none;" onclick="toggleStatus()"><span>空車</span></button>
-        <button id="btn-saver" class="circle-btn bg-dark" style="display:none;" onclick="toggleSaver(true)"><span>掛機</span></button>
-        <button id="btn-hall" class="circle-btn bg-radio" style="display:none;" onclick="toggleHall(true)">
-            <i class="fa-solid fa-tower-broadcast" style="font-size: 24px;"></i>
-            <div id="hall-badge" class="badge">N</div>
-        </button>
-      </div>
+      <div style="margin-top:20px;color:#aaa;">點擊啟動系統</div>
   </div>
 
   <div id="map"></div>
-  
-  <audio id="sound-boot" src="data:audio/mpeg;base64,//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"></audio>
-  
-  <audio id="sound-alert" src="data:audio/wav;base64,UklGRl9vT1BXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU"></audio>
+  <div id="ui-layer">
+      <div id="hud"><span class="status-dot" style="background:gray;"></span> 系統待命</div>
+      
+      <div id="top-right-panel">
+        <button id="btn-power" class="circle-btn bg-off" onclick="togglePower()">
+            <i class="fa-solid fa-power-off"></i>
+            <span class="sub-text">OFF</span>
+        </button>
+        
+        <button id="btn-sos" class="circle-btn bg-sos" style="display:none;" onclick="openPostModal()">
+            <i class="fa-solid fa-bullhorn"></i>
+            <span class="sub-text">轉單</span>
+        </button>
 
-  <div id="saver-overlay"><p style="font-size:14px; letter-spacing: 1px;">GPS 持續連線 • 長按喚醒</p></div>
+        <button id="btn-mission" class="circle-btn bg-mission" style="display:none;" onclick="openMissionModal()">
+            <i class="fa-solid fa-clipboard-list"></i>
+            <div id="mission-badge" class="badge">0</div>
+            <span class="sub-text">任務</span>
+        </button>
+      </div>
 
-  <div id="hall-modal">
-      <div id="hall-header"><span><i class="fa-solid fa-tower-broadcast"></i> 支援大廳</span><button onclick="toggleHall(false)" style="background:transparent; border:none; color:white; font-size:24px;"><i class="fa-solid fa-xmark"></i></button></div>
-      <div id="hall-content">
-          <div class="post-box">
-              <div style="margin-bottom:10px; color:#ccc;">拋出支援請求</div>
-              <div class="form-row"><input type="time" id="post-time" class="form-input" style="flex:0.4; min-width:80px;"><input type="text" id="post-loc" class="form-input" placeholder="起點 ➝ 終點" style="flex:1;"></div>
-              <div class="form-row"><input type="tel" id="post-phone" class="form-input" placeholder="乘客電話 (選填)"></div>
-              <div class="form-row"><label class="checkbox-container"><input type="checkbox" id="post-card"><span class="checkbox-text">💳 敬老 / 愛心卡</span></label></div>
-              <button class="btn-post" onclick="postOrder()"><i class="fa-solid fa-satellite-dish"></i> 發送全頻廣播</button>
+      <div id="alert-container"></div>
+  </div>
+
+  <div id="post-modal" class="modal-overlay">
+      <div class="modal-header">
+          <span><i class="fa-solid fa-tower-broadcast"></i> 發布轉單 (請求支援)</span>
+          <button onclick="closePostModal()" style="background:none;border:none;color:white;font-size:24px;"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-content">
+          <div class="form-group">
+              <label class="form-label">出發時間 (必填)</label>
+              <input type="time" id="post-time" class="form-input">
           </div>
-          <div id="order-list-container"></div>
+          <div class="form-group">
+              <label class="form-label">上車地點 (必填)</label>
+              <input type="text" id="post-from" class="form-input" placeholder="例如: 花蓮車站前站">
+          </div>
+          <div class="form-group">
+              <label class="form-label">下車地點 (選填)</label>
+              <input type="text" id="post-to" class="form-input" placeholder="未填寫則顯示: 上車議">
+          </div>
+          <div class="form-group">
+              <label class="form-label">乘客電話 (選填)</label>
+              <input type="tel" id="post-phone" class="form-input" placeholder="路招可不填">
+          </div>
+          <div class="form-group" style="display:flex; align-items:center; gap:10px; background:#333; padding:10px; border-radius:8px;">
+              <input type="checkbox" id="post-card" style="transform:scale(1.5);">
+              <span style="font-weight:bold; color:#FFD700;">💳 敬老卡 / 愛心卡</span>
+          </div>
+          <button class="btn-post" onclick="submitPost()">📡 發送全頻廣播</button>
       </div>
   </div>
 
-  <div id="mission-panel">
-      <div class="mission-title"><i class="fa-solid fa-flag-checkered"></i> 乘客位置已標記</div>
-      <div class="mission-info" id="mission-dist">距離計算中...</div>
-      <button class="btn-finish" onclick="finishMission()">🏁 已接到乘客 (清除)</button>
+  <div id="mission-modal" class="modal-overlay">
+      <div class="modal-header">
+          <span><i class="fa-solid fa-clipboard-check"></i> 我的任務清單</span>
+          <button onclick="closeMissionModal()" style="background:none;border:none;color:white;font-size:24px;"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-content" id="my-mission-list">
+          <div style="text-align:center; color:#666; margin-top:50px;">目前沒有執行中的任務</div>
+      </div>
   </div>
 
-  <div id="alert-modal" class="modal-overlay"><div class="modal-content"><h2 id="alert-title">提示</h2><p id="alert-msg">內容</p><div class="modal-btns"><button onclick="closeModal()">收到</button></div></div></div>
+  <div id="register-box">
+      <div style="font-size:24px;font-weight:bold;margin-bottom:20px;text-align:center;color:#FFD700;">📋 司機入隊申請</div>
+      <input type="text" id="reg-name" class="form-input" style="margin-bottom:10px;" placeholder="真實姓名">
+      <input type="text" id="reg-car" class="form-input" style="margin-bottom:10px;" placeholder="車牌 (TDP-123)">
+      <input type="tel" id="reg-phone" class="form-input" style="margin-bottom:10px;" placeholder="電話">
+      <input type="text" id="reg-uid" class="form-input" style="margin-bottom:10px;" readonly>
+      <button class="btn-post" style="background:#00C853;" onclick="submitRegistration()">送出審核</button>
+  </div>
+
+  <audio id="sound-boot" src="data:audio/mpeg;base64,//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"></audio>
+  <audio id="sound-alert" src="data:audio/wav;base64,UklGRl9vT1BXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU"></audio>
 
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script>
@@ -190,62 +175,21 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    var map, myMarker, currentUser = null, isOnline = false;
-    var currentWorkStatus = 'empty'; 
-    var watchId = null, wakeLock = null, heartbeatInterval = null;
-    var lastUploadTime = 0, lastUploadLat = 0, lastUploadLng = 0;
-    var lastRenderTime = 0, lastRenderLat = 0, lastRenderLng = 0;
-    var queueCenter = null, passengerMarker = null, routeLine = null;
-    var pressTimer = null; 
+    var map, currentUser = null, isOnline = false, watchId = null;
+    var myMissions = []; // 本地存儲我的任務
 
-    const UPDATE_INTERVAL = 15000; HEARTBEAT_TIME = 180000; MIN_DIST = 100;
-    const RENDER_INTERVAL = 2000; RENDER_MIN_DIST = 5; 
-
-    const getArrowIcon = (color, heading) => {
-        return { path: "M0,-12 L10,10 L0,5 L-10,10 Z", fillColor: color, fillOpacity: 1, scale: 1.5, strokeColor: "#333", strokeWeight: 1, rotation: heading || 0 };
-    };
-
-    window.onload = async function() {
-        document.getElementById('loading-text').innerText = "系統載入中...";
-        // 1. 先初始化 LIFF (背景執行)
-        await initLiff();
-        
-        // 2. 初始化地圖 (背景執行，不顯示)
-        initGoogleMap();
-        
-        // 3. 準備就緒，更改按鈕文字
-        const btn = document.querySelector('.btn-unlock');
-        btn.innerHTML = `<i class="fa-solid fa-power-off"></i> START`;
-        document.getElementById('loading-text').innerText = "準備就緒，請點擊啟動";
-    };
-
-    // v5.5 核心修改：非阻塞式啟動 (Non-blocking Start)
+    // 啟動流程
     function systemStart() {
-        // 1. 嘗試播放聲音，但不管有沒有成功，都不會卡住流程
         const boot = document.getElementById('sound-boot');
-        if(boot) {
-            boot.play().catch(e => console.log("Sound check failed (harmless):", e));
-        }
-
-        // 2. 秒進系統
+        if(boot) boot.play().catch(e=>{});
+        
         document.getElementById('unlock-screen').style.display = 'none';
         document.getElementById('map').style.display = 'block';
         document.getElementById('ui-layer').style.display = 'block';
         
-        // 3. 開始後續邏輯
-        if (currentUser) checkIdentity(currentUser.userId);
-        setupSaverEvents();
-        listenForOrders();
+        initGoogleMap();
+        initLiff();
         setNowTime();
-    }
-
-    // 播放音效函式 (安全版)
-    function playSound(type) {
-        const audio = document.getElementById(type === 'boot' ? 'sound-boot' : 'sound-alert');
-        if(audio) {
-            audio.currentTime = 0;
-            audio.play().catch(e => console.log("Sound play prevented:", e));
-        }
     }
 
     function initGoogleMap() {
@@ -254,149 +198,283 @@
 
     async function initLiff() {
         try { 
-            await liff.init({ liffId: LIFF_ID }); 
-            if (!liff.isInClient()) {
-                document.body.innerHTML = "<div style='display:flex;justify-content:center;align-items:center;height:100vh;background:black;color:white;text-align:center;'><h1>⛔ 存取被拒</h1><p>為了資訊安全，<br>請使用手機 LINE 開啟此系統。</p></div>";
-                return;
-            }
-            if (!liff.isLoggedIn()) { liff.login(); return; } 
-            currentUser = await liff.getProfile(); 
-            localStorage.setItem('driverId', currentUser.userId); 
-        } catch (err) { 
-            console.error(err);
-        }
+            await liff.init({ liffId: LIFF_ID });
+            if (!liff.isInClient()) { alert("請使用 LINE 開啟"); return; }
+            if (!liff.isLoggedIn()) { liff.login(); return; }
+            currentUser = await liff.getProfile();
+            checkIdentity(currentUser.userId);
+        } catch (e) { alert("LIFF Error"); }
     }
 
     function checkIdentity(uid) {
-        db.ref('drivers/' + uid).once('value').then((snapshot) => {
+        db.ref('drivers/' + uid).once('value').then(snapshot => {
             if (snapshot.exists()) {
                 const d = snapshot.val();
                 document.getElementById('hud').innerHTML = `<span class="status-dot" style="background:#2ecc71;"></span> 嗨，${d.name}`;
                 document.getElementById('btn-power').style.display = 'flex';
-                if (currentUser && currentUser.pictureUrl) db.ref('drivers/' + uid).update({ photo: currentUser.pictureUrl });
-                if (localStorage.getItem('isOnline') === 'true') togglePower(true);
-                listenForRequests(uid);
+                // 恢復上次連線狀態 (v5.6: 預設不上線，需手動按)
+                listenForOrders(); // 開始監聽全頻廣播
+                listenForMyMissions(uid); // 監聽我的任務
             } else {
                 document.getElementById('ui-layer').style.display = 'none';
-                document.getElementById('register-modal').style.display = 'flex';
+                document.getElementById('register-box').style.display = 'block';
                 document.getElementById('reg-uid').value = uid;
             }
         });
     }
 
-    function submitRegistration() {
-        const name = document.getElementById('reg-name').value.trim();
-        const car = document.getElementById('reg-car').value.trim();
-        const phone = document.getElementById('reg-phone').value.trim();
-        const uid = document.getElementById('reg-uid').value;
+    // --- 發單邏輯 (Broadcast) ---
+    function openPostModal() { document.getElementById('post-modal').style.display = 'flex'; setNowTime(); }
+    function closePostModal() { document.getElementById('post-modal').style.display = 'none'; }
+    function setNowTime() { const now = new Date(); document.getElementById('post-time').value = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`; }
 
-        if (!name || !car || !phone) { showAlert("提示", "請填寫完整資料"); return; }
-        const msg = `【申請加入車隊】\n姓名：${name}\n車號：${car}\n電話：${phone}\nID：${uid}`;
+    function submitPost() {
+        const time = document.getElementById('post-time').value;
+        const from = document.getElementById('post-from').value;
+        const to = document.getElementById('post-to').value || "上車議 / 未指定";
+        const phone = document.getElementById('post-phone').value || ""; // 選填
+        const isCard = document.getElementById('post-card').checked;
 
-        if (liff.isInClient()) {
-            liff.sendMessages([{ type: 'text', text: msg }])
-                .then(() => {
-                    showAlert("已送出", "資料已傳送。\n請等待審核後重新進入。");
-                    document.querySelector('.btn-submit').disabled = true;
-                    document.querySelector('.btn-submit').innerText = "審核中...";
-                })
-                .catch((err) => { showAlert("傳送失敗", "請手動複製 ID: " + uid); });
-        }
+        if(!from) { Swal.fire('請填寫上車地點'); return; }
+
+        const order = {
+            ownerId: currentUser.userId,
+            ownerName: currentUser.displayName,
+            time: time, from: from, to: to, phone: phone, isCard: isCard,
+            status: 'pending', timestamp: firebase.database.ServerValue.TIMESTAMP
+        };
+
+        db.ref('orders').push(order);
+        closePostModal();
+        // 清空
+        document.getElementById('post-from').value = "";
+        document.getElementById('post-to').value = "";
+        document.getElementById('post-phone').value = "";
+        document.getElementById('post-card').checked = false;
+        
+        Swal.fire({icon:'success', title:'廣播已發送', timer: 1500, showConfirmButton: false});
     }
 
+    // --- 搶單邏輯 (Incoming Alert) ---
     function listenForOrders() {
-        const list = document.getElementById('order-list-container');
-        const badge = document.getElementById('hall-badge');
+        const container = document.getElementById('alert-container');
+        
         db.ref('orders').on('child_added', snapshot => {
             const order = snapshot.val();
-            const orderId = snapshot.key;
+            const oid = snapshot.key;
+            
+            // 條件：狀態是 pending 且不是自己發的
             if(order.status !== 'pending') return;
             if(currentUser && order.ownerId === currentUser.userId) return;
-            
-            playSound('alert');
-            badge.style.display = 'flex';
 
+            // 播放音效
+            const alert = document.getElementById('sound-alert');
+            if(alert) { alert.currentTime=0; alert.play().catch(e=>{}); }
+            if(navigator.vibrate) navigator.vibrate([300, 100, 300, 100, 300]);
+
+            // 建立卡片
             const card = document.createElement('div');
-            card.className = 'order-card'; card.id = `order-${orderId}`;
-            const cardTag = order.useCard ? `<span class="tag tag-card">💳 敬老/愛心卡</span>` : '';
-            const phoneInfo = order.phone ? `<div style="color:#666; font-size:14px; margin-bottom:5px;"><i class="fa-solid fa-phone"></i> ${order.phone}</div>` : '';
-            card.innerHTML = `<div class="o-header"><span class="tag tag-time">${order.time}</span><span>${order.ownerName}</span></div><div class="o-route">${order.loc}</div>${phoneInfo}${cardTag}<button class="btn-grab" onclick="grabOrder('${orderId}')">⚡ 立刻搶單</button>`;
-            list.prepend(card);
+            card.className = 'alert-card';
+            card.id = `alert-${oid}`;
+            
+            const cardTag = order.isCard ? `<span style="background:white;color:red;padding:2px 5px;border-radius:4px;font-size:12px;font-weight:bold;">💳 刷卡</span>` : '';
+            
+            card.innerHTML = `
+                <div class="ac-header">
+                    <span>⏱ ${order.time}</span>
+                    <span>${order.ownerName}</span>
+                </div>
+                <div class="ac-route">
+                    <i class="fa-solid fa-location-dot"></i> ${order.from}
+                </div>
+                <div style="margin-bottom:10px; font-size:14px; color:#ddd;">
+                    <i class="fa-solid fa-arrow-right"></i> ${order.to} ${cardTag}
+                </div>
+                <div class="ac-footer">
+                    <button class="btn-grab" onclick="grabOrder('${oid}')">⚡ 搶單接客</button>
+                </div>
+            `;
+            container.appendChild(card);
         });
-        db.ref('orders').on('child_removed', snapshot => { const el = document.getElementById(`order-${snapshot.key}`); if(el) el.remove(); if(list.children.length === 0) badge.style.display = 'none'; });
-        db.ref('orders').on('child_changed', snapshot => { const order = snapshot.val(); if(order.status !== 'pending') { const el = document.getElementById(`order-${snapshot.key}`); if(el) el.remove(); } });
+
+        // 監聽訂單移除/狀態改變 (別人搶走了)
+        db.ref('orders').on('child_removed', snap => removeAlert(snap.key));
+        db.ref('orders').on('child_changed', snap => {
+            if(snap.val().status !== 'pending') removeAlert(snap.key);
+        });
     }
 
-    function postOrder() {
-        const time = document.getElementById('post-time').value;
-        const loc = document.getElementById('post-loc').value;
-        const phone = document.getElementById('post-phone').value;
-        const useCard = document.getElementById('post-card').checked;
-        if(!loc) { showAlert("提示", "請輸入行程地點"); return; }
-        const newOrder = { ownerId: currentUser.userId, ownerName: currentUser.displayName, time: time || '即時', loc: loc, phone: phone || '', useCard: useCard, status: 'pending', timestamp: firebase.database.ServerValue.TIMESTAMP };
-        db.ref('orders').push(newOrder);
-        document.getElementById('post-loc').value = ''; document.getElementById('post-phone').value = ''; document.getElementById('post-card').checked = false; setNowTime(); toggleHall(false); showAlert("成功", "廣播已發送！");
+    function removeAlert(oid) {
+        const el = document.getElementById(`alert-${oid}`);
+        if(el) el.remove();
     }
 
-    function grabOrder(orderId) {
+    function grabOrder(oid) {
         if(!currentUser) return;
-        db.ref(`orders/${orderId}`).transaction((order) => { if (order && order.status === 'pending') { order.status = 'taken'; order.takerId = currentUser.userId; order.takerName = currentUser.displayName; return order; } else { return; } }, (error, committed, snapshot) => { if (error) showAlert("錯誤", "搶單失敗"); else if (!committed) { showAlert("慢了一步", "這張單已經被搶走了！"); const el = document.getElementById(`order-${orderId}`); if(el) el.remove(); } else { const val = snapshot.val(); let msg = `請聯繫 ${val.ownerName}`; if(val.phone) msg += `\n乘客電話：${val.phone}`; showAlert("搶單成功！", msg); } });
-    }
-
-    function setNowTime() { const now = new Date(); document.getElementById('post-time').value = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`; }
-    function toggleHall(show) { document.getElementById('hall-modal').style.display = show ? 'flex' : 'none'; if(show) document.getElementById('hall-badge').style.display = 'none'; }
-
-    function listenForRequests(uid) {
-        db.ref('drivers/' + uid + '/request').on('value', snapshot => {
-            const req = snapshot.val();
-            if (req) {
-                const pLoc = new google.maps.LatLng(req.lat, req.lng);
-                if(!passengerMarker) { passengerMarker = new google.maps.Marker({ position: pLoc, map: map, label: { text: "客", color: "white" }, icon: { path: google.maps.SymbolPath.CIRCLE, scale: 10, fillColor: "#D50000", fillOpacity: 1, strokeColor: "white", strokeWeight: 2 }, animation: google.maps.Animation.BOUNCE }); } else { passengerMarker.setPosition(pLoc); }
-                document.getElementById('mission-panel').style.display = 'block';
-                playSound('alert');
-                if(myMarker) { if(routeLine) routeLine.setMap(null); routeLine = new google.maps.Polyline({ path: [myMarker.getPosition(), pLoc], geodesic: true, strokeColor: '#2962FF', strokeOpacity: 0.8, strokeWeight: 5, icons: [{ icon: {path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW}, offset: '100%' }], map: map }); }
-                if (navigator.vibrate) navigator.vibrate([500, 200, 500, 200, 500]);
+        
+        db.ref(`orders/${oid}`).transaction((order) => {
+            if (order && order.status === 'pending') {
+                order.status = 'taken';
+                order.takerId = currentUser.userId;
+                order.takerName = currentUser.displayName;
+                return order;
+            } else { return; } // 放棄
+        }, (error, committed, snapshot) => {
+            if (error) {
+                Swal.fire('搶單失敗', '系統錯誤', 'error');
+            } else if (!committed) {
+                Swal.fire('慢了一步', '被搶走了！', 'warning');
+                removeAlert(oid);
+            } else {
+                // 搶單成功！
+                const val = snapshot.val();
+                Swal.fire({
+                    icon: 'success',
+                    title: '搶單成功！',
+                    text: '已存入任務列表',
+                    timer: 1500,
+                    showConfirmButton: false
+                });
+                removeAlert(oid);
+                // 這裡不需要手動存，因為 listenForMyMissions 會自動抓到變化
             }
         });
     }
 
-    function finishMission() { if(passengerMarker) { passengerMarker.setMap(null); passengerMarker = null; } if(routeLine) { routeLine.setMap(null); routeLine = null; } document.getElementById('mission-panel').style.display = 'none'; if(currentUser) db.ref('drivers/' + currentUser.userId + '/request').remove(); }
+    // --- 我的任務邏輯 (My Missions) ---
+    function listenForMyMissions(uid) {
+        // 監聽所有「我是 takerId」且「狀態是 taken」的訂單
+        // 這裡為了簡化，我們監聽 orders 並過濾 (若訂單量大建議用 query)
+        db.ref('orders').on('value', snapshot => {
+            const data = snapshot.val();
+            myMissions = [];
+            if(data) {
+                Object.keys(data).forEach(key => {
+                    const order = data[key];
+                    if(order.takerId === uid && order.status === 'taken') {
+                        order.id = key;
+                        myMissions.push(order);
+                    }
+                });
+            }
+            updateMissionBadge();
+            renderMissionList();
+        });
+    }
 
-    function togglePower(forceOn=false) {
-        const btns = ['btn-status', 'btn-saver', 'btn-hall']; const btnPower = document.getElementById('btn-power');
-        if (forceOn || !isOnline) {
-            isOnline = true; localStorage.setItem('isOnline', 'true');
-            btnPower.className = "circle-btn bg-on"; btnPower.innerHTML = `<span>下線</span><span class="sub-text">ON</span>`;
-            btns.forEach(id => document.getElementById(id).style.display = 'flex');
-            playSound('boot');
-            requestWakeLock(); startGPS(); 
-            if (heartbeatInterval) clearInterval(heartbeatInterval); heartbeatInterval = setInterval(() => forceUpload(), HEARTBEAT_TIME);
+    function updateMissionBadge() {
+        const badge = document.getElementById('mission-badge');
+        const btn = document.getElementById('btn-mission');
+        if(myMissions.length > 0) {
+            badge.style.display = 'flex';
+            badge.innerText = myMissions.length;
+            btn.classList.add('bg-mission'); // 亮燈
         } else {
-            isOnline = false; localStorage.setItem('isOnline', 'false');
-            btnPower.className = "circle-btn bg-off"; btnPower.innerHTML = `<span>上線</span><span class="sub-text">OFF</span>`;
-            btns.forEach(id => document.getElementById(id).style.display = 'none');
-            stopGPS(); releaseWakeLock(); toggleSaver(false);
-            if(myMarker) myMarker.setMap(null);
-            if (heartbeatInterval) clearInterval(heartbeatInterval);
-            if (currentUser) db.ref('drivers/' + currentUser.userId).update({ status: 'offline' });
-            document.getElementById('hud').innerHTML = `💤 已下線`;
-            queueCenter = null;
+            badge.style.display = 'none';
+            // 恢復原色(這裡簡化，直接維持樣式)
         }
     }
 
-    function toggleStatus(){ if(currentWorkStatus==='empty') { currentWorkStatus='queue'; if(myMarker) { const pos = myMarker.getPosition(); queueCenter = { lat: pos.lat(), lng: pos.lng() }; } } else if(currentWorkStatus==='queue') { currentWorkStatus='busy'; queueCenter = null; } else { currentWorkStatus='empty'; queueCenter = null; } updateStatusBtn(); forceUpload(); }
-    function setupSaverEvents() { const overlay = document.getElementById('saver-overlay'); const startPress = (e) => { e.preventDefault(); overlay.classList.add('pressing'); pressTimer = setTimeout(() => { toggleSaver(false); if(navigator.vibrate) navigator.vibrate(100); }, 1500); }; const cancelPress = () => { overlay.classList.remove('pressing'); clearTimeout(pressTimer); }; overlay.addEventListener('touchstart', startPress); overlay.addEventListener('touchend', cancelPress); overlay.addEventListener('mousedown', startPress); overlay.addEventListener('mouseup', cancelPress); }
-    function toggleSaver(enable){ const overlay=document.getElementById('saver-overlay');const btn=document.getElementById('btn-saver'); if(enable){ overlay.classList.add('active'); btn.className="circle-btn bg-empty"; } else{ overlay.classList.remove('active'); overlay.classList.remove('pressing'); btn.className="circle-btn bg-dark"; } }
-    function updateStatusBtn(){ const btn=document.getElementById('btn-status');let colorCode='#2ecc71'; if(currentWorkStatus==='empty'){btn.className="circle-btn bg-empty";btn.innerHTML="空車"}else if(currentWorkStatus==='queue'){btn.className="circle-btn bg-queue";btn.innerHTML="排班";colorCode='#3498db'}else{btn.className="circle-btn bg-busy";btn.innerHTML="載客";colorCode='#e67e22'} if(myMarker)myMarker.setIcon(getArrowIcon(colorCode, 0)); }
-    function startGPS() { if (!navigator.geolocation) return; watchId = navigator.geolocation.watchPosition((pos) => { const { latitude, longitude, heading } = pos.coords; const latLng = new google.maps.LatLng(latitude, longitude); const color = currentWorkStatus==='busy'?'#e67e22':(currentWorkStatus==='queue'?'#3498db':'#2ecc71'); const now = Date.now(); const distKm = Math.sqrt(Math.pow(latitude - lastRenderLat, 2) + Math.pow(longitude - lastRenderLng, 2)) * 111; const distM = distKm * 1000; if (myMarker && distM < RENDER_MIN_DIST && (now - lastRenderTime < RENDER_INTERVAL)) {} else { if(!myMarker){ myMarker = new google.maps.Marker({ position: latLng, map: map, icon: getArrowIcon(color, heading), title: "我" }); map.panTo(latLng); } else { myMarker.setPosition(latLng); myMarker.setIcon(getArrowIcon(color, heading)); if(!routeLine && !document.getElementById('saver-overlay').classList.contains('active')) map.panTo(latLng); if(routeLine && passengerMarker) { routeLine.setPath([latLng, passengerMarker.getPosition()]); const dist = google.maps.geometry.spherical.computeDistanceBetween(latLng, passengerMarker.getPosition()); document.getElementById('mission-dist').innerText = `乘客距離：${Math.round(dist)} 公尺`; } } lastRenderLat = latitude; lastRenderLng = longitude; lastRenderTime = now; } smartUpload(latitude, longitude); }, (err) => console.error(err), { enableHighAccuracy: true, maximumAge: 0 }); }
-    function stopGPS() { if (watchId) navigator.geolocation.clearWatch(watchId); }
-    function smartUpload(lat, lng) { if(!currentUser) return; const now = Date.now(); const distKm = Math.sqrt(Math.pow(lat - lastUploadLat, 2) + Math.pow(lng - lastUploadLng, 2)) * 111; const distM = distKm * 1000; if (currentWorkStatus === 'queue' && queueCenter) { const distFromQueue = Math.sqrt(Math.pow(lat - queueCenter.lat, 2) + Math.pow(lng - queueCenter.lng, 2)) * 111000; if (distFromQueue > 500) { currentWorkStatus = 'empty'; queueCenter = null; updateStatusBtn(); showAlert("⚠️ 離開排班區", "系統偵測您已離開排班點，自動切換為「空車」。"); } } if (distM < MIN_DIST) { updateHUD(false, "📍 待命中 (省電)"); return; } if (now - lastUploadTime < UPDATE_INTERVAL) { return; } forceUpload(lat, lng); }
-    function forceUpload(lat, lng) { if(!currentUser) return; if(!lat&&myMarker){const pos=myMarker.getPosition();lat=pos.lat();lng=pos.lng()} if(!lat)return; updateHUD(true, "⚡ 資料上傳..."); db.ref('drivers/'+currentUser.userId).update({ lat:lat, lng:lng, status:'online', workStatus:currentWorkStatus, lastUpdate:firebase.database.ServerValue.TIMESTAMP }).then(() => { setTimeout(() => { const statusText=currentWorkStatus==='busy'?'載客':(currentWorkStatus==='queue'?'排班':'空車'); updateHUD(false, `🟢 連線中 (${statusText})`); }, 1000); }); lastUploadLat=lat; lastUploadLng=lng; lastUploadTime=Date.now(); }
-    function updateHUD(isUploading, text) { const hud = document.getElementById('hud'); hud.innerHTML = `<span class="status-dot" style="background:${isUploading ? '#00C853' : '#2ecc71'};"></span> ${text}`; if(isUploading) hud.classList.add('hud-uploading'); else hud.classList.remove('hud-uploading'); }
-    async function requestWakeLock() { try { if('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch(e){} }
-    function releaseWakeLock() { if(wakeLock) wakeLock.release(); }
-    function showAlert(t,m){ document.getElementById('alert-title').innerText=t;document.getElementById('alert-msg').innerText=m;document.getElementById('alert-modal').style.display='flex'; }
-    function closeModal(){ document.getElementById('alert-modal').style.display='none'; }
+    function openMissionModal() {
+        document.getElementById('mission-modal').style.display = 'flex';
+        renderMissionList();
+    }
+    function closeMissionModal() { document.getElementById('mission-modal').style.display = 'none'; }
+
+    function renderMissionList() {
+        const container = document.getElementById('my-mission-list');
+        if(myMissions.length === 0) {
+            container.innerHTML = `<div style="text-align:center; color:#666; margin-top:50px;">目前沒有執行中的任務</div>`;
+            return;
+        }
+        
+        container.innerHTML = '';
+        myMissions.forEach(m => {
+            const phoneBtn = m.phone ? `<a href="tel:${m.phone}" class="btn-action btn-call"><i class="fa-solid fa-phone"></i> 撥給乘客</a>` : `<button class="btn-action btn-call" disabled style="opacity:0.5"><i class="fa-solid fa-phone-slash"></i> 無電話</button>`;
+            
+            // 導航連結 (使用 Google Maps URL Scheme)
+            const navUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(m.from)}`;
+            
+            container.innerHTML += `
+                <div class="mission-card">
+                    <div style="font-weight:bold; font-size:18px; color:#000; margin-bottom:5px;">
+                        <i class="fa-solid fa-location-dot" style="color:#d32f2f"></i> ${m.from}
+                    </div>
+                    <div style="font-size:14px; color:#555; margin-bottom:5px;">
+                        <i class="fa-solid fa-flag-checkered"></i> ${m.to}
+                    </div>
+                    <div style="font-size:14px; color:#888;">
+                        發單人: ${m.ownerName} (${m.time})
+                    </div>
+                    <div class="mc-actions">
+                        ${phoneBtn}
+                        <a href="${navUrl}" target="_blank" class="btn-action btn-nav"><i class="fa-solid fa-diamond-turn-right"></i> 導航</a>
+                    </div>
+                    <button class="btn-done" onclick="completeMission('${m.id}')">✅ 任務完成 (結案)</button>
+                </div>
+            `;
+        });
+    }
+
+    function completeMission(oid) {
+        Swal.fire({
+            title: '確認結案?',
+            text: "任務將從列表中移除",
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#d33',
+            confirmButtonText: '是的，已完成!'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                // 將狀態改為 completed (或直接刪除，看需求。這裡改狀態比較好追蹤)
+                db.ref(`orders/${oid}`).update({ status: 'completed' });
+                Swal.fire('已結案!', '辛苦了，繼續接單吧。', 'success');
+            }
+        })
+    }
+
+    // --- 通用函式 ---
+    function togglePower() {
+        const btn = document.getElementById('btn-power');
+        const subBtns = ['btn-sos', 'btn-mission'];
+        
+        if(!isOnline) {
+            isOnline = true; localStorage.setItem('isOnline', 'true');
+            btn.className = "circle-btn bg-on"; btn.innerHTML = `<i class="fa-solid fa-power-off"></i><span class="sub-text">ON</span>`;
+            document.getElementById('hud').innerHTML = `<span class="status-dot" style="background:#00C853;"></span> 上線接單中`;
+            subBtns.forEach(id => document.getElementById(id).style.display = 'flex');
+            
+            if(navigator.geolocation) {
+                watchId = navigator.geolocation.watchPosition(pos => {
+                    const {latitude, longitude} = pos.coords;
+                    db.ref('drivers/' + currentUser.userId).update({
+                        lat: latitude, lng: longitude, status: 'online', lastUpdate: firebase.database.ServerValue.TIMESTAMP
+                    });
+                }, err=>{}, {enableHighAccuracy:true});
+            }
+        } else {
+            isOnline = false; localStorage.setItem('isOnline', 'false');
+            btn.className = "circle-btn bg-off"; btn.innerHTML = `<i class="fa-solid fa-power-off"></i><span class="sub-text">OFF</span>`;
+            document.getElementById('hud').innerHTML = `<span class="status-dot" style="background:gray;"></span> 系統待命`;
+            subBtns.forEach(id => document.getElementById(id).style.display = 'none');
+            
+            if(watchId) navigator.geolocation.clearWatch(watchId);
+            db.ref('drivers/' + currentUser.userId).update({ status: 'offline' });
+        }
+    }
+
+    function submitRegistration() {
+        const name = document.getElementById('reg-name').value;
+        const car = document.getElementById('reg-car').value;
+        const phone = document.getElementById('reg-phone').value;
+        const uid = document.getElementById('reg-uid').value;
+        if(!name || !car || !phone) return alert("請填寫完整");
+        
+        liff.sendMessages([{type:'text', text:`【申請入隊】\n姓名:${name}\n車號:${car}\n電話:${phone}\nID:${uid}`}])
+            .then(() => alert("已送出申請"))
+            .catch(() => alert("請手動複製ID給管理員: " + uid));
+    }
   </script>
 </body>
 </html>
