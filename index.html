@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>花蓮車隊 - 司機端 (v4.10)</title>
+  <title>花蓮車隊 - 司機端 (v5.1)</title>
   
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
@@ -33,7 +33,7 @@
         box-shadow: 0 4px 15px rgba(0,0,0,0.3); 
         cursor: pointer; display: flex; flex-direction: column; 
         justify-content: center; align-items: center; 
-        backdrop-filter: blur(4px); 
+        backdrop-filter: blur(4px); position: relative;
     }
     .circle-btn:active { transform: scale(0.95); }
     .sub-text { font-size: 10px; opacity: 0.9; margin-top: 2px; font-weight: normal; }
@@ -44,6 +44,10 @@
     .bg-queue { background: linear-gradient(145deg, #1565c0, #1976d2); }
     .bg-busy  { background: linear-gradient(145deg, #ef6c00, #fb8c00); }
     .bg-dark  { background: linear-gradient(145deg, #37474f, #455a64); }
+    
+    .bg-radio { background: linear-gradient(145deg, #D50000, #FF1744); animation: pulse 2s infinite; }
+    @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 23, 68, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(255, 23, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 23, 68, 0); } }
+    .badge { position: absolute; top: 0; right: 0; background: red; color: white; border-radius: 50%; width: 20px; height: 20px; font-size: 12px; display: flex; justify-content: center; align-items: center; border: 2px solid white; display: none; }
 
     #btn-power { display: none; }
 
@@ -51,36 +55,61 @@
         display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; 
         background: black; z-index: 9999; 
         flex-direction: column; justify-content: center; align-items: center; 
-        color: #555; 
-        user-select: none; -webkit-user-select: none;
+        color: #555; user-select: none;
     }
     #saver-overlay.active { display: flex; }
     #saver-overlay.pressing p { color: #00C853; transition: color 0.3s; }
 
-    #mission-panel {
-        display: none; position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
-        width: 90%; max-width: 350px; background: #222; border: 2px solid #FFD700;
-        border-radius: 15px; padding: 15px; box-shadow: 0 10px 40px rgba(0,0,0,0.5);
-        z-index: 20; text-align: center; color: white;
+    #hall-modal {
+        display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0,0,0,0.85); z-index: 10000; flex-direction: column;
     }
-    .mission-title { color: #FFD700; font-size: 18px; font-weight: bold; margin-bottom: 5px; }
-    .mission-info { font-size: 14px; color: #ccc; margin-bottom: 15px; }
-    .btn-finish {
-        background: #00C853; color: white; border: none; padding: 10px 20px;
-        border-radius: 25px; font-weight: bold; font-size: 16px; cursor: pointer; width: 100%;
-    }
+    #hall-header { padding: 15px; background: #222; color: white; font-size: 18px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #444; }
+    #hall-content { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 15px; }
+    
+    /* v5.1 優化：拋單表單 */
+    .post-box { background: #333; padding: 15px; border-radius: 12px; border: 1px solid #555; margin-bottom: 20px; }
+    .form-row { display: flex; gap: 10px; margin-bottom: 12px; align-items: center; }
+    .form-input { flex: 1; background: #444; border: none; padding: 12px; border-radius: 8px; color: white; font-size: 16px; }
+    
+    /* 敬老卡選項樣式 */
+    .checkbox-container { display: flex; align-items: center; background: #444; padding: 10px 15px; border-radius: 8px; flex: 1; cursor: pointer; }
+    .checkbox-container input { transform: scale(1.5); margin-right: 10px; accent-color: #FFD700; }
+    .checkbox-text { font-size: 16px; font-weight: bold; color: #FFD700; }
+
+    .btn-post { width: 100%; background: #D50000; color: white; padding: 15px; border: none; border-radius: 8px; font-weight: bold; font-size: 18px; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 10px; }
+    
+    /* 訂單卡片 */
+    .order-card { background: white; border-radius: 12px; padding: 15px; position: relative; border-left: 5px solid #D50000; animation: slideIn 0.3s ease-out; margin-bottom: 10px; }
+    @keyframes slideIn { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    
+    .o-header { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px; color: #666; }
+    .o-route { font-size: 18px; font-weight: bold; color: #333; margin-bottom: 8px; display: flex; align-items: center; flex-wrap: wrap; }
+    .o-route i { margin: 0 10px; color: #ccc; }
+    
+    /* 特殊標籤 */
+    .tag { font-size: 12px; padding: 3px 8px; border-radius: 4px; margin-right: 5px; font-weight: bold; }
+    .tag-time { background: #E3F2FD; color: #1565C0; }
+    .tag-card { background: #FFF8E1; color: #FF6F00; border: 1px solid #FFD54F; }
+    
+    .btn-grab { width: 100%; background: #00C853; color: white; padding: 12px; border: none; border-radius: 25px; font-weight: bold; font-size: 16px; cursor: pointer; box-shadow: 0 4px 10px rgba(0,200,83,0.3); margin-top: 10px; }
+    .btn-grab:active { transform: scale(0.98); }
 
     .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; justify-content: center; align-items: center; }
     .modal-content { background: white; color: #333; width: 85%; max-width: 300px; border-radius: 15px; padding: 25px; text-align: center; box-shadow: 0 5px 20px rgba(0,0,0,0.3); }
-    .modal-btns button { width: 100%; padding: 12px; margin-top: 15px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; background: #00bcd4; color: white; font-size: 16px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+    .modal-btns button { width: 100%; padding: 12px; margin-top: 15px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; background: #00bcd4; color: white; font-size: 16px; }
+
+    #mission-panel { display: none; position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); width: 90%; max-width: 350px; background: #222; border: 2px solid #FFD700; border-radius: 15px; padding: 15px; box-shadow: 0 10px 40px rgba(0,0,0,0.5); z-index: 20; text-align: center; color: white; }
+    .mission-title { color: #FFD700; font-size: 18px; font-weight: bold; margin-bottom: 5px; }
+    .btn-finish { background: #00C853; color: white; border: none; padding: 10px 20px; border-radius: 25px; font-weight: bold; font-size: 16px; cursor: pointer; width: 100%; }
   </style>
 </head>
 <body>
 
   <div id="hud"><span class="status-dot" style="background:gray;"></span> 系統啟動中...</div>
   <div id="map"></div>
-  
   <video id="no-sleep-video" playsinline loop muted style="position:absolute; width:1px; height:1px; opacity:0; pointer-events:none;"></video>
+  <audio id="sound-alert" src="https://assets.mixkit.co/sfx/preview/mixkit-software-interface-start-2574.mp3"></audio>
 
   <div id="saver-overlay">
       <p style="font-size:14px; letter-spacing: 1px;">GPS 持續連線 • 長按喚醒</p>
@@ -90,6 +119,45 @@
     <button id="btn-power" class="circle-btn bg-off" onclick="togglePower()"><span>上線</span><span class="sub-text">OFF</span></button>
     <button id="btn-status" class="circle-btn bg-empty" style="display:none;" onclick="toggleStatus()"><span>空車</span></button>
     <button id="btn-saver" class="circle-btn bg-dark" style="display:none;" onclick="toggleSaver(true)"><span>掛機</span></button>
+    <button id="btn-hall" class="circle-btn bg-radio" style="display:none;" onclick="toggleHall(true)">
+        <i class="fa-solid fa-tower-broadcast" style="font-size: 24px;"></i>
+        <div id="hall-badge" class="badge">N</div>
+    </button>
+  </div>
+
+  <div id="hall-modal">
+      <div id="hall-header">
+          <span><i class="fa-solid fa-tower-broadcast"></i> 支援大廳</span>
+          <button onclick="toggleHall(false)" style="background:transparent; border:none; color:white; font-size:24px;"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div id="hall-content">
+          <div class="post-box">
+              <div style="margin-bottom:10px; color:#ccc;">拋出支援請求</div>
+              
+              <div class="form-row">
+                  <input type="time" id="post-time" class="form-input" style="flex:0.4; min-width:80px;">
+                  <input type="text" id="post-loc" class="form-input" placeholder="起點 ➝ 終點" style="flex:1;">
+              </div>
+              
+              <div class="form-row">
+                  <input type="tel" id="post-phone" class="form-input" placeholder="乘客電話 (選填)">
+              </div>
+
+              <div class="form-row">
+                  <label class="checkbox-container">
+                      <input type="checkbox" id="post-card">
+                      <span class="checkbox-text">💳 敬老 / 愛心卡</span>
+                  </label>
+              </div>
+
+              <button class="btn-post" onclick="postOrder()">
+                  <i class="fa-solid fa-satellite-dish"></i> 發送全頻廣播
+              </button>
+          </div>
+
+          <div style="border-bottom:1px solid #444; margin-bottom:10px; padding-bottom:5px; color:#888;">即時轉單列表</div>
+          <div id="order-list-container"></div>
+      </div>
   </div>
 
   <div id="mission-panel">
@@ -113,39 +181,22 @@
     var currentWorkStatus = 'empty'; 
     var watchId = null, wakeLock = null, heartbeatInterval = null;
     var lastUploadTime = 0, lastUploadLat = 0, lastUploadLng = 0;
-    
-    // v4.10: 新增本地渲染節流變數
-    var lastRenderTime = 0; 
-    var lastRenderLat = 0, lastRenderLng = 0;
-
-    var queueCenter = null; 
-    var passengerMarker = null, routeLine = null;
+    var lastRenderTime = 0, lastRenderLat = 0, lastRenderLng = 0;
+    var queueCenter = null, passengerMarker = null, routeLine = null;
     var pressTimer = null; 
 
-    // 上傳維持 15秒 / 100米
-    const UPDATE_INTERVAL = 15000; 
-    const HEARTBEAT_TIME = 180000; 
-    const MIN_DIST = 100;
-    
-    // v4.10: 本地畫面更新過濾器 (2秒 或 5公尺)
-    const RENDER_INTERVAL = 2000; 
-    const RENDER_MIN_DIST = 5; 
-
+    const UPDATE_INTERVAL = 15000; HEARTBEAT_TIME = 180000; MIN_DIST = 100;
+    const RENDER_INTERVAL = 2000; RENDER_MIN_DIST = 5; 
     const NO_SLEEP_VIDEO_SRC = "data:video/mp4;base64,AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAAIZnJlZQAAAs1tZGF0AAACrgYF//+//7UcjmTjwAAAAJZnJlZQAAAMBmcmVlAAACAgAAABl3aWRlAAACW21vb3YAAABsbXZoAAAAAMg+u8DIPruwAAABAAAAAQAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAnh0cmFrAAAAXHRraGQAAAAByD67wMg+u7AAAAABAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAAQAAAAEAAAAAAQAAAAEAAAAAACRlZHRzAAAAHGVsc3QAAAAAAAAAAQAAAAEAAAAAAQAAAAAAIW1kaWEAAAAgbWQoZAAAAADIPrvAyD67sAAAAAEAAAAAVQAAAAAALnNvdW4AAAAAAAAAAAAAAABzb3VuZGFyIGFwcGxlIHNvdW5kIG1lZGlhIGhhbmRsZXIAAAABOG1pbmYAAAAQc21oZAAAAAAAAAAAAAAAJGRpbmYAAAAcZHJlZgAAAAAAAAABAAAADHVybCAAAAABAAABEHN0YmwAAABkc3RzZAAAAAAAAAABAAAAVG1wNGEAAAAAAAAAAQAAAAAAAAAAAAIAEAAAAAAATAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAABhzdHRzAAAAAAAAAAEAAAAFAAAABAAAABBzdHNjAAAAAAAAAAEAAAABAAAABQAAAAEAAAAUc3RzegAAAAAAAAAEAAAAAQAAABBzdGNvAAAAAAAAAAEAAALHAAAAY3VkdGEAAAArd2xvYwAAAAAAAAABAAAAG2BkYXQAAAAAAADHAAAB4gAAAMQAAAAAAAEAAACbdHJhawAAAFx0a2hkAAAAAsg+u8DIPruwAAAAAgAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAAQAAAAEAAAAAAQAAAAEAAAAAACRlZHRzAAAAHGVsc3QAAAAAAAAAAQAAAAEAAAAAAQAAAAAAIW1kaWEAAAAgbWQoZAAAAADIPrvAyD67sAAAAAEAAAAAVQAAAAAALmhkbHIAAAAAAAAAAHZpZGUAAAAAAAAAAAAAAAB2aWRlbyBoYW5kbGVyAAAAAThtaW5mAAAAFHZtaGQAAAABAAAAAAAAAAAAAAAkZGluZgAAABxkcmVmAAAAAAAAAAEAAAAMdXJsICAAAAABAAABM3N0YmwAAABpc3RzZAAAAAAAAAABAAAAW2F2YzEAAAAAAAAAAQABAAAAAQABAAEAAABAvqcQAAAAFUJpZyBCdWNrIEJ1bm55AAAAAAH/4QAZZ2NjLgAAACAgICAgICAgICAgICAgICAgAAABcGF2Y0MKAAAABv//AAIAAAAkYXZjQwH0AAr/4QAaZ2NjLgAAACAgICAgICAgICAgICAgICAgAAAAABhzdHRzAAAAAAAAAAEAAAAFAAAABAAAABBzdHNjAAAAAAAAAAEAAAABAAAABQAAAAEAAAAUc3RzegAAAAAAAAAEAAAAAQAAABBzdGNvAAAAAAAAAAEAAALQAAAAY3VkdGEAAAArd2xvYwAAAAAAAAABAAAAG2BkYXQAAAAAAADHAAAB4gAAAMQAAAAAAAE=";
 
     const getArrowIcon = (color, heading) => {
-        return {
-            path: "M0,-12 L10,10 L0,5 L-10,10 Z", 
-            fillColor: color, fillOpacity: 1, scale: 1.5, strokeColor: "#333", strokeWeight: 1, rotation: heading || 0 
-        };
+        return { path: "M0,-12 L10,10 L0,5 L-10,10 Z", fillColor: color, fillOpacity: 1, scale: 1.5, strokeColor: "#333", strokeWeight: 1, rotation: heading || 0 };
     };
 
-    window.onload = async function() { initGoogleMap(); await initLiff(); setupSaverEvents(); };
+    window.onload = async function() { initGoogleMap(); await initLiff(); setupSaverEvents(); listenForOrders(); setNowTime(); };
 
     function initGoogleMap() {
-        map = new google.maps.Map(document.getElementById("map"), {
-            center: { lat: 23.991, lng: 121.601 }, zoom: 15, disableDefaultUI: true
-        });
+        map = new google.maps.Map(document.getElementById("map"), { center: { lat: 23.991, lng: 121.601 }, zoom: 15, disableDefaultUI: true });
     }
 
     async function initLiff() {
@@ -153,7 +204,6 @@
     }
 
     function checkIdentity(uid) {
-        document.getElementById('hud').innerHTML = `<span class="status-dot" style="background:orange;"></span> 驗證中...`;
         db.ref('drivers/' + uid).once('value').then((snapshot) => {
             if (snapshot.exists()) {
                 const d = snapshot.val();
@@ -162,14 +212,130 @@
                 if (currentUser && currentUser.pictureUrl) db.ref('drivers/' + uid).update({ photo: currentUser.pictureUrl });
                 if (localStorage.getItem('isOnline') === 'true') togglePower(true);
                 listenForRequests(uid);
-            } else {
-                const msg = `您的 ID 是：\n${uid}\n\n請截圖或複製傳給管理員開通權限。`;
-                showAlert("🚫 未授權", msg);
-                document.getElementById('hud').innerHTML = `<span style="color:red">ID: ${uid.substring(0,6)}...</span>`;
+            } else { showAlert("🚫 未授權", "請聯絡管理員開通權限。"); }
+        });
+    }
+
+    // v5.1: 搶單邏輯 (支援敬老卡顯示)
+    function listenForOrders() {
+        const list = document.getElementById('order-list-container');
+        const badge = document.getElementById('hall-badge');
+        
+        db.ref('orders').on('child_added', snapshot => {
+            const order = snapshot.val();
+            const orderId = snapshot.key;
+            if(order.status !== 'pending') return;
+            if(currentUser && order.ownerId === currentUser.userId) return; // 不顯示自己發的單
+
+            const audio = document.getElementById('sound-alert');
+            audio.play().catch(e => console.log("Audio Blocked"));
+            badge.style.display = 'flex';
+
+            const card = document.createElement('div');
+            card.className = 'order-card';
+            card.id = `order-${orderId}`;
+            
+            // 卡片內容
+            const cardTag = order.useCard ? `<span class="tag tag-card">💳 敬老/愛心卡</span>` : '';
+            const phoneInfo = order.phone ? `<div style="color:#666; font-size:14px; margin-bottom:5px;"><i class="fa-solid fa-phone"></i> ${order.phone}</div>` : '';
+            
+            card.innerHTML = `
+                <div class="o-header">
+                    <span class="tag tag-time">${order.time}</span>
+                    <span>${order.ownerName}</span>
+                </div>
+                <div class="o-route">${order.loc}</div>
+                ${phoneInfo}
+                ${cardTag}
+                <button class="btn-grab" onclick="grabOrder('${orderId}')">⚡ 立刻搶單</button>
+            `;
+            list.prepend(card);
+        });
+
+        db.ref('orders').on('child_removed', snapshot => {
+            const el = document.getElementById(`order-${snapshot.key}`);
+            if(el) el.remove();
+            if(list.children.length === 0) badge.style.display = 'none';
+        });
+
+        db.ref('orders').on('child_changed', snapshot => {
+            const order = snapshot.val();
+            if(order.status !== 'pending') {
+                const el = document.getElementById(`order-${snapshot.key}`);
+                if(el) el.remove();
             }
         });
     }
 
+    function postOrder() {
+        const time = document.getElementById('post-time').value;
+        const loc = document.getElementById('post-loc').value;
+        const phone = document.getElementById('post-phone').value;
+        const useCard = document.getElementById('post-card').checked;
+        
+        if(!loc) { showAlert("提示", "請輸入行程地點"); return; }
+        
+        const newOrder = {
+            ownerId: currentUser.userId,
+            ownerName: currentUser.displayName,
+            time: time || '即時',
+            loc: loc,
+            phone: phone || '',
+            useCard: useCard,
+            status: 'pending',
+            timestamp: firebase.database.ServerValue.TIMESTAMP
+        };
+        db.ref('orders').push(newOrder);
+        
+        // 清空欄位
+        document.getElementById('post-loc').value = '';
+        document.getElementById('post-phone').value = '';
+        document.getElementById('post-card').checked = false;
+        setNowTime();
+        
+        toggleHall(false);
+        showAlert("成功", "廣播已發送！");
+    }
+
+    function grabOrder(orderId) {
+        if(!currentUser) return;
+        db.ref(`orders/${orderId}`).transaction((order) => {
+            if (order && order.status === 'pending') {
+                order.status = 'taken';
+                order.takerId = currentUser.userId;
+                order.takerName = currentUser.displayName;
+                return order;
+            } else { return; }
+        }, (error, committed, snapshot) => {
+            if (error) {
+                showAlert("錯誤", "搶單失敗");
+            } else if (!committed) {
+                showAlert("慢了一步", "這張單已經被搶走了！");
+                const el = document.getElementById(`order-${orderId}`);
+                if(el) el.remove();
+            } else {
+                const val = snapshot.val();
+                let msg = `請聯繫 ${val.ownerName}`;
+                if(val.phone) msg += `\n乘客電話：${val.phone}`;
+                showAlert("搶單成功！", msg);
+                // 這裡可以加入自動撥號邏輯 window.location.href = `tel:${val.phone}`;
+            }
+        });
+    }
+
+    function setNowTime() {
+        const now = new Date();
+        const h = String(now.getHours()).padStart(2, '0');
+        const m = String(now.getMinutes()).padStart(2, '0');
+        document.getElementById('post-time').value = `${h}:${m}`;
+    }
+
+    function toggleHall(show) {
+        document.getElementById('hall-modal').style.display = show ? 'flex' : 'none';
+        if(show) document.getElementById('hall-badge').style.display = 'none';
+    }
+
+    // --- v4.10 原有功能 (地圖與核心) ---
     function listenForRequests(uid) {
         db.ref('drivers/' + uid + '/request').on('value', snapshot => {
             const req = snapshot.val();
@@ -184,9 +350,6 @@
                 } else { passengerMarker.setPosition(pLoc); }
                 document.getElementById('mission-panel').style.display = 'block';
                 if(myMarker) {
-                    const bounds = new google.maps.LatLngBounds();
-                    bounds.extend(myMarker.getPosition()); bounds.extend(pLoc);
-                    map.fitBounds(bounds);
                     if(routeLine) routeLine.setMap(null);
                     routeLine = new google.maps.Polyline({
                         path: [myMarker.getPosition(), pLoc], geodesic: true,
@@ -205,11 +368,10 @@
         if(routeLine) { routeLine.setMap(null); routeLine = null; }
         document.getElementById('mission-panel').style.display = 'none';
         if(currentUser) db.ref('drivers/' + currentUser.userId + '/request').remove();
-        if(myMarker) { map.panTo(myMarker.getPosition()); map.setZoom(15); }
     }
 
     function togglePower(forceOn=false) {
-        const btns = ['btn-status', 'btn-saver']; const btnPower = document.getElementById('btn-power');
+        const btns = ['btn-status', 'btn-saver', 'btn-hall']; const btnPower = document.getElementById('btn-power');
         if (forceOn || !isOnline) {
             isOnline = true; localStorage.setItem('isOnline', 'true');
             btnPower.className = "circle-btn bg-on"; btnPower.innerHTML = `<span>下線</span><span class="sub-text">ON</span>`;
@@ -231,10 +393,7 @@
     }
 
     function toggleStatus(){ 
-        if(currentWorkStatus==='empty') {
-            currentWorkStatus='queue';
-            if(myMarker) { const pos = myMarker.getPosition(); queueCenter = { lat: pos.lat(), lng: pos.lng() }; }
-        }
+        if(currentWorkStatus==='empty') { currentWorkStatus='queue'; if(myMarker) { const pos = myMarker.getPosition(); queueCenter = { lat: pos.lat(), lng: pos.lng() }; } }
         else if(currentWorkStatus==='queue') { currentWorkStatus='busy'; queueCenter = null; }
         else { currentWorkStatus='empty'; queueCenter = null; }
         updateStatusBtn(); forceUpload(); 
@@ -242,106 +401,21 @@
     
     function setupSaverEvents() {
         const overlay = document.getElementById('saver-overlay');
-        const startPress = (e) => {
-            e.preventDefault();
-            overlay.classList.add('pressing'); 
-            pressTimer = setTimeout(() => {
-                toggleSaver(false);
-                if(navigator.vibrate) navigator.vibrate(100); 
-            }, 1500); 
-        };
-        const cancelPress = () => {
-            overlay.classList.remove('pressing');
-            clearTimeout(pressTimer);
-        };
-        overlay.addEventListener('touchstart', startPress);
-        overlay.addEventListener('touchend', cancelPress);
-        overlay.addEventListener('mousedown', startPress);
-        overlay.addEventListener('mouseup', cancelPress);
+        const startPress = (e) => { e.preventDefault(); overlay.classList.add('pressing'); pressTimer = setTimeout(() => { toggleSaver(false); if(navigator.vibrate) navigator.vibrate(100); }, 1500); };
+        const cancelPress = () => { overlay.classList.remove('pressing'); clearTimeout(pressTimer); };
+        overlay.addEventListener('touchstart', startPress); overlay.addEventListener('touchend', cancelPress);
+        overlay.addEventListener('mousedown', startPress); overlay.addEventListener('mouseup', cancelPress);
     }
 
-    function toggleSaver(enable){ 
-        const overlay=document.getElementById('saver-overlay');
-        const btn=document.getElementById('btn-saver'); 
-        if(enable){ overlay.classList.add('active'); btn.className="circle-btn bg-empty"; }
-        else{ overlay.classList.remove('active'); overlay.classList.remove('pressing'); btn.className="circle-btn bg-dark"; } 
-    }
-    
+    function toggleSaver(enable){ const overlay=document.getElementById('saver-overlay');const btn=document.getElementById('btn-saver'); if(enable){ overlay.classList.add('active'); btn.className="circle-btn bg-empty"; } else{ overlay.classList.remove('active'); overlay.classList.remove('pressing'); btn.className="circle-btn bg-dark"; } }
     function updateStatusBtn(){ const btn=document.getElementById('btn-status');let colorCode='#2ecc71'; if(currentWorkStatus==='empty'){btn.className="circle-btn bg-empty";btn.innerHTML="空車"}else if(currentWorkStatus==='queue'){btn.className="circle-btn bg-queue";btn.innerHTML="排班";colorCode='#3498db'}else{btn.className="circle-btn bg-busy";btn.innerHTML="載客";colorCode='#e67e22'} if(myMarker)myMarker.setIcon(getArrowIcon(colorCode, 0)); }
-
-    function startGPS() {
-        if (!navigator.geolocation) return;
-        watchId = navigator.geolocation.watchPosition((pos) => {
-            const { latitude, longitude, heading } = pos.coords; 
-            const latLng = new google.maps.LatLng(latitude, longitude);
-            const color = currentWorkStatus==='busy'?'#e67e22':(currentWorkStatus==='queue'?'#3498db':'#2ecc71');
-            
-            // v4.10: 智慧節流 (畫面更新)
-            const now = Date.now();
-            const distKm = Math.sqrt(Math.pow(latitude - lastRenderLat, 2) + Math.pow(longitude - lastRenderLng, 2)) * 111;
-            const distM = distKm * 1000;
-            
-            // 規則：如果距離小於5米 且 時間小於2秒 -> 不更新地圖 (省電)
-            // 例外：如果是第一次定位(!myMarker)，一定要畫
-            if (myMarker && distM < RENDER_MIN_DIST && (now - lastRenderTime < RENDER_INTERVAL)) {
-                // 雖然不畫圖，但還是要繼續往下檢查上傳邏輯
-            } else {
-                // 更新畫面
-                if(!myMarker){ myMarker = new google.maps.Marker({ position: latLng, map: map, icon: getArrowIcon(color, heading), title: "我" }); map.panTo(latLng); } 
-                else { 
-                    myMarker.setPosition(latLng); 
-                    myMarker.setIcon(getArrowIcon(color, heading)); 
-                    if(!routeLine && !document.getElementById('saver-overlay').classList.contains('active')) map.panTo(latLng); 
-                    if(routeLine && passengerMarker) {
-                        routeLine.setPath([latLng, passengerMarker.getPosition()]);
-                        const dist = google.maps.geometry.spherical.computeDistanceBetween(latLng, passengerMarker.getPosition());
-                        document.getElementById('mission-dist').innerText = `乘客距離：${Math.round(dist)} 公尺`;
-                    }
-                }
-                // 紀錄這次畫圖的座標與時間
-                lastRenderLat = latitude; lastRenderLng = longitude; lastRenderTime = now;
-            }
-
-            smartUpload(latitude, longitude);
-        }, (err) => console.error(err), { enableHighAccuracy: true, maximumAge: 0 });
-    }
-    
+    function startGPS() { if (!navigator.geolocation) return; watchId = navigator.geolocation.watchPosition((pos) => { const { latitude, longitude, heading } = pos.coords; const latLng = new google.maps.LatLng(latitude, longitude); const color = currentWorkStatus==='busy'?'#e67e22':(currentWorkStatus==='queue'?'#3498db':'#2ecc71'); const now = Date.now(); const distKm = Math.sqrt(Math.pow(latitude - lastRenderLat, 2) + Math.pow(longitude - lastRenderLng, 2)) * 111; const distM = distKm * 1000; if (myMarker && distM < RENDER_MIN_DIST && (now - lastRenderTime < RENDER_INTERVAL)) {} else { if(!myMarker){ myMarker = new google.maps.Marker({ position: latLng, map: map, icon: getArrowIcon(color, heading), title: "我" }); map.panTo(latLng); } else { myMarker.setPosition(latLng); myMarker.setIcon(getArrowIcon(color, heading)); if(!routeLine && !document.getElementById('saver-overlay').classList.contains('active')) map.panTo(latLng); if(routeLine && passengerMarker) { routeLine.setPath([latLng, passengerMarker.getPosition()]); const dist = google.maps.geometry.spherical.computeDistanceBetween(latLng, passengerMarker.getPosition()); document.getElementById('mission-dist').innerText = `乘客距離：${Math.round(dist)} 公尺`; } } lastRenderLat = latitude; lastRenderLng = longitude; lastRenderTime = now; } smartUpload(latitude, longitude); }, (err) => console.error(err), { enableHighAccuracy: true, maximumAge: 0 }); }
     function stopGPS() { if (watchId) navigator.geolocation.clearWatch(watchId); }
-    
-    function smartUpload(lat, lng) {
-        if(!currentUser) return;
-        const now = Date.now();
-        const distKm = Math.sqrt(Math.pow(lat - lastUploadLat, 2) + Math.pow(lng - lastUploadLng, 2)) * 111;
-        const distM = distKm * 1000;
-        if (currentWorkStatus === 'queue' && queueCenter) {
-            const distFromQueue = Math.sqrt(Math.pow(lat - queueCenter.lat, 2) + Math.pow(lng - queueCenter.lng, 2)) * 111000;
-            if (distFromQueue > 500) { currentWorkStatus = 'empty'; queueCenter = null; updateStatusBtn(); showAlert("⚠️ 離開排班區", "系統偵測您已離開排班點，自動切換為「空車」。"); }
-        }
-        if (distM < MIN_DIST) { updateHUD(false, "📍 待命中 (省電)"); return; }
-        if (now - lastUploadTime < UPDATE_INTERVAL) { return; }
-        forceUpload(lat, lng);
-    }
-    
-    function forceUpload(lat, lng) {
-        if(!currentUser) return;
-        if(!lat&&myMarker){const pos=myMarker.getPosition();lat=pos.lat();lng=pos.lng()} if(!lat)return; 
-        updateHUD(true, "⚡ 資料上傳...");
-        db.ref('drivers/'+currentUser.userId).update({ lat:lat, lng:lng, status:'online', workStatus:currentWorkStatus, lastUpdate:firebase.database.ServerValue.TIMESTAMP }).then(() => { setTimeout(() => { const statusText=currentWorkStatus==='busy'?'載客':(currentWorkStatus==='queue'?'排班':'空車'); updateHUD(false, `🟢 連線中 (${statusText})`); }, 1000); });
-        lastUploadLat=lat; lastUploadLng=lng; lastUploadTime=Date.now(); 
-    }
-    
+    function smartUpload(lat, lng) { if(!currentUser) return; const now = Date.now(); const distKm = Math.sqrt(Math.pow(lat - lastUploadLat, 2) + Math.pow(lng - lastUploadLng, 2)) * 111; const distM = distKm * 1000; if (currentWorkStatus === 'queue' && queueCenter) { const distFromQueue = Math.sqrt(Math.pow(lat - queueCenter.lat, 2) + Math.pow(lng - queueCenter.lng, 2)) * 111000; if (distFromQueue > 500) { currentWorkStatus = 'empty'; queueCenter = null; updateStatusBtn(); showAlert("⚠️ 離開排班區", "系統偵測您已離開排班點，自動切換為「空車」。"); } } if (distM < MIN_DIST) { updateHUD(false, "📍 待命中 (省電)"); return; } if (now - lastUploadTime < UPDATE_INTERVAL) { return; } forceUpload(lat, lng); }
+    function forceUpload(lat, lng) { if(!currentUser) return; if(!lat&&myMarker){const pos=myMarker.getPosition();lat=pos.lat();lng=pos.lng()} if(!lat)return; updateHUD(true, "⚡ 資料上傳..."); db.ref('drivers/'+currentUser.userId).update({ lat:lat, lng:lng, status:'online', workStatus:currentWorkStatus, lastUpdate:firebase.database.ServerValue.TIMESTAMP }).then(() => { setTimeout(() => { const statusText=currentWorkStatus==='busy'?'載客':(currentWorkStatus==='queue'?'排班':'空車'); updateHUD(false, `🟢 連線中 (${statusText})`); }, 1000); }); lastUploadLat=lat; lastUploadLng=lng; lastUploadTime=Date.now(); }
     function updateHUD(isUploading, text) { const hud = document.getElementById('hud'); hud.innerHTML = `<span class="status-dot" style="background:${isUploading ? '#00C853' : '#2ecc71'};"></span> ${text}`; if(isUploading) hud.classList.add('hud-uploading'); else hud.classList.remove('hud-uploading'); }
-    
-    function enableNoSleepVideo() {
-        const video = document.getElementById('no-sleep-video');
-        video.src = NO_SLEEP_VIDEO_SRC;
-        video.play().catch(e => console.log("Video Play Error:", e));
-    }
-    function disableNoSleepVideo() {
-        const video = document.getElementById('no-sleep-video');
-        video.pause();
-    }
-
+    function enableNoSleepVideo() { const video = document.getElementById('no-sleep-video'); video.src = NO_SLEEP_VIDEO_SRC; video.play().catch(e => console.log("Video Play Error:", e)); }
+    function disableNoSleepVideo() { const video = document.getElementById('no-sleep-video'); video.pause(); }
     async function requestWakeLock() { try { if('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch(e){} }
     function releaseWakeLock() { if(wakeLock) wakeLock.release(); }
     function showAlert(t,m){ document.getElementById('alert-title').innerText=t;document.getElementById('alert-msg').innerText=m;document.getElementById('alert-modal').style.display='flex'; }
