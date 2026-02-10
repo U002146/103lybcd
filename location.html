@@ -3,371 +3,333 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>個人車行：叫車服務 (v3.6)</title>
+    <title>我的數位看板 (Pro)</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
-
     <style>
-        body { font-family: 'Noto Sans TC', sans-serif; background-color: #f8fafc; overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
-        input, select, textarea { font-size: 17px !important; }
-        
-        #map-container { height: 45%; width: 100%; position: relative; z-index: 10; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
-        #map { width: 100%; height: 100%; }
+        .gmnoprint, .gm-control-active { display: none !important; }
+        body { overflow: hidden; font-family: 'Noto Sans TC', sans-serif; } 
 
-        .center-marker { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -100%); z-index: 20; pointer-events: none; transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1); }
-        .center-marker.lifting { transform: translate(-50%, -120%); }
-        .target-crosshair { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 6px; height: 6px; background-color: rgba(0,0,0,0.3); border-radius: 50%; z-index: 19; pointer-events: none; }
+        /* === 乘客端樣式 === */
+        .center-marker {
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -100%);
+            z-index: 20; pointer-events: none;
+            transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+            display: flex; 
+        }
+        .center-marker.lifting { transform: translate(-50%, -150%); }
 
-        #control-panel { flex: 1; background-color: white; position: relative; z-index: 20; display: flex; flex-direction: column; overflow: hidden; border-top-left-radius: 24px; border-top-right-radius: 24px; margin-top: -20px; box-shadow: 0 -4px 20px rgba(0,0,0,0.05); }
-        .scroll-content { flex: 1; overflow-y: auto; padding: 24px; padding-bottom: 100px; }
-
-        .input-group { background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px; padding: 12px 16px; transition: all 0.2s; display: flex; align-items: center; }
-        .input-group:focus-within { border-color: #10b981; background-color: #fff; box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1); }
-        .input-icon { color: #64748b; font-size: 1.2rem; margin-right: 12px; width: 24px; text-align: center; }
-
-        .loader { border: 3px solid #f3f3f3; border-top: 3px solid #10B981; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        
-        .swal2-popup { border-radius: 24px !important; font-family: 'Noto Sans TC', sans-serif !important; padding-bottom: 20px !important;}
-        .location-grid { max-height: 50vh; overflow-y: auto; padding: 4px; }
-        .fa-spin-fast { animation: spin 1s linear infinite; }
-
-        /* Time Picker CSS */
-        #time-selector-modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 100; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: flex-end; opacity: 0; transition: opacity 0.3s; }
-        #time-selector-content { background: white; width: 100%; max-width: 500px; border-top-left-radius: 24px; border-top-right-radius: 24px; padding: 20px; padding-bottom: 40px; transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1); max-height: 85vh; display: flex; flex-direction: column; }
-        .date-tabs-container { display: flex; overflow-x: auto; gap: 10px; padding-bottom: 10px; margin-bottom: 15px; scrollbar-width: none; }
-        .date-tabs-container::-webkit-scrollbar { display: none; }
-        .date-tab { flex: 0 0 auto; padding: 8px 16px; border-radius: 99px; background: #f1f5f9; color: #64748b; font-size: 14px; font-weight: bold; cursor: pointer; transition: all 0.2s; border: 1px solid transparent; }
-        .date-tab.active { background: #0f172a; color: white; box-shadow: 0 4px 10px rgba(15, 23, 42, 0.2); }
-        .time-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; max-height: 300px; overflow-y: auto; }
-        .time-btn { appearance: none; padding: 12px 0; border-radius: 12px; background: #ffffff; border: 1px solid #e2e8f0; color: #334155; font-weight: bold; text-align: center; cursor: pointer; transition: all 0.1s; display: flex; align-items: center; justify-content: center; width: 100%; }
-        .time-btn:active { transform: scale(0.95); background: #f8fafc; border-color: #94a3b8; }
-        .time-btn.selected { background: #e0f2fe; border-color: #3b82f6; color: #1d4ed8; }
-        .time-btn.disabled { opacity: 0.3; background: #f1f5f9; pointer-events: none; color: #94a3b8; }
-        #minute-selection-view { flex-direction: column; }
-    </style>
-</head>
-<body>
-
-    <div id="loading-overlay" class="fixed inset-0 bg-white z-50 flex flex-col items-center justify-center transition-opacity duration-500">
-        <div class="loader mb-4"></div>
-        <p id="loading-text" class="text-gray-500 font-bold text-lg animate-pulse tracking-widest">LOADING</p>
-        <button onclick="forceRemoveLoading()" class="mt-8 text-sm text-gray-300 underline">若卡住請點此</button>
-    </div>
-
-    <div id="map-container">
-        <div id="map"></div>
-        <div id="center-marker" class="center-marker flex flex-col items-center">
-            <div id="marker-label" class="bg-slate-800 text-white text-[10px] font-bold px-3 py-1 rounded-full mb-1 shadow-lg tracking-wide opacity-90 transition-opacity">移動定位</div>
-            <i class="fa-solid fa-location-dot text-5xl text-emerald-600 drop-shadow-xl filter contrast-125"></i>
-        </div>
-        <div class="target-crosshair"></div>
-        <button id="btn-my-loc" onclick="panToCurrentLocation()" class="absolute bottom-8 right-4 bg-white w-12 h-12 rounded-full shadow-lg z-30 text-slate-700 active:bg-slate-100 active:scale-95 transition-all flex items-center justify-center border border-gray-100">
-            <i id="icon-my-loc" class="fa-solid fa-crosshairs text-xl"></i>
-        </button>
-        <div id="liff-status-dot" class="absolute bottom-5 left-5 w-3 h-3 rounded-full bg-red-500 border-2 border-white shadow-md z-30" title="LIFF Status"></div>
-    </div>
-
-    <div id="control-panel">
-        <div class="w-full flex justify-center pt-3 pb-1"><div class="w-12 h-1.5 bg-gray-200 rounded-full"></div></div>
-
-        <div class="scroll-content space-y-5">
-            <div class="text-center mb-2">
-                <p class="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mb-1">PICKUP LOCATION</p>
-                <div class="flex items-center justify-center space-x-2">
-                    <h2 id="address-text" class="text-xl font-bold text-slate-800 truncate max-w-[80%]">定位中...</h2>
-                    <span class="text-xs bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-bold">上車</span>
-                </div>
-            </div>
-
-            <div class="border-t border-gray-100 my-4"></div>
-
-            <div class="space-y-4">
-                <div class="input-group">
-                    <i class="fa-solid fa-location-dot input-icon text-rose-500"></i>
-                    <div class="flex-1">
-                        <label class="block text-[10px] text-slate-400 font-bold uppercase">Drop-off (選填)</label>
-                        <input type="text" id="dropoff" autocomplete="off" placeholder="未填則顯示：上車告知" class="w-full bg-transparent font-bold text-slate-800 outline-none text-lg">
-                    </div>
-                    <button onclick="openPresetLocations()" class="ml-2 bg-slate-100 text-slate-500 p-2 rounded-lg active:bg-slate-200"><i class="fa-solid fa-star text-sm"></i></button>
-                </div>
-
-                <div class="input-group cursor-pointer relative" onclick="openModernTimeSelector()">
-                    <i id="time-icon" class="fa-solid fa-clock input-icon text-blue-600"></i>
-                    <div class="flex-1">
-                        <label class="block text-[10px] text-slate-400 font-bold uppercase">Pickup Time</label>
-                        <div class="flex items-center justify-between">
-                            <span id="time-display" class="font-bold text-slate-800 text-lg">現在 (即時叫車)</span>
-                            <div class="flex items-center space-x-2" onclick="event.stopPropagation(); openPaymentPicker();">
-                                <span class="w-[1px] h-4 bg-gray-300"></span>
-                                <div class="flex items-center bg-gray-100 px-2 py-1 rounded-md active:bg-gray-200 transition-colors">
-                                    <i id="payment-icon-small" class="fa-solid fa-coins text-slate-500 text-xs mr-1"></i>
-                                    <span id="payment-text-small" class="text-xs font-bold text-slate-600">現金</span>
-                                    <i class="fa-solid fa-caret-down text-[10px] text-gray-400 ml-1"></i>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <input type="hidden" id="booking-mode" value="NOW">
-                    <input type="hidden" id="booking-time-val" value="">
-                    <input type="hidden" id="payment-value" value="現金">
-                </div>
-
-                <div class="input-group">
-                    <i class="fa-solid fa-phone input-icon"></i>
-                    <div class="flex-1">
-                        <label class="block text-[10px] text-slate-400 font-bold uppercase">Phone Number</label>
-                        <input type="tel" id="phone" placeholder="09xx-xxx-xxx" class="w-full bg-transparent font-bold text-slate-800 outline-none text-lg">
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="absolute bottom-0 left-0 right-0 p-5 bg-white/90 backdrop-blur-sm border-t border-gray-100">
-            <button id="submitBtn" onclick="submitOrder()" class="w-full bg-slate-900 text-white font-bold py-4 rounded-2xl shadow-xl shadow-slate-300 active:scale-[0.98] transition-all text-xl flex items-center justify-center space-x-3">
-                <i class="fa-solid fa-taxi"></i>
-                <span id="submit-btn-text">確認叫車</span>
-            </button>
-        </div>
-    </div>
-
-    <div id="time-selector-modal" onclick="closeModernTimeSelector(event)">
-        <div id="time-selector-content" onclick="event.stopPropagation()">
-            <div class="flex justify-between items-center mb-4 pb-2 border-b border-gray-100">
-                <div class="flex items-baseline"><h3 class="text-xl font-bold text-slate-800 mr-2">選擇預約時間</h3><span class="text-[10px] text-emerald-600 font-mono font-bold">v3.6</span></div>
-                <button type="button" onclick="closeModernTimeSelector()" class="w-8 h-8 rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
-            </div>
-            <button type="button" onclick="selectNowAndClose()" id="btn-quick-now" class="w-full bg-slate-800 text-white py-3 rounded-xl font-bold mb-4 flex items-center justify-center shadow-md active:scale-[0.98] transition-transform"><i class="fa-solid fa-bolt mr-2 text-yellow-400"></i> 現在出發 (即時)</button>
-            <div class="text-xs text-gray-400 font-bold mb-2 uppercase tracking-wide">Or Schedule For Later</div>
-            <div id="hour-selection-view"><div class="date-tabs-container" id="date-tabs-list"></div><div class="text-sm text-gray-500 mb-2 font-bold">選擇小時 (24H)</div><div class="time-grid" id="hour-grid"></div></div>
-            <div id="minute-selection-view" class="hidden h-64"><div class="flex items-center mb-4"><button type="button" onclick="backToHourView()" class="mr-3 w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center text-gray-600 active:bg-gray-100"><i class="fa-solid fa-arrow-left"></i></button><span class="text-lg font-bold text-slate-800"><span id="selected-date-display" class="text-slate-500 mr-1 text-base"></span><span id="selected-hour-display" class="text-blue-600 text-2xl"></span><span class="text-slate-400">點</span></span></div><div class="text-sm text-gray-500 mb-2 font-bold">選擇分鐘 (5分間隔)</div><div class="grid grid-cols-4 gap-3" id="minute-grid-container"></div></div>
-        </div>
-    </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-    <script>
-        // --- 設定與 API ---
-        const API_KEY = 'AIzaSyAIxc6PEhHgUs_A9lyRUg8dNbmwOpSamY8'; 
-        const LIFF_ID = '2008907691-MAdAtfyf'; 
-        
-        // 您的 Project B (數位看板) LIFF 連結
-        const PROJECT_B_URL = 'https://liff.line.me/2008907691-1mAjwojZ'; 
-
-        // 您的個人司機 ID (確保這裡跟 Project B 裡看到的一樣)
-        const MY_DRIVER_ID = 'U467348846c6b1fa433990d7b75c935b5'; 
-
-        const firebaseConfig = { databaseURL: "https://hualientaxi-bb32f-default-rtdb.asia-southeast1.firebasedatabase.app/" };
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.database();
-
-        const PRESET_LOCATIONS = [{name:'常用地址 A',icon:'⭐',value:'FAV_ADDR_A'},{name:'常用地址 B',icon:'⭐',value:'FAV_ADDR_B'},{name:'花蓮前站',icon:'🚉'},{name:'花蓮後站',icon:'🚉'},{name:'慈濟醫院',icon:'🏥'},{name:'門諾醫院',icon:'🏥'},{name:'花蓮縣政府',icon:'🏢'},{name:'遠東百貨',icon:'🛍️'}];
-        const PAYMENT_METHODS = [{id:'現金',label:'現金',icon:'fa-coins',color:'text-slate-600'},{id:'敬老卡',label:'敬老卡',sub:'(65歲+)',icon:'fa-person-cane',color:'text-orange-500'},{id:'愛心卡',label:'愛心卡',sub:'(身障)',icon:'fa-heart',color:'text-rose-500'},{id:'乘車券',label:'乘車券',icon:'fa-ticket',color:'text-blue-500'},{id:'TWRQ',label:'TWRQ',icon:'fa-qrcode',color:'text-purple-500'},{id:'LINE PAY',label:'LINE Pay',icon:'fa-brands fa-line',color:'text-green-500'},{id:'APPLE PAY',label:'Apple Pay',icon:'fa-brands fa-apple',color:'text-black'}];
-
-        let map, geocoder, cachedPosition = null;
-        let currentCenter = { lat: 23.991, lng: 121.601 };
-        let pickerState = { dateIndex: 0, hour: null, minute: null, dates: [] };
-        const MAP_STYLES = [{ "featureType": "poi", "elementType": "labels.icon", "stylers": [{ "visibility": "off" }] }, { "featureType": "poi", "elementType": "labels.text.fill", "stylers": [{ "color": "#757575" }] }, { "featureType": "road", "elementType": "geometry.fill", "stylers": [{ "color": "#ffffff" }] }, { "featureType": "road", "elementType": "geometry.stroke", "stylers": [{ "color": "#e0e0e0" }] }];
-
-        window.onload = function() {
-            setTimeout(forceRemoveLoading, 5000);
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(
-                    (pos) => {
-                        cachedPosition = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-                        if (map) { map.setCenter(cachedPosition); currentCenter = cachedPosition; }
-                    },
-                    () => console.warn("GPS Pending"), { enableHighAccuracy: true, timeout: 5000 }
-                );
-            }
-            initLiff();
-            loadGoogleMaps();
-            
-            // v3.6: 自動填入上次電話
-            const savedPhone = localStorage.getItem('taxi_user_phone');
-            if(savedPhone) document.getElementById('phone').value = savedPhone;
-            
-            const savedPayment = localStorage.getItem('taxi_selected_payment');
-            if(savedPayment) { const method = PAYMENT_METHODS.find(m => m.label === savedPayment); if(method) updatePaymentUI(method.label, method.icon, method.color); }
-        };
-
-        function forceRemoveLoading() { const overlay = document.getElementById('loading-overlay'); if (overlay) overlay.style.opacity = '0'; setTimeout(() => { if(overlay) overlay.style.display = 'none'; }, 500); }
-
-        function loadGoogleMaps() {
-            if (API_KEY.includes('請在此填入') || API_KEY === '') { alert('請填入 API KEY'); forceRemoveLoading(); return; }
-            const mapScript = document.createElement('script');
-            mapScript.src = `https://maps.googleapis.com/maps/api/js?key=${API_KEY}&language=zh-TW&callback=initMap`;
-            mapScript.async = true; mapScript.defer = true;
-            mapScript.onerror = () => { alert('地圖載入失敗'); forceRemoveLoading(); };
-            document.head.appendChild(mapScript);
+        .target-crosshair {
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 8px; height: 4px;
+            background-color: rgba(0,0,0,0.3);
+            border-radius: 50%;
+            z-index: 19; pointer-events: none;
+            display: block;
         }
 
-        window.initMap = function() {
-            geocoder = new google.maps.Geocoder();
-            const startPos = cachedPosition || currentCenter;
-            map = new google.maps.Map(document.getElementById("map"), { center: startPos, zoom: 17, disableDefaultUI: true, clickableIcons: false, styles: MAP_STYLES, gestureHandling: 'greedy' });
-            if (!cachedPosition) panToCurrentLocation(); else { geocodePosition(startPos); forceRemoveLoading(); }
-            map.addListener('dragstart', () => { document.getElementById('center-marker').classList.add('lifting'); document.getElementById('marker-label').style.opacity = '0'; document.getElementById('address-text').innerHTML = '<span class="text-gray-400">定位中...</span>'; if (navigator.vibrate) navigator.vibrate(5); });
-            map.addListener('idle', () => { document.getElementById('center-marker').classList.remove('lifting'); document.getElementById('marker-label').style.opacity = '1'; if (navigator.vibrate) navigator.vibrate(10); const center = map.getCenter(); currentCenter = { lat: center.lat(), lng: center.lng() }; geocodePosition(map.getCenter()); });
+        #passenger-panel {
+            position: fixed; bottom: 0; left: 0; right: 0;
+            background: white;
+            border-top-left-radius: 24px;
+            border-top-right-radius: 24px;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.1);
+            z-index: 30;
+            padding: 20px;
+            padding-bottom: 30px;
+            transform: translateY(0);
+            transition: transform 0.3s ease-out;
+            display: flex; flex-direction: column; gap: 10px;
+        }
+
+        /* 呼吸燈動畫 */
+        @keyframes pulse-green {
+            0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        }
+        .btn-pulse { animation: pulse-green 2s infinite; }
+        
+        @keyframes pulse-red {
+            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+        .call-btn-pulse-red { animation: pulse-red 2s infinite; }
+        .call-btn-pulse { animation: pulse-green 2s infinite; }
+    </style>
+</head>
+<body class="bg-gray-100 h-screen flex flex-col font-sans">
+
+    <div id="status-bar" class="bg-gray-800 text-white p-4 shadow-md z-50 flex items-center justify-between transition-all duration-500">
+        <div class="flex items-center flex-grow" id="status-info-area">
+            <img id="user-avatar" src="https://via.placeholder.com/40" class="w-12 h-12 rounded-full border-2 border-white mr-3 hidden">
+            <div>
+                <h2 id="welcome-text" class="text-lg font-bold">資料同步中...</h2>
+                <p id="status-text" class="text-sm opacity-90">正在連線至車隊系統</p>
+            </div>
+        </div>
+        <a id="call-btn" href="https://lin.ee/9Davl6e" target="_blank" class="flex items-center gap-2 bg-white text-gray-800 px-4 py-2 rounded-full font-bold shadow-lg active:scale-95 transition-transform border-2 border-transparent hover:bg-gray-50 ml-2 whitespace-nowrap">
+            <i class="fa-solid fa-phone text-green-600"></i>
+            <span>通話</span>
+        </a>
+    </div>
+
+    <div id="map" class="flex-grow w-full relative"></div>
+
+    <div id="passenger-pin" class="center-marker flex flex-col items-center">
+        <div class="bg-slate-800 text-white text-[10px] font-bold px-3 py-1 rounded-full mb-1 shadow-lg tracking-wide opacity-90">上車地點</div>
+        <i class="fa-solid fa-location-dot text-5xl text-rose-600 drop-shadow-xl filter contrast-125"></i>
+    </div>
+    <div id="passenger-shadow" class="target-crosshair"></div>
+
+    <button id="btn-my-loc" onclick="panToCurrentLocation()" class="flex absolute bottom-48 right-4 bg-white w-12 h-12 rounded-full shadow-lg z-30 text-slate-700 active:bg-slate-100 active:scale-95 transition-all items-center justify-center border border-gray-100">
+        <i class="fa-solid fa-crosshairs text-xl"></i>
+    </button>
+
+    <div id="passenger-panel">
+        <div class="flex items-start space-x-3 mb-2">
+            <i class="fa-solid fa-map-pin text-rose-500 text-xl mt-1"></i>
+            <div>
+                <p class="text-xs text-gray-400 font-bold uppercase tracking-wider">目前定位地址</p>
+                <h3 id="address-display" class="text-lg font-bold text-slate-800 leading-tight">讀取中...</h3>
+            </div>
+        </div>
+        <div class="border-t border-gray-100 my-1"></div>
+        <button onclick="sendLocationToChat()" id="btn-send-loc" class="w-full bg-emerald-500 text-white font-bold py-4 rounded-xl shadow-lg active:scale-[0.98] transition-all text-xl flex items-center justify-center space-x-2 btn-pulse">
+            <i class="fa-regular fa-paper-plane"></i>
+            <span>傳送當前位置</span>
+        </button>
+    </div>
+
+    <script>
+        // ========= CONFIG 設定區 =========
+        // 您的個人司機 ID
+        const DRIVER_USER_ID = 'U467348846c6b1fa433990d7b75c935b5'; 
+        const LIFF_ID = '2008907691-1mAjwojZ'; 
+        const FIREBASE_DB_URL = 'https://hualientaxi-bb32f-default-rtdb.asia-southeast1.firebasedatabase.app/';
+        const GOOGLE_MAPS_API_KEY = 'AIzaSyAIxc6PEhHgUs_A9lyRUg8dNbmwOpSamY8';
+        // ====================================================
+
+        let map, carMarker, geocoder;
+        let passengerAddress = "定位中...";
+        let passengerLatLng = null;
+        let currentStatus = 'init';
+
+        // === 專業圖標產生器 (移植自 Project B) ===
+        const getPinIcon = (status) => {
+            let color = '#7f8c8d'; // 預設 灰色 (offline)
+            
+            if (status === 'available') {
+                color = '#00C853'; // 綠色 (空車)
+            } else if (status === 'queue') {
+                color = '#00B0FF'; // 藍色 (排班)
+            } else if (status === 'busy') {
+                color = '#FF9800'; // 橘色 (載客)
+            }
+
+            // 使用 SVG Path 繪製水滴型圖標
+            return {
+                path: "M0-48c-9.8 0-17.7 7.8-17.7 17.4 0 15.5 17.7 30.6 17.7 30.6s17.7-15.4 17.7-30.6c0-9.6-7.9-17.4-17.7-17.4z",
+                fillColor: color,
+                fillOpacity: 1,
+                strokeColor: "#fff",
+                strokeWeight: 2,
+                scale: 1.1,
+                labelOrigin: new google.maps.Point(0, -28) // 文字位置修正
+            };
         };
+
+        // 取得對應的文字標籤
+        const getPinLabel = (status) => {
+            if (status === 'available') return { text: "空", color: "white", fontSize: "14px", fontWeight: "bold" };
+            if (status === 'queue') return { text: "排", color: "white", fontSize: "14px", fontWeight: "bold" };
+            if (status === 'busy') return { text: "載", color: "white", fontSize: "14px", fontWeight: "bold" };
+            return { text: "休", color: "white", fontSize: "14px", fontWeight: "bold" };
+        };
+
+        function loadGoogleMaps() {
+            if (GOOGLE_MAPS_API_KEY.includes('請在此填入') || GOOGLE_MAPS_API_KEY === '') {
+                alert('⚠️ 系統偵測到尚未填入 API Key！'); return;
+            }
+            const script = document.createElement('script');
+            script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&language=zh-TW&callback=initMap`;
+            script.defer = true;
+            document.body.appendChild(script);
+        }
+
+        function initMap() {
+            geocoder = new google.maps.Geocoder();
+            const hualienStation = { lat: 23.9933, lng: 121.6011 };
+            
+            map = new google.maps.Map(document.getElementById("map"), {
+                zoom: 17, center: hualienStation, disableDefaultUI: true, gestureHandling: 'greedy'
+            });
+
+            // 初始車輛標記 (預設離線狀態)
+            carMarker = new google.maps.Marker({
+                position: hualienStation, 
+                map: map, 
+                icon: getPinIcon('offline'), 
+                label: getPinLabel('offline'), // 加上文字
+                title: "司機位置"
+            });
+
+            // 拖曳邏輯 (保持原樣)
+            map.addListener('dragstart', () => {
+                document.getElementById('passenger-pin').classList.add('lifting');
+                document.getElementById('address-display').innerHTML = '<span class="text-gray-400">定位中...</span>';
+                document.getElementById('btn-send-loc').disabled = true;
+                document.getElementById('btn-send-loc').classList.add('opacity-50');
+            });
+
+            map.addListener('idle', () => {
+                document.getElementById('passenger-pin').classList.remove('lifting');
+                const center = map.getCenter();
+                passengerLatLng = { lat: center.lat(), lng: center.lng() };
+                geocodePosition(center);
+            });
+
+            startSyncingDriverData();
+            panToCurrentLocation(); 
+        }
 
         function geocodePosition(pos) {
             geocoder.geocode({ location: pos }, (results, status) => {
                 if (status === "OK" && results[0]) {
-                    let addr = results[0].formatted_address.replace(/^\d+\s*/, '').replace(/台灣/, '').replace(/.*?區/, (m) => m + ' ');
-                    document.getElementById('address-text').innerText = addr;
+                    let addr = results[0].formatted_address.replace(/^\d+\s*/, '').replace(/台灣/, '').replace(/花蓮縣/, '');
+                    passengerAddress = addr;
+                    document.getElementById('address-display').innerText = addr;
+                    document.getElementById('btn-send-loc').disabled = false;
+                    document.getElementById('btn-send-loc').classList.remove('opacity-50');
+                } else {
+                    document.getElementById('address-display').innerText = "未知的位置";
                 }
             });
         }
 
         function panToCurrentLocation() {
-            const icon = document.getElementById('icon-my-loc'); icon.classList.add('fa-spin-fast');
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition((pos) => {
                     const newPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-                    map.panTo(newPos); map.setZoom(17); currentCenter = newPos;
-                    icon.classList.remove('fa-spin-fast'); if (navigator.vibrate) navigator.vibrate([20, 50, 20]);
-                }, (e) => { alert("無法取得位置"); icon.classList.remove('fa-spin-fast'); }, { enableHighAccuracy: true, timeout: 5000 });
-            } else { alert("不支援 GPS"); icon.classList.remove('fa-spin-fast'); }
+                    map.panTo(newPos);
+                });
+            }
+        }
+
+        async function sendLocationToChat() {
+            if (!liff.isLoggedIn()) { liff.login(); return; }
+            if (!passengerLatLng) return alert("請先等待定位完成");
+            try {
+                await liff.sendMessages([{
+                    type: "location",
+                    title: "乘客叫車位置",
+                    address: passengerAddress,
+                    latitude: passengerLatLng.lat,
+                    longitude: passengerLatLng.lng
+                }]);
+                liff.closeWindow();
+            } catch (err) {
+                console.error("Send Error", err);
+                alert("傳送失敗: " + err.message);
+            }
+        }
+
+        // === 🔥 Firebase 同步 ===
+        function startSyncingDriverData() {
+            const url = `${FIREBASE_DB_URL}drivers/${DRIVER_USER_ID}.json`;
+            setInterval(() => {
+                fetch(url)
+                    .then(res => res.json())
+                    .then(data => { updateDriverUI(data); })
+                    .catch(err => console.error("Sync Error:", err));
+            }, 5000); // 5秒更新一次，節省流量
+        }
+
+        function updateDriverUI(data) {
+            const now = Date.now();
+            const timeoutLimit = 10 * 60 * 1000; 
+            const isStale = !data || !data.lastUpdate || (now - data.lastUpdate > timeoutLimit);
+            
+            let status = 'offline'; 
+
+            if (!isStale && data.status === 'online') {
+                if (data.workStatus === 'busy') {
+                    status = 'busy';
+                } else if (data.workStatus === 'queue') {
+                    status = 'queue';
+                } else {
+                    status = 'available'; 
+                }
+                
+                // 更新位置
+                const newPos = { lat: parseFloat(data.lat), lng: parseFloat(data.lng) };
+                carMarker.setPosition(newPos);
+            }
+
+            // 更新圖標與 UI
+            if (currentStatus !== status) {
+                currentStatus = status;
+                // ✅ 重點：同時更新 Icon 和 Label
+                carMarker.setIcon(getPinIcon(status));
+                carMarker.setLabel(getPinLabel(status));
+                updateStatusUI(status);
+            }
+        }
+
+        function updateStatusUI(status) {
+            const bar = document.getElementById('status-bar');
+            const sub = document.getElementById('status-text');
+            const callBtn = document.getElementById('call-btn');
+            
+            if (status === 'available') {
+                bar.className = "bg-green-600 text-white p-4 shadow-md z-50 flex items-center justify-between transition-colors duration-500";
+                sub.innerText = "🚕 空車，歡迎搭乘！";
+                callBtn.classList.remove('call-btn-pulse-red'); 
+                callBtn.classList.add('call-btn-pulse');
+
+            } else if (status === 'queue') {
+                bar.className = "bg-blue-600 text-white p-4 shadow-md z-50 flex items-center justify-between transition-colors duration-500";
+                sub.innerText = "🚕 排班中，歡迎預約！";
+                callBtn.classList.remove('call-btn-pulse-red'); 
+                callBtn.classList.add('call-btn-pulse');
+
+            } else if (status === 'busy') {
+                bar.className = "bg-yellow-500 text-black p-4 shadow-md z-50 flex items-center justify-between transition-colors duration-500";
+                sub.innerText = "🚫 載客中，請稍候。";
+                callBtn.classList.remove('call-btn-pulse', 'call-btn-pulse-red'); 
+
+            } else {
+                bar.className = "bg-gray-600 text-white p-4 shadow-md z-50 flex items-center justify-between transition-colors duration-500";
+                sub.innerText = "💤 司機休息中 (請通話確認)";
+                callBtn.classList.remove('call-btn-pulse'); 
+                callBtn.classList.add('call-btn-pulse-red');
+            }
         }
 
         async function initLiff() {
-            try { 
-                await liff.init({ liffId: LIFF_ID }); 
-                if(liff.isLoggedIn()) {
-                    document.getElementById('liff-status-dot').classList.remove('bg-red-500'); 
-                    document.getElementById('liff-status-dot').classList.add('bg-green-500');
-                }
-            } catch (e) { console.error('LIFF Init Failed:', e); }
-        }
-
-        function openPresetLocations() { let html = '<div class="grid grid-cols-2 gap-3 mt-2 location-grid">'; PRESET_LOCATIONS.forEach(loc => { let bgClass = (loc.value && loc.value.includes('FAV')) ? 'bg-yellow-50 hover:bg-yellow-100 border border-yellow-200' : 'bg-gray-50 hover:bg-slate-100'; html += `<button type="button" onclick="selectPreset('${loc.value || loc.name}', '${loc.name}')" class="flex flex-col items-center justify-center p-3 border border-gray-100 rounded-xl transition-all active:scale-95 ${bgClass}"><span class="text-2xl mb-1">${loc.icon}</span><span class="text-sm font-bold text-slate-700">${loc.name}</span></button>`; }); html += '</div>'; Swal.fire({ title: '選擇下車地點', html: html, showConfirmButton: false, showCloseButton: true, customClass: {popup: 'rounded-[24px]'} }); }
-        window.selectPreset = function(val, label) { const input = document.getElementById('dropoff'); if (val.includes('FAV')) { const key = val === 'FAV_ADDR_A' ? 'taxi_fav_a' : 'taxi_fav_b'; const savedAddr = localStorage.getItem(key); if (savedAddr) { Swal.fire({ title: `📍 使用${label}？`, text: savedAddr, showDenyButton: true, confirmButtonText: '填入', denyButtonText: '修改', confirmButtonColor: '#10b981', denyButtonColor: '#ef4444' }).then((r) => { if (r.isConfirmed) { input.value = savedAddr; Swal.close(); } else if (r.isDenied) { promptSave(key, label, input); } }); } else { promptSave(key, label, input); } } else { input.value = val; Swal.close(); } };
-        function promptSave(key, label, input) { Swal.fire({ title: `設定${label}`, input: 'text', inputPlaceholder: '輸入地址...', showCancelButton: true, confirmButtonText: '儲存', confirmButtonColor: '#0f172a' }).then((r) => { if (r.isConfirmed && r.value) { localStorage.setItem(key, r.value); input.value = r.value; Swal.fire({ icon: 'success', title: '已記憶！', timer: 1000, showConfirmButton: false }); } }); }
-        function openPaymentPicker() { let html = '<div class="grid grid-cols-2 gap-3 mt-2 location-grid">'; const currentVal = document.getElementById('payment-value').value; PAYMENT_METHODS.forEach(m => { let activeClass = m.label === currentVal ? 'border-slate-800 bg-slate-900 text-white ring-2 ring-slate-200' : 'bg-white border-gray-200 text-slate-600 hover:bg-gray-50'; let iconColor = m.label === currentVal ? 'text-white' : m.color; html += `<button type="button" onclick="selectPaymentMethod('${m.label}', '${m.icon}', '${m.color}')" class="flex flex-col items-center justify-center p-3 border rounded-2xl transition-all active:scale-95 ${activeClass}"><i class="fa-solid ${m.icon} ${iconColor} text-xl mb-1"></i><span class="text-sm font-bold">${m.label}</span></button>`; }); html += '</div>'; Swal.fire({ title: '選擇付款方式', html: html, showConfirmButton: false, showCloseButton: true, customClass: {popup: 'rounded-[24px]'} }); }
-        window.selectPaymentMethod = function(label, iconClass, colorClass) { updatePaymentUI(label, iconClass, colorClass); localStorage.setItem('taxi_selected_payment', label); Swal.close(); }
-        function updatePaymentUI(label, iconClass, colorClass) { document.getElementById('payment-value').value = label; document.getElementById('payment-text-small').innerText = label; const iconElem = document.getElementById('payment-icon-small'); iconElem.className = `fa-solid ${iconClass} text-xs mr-1`; iconElem.classList.add(colorClass.replace('text-','text-').replace('500','600')); }
-
-        function generateDates() { const dates = []; const today = new Date(); const weekDays = ['日','一','二','三','四','五','六']; for(let i=0; i<7; i++) { const d = new Date(today); d.setDate(today.getDate() + i); const m = (d.getMonth()+1).toString(); const day = d.getDate().toString(); const w = weekDays[d.getDay()]; const label = i === 0 ? '今天' : (i === 1 ? '明天' : `${m}/${day}`); dates.push({ val: i, label: label, sub: i > 1 ? `週${w}` : '', fullDate: `${m}月${day}日` }); } return dates; }
-        function openModernTimeSelector() { const modal = document.getElementById('time-selector-modal'); const content = document.getElementById('time-selector-content'); pickerState.dates = generateDates(); renderDateTabs(); renderHourGrid(); document.getElementById('hour-selection-view').classList.remove('hidden'); document.getElementById('minute-selection-view').classList.add('hidden'); document.getElementById('minute-selection-view').classList.remove('flex'); modal.style.display = 'flex'; setTimeout(() => { modal.style.opacity = '1'; content.style.transform = 'translateY(0)'; }, 10); }
-        function closeModernTimeSelector(e) { if(e && e.target.id !== 'time-selector-modal' && !e.target.closest('button')) return; const modal = document.getElementById('time-selector-modal'); const content = document.getElementById('time-selector-content'); modal.style.opacity = '0'; content.style.transform = 'translateY(100%)'; setTimeout(() => { modal.style.display = 'none'; }, 300); }
-        function renderDateTabs() { const container = document.getElementById('date-tabs-list'); container.innerHTML = pickerState.dates.map((d, idx) => ` <div onclick="selectPickerDate(${idx})" class="date-tab ${idx === pickerState.dateIndex ? 'active' : ''}"> <div class="text-center leading-tight"> <div>${d.label}</div> ${d.sub ? `<div class="text-[10px] opacity-80">${d.sub}</div>` : ''} </div> </div> `).join(''); }
-        window.selectPickerDate = function(idx) { pickerState.dateIndex = idx; renderDateTabs(); renderHourGrid(); }
-        function renderHourGrid() { const container = document.getElementById('hour-grid'); const currentHour = new Date().getHours(); let html = ''; for(let h=0; h<24; h++) { const isPast = pickerState.dateIndex === 0 && h <= currentHour; const displayH = h.toString().padStart(2, '0'); const disabledClass = isPast ? 'disabled' : ''; html += `<button type="button" onclick="selectPickerHour(${h})" class="time-btn ${disabledClass}">${displayH}:00</button>`; } container.innerHTML = html; }
-        window.selectPickerHour = function(h) { pickerState.hour = h; const hourView = document.getElementById('hour-selection-view'); const minView = document.getElementById('minute-selection-view'); hourView.classList.add('hidden'); minView.classList.remove('hidden'); minView.classList.add('flex'); const dateObj = pickerState.dates[pickerState.dateIndex]; document.getElementById('selected-date-display').innerText = dateObj.fullDate; document.getElementById('selected-hour-display').innerText = h.toString().padStart(2, '0'); renderMinuteGrid(); }
-        function renderMinuteGrid() { const container = document.getElementById('minute-grid-container'); let html = ''; for(let m=0; m<60; m+=5) { const displayM = m.toString().padStart(2, '0'); html += `<button type="button" onclick="selectMinute('${displayM}')" class="time-btn text-lg">${displayM} 分</button>`; } container.innerHTML = html; }
-        window.backToHourView = function() { document.getElementById('minute-selection-view').classList.add('hidden'); document.getElementById('minute-selection-view').classList.remove('flex'); document.getElementById('hour-selection-view').classList.remove('hidden'); }
-        window.selectMinute = function(m) { pickerState.minute = m; applyBookingTime(); closeModernTimeSelector(); }
-        window.selectNowAndClose = function() { document.getElementById('booking-mode').value = 'NOW'; document.getElementById('booking-time-val').value = ''; const display = document.getElementById('time-display'); display.innerText = "現在 (即時叫車)"; display.classList.remove('text-blue-600'); display.classList.add('text-slate-800'); document.getElementById('time-icon').className = "fa-solid fa-clock input-icon text-slate-400"; document.getElementById('submit-btn-text').innerText = "確認叫車 (即時)"; closeModernTimeSelector(); }
-        function applyBookingTime() { document.getElementById('booking-mode').value = 'RESERVE'; const dateObj = pickerState.dates[pickerState.dateIndex]; const hStr = pickerState.hour.toString().padStart(2, '0'); const timeStr = `${dateObj.fullDate} ${hStr}:${pickerState.minute}`; document.getElementById('booking-time-val').value = timeStr; const display = document.getElementById('time-display'); display.innerText = timeStr; display.classList.remove('text-slate-800'); display.classList.add('text-blue-600'); document.getElementById('time-icon').className = "fa-solid fa-calendar-check input-icon text-blue-600"; document.getElementById('submit-btn-text').innerText = "確認預約"; }
-
-        // --- 送出訂單 (v3.6: 整合版) ---
-        async function submitOrder() {
-            const phone = document.getElementById('phone').value;
-            const pickup = document.getElementById('address-text').innerText;
-            // v3.6: 下車地點若為空，自動帶入
-            let dropoff = document.getElementById('dropoff').value.trim();
-            if (!dropoff) dropoff = "上車告知 / 未指定";
-
-            const payment = document.getElementById('payment-value').value;
-            const bookingMode = document.getElementById('booking-mode').value;
-            const bookingTime = document.getElementById('booking-time-val').value;
-
-            if(!phone || phone.length < 8) return alert('請輸入電話');
-            if(pickup.includes('定位中')) return alert('請等待定位完成');
-
-            localStorage.setItem('taxi_user_phone', phone);
-            
-            const btn = document.getElementById('submitBtn');
-            btn.disabled = true;
-            btn.innerHTML = '<div class="loader mr-3 w-5 h-5 border-2 border-white border-t-transparent"></div> 處理中...';
-
-            const googleMapUrl = `http://googleusercontent.com/maps.google.com/8{currentCenter.lat},${currentCenter.lng}`;
-            const dropoffMapUrl = `http://googleusercontent.com/maps.google.com/8{encodeURIComponent(dropoff)}`;
-            const nowTimeStr = new Date().toLocaleTimeString('zh-TW', {hour:'2-digit', minute:'2-digit', hour12:false});
-            let headerTitle = bookingMode === 'NOW' ? `即時單 ${nowTimeStr}` : `預約單 ${bookingTime}`;
-            let headerColor = bookingMode === 'NOW' ? "#000000" : "#1d4ed8";
-
-            // 1. 寫入 Firebase (讓司機端響鈴)
-            // ⚠️ 只有「即時單」才觸發司機端警報
-            if (bookingMode === 'NOW') {
-                try {
-                    await db.ref(`drivers/${MY_DRIVER_ID}/request`).set({
-                        lat: currentCenter.lat,
-                        lng: currentCenter.lng,
-                        pickup: pickup,
-                        timestamp: firebase.database.ServerValue.TIMESTAMP
-                    });
-                } catch(e) {
-                    console.error("Firebase Error", e);
-                }
-            }
-
-            // 2. 產生 Flex Message (含 Project B 連結)
-            const flexMsg = {
-                type: "flex",
-                altText: bookingMode === 'NOW' ? "🚕 即時叫車" : "📅 預約叫車",
-                contents: {
-                    type: "bubble",
-                    styles: { header: { backgroundColor: "#FFFFFF" }, body: { backgroundColor: "#FFFFFF" }, footer: { backgroundColor: "#F8F8F8" } },
-                    header: {
-                        type: "box", layout: "vertical",
-                        contents: [ { type: "text", text: headerTitle, weight: "bold", size: "xxl", color: headerColor, align: "center" } ],
-                        paddingAll: "5px"
-                    },
-                    body: {
-                        type: "box", layout: "vertical",
-                        contents: [
-                            {
-                                type: "box", layout: "horizontal", margin: "md",
-                                contents: [ { type: "text", text: "🟢 上車", flex: 2, color: "#888888", size: "md" }, { type: "text", text: pickup, flex: 5, color: "#111111", size: "md", wrap: true, action: { type: "uri", label: "導航", uri: googleMapUrl } } ]
-                            },
-                            { type: "separator", margin: "md", color: "#EEEEEE" },
-                            {
-                                type: "box", layout: "horizontal", margin: "md",
-                                contents: [ { type: "text", text: "🔴 下車", flex: 2, color: "#888888", size: "md" }, { type: "text", text: dropoff, flex: 5, color: "#111111", size: "md", wrap: true, action: { type: "uri", label: "導航", uri: dropoffMapUrl } } ]
-                            },
-                            { type: "separator", margin: "lg", color: "#EEEEEE" },
-                            {
-                                type: "box", layout: "horizontal", margin: "lg",
-                                contents: [ { type: "text", text: "📞 電話", flex: 2, color: "#888888", size: "md" }, { type: "text", text: phone, flex: 5, color: "#111111", size: "md", weight: "bold", action: { type: "uri", label: "撥號", uri: `tel:${phone}` } } ]
-                            },
-                            { type: "separator", margin: "lg", color: "#EEEEEE" },
-                            {
-                                type: "box", layout: "horizontal", margin: "lg",
-                                contents: [ { type: "text", text: "💰 付款", flex: 2, color: "#888888", size: "md" }, { type: "text", text: payment, flex: 5, color: "#111111", size: "md", weight: "bold" } ]
-                            }
-                        ]
-                    },
-                    // v3.6: 新增 Footer 按鈕
-                    footer: {
-                        type: "box", layout: "vertical", spacing: "sm", contents: [
-                            {
-                                type: "button", style: "primary", color: "#10B981", height: "sm",
-                                action: { type: "uri", label: "👀 查看司機位置", uri: PROJECT_B_URL }
-                            }
-                        ]
-                    }
-                }
-            };
-
             try {
-                if (liff.isInClient()) {
-                    await liff.sendMessages([flexMsg]);
-                    liff.closeWindow(); 
-                } else {
-                    // Debug 模式
-                    Swal.fire({ icon: 'info', title: '發送模擬成功', text: 'Firebase 已寫入，訂單卡片已包含「查看位置」按鈕。' });
-                    btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-taxi mr-2"></i>確認叫車';
+                await liff.init({ liffId: LIFF_ID });
+                if (!liff.isLoggedIn()) {
+                    liff.login({ redirectUri: window.location.href });
+                    return; 
                 }
-            } catch (e) {
-                Swal.fire({ icon: 'error', title: '發送失敗', text: e.message });
-                btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-taxi mr-2"></i>確認叫車';
+                const profile = await liff.getProfile();
+                document.getElementById('user-avatar').src = profile.pictureUrl;
+                document.getElementById('user-avatar').style.display = 'block';
+                document.getElementById('welcome-text').innerText = `你好，${profile.displayName}`;
+            } catch (err) {
+                console.error('LIFF Init Error', err);
+                document.getElementById('welcome-text').innerText = "歡迎搭乘";
             }
         }
+
+        loadGoogleMaps();
+        initLiff();
     </script>
 </body>
 </html>
