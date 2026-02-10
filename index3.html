@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>花蓮車隊 - 戰情中心 (v4.19)</title>
+  <title>花蓮車隊 - 戰情中心 (v4.20)</title>
   
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
@@ -13,11 +13,9 @@
   <style>
     body { margin: 0; padding: 0; background: #121212; color: white; font-family: 'Segoe UI', sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
     
-    /* 地圖區：白色背景 (標準地圖) */
     #map-container { height: 50%; width: 100%; position: relative; border-bottom: 3px solid #00C853; background: #fff; }
     #map { width: 100%; height: 100%; }
 
-    /* 下方列表區 */
     #board-container { height: 50%; width: 100%; display: flex; flex-direction: column; background: #1e1e1e; }
     
     .zone-header { padding: 10px 15px; background: #2c3e50; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #444; cursor: pointer; transition: background 0.2s; }
@@ -29,13 +27,24 @@
     .driver-list { display: none; padding: 10px; background: #222; border-bottom: 1px solid #444; }
     .driver-list.active { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
     
-    .driver-card { background: #333; border-radius: 8px; padding: 10px; display: flex; align-items: center; border-left: 4px solid #00C853; }
+    /* v4.20 優化卡片樣式，容納電話按鈕 */
+    .driver-card { background: #333; border-radius: 8px; padding: 10px; display: flex; align-items: center; border-left: 4px solid #00C853; justify-content: space-between; }
     .driver-card.queue { border-left-color: #3498db; }
     
+    .d-left { display: flex; align-items: center; }
     .d-avatar { width: 40px; height: 40px; border-radius: 50%; background: #555; overflow: hidden; margin-right: 10px; }
     .d-avatar img { width: 100%; height: 100%; object-fit: cover; }
     .d-info h3 { margin: 0; font-size: 16px; color: #fff; }
     .d-info p { margin: 2px 0 0; font-size: 12px; color: #aaa; }
+
+    /* 撥號按鈕 */
+    .btn-dial {
+        background: #00C853; color: white; width: 40px; height: 40px; border-radius: 50%;
+        display: flex; justify-content: center; align-items: center; text-decoration: none;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.3); transition: transform 0.1s;
+    }
+    .btn-dial:active { transform: scale(0.9); }
+    .btn-dial i { font-size: 18px; }
 
     .marquee { background: #000; color: #00C853; padding: 8px; font-size: 14px; white-space: nowrap; overflow: hidden; text-align: center; border-bottom: 1px solid #333; }
   </style>
@@ -57,30 +66,28 @@
     var map, markers = {}, zonePolygons = {}; 
     var ZONES_DATA = []; 
 
-    // 1. 定義 14 個區域的顏色與順序
-    // 您的 JSON 裡 "門諾醫院" 代表美崙，"吉安站" 代表吉安
+    // 14區戰略定義
     const ZONE_CONFIG = {
-        "花蓮前站":   { color: "#2980b9", priority: 1 },  // 藍 (交通)
-        "花蓮市區":   { color: "#c0392b", priority: 2 },  // 紅 (熱區)
-        "花蓮後站":   { color: "#95a5a6", priority: 3 },  // 灰 (交通)
-        "慈濟醫院":   { color: "#9b59b6", priority: 4, alias: "慈濟區" }, // 紫 (醫療)
-        "貨櫃星巴克": { color: "#e67e22", priority: 5 },  // 橙 (觀光)
-        "吉安站":     { color: "#2ecc71", priority: 6, alias: "吉安區" }, // 綠 (住宅)
-        "門諾醫院":   { color: "#34495e", priority: 7, alias: "美崙區" }, // 深藍 (飯店)
-        "北埔區":     { color: "#f1c40f", priority: 8 },  // 黃 (人口)
-        "新城區":     { color: "#1abc9c", priority: 9 },  // 青 (機場)
-        "七星潭":     { color: "#00bcd4", priority: 10 }, // 水藍 (海邊)
-        "海洋公園":   { color: "#e91e63", priority: 11 }, // 粉紅 (樂園)
-        "鯉魚潭":     { color: "#009688", priority: 12 }, // 藍綠 (湖邊)
-        "東華大學":   { color: "#8e44ad", priority: 13 }, // 紫 (學區)
-        "南華區":     { color: "#795548", priority: 14 }  // 棕 (郊區)
+        "花蓮前站":   { color: "#2980b9", priority: 1 },
+        "花蓮市區":   { color: "#c0392b", priority: 2 },
+        "花蓮後站":   { color: "#95a5a6", priority: 3 },
+        "慈濟醫院":   { color: "#9b59b6", priority: 4, alias: "慈濟區" },
+        "貨櫃星巴克": { color: "#e67e22", priority: 5 },
+        "吉安站":     { color: "#2ecc71", priority: 6, alias: "吉安區" },
+        "門諾醫院":   { color: "#34495e", priority: 7, alias: "美崙區" },
+        "北埔區":     { color: "#f1c40f", priority: 8 },
+        "新城區":     { color: "#1abc9c", priority: 9 },
+        "七星潭":     { color: "#00bcd4", priority: 10 },
+        "海洋公園":   { color: "#e91e63", priority: 11 },
+        "鯉魚潭":     { color: "#009688", priority: 12 },
+        "東華大學":   { color: "#8e44ad", priority: 13 },
+        "南華區":     { color: "#795548", priority: 14 }
     };
 
-    // 2. 導入您最新的 14 區 GeoJSON Data
     const GEO_RAW = {
       "type": "FeatureCollection",
       "features": [
-        // --- POINTS (14個標籤) ---
+        // POINTS
         { "type": "Feature", "properties": { "花蓮前站": "" }, "geometry": { "coordinates": [ 121.60168998252806, 23.992626784625898 ], "type": "Point" }, "id": 0 },
         { "type": "Feature", "properties": { "門諾醫院": "" }, "geometry": { "coordinates": [ 121.62634974720402, 23.988350693835287 ], "type": "Point" }, "id": 1 },
         { "type": "Feature", "properties": { "七星潭": "" }, "geometry": { "coordinates": [ 121.62985443925902, 24.0240452839449 ], "type": "Point" }, "id": 2 },
@@ -94,10 +101,9 @@
         { "type": "Feature", "properties": { "北埔區": "" }, "geometry": { "coordinates": [ 121.6049584313999, 24.036053518573794 ], "type": "Point" }, "id": 10 },
         { "type": "Feature", "properties": { "東華大學": "" }, "geometry": { "coordinates": [ 121.53630247302488, 23.903708037772105 ], "type": "Point" }, "id": 11 },
         { "type": "Feature", "properties": { "新城區": "" }, "geometry": { "coordinates": [ 121.65311981456426, 24.128359901120476 ], "type": "Point" }, "id": 12 },
-        { "type": "Feature", "properties": { "花蓮後站": "" }, "geometry": { "coordinates": [ 121.59913250603176, 23.994160342822838 ], "type": "Point" }, "id": 24 }, // 後站的ID跳號了，但不影響
-
-        // --- POLYGONS (14個形狀) ---
-        // 以下為您提供的完整多邊形資料 (壓縮格式以節省空間)
+        { "type": "Feature", "properties": { "花蓮後站": "" }, "geometry": { "coordinates": [ 121.59913250603176, 23.994160342822838 ], "type": "Point" }, "id": 24 },
+        
+        // POLYGONS
         { "type": "Feature", "geometry": { "coordinates": [[[121.621501,24.092506],[121.653926,24.116610],[121.666316,24.142070],[121.668852,24.178144],[121.657187,24.181655],[121.644718,24.155221],[121.606200,24.166211],[121.600318,24.161506],[121.619900,24.153495],[121.632674,24.137602],[121.613742,24.105961],[121.599645,24.108858],[121.597810,24.104062],[121.607230,24.103632],[121.607789,24.100907],[121.615904,24.100453],[121.621501,24.092506]]], "type": "Polygon" } },
         { "type": "Feature", "geometry": { "coordinates": [[[121.604948,23.901474],[121.610687,23.926220],[121.612580,23.942989],[121.608024,23.941799],[121.591145,23.909209],[121.577361,23.892592],[121.601849,23.876074],[121.604948,23.901474]]], "type": "Polygon" } },
         { "type": "Feature", "geometry": { "coordinates": [[[121.639506,23.993598],[121.648135,24.008651],[121.643382,24.019640],[121.623962,24.042681],[121.619458,24.041224],[121.628747,24.024339],[121.615551,24.008296],[121.618160,24.005953],[121.631206,24.007526],[121.632488,24.008181],[121.638329,24.005843],[121.637199,23.994001],[121.639506,23.993598]]], "type": "Polygon" } },
@@ -123,7 +129,7 @@
 
     window.onload = function() {
         initMap();
-        processGeoData(); // 啟動自動配對
+        processGeoData(); 
         listenToDrivers();
         setInterval(() => document.getElementById('clock').innerText = new Date().toLocaleString(), 1000);
     };
@@ -260,10 +266,18 @@
                     zoneDrivers[z.id].forEach(d => {
                         const statusClass = d.workStatus === 'queue' ? 'queue' : '';
                         const avatar = d.photo || 'https://cdn-icons-png.flaticon.com/512/3237/3237472.png';
+                        // v4.20: 核心改動 - 加入電話按鈕
+                        const phoneBtn = d.phone 
+                            ? `<a href="tel:${d.phone}" class="btn-dial"><i class="fa-solid fa-phone"></i></a>` 
+                            : `<div style="width:40px;"></div>`; // 佔位符保持對齊
+
                         list.innerHTML += `
                             <div class="driver-card ${statusClass}">
-                                <div class="d-avatar"><img src="${avatar}"></div>
-                                <div class="d-info"><h3>${d.name}</h3><p>${d.car || '計程車'}</p></div>
+                                <div class="d-left">
+                                    <div class="d-avatar"><img src="${avatar}"></div>
+                                    <div class="d-info"><h3>${d.name}</h3><p>${d.car || '計程車'}</p></div>
+                                </div>
+                                ${phoneBtn}
                             </div>
                         `;
                     });
