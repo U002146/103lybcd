@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>花蓮車隊 - 司機端 (v6.1 Final)</title>
+  <title>花蓮車隊 - 司機端 (v6.1.1 Security)</title>
   
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
@@ -15,24 +15,20 @@
     body { margin: 0; padding: 0; font-family: -apple-system, Roboto, sans-serif; overflow: hidden; background: #121212; color: white; }
     #map { width: 100vw; height: 100vh; display: none; } 
     
-    /* v6.1 新增：視覺爆閃動畫 */
     @keyframes flash-alert { 0% { background-color: #121212; } 50% { background-color: #b71c1c; } 100% { background-color: #121212; } }
     .flashing { animation: flash-alert 0.5s infinite; }
 
-    /* 啟動畫面 */
     #unlock-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 20000; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
     .btn-unlock { width: 120px; height: 120px; border-radius: 50%; background: radial-gradient(circle, #00C853 0%, #009624 100%); border: 4px solid #fff; box-shadow: 0 0 30px rgba(0,200,83,0.6); color: white; font-size: 24px; font-weight: bold; cursor: pointer; animation: pulse-green 2s infinite; display: flex; flex-direction: column; justify-content: center; align-items: center; }
     .btn-unlock:active { transform: scale(0.95); }
     @keyframes pulse-green { 0% { box-shadow: 0 0 0 0 rgba(0, 200, 83, 0.7); } 70% { box-shadow: 0 0 0 20px rgba(0, 200, 83, 0); } 100% { box-shadow: 0 0 0 0 rgba(0, 200, 83, 0); } }
 
-    /* UI 層 */
     #ui-layer { display: none; pointer-events: none; width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 10; }
     
     #hud { pointer-events: auto; position: absolute; top: 15px; left: 15px; background: rgba(33, 33, 33, 0.9); color: white; padding: 10px 20px; border-radius: 30px; font-weight: bold; font-size: 16px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); display: flex; align-items: center; }
     .status-dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; margin-right: 8px; }
     .hud-uploading { border-color: #00C853 !important; box-shadow: 0 0 15px rgba(0, 200, 83, 0.5); }
     
-    /* 右上角按鈕 (只留核心3顆) */
     #top-right-panel { pointer-events: auto; position: absolute; top: 15px; right: 15px; display: flex; flex-direction: column; gap: 12px; }
     .circle-btn { width: 60px; height: 60px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.8); color: white; font-weight: bold; font-size: 14px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); cursor: pointer; display: flex; flex-direction: column; justify-content: center; align-items: center; backdrop-filter: blur(4px); position: relative; }
     .bg-off { background: linear-gradient(145deg, #7f8c8d, #95a5a6); }
@@ -43,7 +39,6 @@
     .bg-dark { background: linear-gradient(145deg, #37474f, #455a64); }
     .sub-text { font-size: 10px; opacity: 0.9; margin-top: 0px; font-weight: normal; }
 
-    /* 乘客呼叫任務面板 (v4.3 經典樣式) */
     #mission-panel { 
         pointer-events: auto; display: none; 
         position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); 
@@ -65,7 +60,6 @@
     #saver-overlay.active { display: flex; }
     #saver-overlay.pressing p { color: #00C853; transition: color 0.3s; }
 
-    /* v6.1 新增：強制提升 SweetAlert2 的層級 */
     .swal2-container { z-index: 99999 !important; }
   </style>
 </head>
@@ -124,16 +118,15 @@
     var queueCenter = null; 
     var passengerMarker = null, routeLine = null;
     
-    // v6.1 新增：斷線檢查計時器
+    // v6.1: 斷線檢查器
     var checkConnectionInterval = null; 
     var pressTimer = null;
 
-    // 省電與更新參數 (保留 v5.8 的好設定)
     const UPDATE_INTERVAL = 15000; 
     const HEARTBEAT_TIME = 180000; 
     const MIN_UPLOAD_DIST = 100; 
     const STATIONARY_THRESHOLD = 20;
-    const CONNECTION_TIMEOUT = 600000; // 10分鐘斷線判定
+    const CONNECTION_TIMEOUT = 600000; 
     const RENDER_MIN_DIST = 5; 
     var lastRenderLat = 0, lastRenderLng = 0, lastRenderTime = 0;
 
@@ -148,7 +141,6 @@
     };
 
     function systemStart() {
-        // 嘗試播放音效 (非阻塞)
         const boot = document.getElementById('sound-boot');
         if(boot) boot.play().catch(e=>{});
         
@@ -166,7 +158,13 @@
     async function initLiff() {
         try { 
             await liff.init({ liffId: LIFF_ID });
-            if (!liff.isInClient()) return; 
+            
+            // v6.1.1 門神歸位：非 LINE 開啟直接擋掉
+            if (!liff.isInClient()) {
+                document.body.innerHTML = "<div style='display:flex;justify-content:center;align-items:center;height:100vh;background:black;color:white;text-align:center;font-size:18px;'><h1>⛔ 存取被拒</h1><p>為了資訊安全，<br>請使用手機 LINE 開啟此系統。</p></div>";
+                return;
+            }
+
             if (liff.isLoggedIn()) { currentUser = await liff.getProfile(); localStorage.setItem('driverId', currentUser.userId); }
         } catch (e) {}
     }
@@ -177,10 +175,7 @@
                 const d = snapshot.val();
                 document.getElementById('hud').innerHTML = `<span class="status-dot" style="background:#2ecc71;"></span> 嗨，${d.name}`;
                 document.getElementById('btn-power').style.display = 'flex';
-                // 恢復連線
                 if(localStorage.getItem('isOnline') === 'true') togglePower(true);
-                
-                // 監聽乘客呼叫
                 listenForRequests(uid);
             } else {
                 document.getElementById('ui-layer').style.display = 'none';
@@ -190,21 +185,19 @@
         });
     }
 
-    // --- 核心：監聽乘客呼叫 (v6.1 新增：爆閃) ---
+    // --- 核心：監聽乘客呼叫 (v6.1 爆閃) ---
     function listenForRequests(uid) {
         db.ref('drivers/' + uid + '/request').on('value', snapshot => {
             const req = snapshot.val();
             if (req) {
-                // 1. 觸發警報 (音效 + 震動 + v6.1 爆閃)
                 const alert = document.getElementById('sound-alert');
                 if(alert) { alert.currentTime = 0; alert.play().catch(e=>{}); }
                 if(navigator.vibrate) navigator.vibrate([500, 200, 500, 200, 500]);
                 
-                // v6.1 爆閃代碼
+                // 爆閃動畫
                 document.body.classList.add('flashing');
                 setTimeout(() => { document.body.classList.remove('flashing'); }, 5000);
 
-                // 2. 顯示乘客位置
                 const pLoc = new google.maps.LatLng(req.lat, req.lng);
                 if(!passengerMarker) {
                     passengerMarker = new google.maps.Marker({
@@ -214,7 +207,6 @@
                     });
                 } else { passengerMarker.setPosition(pLoc); }
 
-                // 3. 畫線
                 if(myMarker) {
                     if(routeLine) routeLine.setMap(null);
                     routeLine = new google.maps.Polyline({
@@ -223,12 +215,9 @@
                         icons: [{ icon: {path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW}, offset: '100%' }],
                         map: map
                     });
-                    // 計算距離
                     const dist = google.maps.geometry.spherical.computeDistanceBetween(myMarker.getPosition(), pLoc);
                     document.getElementById('mission-dist').innerText = `乘客距離：${Math.round(dist)} 公尺`;
                 }
-
-                // 4. 顯示面板
                 document.getElementById('mission-panel').style.display = 'block';
             } else {
                 finishMission(false);
@@ -243,7 +232,7 @@
         if(updateDB && currentUser) db.ref('drivers/' + currentUser.userId + '/request').remove();
     }
 
-    // --- GPS 與 上傳 (保留 v5.8 省電邏輯) ---
+    // --- GPS 與 上傳 ---
     function startGPS() {
         if (!navigator.geolocation) return;
         watchId = navigator.geolocation.watchPosition((pos) => {
@@ -255,25 +244,19 @@
     function smartUpload(lat, lng, heading) {
         if(!currentUser || !isOnline) return;
         const now = Date.now();
-        
-        // 本地重繪
         const distRender = Math.sqrt(Math.pow(lat - lastRenderLat, 2) + Math.pow(lng - lastRenderLng, 2)) * 111000;
         if (distRender > RENDER_MIN_DIST || now - lastRenderTime > 2000) {
             updateMarker(lat, lng, heading);
             lastRenderLat = lat; lastRenderLng = lng; lastRenderTime = now;
         }
-
-        // 排班檢查
         if (currentWorkStatus === 'queue' && queueCenter) {
             const distFromQueue = Math.sqrt(Math.pow(lat - queueCenter.lat, 2) + Math.pow(lng - queueCenter.lng, 2)) * 111000;
             if (distFromQueue > 500) {
                 currentWorkStatus = 'empty'; queueCenter = null; updateStatusBtn(); updateHUD(false, "⚠️ 已離開排班區，切換為空車"); forceUpload(lat, lng); return;
             }
         }
-        
         const distUploadMeters = Math.sqrt(Math.pow(lat - lastUploadLat, 2) + Math.pow(lng - lastUploadLng, 2)) * 111000;
         const timeDiff = now - lastUploadTime;
-        
         if (distUploadMeters > MIN_UPLOAD_DIST) { forceUpload(lat, lng); return; }
         if (timeDiff > UPDATE_INTERVAL && distUploadMeters > STATIONARY_THRESHOLD) { forceUpload(lat, lng); return; }
         if (timeDiff > HEARTBEAT_TIME) { forceUpload(lat, lng); return; }
@@ -287,7 +270,11 @@
             myMarker.setPosition(latLng); myMarker.setIcon(getArrowIcon(color, heading)); 
             if(!document.getElementById('saver-overlay').classList.contains('active')) map.panTo(latLng);
         }
-        if(passengerMarker && routeLine) { routeLine.setPath([latLng, passengerMarker.getPosition()]); const dist = google.maps.geometry.spherical.computeDistanceBetween(latLng, passengerMarker.getPosition()); document.getElementById('mission-dist').innerText = `乘客距離：${Math.round(dist)} 公尺`; }
+        if(passengerMarker && routeLine) { 
+            routeLine.setPath([latLng, passengerMarker.getPosition()]); 
+            const dist = google.maps.geometry.spherical.computeDistanceBetween(latLng, passengerMarker.getPosition()); 
+            document.getElementById('mission-dist').innerText = `乘客距離：${Math.round(dist)} 公尺`; 
+        }
     }
 
     function forceUpload(lat, lng) {
@@ -311,23 +298,21 @@
         if(isUploading) hud.classList.add('hud-uploading'); else hud.classList.remove('hud-uploading');
     }
 
-    // --- v6.1 新增：斷線自我檢查 ---
+    // --- v6.1: 斷線檢查 ---
     function startConnectionCheck() {
         if(checkConnectionInterval) clearInterval(checkConnectionInterval);
         checkConnectionInterval = setInterval(() => {
             if(!isOnline) return;
             const now = Date.now();
             if (now - lastUploadTime > CONNECTION_TIMEOUT) {
-                // 觸發警報
                 Swal.fire({
-                    icon: 'error',
-                    title: '⚠️ 連線逾時',
+                    icon: 'error', title: '⚠️ 連線逾時',
                     text: '系統已超過 10 分鐘無法上傳資料。\n請檢查網路連線！',
                     confirmButtonText: '我知道了'
                 });
-                togglePower(false); // 強制下線保護
+                togglePower(false); 
             }
-        }, 60000); // 每分鐘檢查
+        }, 60000); 
     }
 
     function togglePower(forceOn=false) {
