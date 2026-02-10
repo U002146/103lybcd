@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>花蓮車隊 - 司機端 (v5.7 Final Fix)</title>
+  <title>花蓮車隊 - 司機端 (v5.8 Smart Saver)</title>
   
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
@@ -15,27 +15,19 @@
     body { margin: 0; padding: 0; font-family: -apple-system, Roboto, sans-serif; overflow: hidden; background: #121212; color: white; }
     #map { width: 100vw; height: 100vh; display: none; } 
     
-    /* 視覺閃爍動畫 (Flashbang) */
-    @keyframes flash-alert {
-        0% { background-color: #121212; }
-        50% { background-color: #b71c1c; } /* 紅色閃爍 */
-        100% { background-color: #121212; }
-    }
+    @keyframes flash-alert { 0% { background-color: #121212; } 50% { background-color: #b71c1c; } 100% { background-color: #121212; } }
     .flashing { animation: flash-alert 0.5s infinite; }
 
-    /* 啟動畫面 */
     #unlock-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 20000; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
     .btn-unlock { width: 120px; height: 120px; border-radius: 50%; background: radial-gradient(circle, #00C853 0%, #009624 100%); border: 4px solid #fff; box-shadow: 0 0 30px rgba(0,200,83,0.6); color: white; font-size: 24px; font-weight: bold; cursor: pointer; animation: pulse-green 2s infinite; display: flex; flex-direction: column; justify-content: center; align-items: center; transition: transform 0.1s; }
     .btn-unlock:active { transform: scale(0.9); }
     @keyframes pulse-green { 0% { box-shadow: 0 0 0 0 rgba(0, 200, 83, 0.7); } 70% { box-shadow: 0 0 0 20px rgba(0, 200, 83, 0); } 100% { box-shadow: 0 0 0 0 rgba(0, 200, 83, 0); } }
 
-    /* UI 層 */
     #ui-layer { display: none; pointer-events: none; width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 10; }
     #hud { pointer-events: auto; position: absolute; top: 15px; left: 15px; background: rgba(33, 33, 33, 0.9); color: white; padding: 10px 20px; border-radius: 30px; font-weight: bold; font-size: 16px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); display: flex; align-items: center; }
     .status-dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; margin-right: 8px; }
     .hud-uploading { border-color: #00C853 !important; box-shadow: 0 0 15px rgba(0, 200, 83, 0.5); }
 
-    /* 右上角按鈕 */
     #top-right-panel { pointer-events: auto; position: absolute; top: 15px; right: 15px; display: flex; flex-direction: column; gap: 12px; }
     .circle-btn { width: 60px; height: 60px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.8); color: white; font-weight: bold; font-size: 14px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); cursor: pointer; display: flex; flex-direction: column; justify-content: center; align-items: center; backdrop-filter: blur(4px); position: relative; }
     .circle-btn:active { transform: scale(0.95); }
@@ -51,7 +43,6 @@
     @keyframes pulse-red { 0% { box-shadow: 0 0 0 0 rgba(255, 23, 68, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(255, 23, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 23, 68, 0); } }
     .badge { position: absolute; top: -5px; right: -5px; background: red; color: white; border-radius: 50%; width: 22px; height: 22px; font-size: 12px; display: flex; justify-content: center; align-items: center; border: 2px solid white; font-weight: bold; display: none; }
 
-    /* 搶單通知 */
     #alert-container { pointer-events: auto; position: absolute; bottom: 20px; left: 5%; width: 90%; display: flex; flex-direction: column; gap: 10px; justify-content: flex-end; }
     .alert-card { background: linear-gradient(145deg, #b71c1c, #d32f2f); border: 2px solid #ff5252; border-radius: 15px; padding: 15px; color: white; box-shadow: 0 10px 30px rgba(0,0,0,0.6); animation: slideUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
     @keyframes slideUp { from { transform: translateY(100px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
@@ -59,7 +50,6 @@
     .ac-route { font-size: 20px; font-weight: bold; margin-bottom: 10px; display: flex; align-items: center; gap: 10px; }
     .btn-grab { flex: 1; background: #fff; color: #d32f2f; border: none; padding: 12px; border-radius: 25px; font-weight: 900; font-size: 18px; cursor: pointer; width: 100%; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
 
-    /* Modal & Form */
     .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 10000; flex-direction: column; }
     .modal-header { padding: 15px; background: #222; color: white; font-size: 18px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #444; }
     .modal-content { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 15px; }
@@ -151,11 +141,14 @@
     var lastUploadTime = 0, lastUploadLat = 0, lastUploadLng = 0;
     var queueCenter = null; var myMissions = []; var pressTimer = null;
 
-    // v5.7 修復：定義關鍵常數
-    const UPDATE_INTERVAL = 15000; // 15秒上傳一次 (省流)
-    const HEARTBEAT_TIME = 180000; // 3分鐘心跳
-    const MIN_DIST = 100; // 移動超過100公尺才強制上傳
-    const RENDER_MIN_DIST = 5; // 移動5公尺才重繪箭頭 (省電)
+    // v5.8: 定義三層過濾常數
+    const UPDATE_INTERVAL = 15000; // 15秒 (時間過濾)
+    const HEARTBEAT_TIME = 180000; // 3分鐘 (心跳過濾)
+    const MIN_UPLOAD_DIST = 100; // 100米 (高速移動過濾)
+    const STATIONARY_THRESHOLD = 20; // 20米 (靜止容差)
+    
+    // 渲染專用變數 (本地端)
+    const RENDER_MIN_DIST = 5; 
     var lastRenderLat = 0, lastRenderLng = 0, lastRenderTime = 0;
 
     const getArrowIcon = (color, heading) => {
@@ -164,13 +157,12 @@
 
     window.onload = function() {
         document.getElementById('loading-text').innerText = "系統載入中...";
-        initLiff(); // 預先載入
+        initLiff(); 
         initGoogleMap();
         document.getElementById('loading-text').innerText = "準備就緒，請點擊啟動";
     };
 
     function systemStart() {
-        // 非阻塞音效嘗試
         const boot = document.getElementById('sound-boot');
         if(boot) boot.play().catch(e=>{});
         
@@ -198,7 +190,7 @@
     async function initLiff() {
         try { 
             await liff.init({ liffId: LIFF_ID });
-            if (!liff.isInClient()) { return; } // 電腦版會被擋
+            if (!liff.isInClient()) { return; } 
             if (liff.isLoggedIn()) {
                 currentUser = await liff.getProfile();
                 localStorage.setItem('driverId', currentUser.userId);
@@ -212,7 +204,6 @@
                 const d = snapshot.val();
                 document.getElementById('hud').innerHTML = `<span class="status-dot" style="background:#2ecc71;"></span> 嗨，${d.name}`;
                 document.getElementById('btn-power').style.display = 'flex';
-                // 恢復連線
                 if(localStorage.getItem('isOnline') === 'true') togglePower(true);
                 listenForOrders(); 
                 listenForMyMissions(uid);
@@ -224,7 +215,7 @@
         });
     }
 
-    // --- v5.7 GPS 核心修復 (Smart Upload) ---
+    // --- v5.8 核心修正: 智慧上傳 (Three-Layer Filter) ---
     function startGPS() {
         if (!navigator.geolocation) return;
         watchId = navigator.geolocation.watchPosition((pos) => {
@@ -237,29 +228,47 @@
         if(!currentUser || !isOnline) return;
         
         const now = Date.now();
-        // 1. 本地重繪 (高頻率，讓畫面順暢)
+        
+        // 1. 本地重繪 (為了順暢，不依賴上傳)
         const distRender = Math.sqrt(Math.pow(lat - lastRenderLat, 2) + Math.pow(lng - lastRenderLng, 2)) * 111000;
         if (distRender > RENDER_MIN_DIST || now - lastRenderTime > 2000) {
             updateMarker(lat, lng, heading);
             lastRenderLat = lat; lastRenderLng = lng; lastRenderTime = now;
         }
 
-        // 2. 排班脫離檢查
+        // 2. 排班脫離檢查 (Geo-Fence Break)
         if (currentWorkStatus === 'queue' && queueCenter) {
             const distFromQueue = Math.sqrt(Math.pow(lat - queueCenter.lat, 2) + Math.pow(lng - queueCenter.lng, 2)) * 111000;
             if (distFromQueue > 500) {
                 currentWorkStatus = 'empty'; queueCenter = null;
                 updateStatusBtn();
                 updateHUD(false, "⚠️ 已離開排班區，切換為空車");
-                forceUpload(lat, lng); // 狀態改變立即上傳
+                forceUpload(lat, lng); // 狀態改變，立即上傳
                 return;
             }
         }
 
-        // 3. 雲端上傳 (低頻率，省流量)
-        const distUpload = Math.sqrt(Math.pow(lat - lastUploadLat, 2) + Math.pow(lng - lastUploadLng, 2)) * 111000;
-        if (now - lastUploadTime > UPDATE_INTERVAL || distUpload > MIN_DIST) {
+        // 3. 上傳過濾邏輯 (核心修正)
+        const distUploadMeters = Math.sqrt(Math.pow(lat - lastUploadLat, 2) + Math.pow(lng - lastUploadLng, 2)) * 111000;
+        const timeDiff = now - lastUploadTime;
+
+        // 條件A: 高速移動 (跑超過100米 -> 立即上傳)
+        if (distUploadMeters > MIN_UPLOAD_DIST) {
             forceUpload(lat, lng);
+            return;
+        }
+
+        // 條件B: 一般循環 (時間到了 AND 有顯著移動) -> 上傳
+        // 修正點：加上 && dist > 20，防止靜止時每15秒一直傳
+        if (timeDiff > UPDATE_INTERVAL && distUploadMeters > STATIONARY_THRESHOLD) {
+            forceUpload(lat, lng);
+            return;
+        }
+
+        // 條件C: 心跳包 (很久沒動了，但要報平安) -> 強制上傳
+        if (timeDiff > HEARTBEAT_TIME) {
+            forceUpload(lat, lng);
+            return;
         }
     }
 
@@ -297,7 +306,7 @@
         if(isUploading) hud.classList.add('hud-uploading'); else hud.classList.remove('hud-uploading');
     }
 
-    // --- 按鈕與狀態邏輯 ---
+    // --- 按鈕邏輯 ---
     function togglePower(forceOn=false) {
         const btn = document.getElementById('btn-power');
         const subBtns = ['btn-status', 'btn-saver', 'btn-sos', 'btn-mission'];
@@ -306,7 +315,12 @@
             btn.className = "circle-btn bg-on"; btn.innerHTML = `<i class="fa-solid fa-power-off"></i><span class="sub-text">ON</span>`;
             subBtns.forEach(id => document.getElementById(id).style.display = 'flex');
             requestWakeLock(); startGPS();
-            if (heartbeatInterval) clearInterval(heartbeatInterval); heartbeatInterval = setInterval(() => forceUpload(), HEARTBEAT_TIME);
+            // 注意：這裡只啟動心跳，不強制上傳，交給 startGPS 的 smartUpload 去判斷
+            if (heartbeatInterval) clearInterval(heartbeatInterval); 
+            // 這裡保留心跳計時器作為備援 (防止 GPS 死機)
+            heartbeatInterval = setInterval(() => {
+                if(Date.now() - lastUploadTime > HEARTBEAT_TIME) forceUpload(); 
+            }, 60000); // 每分鐘檢查一次是否需要心跳
         } else {
             isOnline = false; localStorage.setItem('isOnline', 'false');
             btn.className = "circle-btn bg-off"; btn.innerHTML = `<i class="fa-solid fa-power-off"></i><span class="sub-text">OFF</span>`;
@@ -322,11 +336,11 @@
         if(currentWorkStatus === 'empty') { currentWorkStatus = 'queue'; btn.className = "circle-btn bg-queue"; txt.innerText = "排班"; if(myMarker) { const pos = myMarker.getPosition(); queueCenter = { lat: pos.lat(), lng: pos.lng() }; } }
         else if (currentWorkStatus === 'queue') { currentWorkStatus = 'busy'; btn.className = "circle-btn bg-busy"; txt.innerText = "載客"; queueCenter = null; }
         else { currentWorkStatus = 'empty'; btn.className = "circle-btn bg-empty"; txt.innerText = "空車"; queueCenter = null; }
-        forceUpload();
+        forceUpload(); // 狀態切換強制上傳
     }
     function getWorkStatusText() { return currentWorkStatus==='queue'?'排班':(currentWorkStatus==='busy'?'載客':'空車'); }
 
-    // --- 搶單與視覺閃爍 ---
+    // --- 搶單與閃爍 ---
     function listenForOrders() {
         const container = document.getElementById('alert-container');
         db.ref('orders').on('child_added', snapshot => {
@@ -334,10 +348,9 @@
             if(order.status !== 'pending') return;
             if(currentUser && order.ownerId === currentUser.userId) return;
             
-            // 觸發音效、震動、閃爍
             playSound('alert');
             if(navigator.vibrate) navigator.vibrate([300, 100, 300, 100, 300]);
-            triggerVisualAlert(); // 視覺閃爍
+            triggerVisualAlert(); // 閃爍
 
             const card = document.createElement('div'); card.className = 'alert-card'; card.id = `alert-${oid}`;
             const cardTag = order.isCard ? `<span style="background:white;color:red;padding:2px 5px;border-radius:4px;font-size:12px;font-weight:bold;">💳 刷卡</span>` : '';
@@ -349,14 +362,9 @@
     }
 
     function removeAlert(oid) { const el = document.getElementById(`alert-${oid}`); if(el) el.remove(); }
-    
-    // v5.7: 視覺閃爍實作
-    function triggerVisualAlert() {
-        document.body.classList.add('flashing');
-        setTimeout(() => { document.body.classList.remove('flashing'); }, 5000); // 閃5秒自動停
-    }
+    function triggerVisualAlert() { document.body.classList.add('flashing'); setTimeout(() => { document.body.classList.remove('flashing'); }, 5000); }
 
-    // --- 其他函式維持不變 ---
+    // --- 其他維持不變 ---
     function setupSaverEvents() { const overlay = document.getElementById('saver-overlay'); const startPress = (e) => { e.preventDefault(); overlay.classList.add('pressing'); pressTimer = setTimeout(() => { toggleSaver(false); if(navigator.vibrate) navigator.vibrate(100); }, 1500); }; const cancelPress = () => { overlay.classList.remove('pressing'); clearTimeout(pressTimer); }; overlay.addEventListener('touchstart', startPress); overlay.addEventListener('touchend', cancelPress); overlay.addEventListener('mousedown', startPress); overlay.addEventListener('mouseup', cancelPress); }
     function toggleSaver(enable){ const overlay=document.getElementById('saver-overlay'); const btn=document.getElementById('btn-saver'); if(enable){ overlay.classList.add('active'); btn.className="circle-btn bg-empty"; } else{ overlay.classList.remove('active'); overlay.classList.remove('pressing'); btn.className="circle-btn bg-dark"; } }
     async function requestWakeLock() { try { if('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch(e){} }
@@ -370,7 +378,7 @@
     function grabOrder(oid) { if(!currentUser) return; db.ref(`orders/${oid}`).transaction((order) => { if (order && order.status === 'pending') { order.status = 'taken'; order.takerId = currentUser.userId; order.takerName = currentUser.displayName; return order; } else { return; } }, (error, committed, snapshot) => { if (error) Swal.fire('搶單失敗', '系統錯誤', 'error'); else if (!committed) { Swal.fire('慢了一步', '被搶走了！', 'warning'); } else { Swal.fire({icon: 'success', title: '搶單成功！', text: '已存入任務列表', timer: 1500, showConfirmButton: false}); } }); }
     function listenForMyMissions(uid) { db.ref('orders').on('value', snapshot => { const data = snapshot.val(); myMissions = []; if(data) { Object.keys(data).forEach(key => { const order = data[key]; if(order.takerId === uid && order.status === 'taken') { order.id = key; myMissions.push(order); } }); } updateMissionBadge(); renderMissionList(); }); }
     function updateMissionBadge() { const badge = document.getElementById('mission-badge'); const btn = document.getElementById('btn-mission'); if(myMissions.length > 0) { badge.style.display = 'flex'; badge.innerText = myMissions.length; btn.classList.add('bg-mission'); } else { badge.style.display = 'none'; } }
-    function renderMissionList() { const container = document.getElementById('my-mission-list'); if(myMissions.length === 0) { container.innerHTML = `<div style="text-align:center; color:#666; margin-top:50px;">目前沒有執行中的任務</div>`; return; } container.innerHTML = ''; myMissions.forEach(m => { const phoneBtn = m.phone ? `<a href="tel:${m.phone}" class="btn-action btn-call"><i class="fa-solid fa-phone"></i> 撥給乘客</a>` : `<button class="btn-action btn-call" disabled style="opacity:0.5"><i class="fa-solid fa-phone-slash"></i> 無電話</button>`; const navUrl = `http://googleusercontent.com/maps.google.com/2{encodeURIComponent(m.from)}`; container.innerHTML += `<div class="mission-card"><div style="font-weight:bold; font-size:18px; color:#000; margin-bottom:5px;"><i class="fa-solid fa-location-dot" style="color:#d32f2f"></i> ${m.from}</div><div style="font-size:14px; color:#555; margin-bottom:5px;"><i class="fa-solid fa-flag-checkered"></i> ${m.to}</div><div style="font-size:14px; color:#888;">發單人: ${m.ownerName} (${m.time})</div><div class="mc-actions">${phoneBtn}<a href="${navUrl}" target="_blank" class="btn-action btn-nav"><i class="fa-solid fa-diamond-turn-right"></i> 導航</a></div><button class="btn-done" onclick="completeMission('${m.id}')">✅ 任務完成 (結案)</button></div>`; }); }
+    function renderMissionList() { const container = document.getElementById('my-mission-list'); if(myMissions.length === 0) { container.innerHTML = `<div style="text-align:center; color:#666; margin-top:50px;">目前沒有執行中的任務</div>`; return; } container.innerHTML = ''; myMissions.forEach(m => { const phoneBtn = m.phone ? `<a href="tel:${m.phone}" class="btn-action btn-call"><i class="fa-solid fa-phone"></i> 撥給乘客</a>` : `<button class="btn-action btn-call" disabled style="opacity:0.5"><i class="fa-solid fa-phone-slash"></i> 無電話</button>`; const navUrl = `http://googleusercontent.com/maps.google.com/3{encodeURIComponent(m.from)}`; container.innerHTML += `<div class="mission-card"><div style="font-weight:bold; font-size:18px; color:#000; margin-bottom:5px;"><i class="fa-solid fa-location-dot" style="color:#d32f2f"></i> ${m.from}</div><div style="font-size:14px; color:#555; margin-bottom:5px;"><i class="fa-solid fa-flag-checkered"></i> ${m.to}</div><div style="font-size:14px; color:#888;">發單人: ${m.ownerName} (${m.time})</div><div class="mc-actions">${phoneBtn}<a href="${navUrl}" target="_blank" class="btn-action btn-nav"><i class="fa-solid fa-diamond-turn-right"></i> 導航</a></div><button class="btn-done" onclick="completeMission('${m.id}')">✅ 任務完成 (結案)</button></div>`; }); }
     function completeMission(oid) { Swal.fire({ title: '確認結案?', text: "任務將從列表中移除", icon: 'question', showCancelButton: true, confirmButtonColor: '#3085d6', cancelButtonColor: '#d33', confirmButtonText: '是的，已完成!' }).then((result) => { if (result.isConfirmed) { db.ref(`orders/${oid}`).update({ status: 'completed' }); Swal.fire('已結案!', '辛苦了，繼續接單吧。', 'success'); } }) }
     function submitRegistration() { const name = document.getElementById('reg-name').value; const car = document.getElementById('reg-car').value; const phone = document.getElementById('reg-phone').value; const uid = document.getElementById('reg-uid').value; if(!name || !car || !phone) return alert("請填寫完整"); liff.sendMessages([{type:'text', text:`【申請入隊】\n姓名:${name}\n車號:${car}\n電話:${phone}\nID:${uid}`}]) .then(() => { alert("已送出申請"); document.querySelector('.btn-submit').disabled=true; }).catch(() => alert("請手動複製ID給管理員: " + uid)); }
   </script>
