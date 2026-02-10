@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>花蓮車隊 - 戰情中心 (v4.17)</title>
+  <title>花蓮車隊 - 戰情中心 (v4.19)</title>
   
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
@@ -11,19 +11,20 @@
   
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
-    /* 整體背景維持深色，比較有質感，但上方地圖會變回亮的 */
     body { margin: 0; padding: 0; background: #121212; color: white; font-family: 'Segoe UI', sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
     
+    /* 地圖區：白色背景 (標準地圖) */
     #map-container { height: 50%; width: 100%; position: relative; border-bottom: 3px solid #00C853; background: #fff; }
     #map { width: 100%; height: 100%; }
 
+    /* 下方列表區 */
     #board-container { height: 50%; width: 100%; display: flex; flex-direction: column; background: #1e1e1e; }
     
-    .zone-header { padding: 12px 20px; background: #2c3e50; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #444; cursor: pointer; transition: background 0.2s; }
+    .zone-header { padding: 10px 15px; background: #2c3e50; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #444; cursor: pointer; transition: background 0.2s; }
     .zone-header:hover { background: #34495e; }
     
-    .zone-title { font-size: 18px; font-weight: bold; color: #fff; display: flex; align-items: center; }
-    .zone-count { background: #f1c40f; color: #000; padding: 2px 12px; border-radius: 20px; font-weight: bold; font-size: 16px; min-width: 30px; text-align: center; }
+    .zone-title { font-size: 16px; font-weight: bold; color: #fff; display: flex; align-items: center; }
+    .zone-count { background: #f1c40f; color: #000; padding: 2px 10px; border-radius: 20px; font-weight: bold; font-size: 14px; min-width: 25px; text-align: center; }
     
     .driver-list { display: none; padding: 10px; background: #222; border-bottom: 1px solid #444; }
     .driver-list.active { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
@@ -42,7 +43,7 @@
 <body>
 
   <div id="map-container"><div id="map"></div></div>
-  <div class="marquee">花蓮車隊戰情中心 • 全境監控中 • <span id="clock"></span></div>
+  <div class="marquee">花蓮車隊戰情中心 • 全境監控中 (14區) • <span id="clock"></span></div>
 
   <div id="board-container" style="overflow-y: auto;">
     <div id="zones-wrapper"></div>
@@ -54,46 +55,75 @@
     const db = firebase.database();
     
     var map, markers = {}, zonePolygons = {}; 
+    var ZONES_DATA = []; 
 
-    // v4.17: 顏色、區域、排序皆正確，僅更換地圖風格
-    const STRATEGIC_ZONES = [
-      { id: 'zone_front', name: '花蓮前站', color: '#2980b9', paths: [ // 藍色
-        {lat: 23.984718, lng: 121.596928}, {lat: 23.982712, lng: 121.607351}, {lat: 23.984543, lng: 121.610068}, {lat: 23.989699, lng: 121.607606}, {lat: 23.997632, lng: 121.611692}, {lat: 24.002304, lng: 121.610680}, {lat: 24.005288, lng: 121.611261}, {lat: 24.008085, lng: 121.608395}, {lat: 23.984718, lng: 121.596928}
-      ]},
-      { id: 'zone_city', name: '花蓮市區', color: '#c0392b', paths: [ // 紅色
-        {lat: 24.002572, lng: 121.615389}, {lat: 24.002427, lng: 121.613679}, {lat: 24.002609, lng: 121.613247}, {lat: 24.002705, lng: 121.611896}, {lat: 24.002320, lng: 121.610751}, {lat: 23.997598, lng: 121.611793}, {lat: 23.989744, lng: 121.607680}, {lat: 23.983744, lng: 121.610493}, {lat: 23.981124, lng: 121.610414}, {lat: 23.979328, lng: 121.613916}, {lat: 23.981384, lng: 121.614217}, {lat: 23.981659, lng: 121.615976}, {lat: 23.981051, lng: 121.617465}, {lat: 23.966344, lng: 121.627550}, {lat: 24.013049, lng: 121.654582}, {lat: 24.023939, lng: 121.628669}, {lat: 24.008515, lng: 121.615893}, {lat: 24.006653, lng: 121.616222}, {lat: 24.002572, lng: 121.615389}
-      ]},
-      { id: 'zone_back', name: '花蓮後站', color: '#95a5a6', paths: [ // 灰色
-        {lat: 24.008869, lng: 121.585530}, {lat: 23.996212, lng: 121.594636}, {lat: 23.992778, lng: 121.591602}, {lat: 23.991951, lng: 121.590901}, {lat: 23.990310, lng: 121.589905}, {lat: 23.987049, lng: 121.587939}, {lat: 23.986948, lng: 121.588268}, {lat: 23.976733, lng: 121.582090}, {lat: 23.975331, lng: 121.586392}, {lat: 23.972703, lng: 121.589876}, {lat: 23.974182, lng: 121.591771}, {lat: 23.980759, lng: 121.594907}, {lat: 23.990020, lng: 121.599475}, {lat: 24.008252, lng: 121.608388}, {lat: 24.013099, lng: 121.608283}, {lat: 24.012866, lng: 121.592706}, {lat: 24.008869, lng: 121.585530}
-      ]},
-      { id: 'zone_tzuchi', name: '慈濟區', color: '#e67e22', paths: [ // 橙色
-        {lat: 23.986263, lng: 121.545355}, {lat: 23.984684, lng: 121.552458}, {lat: 23.986663, lng: 121.554937}, {lat: 23.987150, lng: 121.559286}, {lat: 23.987266, lng: 121.562184}, {lat: 23.983092, lng: 121.569926}, {lat: 23.976571, lng: 121.581953}, {lat: 23.986943, lng: 121.588248}, {lat: 23.987048, lng: 121.587924}, {lat: 23.991959, lng: 121.590895}, {lat: 23.992810, lng: 121.591620}, {lat: 23.994374, lng: 121.593011}, {lat: 23.995054, lng: 121.593621}, {lat: 23.996213, lng: 121.594606}, {lat: 24.008887, lng: 121.585425}, {lat: 24.012921, lng: 121.592648}, {lat: 24.014327, lng: 121.591103}, {lat: 24.014095, lng: 121.585069}, {lat: 24.016468, lng: 121.582849}, {lat: 24.018821, lng: 121.579990}, {lat: 24.020122, lng: 121.575885}, {lat: 24.015266, lng: 121.533302}, {lat: 23.986263, lng: 121.545355}
-      ]},
-      { id: 'zone_jian', name: '吉安區', color: '#2ecc71', paths: [ // 綠色
-        {lat: 23.961930, lng: 121.611305}, {lat: 23.962721, lng: 121.608321}, {lat: 23.963904, lng: 121.602475}, {lat: 23.965367, lng: 121.598618}, {lat: 23.972622, lng: 121.589878}, {lat: 23.974142, lng: 121.588108}, {lat: 23.975301, lng: 121.586346}, {lat: 23.976663, lng: 121.582243}, {lat: 23.976513, lng: 121.581985}, {lat: 23.980526, lng: 121.574595}, {lat: 23.987237, lng: 121.562159}, {lat: 23.986643, lng: 121.554976}, {lat: 23.984642, lng: 121.552480}, {lat: 23.986184, lng: 121.545386}, {lat: 23.962442, lng: 121.544927}, {lat: 23.954371, lng: 121.525800}, {lat: 23.968379, lng: 121.495451}, {lat: 23.961343, lng: 121.499089}, {lat: 23.947542, lng: 121.517872}, {lat: 23.932314, lng: 121.533626}, {lat: 23.919727, lng: 121.566912}, {lat: 23.916164, lng: 121.594746}, {lat: 23.941105, lng: 121.607807}, {lat: 23.961930, lng: 121.611305}
-      ]},
-      { id: 'zone_meilun', name: '美崙區', color: '#2980b9', paths: [ // 藍色
-        {lat: 23.984526, lng: 121.610081}, {lat: 23.982696, lng: 121.607336}, {lat: 23.984684, lng: 121.596907}, {lat: 23.980681, lng: 121.594905}, {lat: 23.974145, lng: 121.591774}, {lat: 23.972668, lng: 121.589878}, {lat: 23.968695, lng: 121.594566}, {lat: 23.965400, lng: 121.598629}, {lat: 23.963940, lng: 121.602483}, {lat: 23.962177, lng: 121.611334}, {lat: 23.976222, lng: 121.620666}, {lat: 23.981024, lng: 121.617466}, {lat: 23.981645, lng: 121.615971}, {lat: 23.981366, lng: 121.614234}, {lat: 23.979300, lng: 121.613933}, {lat: 23.981110, lng: 121.610397}, {lat: 23.983729, lng: 121.610474}, {lat: 23.984526, lng: 121.610081}
-      ]},
-      { id: 'zone_beipu', name: '北埔區', color: '#1abc9c', paths: [ // 青色
-        {lat: 24.092128, lng: 121.621902}, {lat: 24.115561, lng: 121.651916}, {lat: 24.141880, lng: 121.667370}, {lat: 24.178480, lng: 121.657309}, {lat: 24.159688, lng: 121.620720}, {lat: 24.154884, lng: 121.619862}, {lat: 24.137640, lng: 121.631556}, {lat: 24.103750, lng: 121.606357}, {lat: 24.100887, lng: 121.608756}, {lat: 24.100360, lng: 121.615998}, {lat: 24.092128, lng: 121.621902}
-      ]},
-      { id: 'zone_xincheng', name: '新城區', color: '#f1c40f', paths: [ // 黃色
-        {lat: 24.091929, lng: 121.621899}, {lat: 24.100232, lng: 121.615914}, {lat: 24.100773, lng: 121.608685}, {lat: 24.103802, lng: 121.606197}, {lat: 24.104586, lng: 121.597101}, {lat: 24.097130, lng: 121.609620}, {lat: 24.048328, lng: 121.582412}, {lat: 24.019984, lng: 121.576428}, {lat: 24.018857, lng: 121.580009}, {lat: 24.016493, lng: 121.582898}, {lat: 24.014129, lng: 121.585095}, {lat: 24.014348, lng: 121.591114}, {lat: 24.012947, lng: 121.592709}, {lat: 24.013167, lng: 121.608355}, {lat: 24.008135, lng: 121.608461}, {lat: 24.005273, lng: 121.611371}, {lat: 24.002395, lng: 121.610810}, {lat: 24.002802, lng: 121.611961}, {lat: 24.002644, lng: 121.613400}, {lat: 24.002631, lng: 121.615342}, {lat: 24.006627, lng: 121.616148}, {lat: 24.008519, lng: 121.615817}, {lat: 24.024010, lng: 121.628654}, {lat: 24.017442, lng: 121.644355}, {lat: 24.091929, lng: 121.621899}
-      ]}
-    ];
+    // 1. 定義 14 個區域的顏色與順序
+    // 您的 JSON 裡 "門諾醫院" 代表美崙，"吉安站" 代表吉安
+    const ZONE_CONFIG = {
+        "花蓮前站":   { color: "#2980b9", priority: 1 },  // 藍 (交通)
+        "花蓮市區":   { color: "#c0392b", priority: 2 },  // 紅 (熱區)
+        "花蓮後站":   { color: "#95a5a6", priority: 3 },  // 灰 (交通)
+        "慈濟醫院":   { color: "#9b59b6", priority: 4, alias: "慈濟區" }, // 紫 (醫療)
+        "貨櫃星巴克": { color: "#e67e22", priority: 5 },  // 橙 (觀光)
+        "吉安站":     { color: "#2ecc71", priority: 6, alias: "吉安區" }, // 綠 (住宅)
+        "門諾醫院":   { color: "#34495e", priority: 7, alias: "美崙區" }, // 深藍 (飯店)
+        "北埔區":     { color: "#f1c40f", priority: 8 },  // 黃 (人口)
+        "新城區":     { color: "#1abc9c", priority: 9 },  // 青 (機場)
+        "七星潭":     { color: "#00bcd4", priority: 10 }, // 水藍 (海邊)
+        "海洋公園":   { color: "#e91e63", priority: 11 }, // 粉紅 (樂園)
+        "鯉魚潭":     { color: "#009688", priority: 12 }, // 藍綠 (湖邊)
+        "東華大學":   { color: "#8e44ad", priority: 13 }, // 紫 (學區)
+        "南華區":     { color: "#795548", priority: 14 }  // 棕 (郊區)
+    };
+
+    // 2. 導入您最新的 14 區 GeoJSON Data
+    const GEO_RAW = {
+      "type": "FeatureCollection",
+      "features": [
+        // --- POINTS (14個標籤) ---
+        { "type": "Feature", "properties": { "花蓮前站": "" }, "geometry": { "coordinates": [ 121.60168998252806, 23.992626784625898 ], "type": "Point" }, "id": 0 },
+        { "type": "Feature", "properties": { "門諾醫院": "" }, "geometry": { "coordinates": [ 121.62634974720402, 23.988350693835287 ], "type": "Point" }, "id": 1 },
+        { "type": "Feature", "properties": { "七星潭": "" }, "geometry": { "coordinates": [ 121.62985443925902, 24.0240452839449 ], "type": "Point" }, "id": 2 },
+        { "type": "Feature", "properties": { "花蓮市區": "" }, "geometry": { "coordinates": [ 121.60503445968459, 23.975719035539854 ], "type": "Point" }, "id": 3 },
+        { "type": "Feature", "properties": { "慈濟醫院": "" }, "geometry": { "coordinates": [ 121.59259277050967, 23.99472348051779 ], "type": "Point" }, "id": 4 },
+        { "type": "Feature", "properties": { "貨櫃星巴克": "" }, "geometry": { "coordinates": [ 121.59485216992056, 23.93864335170278 ], "type": "Point" }, "id": 5 },
+        { "type": "Feature", "properties": { "海洋公園": "" }, "geometry": { "coordinates": [ 121.60339089561705, 23.90115152457301 ], "type": "Point" }, "id": 6 },
+        { "type": "Feature", "properties": { "南華區": "" }, "geometry": { "coordinates": [ 121.55015997975681, 23.953530367218633 ], "type": "Point" }, "id": 7 },
+        { "type": "Feature", "properties": { "鯉魚潭": "" }, "geometry": { "coordinates": [ 121.5059120436257, 23.928738031821098 ], "type": "Point" }, "id": 8 },
+        { "type": "Feature", "properties": { "吉安站": "" }, "geometry": { "coordinates": [ 121.58260829450097, 23.968271265573676 ], "type": "Point" }, "id": 9 },
+        { "type": "Feature", "properties": { "北埔區": "" }, "geometry": { "coordinates": [ 121.6049584313999, 24.036053518573794 ], "type": "Point" }, "id": 10 },
+        { "type": "Feature", "properties": { "東華大學": "" }, "geometry": { "coordinates": [ 121.53630247302488, 23.903708037772105 ], "type": "Point" }, "id": 11 },
+        { "type": "Feature", "properties": { "新城區": "" }, "geometry": { "coordinates": [ 121.65311981456426, 24.128359901120476 ], "type": "Point" }, "id": 12 },
+        { "type": "Feature", "properties": { "花蓮後站": "" }, "geometry": { "coordinates": [ 121.59913250603176, 23.994160342822838 ], "type": "Point" }, "id": 24 }, // 後站的ID跳號了，但不影響
+
+        // --- POLYGONS (14個形狀) ---
+        // 以下為您提供的完整多邊形資料 (壓縮格式以節省空間)
+        { "type": "Feature", "geometry": { "coordinates": [[[121.621501,24.092506],[121.653926,24.116610],[121.666316,24.142070],[121.668852,24.178144],[121.657187,24.181655],[121.644718,24.155221],[121.606200,24.166211],[121.600318,24.161506],[121.619900,24.153495],[121.632674,24.137602],[121.613742,24.105961],[121.599645,24.108858],[121.597810,24.104062],[121.607230,24.103632],[121.607789,24.100907],[121.615904,24.100453],[121.621501,24.092506]]], "type": "Polygon" } },
+        { "type": "Feature", "geometry": { "coordinates": [[[121.604948,23.901474],[121.610687,23.926220],[121.612580,23.942989],[121.608024,23.941799],[121.591145,23.909209],[121.577361,23.892592],[121.601849,23.876074],[121.604948,23.901474]]], "type": "Polygon" } },
+        { "type": "Feature", "geometry": { "coordinates": [[[121.639506,23.993598],[121.648135,24.008651],[121.643382,24.019640],[121.623962,24.042681],[121.619458,24.041224],[121.628747,24.024339],[121.615551,24.008296],[121.618160,24.005953],[121.631206,24.007526],[121.632488,24.008181],[121.638329,24.005843],[121.637199,23.994001],[121.639506,23.993598]]], "type": "Polygon" } },
+        { "type": "Feature", "geometry": { "coordinates": [[[121.535547,23.932017],[121.512450,23.889656],[121.515776,23.886672],[121.517735,23.880624],[121.520035,23.876071],[121.526071,23.873088],[121.530713,23.873879],[121.535878,23.879688],[121.542451,23.879972],[121.571687,23.888404],[121.590972,23.909476],[121.535547,23.932017]]], "type": "Polygon" } },
+        { "type": "Feature", "geometry": { "coordinates": [[[121.534930,23.932707],[121.520771,23.947018],[121.510697,23.960677],[121.495462,23.969784],[121.479319,23.973066],[121.477172,23.970161],[121.502105,23.953288],[121.500065,23.924869],[121.489372,23.898882],[121.496465,23.884703],[121.512192,23.889863],[121.534930,23.932707]]], "type": "Polygon" } },
+        { "type": "Feature", "geometry": { "coordinates": [[[121.621473,24.092329],[121.615890,24.100417],[121.607771,24.100864],[121.607187,24.103606],[121.598394,24.103863],[121.609935,24.097499],[121.602034,24.078485],[121.582579,24.048778],[121.576432,24.021054],[121.582037,24.017281],[121.583576,24.015313],[121.585245,24.014263],[121.589424,24.014322],[121.591092,24.014396],[121.592502,24.013064],[121.595152,24.013873],[121.607105,24.013479],[121.610118,24.011970],[121.628461,24.024218],[121.619209,24.041341],[121.623579,24.042700],[121.616476,24.062867],[121.621473,24.092329]]], "type": "Polygon" } },
+        { "type": "Feature", "geometry": { "coordinates": [[[121.608853,23.962525],[121.604308,23.963716],[121.599956,23.959501],[121.592253,23.960256],[121.577888,23.953156],[121.573188,23.944287],[121.561521,23.938944],[121.555415,23.926686],[121.569790,23.920126],[121.595530,23.917945],[121.607366,23.941806],[121.610149,23.942395],[121.606798,23.951657],[121.608853,23.962525]]], "type": "Polygon" } },
+        { "type": "Feature", "geometry": { "coordinates": [[[121.636974,23.994142],[121.638162,24.005833],[121.632291,24.008063],[121.631023,24.007418],[121.618029,24.005899],[121.616089,24.007697],[121.613669,24.000403],[121.610744,23.984856],[121.610240,23.984409],[121.610420,23.980999],[121.611960,23.980436],[121.612986,23.979576],[121.613859,23.979451],[121.614167,23.980577],[121.614270,23.981452],[121.615929,23.981655],[121.617623,23.980905],[121.618513,23.979217],[121.626351,23.972007],[121.636974,23.994142]]], "type": "Polygon" } },
+        { "type": "Feature", "geometry": { "coordinates": [[[121.554934,23.926874],[121.555328,23.926700],[121.561388,23.939022],[121.573067,23.944405],[121.578220,23.954043],[121.562668,23.962982],[121.548449,23.969906],[121.536591,23.958793],[121.517658,23.951543],[121.536169,23.932649],[121.554934,23.926874]]], "type": "Polygon" } },
+        { "type": "Feature", "geometry": { "coordinates": [[[121.608868,23.962642],[121.621165,23.976698],[121.618494,23.979126],[121.617588,23.980866],[121.615902,23.981602],[121.614346,23.981389],[121.614241,23.980583],[121.613927,23.979394],[121.612975,23.979522],[121.611877,23.980374],[121.610332,23.980884],[121.609891,23.984704],[121.607266,23.982964],[121.597024,23.985025],[121.591904,23.974303],[121.589916,23.972727],[121.592345,23.970571],[121.594509,23.968734],[121.597739,23.966114],[121.601150,23.964254],[121.604233,23.963820],[121.608868,23.962642]]], "type": "Polygon" } },
+        { "type": "Feature", "geometry": { "coordinates": [[[121.548541,23.970078],[121.548462,23.969917],[121.553956,23.967257],[121.562619,23.963043],[121.565175,23.961586],[121.571708,23.957815],[121.578251,23.954067],[121.577823,23.953184],[121.592196,23.960279],[121.599931,23.959551],[121.604239,23.963751],[121.601175,23.964177],[121.597655,23.966111],[121.586927,23.975055],[121.581145,23.977027],[121.569369,23.983364],[121.562253,23.987210],[121.554964,23.986668],[121.552471,23.984802],[121.545110,23.986579],[121.548541,23.970078]]], "type": "Polygon" } },
+        { "type": "Feature", "geometry": { "coordinates": [[[121.597169,23.985151],[121.597097,23.985033],[121.607268,23.982985],[121.609933,23.984753],[121.609994,23.984247],[121.610718,23.984865],[121.613574,24.000349],[121.616080,24.007788],[121.606080,24.003461],[121.601315,23.993537],[121.597169,23.985151]]], "type": "Polygon" } },
+        { "type": "Feature", "geometry": { "coordinates": [[[121.616044,24.009066],[121.607110,24.013401],[121.595108,24.013766],[121.594523,23.996108],[121.595495,23.994799],[121.597661,23.992048],[121.599438,23.989763],[121.603343,23.997866],[121.606047,24.003483],[121.616058,24.007805],[121.615502,24.008290],[121.616044,24.009066]]], "type": "Polygon" } },
+        { "type": "Feature", "geometry": { "coordinates": [[[121.594514,23.996095],[121.595082,24.013793],[121.592506,24.013038],[121.591056,24.014355],[121.585219,24.014232],[121.583543,24.015290],[121.582019,24.017271],[121.576419,24.021038],[121.573564,24.012905],[121.564777,24.010478],[121.555731,24.005600],[121.545742,24.007521],[121.542729,24.005622],[121.545145,23.986602],[121.552470,23.984834],[121.554959,23.986700],[121.562270,23.987244],[121.569697,23.983203],[121.574546,23.980589],[121.581174,23.977035],[121.586972,23.975072],[121.589810,23.972683],[121.591898,23.974309],[121.597023,23.985056],[121.597143,23.985135],[121.599437,23.989744],[121.597656,23.992029],[121.595497,23.994787],[121.594514,23.996095]]], "type": "Polygon" } }
+      ]
+    };
 
     const getPinIcon = (type) => {
         const isQueue = type === 'queue';
         const color = isQueue ? '#00B0FF' : '#00C853';
-        return {
-            path: google.maps.SymbolPath.CIRCLE,
-            scale: 6, fillColor: color, fillOpacity: 1, strokeColor: "white", strokeWeight: 2
-        };
+        return { path: google.maps.SymbolPath.CIRCLE, scale: 6, fillColor: color, fillOpacity: 1, strokeColor: "white", strokeWeight: 2 };
     };
 
     window.onload = function() {
         initMap();
+        processGeoData(); // 啟動自動配對
         listenToDrivers();
         setInterval(() => document.getElementById('clock').innerText = new Date().toLocaleString(), 1000);
     };
@@ -102,22 +132,67 @@
         map = new google.maps.Map(document.getElementById("map"), {
             center: { lat: 23.991, lng: 121.601 }, zoom: 12, 
             disableDefaultUI: true
-            // 移除 styles: [...] 設定，恢復 Google 標準淺色地圖
         });
-        
-        const wrapper = document.getElementById('zones-wrapper');
-        
-        STRATEGIC_ZONES.forEach(z => {
-            // 繪製戰區多邊形
-            const polygon = new google.maps.Polygon({
-                paths: z.paths,
-                strokeColor: z.color, strokeOpacity: 0.8, strokeWeight: 2,
-                fillColor: z.color, fillOpacity: 0.1,
-                map: map
-            });
-            zonePolygons[z.id] = polygon;
+    }
 
-            // 建立下方儀表板
+    function processGeoData() {
+        const points = [];
+        const polygons = [];
+
+        GEO_RAW.features.forEach(f => {
+            if(f.geometry.type === "Point") {
+                const name = Object.keys(f.properties)[0];
+                points.push({ name: name, lat: f.geometry.coordinates[1], lng: f.geometry.coordinates[0] });
+            } else if (f.geometry.type === "Polygon") {
+                const paths = f.geometry.coordinates[0].map(c => ({ lat: c[1], lng: c[0] }));
+                polygons.push({ paths: paths });
+            }
+        });
+
+        polygons.forEach(polyData => {
+            const googlePoly = new google.maps.Polygon({ paths: polyData.paths });
+            let matchedName = null;
+
+            for(let p of points) {
+                const latLng = new google.maps.LatLng(p.lat, p.lng);
+                if(google.maps.geometry.poly.containsLocation(latLng, googlePoly)) {
+                    matchedName = p.name;
+                    break; 
+                }
+            }
+
+            if(matchedName && ZONE_CONFIG[matchedName]) {
+                const config = ZONE_CONFIG[matchedName];
+                const displayName = config.alias || matchedName;
+                
+                googlePoly.setOptions({
+                    strokeColor: config.color,
+                    strokeOpacity: 0.8,
+                    strokeWeight: 2,
+                    fillColor: config.color,
+                    fillOpacity: 0.1,
+                    map: map
+                });
+
+                zonePolygons[matchedName] = googlePoly;
+                
+                ZONES_DATA.push({
+                    id: matchedName,
+                    name: displayName,
+                    color: config.color,
+                    priority: config.priority
+                });
+            }
+        });
+
+        ZONES_DATA.sort((a, b) => a.priority - b.priority);
+        renderZoneList();
+    }
+
+    function renderZoneList() {
+        const wrapper = document.getElementById('zones-wrapper');
+        wrapper.innerHTML = '';
+        ZONES_DATA.forEach(z => {
             wrapper.innerHTML += `
                 <div class="zone-block" id="zone-${z.id}">
                     <div class="zone-header" onclick="toggleList('${z.id}')">
@@ -132,10 +207,9 @@
         });
     }
     
-    // 折疊功能
     window.toggleList = function(id) {
         const list = document.getElementById(`list-${id}`);
-        list.classList.toggle('active');
+        if(list) list.classList.toggle('active');
     };
 
     function listenToDrivers() {
@@ -144,7 +218,7 @@
             if (!data) return;
             const now = Date.now();
             const zoneDrivers = {}; 
-            STRATEGIC_ZONES.forEach(z => zoneDrivers[z.id] = []);
+            ZONES_DATA.forEach(z => zoneDrivers[z.id] = []);
             const activeIds = new Set();
 
             Object.keys(data).forEach(key => {
@@ -164,10 +238,9 @@
                     markers[key].setIcon(getPinIcon(d.workStatus));
                 }
 
-                // 精準判定在哪個戰區
-                STRATEGIC_ZONES.forEach(z => {
+                ZONES_DATA.forEach(z => {
                     const poly = zonePolygons[z.id];
-                    if (google.maps.geometry.poly.containsLocation(pos, poly)) {
+                    if (poly && google.maps.geometry.poly.containsLocation(pos, poly)) {
                         zoneDrivers[z.id].push(d);
                     }
                 });
@@ -175,12 +248,12 @@
 
             for(let k in markers) { if(!activeIds.has(k)) { markers[k].setMap(null); delete markers[k]; } }
 
-            // 更新儀表板
-            STRATEGIC_ZONES.forEach(z => {
+            ZONES_DATA.forEach(z => {
                 const list = document.getElementById(`list-${z.id}`);
                 const count = document.getElementById(`count-${z.id}`);
+                if(!list || !count) return;
+
                 list.innerHTML = "";
-                
                 count.innerText = zoneDrivers[z.id].length;
                 
                 if(zoneDrivers[z.id].length > 0) {
