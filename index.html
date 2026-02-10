@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>花蓮車隊 - 司機端 (v5.6 Mission Ready)</title>
+  <title>花蓮車隊 - 司機端 (v5.6.1)</title>
   
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
@@ -17,69 +17,85 @@
     
     /* 啟動畫面 */
     #unlock-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 20000; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
-    .btn-unlock { width: 120px; height: 120px; border-radius: 50%; background: radial-gradient(circle, #00C853 0%, #009624 100%); border: 4px solid #fff; box-shadow: 0 0 30px rgba(0,200,83,0.6); color: white; font-size: 24px; font-weight: bold; cursor: pointer; animation: pulse-green 2s infinite; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+    .btn-unlock { width: 120px; height: 120px; border-radius: 50%; background: radial-gradient(circle, #00C853 0%, #009624 100%); border: 4px solid #fff; box-shadow: 0 0 30px rgba(0,200,83,0.6); color: white; font-size: 24px; font-weight: bold; cursor: pointer; animation: pulse-green 2s infinite; display: flex; flex-direction: column; justify-content: center; align-items: center; transition: transform 0.1s; }
     .btn-unlock:active { transform: scale(0.9); }
     @keyframes pulse-green { 0% { box-shadow: 0 0 0 0 rgba(0, 200, 83, 0.7); } 70% { box-shadow: 0 0 0 20px rgba(0, 200, 83, 0); } 100% { box-shadow: 0 0 0 0 rgba(0, 200, 83, 0); } }
 
-    /* UI 層 */
+    /* UI 層 (HUD & Buttons) */
     #ui-layer { display: none; pointer-events: none; width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 10; }
-    #hud { pointer-events: auto; position: absolute; top: 15px; left: 15px; background: rgba(33, 33, 33, 0.9); color: white; padding: 10px 20px; border-radius: 30px; font-weight: bold; font-size: 16px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); display: flex; align-items: center; }
+    
+    /* HUD 狀態列 (修復顯示問題) */
+    #hud { 
+        pointer-events: auto; position: absolute; top: 15px; left: 15px; 
+        background: rgba(33, 33, 33, 0.9); color: white; 
+        padding: 10px 20px; border-radius: 30px; 
+        font-weight: bold; font-size: 16px; 
+        box-shadow: 0 4px 10px rgba(0,0,0,0.5); 
+        display: flex; align-items: center; 
+    }
     .status-dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; margin-right: 8px; }
+    .hud-uploading { border-color: #00C853 !important; box-shadow: 0 0 15px rgba(0, 200, 83, 0.5); }
 
-    /* 右上角按鈕群 */
-    #top-right-panel { pointer-events: auto; position: absolute; top: 15px; right: 15px; display: flex; flex-direction: column; gap: 15px; }
-    .circle-btn { width: 60px; height: 60px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.8); color: white; font-weight: bold; font-size: 14px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); cursor: pointer; display: flex; flex-direction: column; justify-content: center; align-items: center; backdrop-filter: blur(4px); position: relative; }
+    /* 右上角按鈕群 (5顆按鈕歸位) */
+    #top-right-panel { 
+        pointer-events: auto; position: absolute; top: 15px; right: 15px; 
+        display: flex; flex-direction: column; gap: 12px; /* 按鈕間距稍微縮小以免超出螢幕 */
+    }
+    .circle-btn { 
+        width: 60px; height: 60px; border-radius: 50%; 
+        border: 2px solid rgba(255,255,255,0.8); color: white; 
+        font-weight: bold; font-size: 14px; 
+        box-shadow: 0 4px 15px rgba(0,0,0,0.5); 
+        cursor: pointer; display: flex; flex-direction: column; 
+        justify-content: center; align-items: center; 
+        backdrop-filter: blur(4px); position: relative; 
+    }
     .circle-btn i { font-size: 20px; margin-bottom: 2px; }
+    .circle-btn:active { transform: scale(0.95); }
+    .sub-text { font-size: 10px; opacity: 0.9; margin-top: 0px; font-weight: normal; }
     
-    .bg-off { background: linear-gradient(145deg, #7f8c8d, #95a5a6); }
-    .bg-on { background: linear-gradient(145deg, #d32f2f, #ef5350); }
-    .bg-mission { background: linear-gradient(145deg, #FFD700, #FFA000); color: black; border-color: black; }
-    .bg-sos { background: linear-gradient(145deg, #D50000, #FF1744); }
+    /* 按鈕顏色定義 */
+    .bg-off   { background: linear-gradient(145deg, #7f8c8d, #95a5a6); }
+    .bg-on    { background: linear-gradient(145deg, #d32f2f, #ef5350); }
+    .bg-empty { background: linear-gradient(145deg, #2e7d32, #43a047); } /* 綠 (空車) */
+    .bg-queue { background: linear-gradient(145deg, #1565c0, #1976d2); } /* 藍 (排班) */
+    .bg-busy  { background: linear-gradient(145deg, #ef6c00, #fb8c00); } /* 橘 (載客) */
+    .bg-dark  { background: linear-gradient(145deg, #37474f, #455a64); } /* 黑 (掛機) */
+    .bg-sos   { background: linear-gradient(145deg, #D50000, #FF1744); animation: pulse-red 2s infinite; } /* 紅 (發單) */
+    .bg-mission { background: linear-gradient(145deg, #FFD700, #FFA000); color: black; border-color: black; } /* 黃 (任務) */
     
+    @keyframes pulse-red { 0% { box-shadow: 0 0 0 0 rgba(255, 23, 68, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(255, 23, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 23, 68, 0); } }
     .badge { position: absolute; top: -5px; right: -5px; background: red; color: white; border-radius: 50%; width: 22px; height: 22px; font-size: 12px; display: flex; justify-content: center; align-items: center; border: 2px solid white; font-weight: bold; display: none; }
 
-    /* 底部搶單通知區 (Incoming Alert) */
-    #alert-container {
-        pointer-events: auto; position: absolute; bottom: 20px; left: 5%; width: 90%;
-        display: flex; flex-direction: column; gap: 10px; justify-content: flex-end;
-    }
-    
-    /* 紅色急件卡 */
-    .alert-card {
-        background: linear-gradient(145deg, #b71c1c, #d32f2f);
-        border: 2px solid #ff5252; border-radius: 15px; padding: 15px;
-        color: white; box-shadow: 0 10px 30px rgba(0,0,0,0.6);
-        animation: slideUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    }
+    /* 底部搶單通知區 */
+    #alert-container { pointer-events: auto; position: absolute; bottom: 20px; left: 5%; width: 90%; display: flex; flex-direction: column; gap: 10px; justify-content: flex-end; }
+    .alert-card { background: linear-gradient(145deg, #b71c1c, #d32f2f); border: 2px solid #ff5252; border-radius: 15px; padding: 15px; color: white; box-shadow: 0 10px 30px rgba(0,0,0,0.6); animation: slideUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
     @keyframes slideUp { from { transform: translateY(100px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-    
     .ac-header { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 5px; opacity: 0.9; }
     .ac-route { font-size: 20px; font-weight: bold; margin-bottom: 10px; display: flex; align-items: center; gap: 10px; }
-    .ac-footer { display: flex; gap: 10px; }
-    .btn-grab { flex: 1; background: #fff; color: #d32f2f; border: none; padding: 12px; border-radius: 25px; font-weight: 900; font-size: 18px; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
-    .btn-grab:active { transform: scale(0.95); background: #eee; }
+    .btn-grab { flex: 1; background: #fff; color: #d32f2f; border: none; padding: 12px; border-radius: 25px; font-weight: 900; font-size: 18px; cursor: pointer; width: 100%; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
 
-    /* 模態視窗通用樣式 */
+    /* 通用彈窗與表單 */
     .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 10000; flex-direction: column; }
     .modal-header { padding: 15px; background: #222; color: white; font-size: 18px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #444; }
     .modal-content { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 15px; }
-
-    /* 表單樣式 */
     .form-group { margin-bottom: 15px; }
     .form-label { display: block; margin-bottom: 5px; color: #aaa; font-size: 14px; }
     .form-input { width: 100%; padding: 12px; background: #333; border: 1px solid #555; border-radius: 8px; color: white; font-size: 16px; box-sizing: border-box; }
+    .checkbox-container { display: flex; align-items: center; background: #444; padding: 10px 15px; border-radius: 8px; flex: 1; cursor: pointer; }
     .btn-post { width: 100%; background: #D50000; color: white; padding: 15px; border: none; border-radius: 8px; font-weight: bold; font-size: 18px; cursor: pointer; }
-
-    /* 任務列表卡片 */
     .mission-card { background: #fff; color: #333; border-radius: 10px; padding: 15px; border-left: 5px solid #FFD700; margin-bottom: 10px; }
     .mc-actions { display: flex; gap: 10px; margin-top: 10px; border-top: 1px solid #eee; padding-top: 10px; }
-    .btn-action { flex: 1; padding: 10px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 5px; color: white; }
+    .btn-action { flex: 1; padding: 10px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 5px; color: white; text-decoration:none; }
     .btn-call { background: #00C853; }
     .btn-nav { background: #2962FF; }
     .btn-done { width: 100%; margin-top: 10px; background: #333; color: white; padding: 12px; border-radius: 8px; font-weight: bold; border: none; }
 
-    /* 註冊框 */
+    /* 註冊 & 掛機 */
     #register-box { width: 90%; max-width: 400px; background: #222; padding: 25px; border-radius: 15px; border: 1px solid #444; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: none; z-index: 30000; }
+    #saver-overlay { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: black; z-index: 9999; flex-direction: column; justify-content: center; align-items: center; color: #555; user-select: none; }
+    #saver-overlay.active { display: flex; }
+    #saver-overlay.pressing p { color: #00C853; transition: color 0.3s; }
   </style>
 </head>
 <body>
@@ -92,6 +108,7 @@
   </div>
 
   <div id="map"></div>
+
   <div id="ui-layer">
       <div id="hud"><span class="status-dot" style="background:gray;"></span> 系統待命</div>
       
@@ -101,6 +118,15 @@
             <span class="sub-text">OFF</span>
         </button>
         
+        <button id="btn-status" class="circle-btn bg-empty" style="display:none;" onclick="toggleStatus()">
+            <span id="txt-status">空車</span>
+        </button>
+
+        <button id="btn-saver" class="circle-btn bg-dark" style="display:none;" onclick="toggleSaver(true)">
+            <i class="fa-solid fa-moon"></i>
+            <span class="sub-text">掛機</span>
+        </button>
+
         <button id="btn-sos" class="circle-btn bg-sos" style="display:none;" onclick="openPostModal()">
             <i class="fa-solid fa-bullhorn"></i>
             <span class="sub-text">轉單</span>
@@ -117,43 +143,20 @@
   </div>
 
   <div id="post-modal" class="modal-overlay">
-      <div class="modal-header">
-          <span><i class="fa-solid fa-tower-broadcast"></i> 發布轉單 (請求支援)</span>
-          <button onclick="closePostModal()" style="background:none;border:none;color:white;font-size:24px;"><i class="fa-solid fa-xmark"></i></button>
-      </div>
+      <div class="modal-header"><span>發布轉單</span><button onclick="closePostModal()" style="background:none;border:none;color:white;font-size:24px;"><i class="fa-solid fa-xmark"></i></button></div>
       <div class="modal-content">
-          <div class="form-group">
-              <label class="form-label">出發時間 (必填)</label>
-              <input type="time" id="post-time" class="form-input">
-          </div>
-          <div class="form-group">
-              <label class="form-label">上車地點 (必填)</label>
-              <input type="text" id="post-from" class="form-input" placeholder="例如: 花蓮車站前站">
-          </div>
-          <div class="form-group">
-              <label class="form-label">下車地點 (選填)</label>
-              <input type="text" id="post-to" class="form-input" placeholder="未填寫則顯示: 上車議">
-          </div>
-          <div class="form-group">
-              <label class="form-label">乘客電話 (選填)</label>
-              <input type="tel" id="post-phone" class="form-input" placeholder="路招可不填">
-          </div>
-          <div class="form-group" style="display:flex; align-items:center; gap:10px; background:#333; padding:10px; border-radius:8px;">
-              <input type="checkbox" id="post-card" style="transform:scale(1.5);">
-              <span style="font-weight:bold; color:#FFD700;">💳 敬老卡 / 愛心卡</span>
-          </div>
+          <div class="form-group"><label class="form-label">出發時間 (必填)</label><input type="time" id="post-time" class="form-input"></div>
+          <div class="form-group"><label class="form-label">上車地點 (必填)</label><input type="text" id="post-from" class="form-input" placeholder="例: 花蓮車站"></div>
+          <div class="form-group"><label class="form-label">下車地點 (選填)</label><input type="text" id="post-to" class="form-input" placeholder="未填則顯示上車議"></div>
+          <div class="form-group"><label class="form-label">乘客電話 (選填)</label><input type="tel" id="post-phone" class="form-input" placeholder="路招可不填"></div>
+          <div class="form-group"><label class="checkbox-container"><input type="checkbox" id="post-card"><span class="checkbox-text" style="margin-left:10px;">💳 敬老卡 / 愛心卡</span></label></div>
           <button class="btn-post" onclick="submitPost()">📡 發送全頻廣播</button>
       </div>
   </div>
 
   <div id="mission-modal" class="modal-overlay">
-      <div class="modal-header">
-          <span><i class="fa-solid fa-clipboard-check"></i> 我的任務清單</span>
-          <button onclick="closeMissionModal()" style="background:none;border:none;color:white;font-size:24px;"><i class="fa-solid fa-xmark"></i></button>
-      </div>
-      <div class="modal-content" id="my-mission-list">
-          <div style="text-align:center; color:#666; margin-top:50px;">目前沒有執行中的任務</div>
-      </div>
+      <div class="modal-header"><span>我的任務</span><button onclick="closeMissionModal()" style="background:none;border:none;color:white;font-size:24px;"><i class="fa-solid fa-xmark"></i></button></div>
+      <div class="modal-content" id="my-mission-list"></div>
   </div>
 
   <div id="register-box">
@@ -165,6 +168,8 @@
       <button class="btn-post" style="background:#00C853;" onclick="submitRegistration()">送出審核</button>
   </div>
 
+  <div id="saver-overlay"><p style="font-size:14px; letter-spacing: 1px;">GPS 持續連線 • 長按喚醒</p></div>
+
   <audio id="sound-boot" src="data:audio/mpeg;base64,//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"></audio>
   <audio id="sound-alert" src="data:audio/wav;base64,UklGRl9vT1BXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU"></audio>
 
@@ -175,21 +180,26 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    var map, currentUser = null, isOnline = false, watchId = null;
-    var myMissions = []; // 本地存儲我的任務
+    var map, myMarker, currentUser = null, isOnline = false;
+    var currentWorkStatus = 'empty'; 
+    var watchId = null, wakeLock = null, heartbeatInterval = null;
+    var myMissions = []; var pressTimer = null;
+    const HEARTBEAT_TIME = 180000;
 
-    // 啟動流程
+    const getArrowIcon = (color, heading) => {
+        return { path: "M0,-12 L10,10 L0,5 L-10,10 Z", fillColor: color, fillOpacity: 1, scale: 1.5, strokeColor: "#333", strokeWeight: 1, rotation: heading || 0 };
+    };
+
     function systemStart() {
         const boot = document.getElementById('sound-boot');
         if(boot) boot.play().catch(e=>{});
-        
         document.getElementById('unlock-screen').style.display = 'none';
         document.getElementById('map').style.display = 'block';
         document.getElementById('ui-layer').style.display = 'block';
-        
         initGoogleMap();
         initLiff();
         setNowTime();
+        setupSaverEvents();
     }
 
     function initGoogleMap() {
@@ -203,7 +213,7 @@
             if (!liff.isLoggedIn()) { liff.login(); return; }
             currentUser = await liff.getProfile();
             checkIdentity(currentUser.userId);
-        } catch (e) { alert("LIFF Error"); }
+        } catch (e) { alert("LIFF Init Error"); }
     }
 
     function checkIdentity(uid) {
@@ -212,9 +222,9 @@
                 const d = snapshot.val();
                 document.getElementById('hud').innerHTML = `<span class="status-dot" style="background:#2ecc71;"></span> 嗨，${d.name}`;
                 document.getElementById('btn-power').style.display = 'flex';
-                // 恢復上次連線狀態 (v5.6: 預設不上線，需手動按)
-                listenForOrders(); // 開始監聽全頻廣播
-                listenForMyMissions(uid); // 監聽我的任務
+                // 連線後開始監聽
+                listenForOrders(); 
+                listenForMyMissions(uid);
             } else {
                 document.getElementById('ui-layer').style.display = 'none';
                 document.getElementById('register-box').style.display = 'block';
@@ -223,256 +233,166 @@
         });
     }
 
-    // --- 發單邏輯 (Broadcast) ---
+    // --- 按鈕邏輯 (修復) ---
+    function togglePower() {
+        const btn = document.getElementById('btn-power');
+        // 定義所有需要顯示/隱藏的按鈕
+        const subBtns = ['btn-status', 'btn-saver', 'btn-sos', 'btn-mission'];
+        
+        if(!isOnline) {
+            isOnline = true; localStorage.setItem('isOnline', 'true');
+            btn.className = "circle-btn bg-on"; btn.innerHTML = `<i class="fa-solid fa-power-off"></i><span class="sub-text">ON</span>`;
+            document.getElementById('hud').innerHTML = `<span class="status-dot" style="background:#00C853;"></span> 上線中 (${getWorkStatusText()})`;
+            
+            // 顯示所有功能按鈕
+            subBtns.forEach(id => document.getElementById(id).style.display = 'flex');
+            
+            requestWakeLock(); startGPS(); 
+            if (heartbeatInterval) clearInterval(heartbeatInterval); heartbeatInterval = setInterval(() => forceUpload(), HEARTBEAT_TIME);
+        } else {
+            isOnline = false; localStorage.setItem('isOnline', 'false');
+            btn.className = "circle-btn bg-off"; btn.innerHTML = `<i class="fa-solid fa-power-off"></i><span class="sub-text">OFF</span>`;
+            document.getElementById('hud').innerHTML = `<span class="status-dot" style="background:gray;"></span> 系統待命`;
+            
+            // 隱藏所有功能按鈕
+            subBtns.forEach(id => document.getElementById(id).style.display = 'none');
+            
+            stopGPS(); releaseWakeLock(); toggleSaver(false);
+            if(myMarker) myMarker.setMap(null);
+            if (heartbeatInterval) clearInterval(heartbeatInterval);
+            if (currentUser) db.ref('drivers/' + currentUser.userId).update({ status: 'offline' });
+        }
+    }
+
+    function toggleStatus(){
+        const btn = document.getElementById('btn-status');
+        const txt = document.getElementById('txt-status');
+        
+        if(currentWorkStatus === 'empty') {
+            currentWorkStatus = 'queue';
+            btn.className = "circle-btn bg-queue";
+            txt.innerText = "排班";
+        } else if (currentWorkStatus === 'queue') {
+            currentWorkStatus = 'busy';
+            btn.className = "circle-btn bg-busy";
+            txt.innerText = "載客";
+        } else {
+            currentWorkStatus = 'empty';
+            btn.className = "circle-btn bg-empty";
+            txt.innerText = "空車";
+        }
+        updateHUD(true, "狀態切換...");
+        forceUpload();
+    }
+
+    function getWorkStatusText() {
+        if(currentWorkStatus === 'queue') return '排班';
+        if(currentWorkStatus === 'busy') return '載客';
+        return '空車';
+    }
+
+    // --- 其他核心邏輯 (維持不變) ---
+    function setupSaverEvents() { const overlay = document.getElementById('saver-overlay'); const startPress = (e) => { e.preventDefault(); overlay.classList.add('pressing'); pressTimer = setTimeout(() => { toggleSaver(false); if(navigator.vibrate) navigator.vibrate(100); }, 1500); }; const cancelPress = () => { overlay.classList.remove('pressing'); clearTimeout(pressTimer); }; overlay.addEventListener('touchstart', startPress); overlay.addEventListener('touchend', cancelPress); overlay.addEventListener('mousedown', startPress); overlay.addEventListener('mouseup', cancelPress); }
+    function toggleSaver(enable){ const overlay=document.getElementById('saver-overlay'); const btn=document.getElementById('btn-saver'); if(enable){ overlay.classList.add('active'); btn.className="circle-btn bg-empty"; } else{ overlay.classList.remove('active'); overlay.classList.remove('pressing'); btn.className="circle-btn bg-dark"; } }
+    
+    function startGPS() { if (!navigator.geolocation) return; watchId = navigator.geolocation.watchPosition((pos) => { const { latitude, longitude, heading } = pos.coords; const latLng = new google.maps.LatLng(latitude, longitude); const color = currentWorkStatus==='busy'?'#e67e22':(currentWorkStatus==='queue'?'#3498db':'#2ecc71'); if (!myMarker){ myMarker = new google.maps.Marker({ position: latLng, map: map, icon: getArrowIcon(color, heading), title: "我" }); map.panTo(latLng); } else { myMarker.setPosition(latLng); myMarker.setIcon(getArrowIcon(color, heading)); if(!document.getElementById('saver-overlay').classList.contains('active')) map.panTo(latLng); } forceUpload(latitude, longitude); }, (err) => console.error(err), { enableHighAccuracy: true, maximumAge: 0 }); }
+    function stopGPS() { if (watchId) navigator.geolocation.clearWatch(watchId); }
+    
+    function forceUpload(lat, lng) { 
+        if(!currentUser) return; 
+        if(!lat && myMarker) { const pos = myMarker.getPosition(); lat = pos.lat(); lng = pos.lng(); }
+        if(!lat) return;
+        updateHUD(true, "⚡ 資料上傳..."); 
+        db.ref('drivers/'+currentUser.userId).update({ lat:lat, lng:lng, status:'online', workStatus:currentWorkStatus, lastUpdate:firebase.database.ServerValue.TIMESTAMP })
+          .then(() => { setTimeout(() => { updateHUD(false, `🟢 上線中 (${getWorkStatusText()})`); }, 1000); }); 
+    }
+    
+    function updateHUD(isUploading, text) { const hud = document.getElementById('hud'); hud.innerHTML = `<span class="status-dot" style="background:${isUploading ? '#00C853' : '#2ecc71'};"></span> ${text}`; if(isUploading) hud.classList.add('hud-uploading'); else hud.classList.remove('hud-uploading'); }
+    async function requestWakeLock() { try { if('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch(e){} }
+    function releaseWakeLock() { if(wakeLock) wakeLock.release(); }
+
+    // --- 轉單與任務 (Broadcast & Mission) ---
     function openPostModal() { document.getElementById('post-modal').style.display = 'flex'; setNowTime(); }
     function closePostModal() { document.getElementById('post-modal').style.display = 'none'; }
+    function openMissionModal() { document.getElementById('mission-modal').style.display = 'flex'; renderMissionList(); }
+    function closeMissionModal() { document.getElementById('mission-modal').style.display = 'none'; }
     function setNowTime() { const now = new Date(); document.getElementById('post-time').value = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`; }
 
     function submitPost() {
         const time = document.getElementById('post-time').value;
         const from = document.getElementById('post-from').value;
         const to = document.getElementById('post-to').value || "上車議 / 未指定";
-        const phone = document.getElementById('post-phone').value || ""; // 選填
+        const phone = document.getElementById('post-phone').value || ""; 
         const isCard = document.getElementById('post-card').checked;
-
         if(!from) { Swal.fire('請填寫上車地點'); return; }
-
-        const order = {
-            ownerId: currentUser.userId,
-            ownerName: currentUser.displayName,
-            time: time, from: from, to: to, phone: phone, isCard: isCard,
-            status: 'pending', timestamp: firebase.database.ServerValue.TIMESTAMP
-        };
-
+        const order = { ownerId: currentUser.userId, ownerName: currentUser.displayName, time: time, from: from, to: to, phone: phone, isCard: isCard, status: 'pending', timestamp: firebase.database.ServerValue.TIMESTAMP };
         db.ref('orders').push(order);
         closePostModal();
-        // 清空
-        document.getElementById('post-from').value = "";
-        document.getElementById('post-to').value = "";
-        document.getElementById('post-phone').value = "";
-        document.getElementById('post-card').checked = false;
-        
+        document.getElementById('post-from').value = ""; document.getElementById('post-to').value = ""; document.getElementById('post-phone').value = ""; document.getElementById('post-card').checked = false;
         Swal.fire({icon:'success', title:'廣播已發送', timer: 1500, showConfirmButton: false});
     }
 
-    // --- 搶單邏輯 (Incoming Alert) ---
     function listenForOrders() {
         const container = document.getElementById('alert-container');
-        
         db.ref('orders').on('child_added', snapshot => {
-            const order = snapshot.val();
-            const oid = snapshot.key;
-            
-            // 條件：狀態是 pending 且不是自己發的
+            const order = snapshot.val(); const oid = snapshot.key;
             if(order.status !== 'pending') return;
             if(currentUser && order.ownerId === currentUser.userId) return;
-
-            // 播放音效
-            const alert = document.getElementById('sound-alert');
-            if(alert) { alert.currentTime=0; alert.play().catch(e=>{}); }
+            
+            const alert = document.getElementById('sound-alert'); if(alert) { alert.currentTime=0; alert.play().catch(e=>{}); }
             if(navigator.vibrate) navigator.vibrate([300, 100, 300, 100, 300]);
 
-            // 建立卡片
-            const card = document.createElement('div');
-            card.className = 'alert-card';
-            card.id = `alert-${oid}`;
-            
+            const card = document.createElement('div'); card.className = 'alert-card'; card.id = `alert-${oid}`;
             const cardTag = order.isCard ? `<span style="background:white;color:red;padding:2px 5px;border-radius:4px;font-size:12px;font-weight:bold;">💳 刷卡</span>` : '';
-            
-            card.innerHTML = `
-                <div class="ac-header">
-                    <span>⏱ ${order.time}</span>
-                    <span>${order.ownerName}</span>
-                </div>
-                <div class="ac-route">
-                    <i class="fa-solid fa-location-dot"></i> ${order.from}
-                </div>
-                <div style="margin-bottom:10px; font-size:14px; color:#ddd;">
-                    <i class="fa-solid fa-arrow-right"></i> ${order.to} ${cardTag}
-                </div>
-                <div class="ac-footer">
-                    <button class="btn-grab" onclick="grabOrder('${oid}')">⚡ 搶單接客</button>
-                </div>
-            `;
+            card.innerHTML = `<div class="ac-header"><span>⏱ ${order.time}</span><span>${order.ownerName}</span></div><div class="ac-route"><i class="fa-solid fa-location-dot"></i> ${order.from}</div><div style="margin-bottom:10px; font-size:14px; color:#ddd;"><i class="fa-solid fa-arrow-right"></i> ${order.to} ${cardTag}</div><div class="ac-footer"><button class="btn-grab" onclick="grabOrder('${oid}')">⚡ 搶單接客</button></div>`;
             container.appendChild(card);
         });
-
-        // 監聽訂單移除/狀態改變 (別人搶走了)
-        db.ref('orders').on('child_removed', snap => removeAlert(snap.key));
-        db.ref('orders').on('child_changed', snap => {
-            if(snap.val().status !== 'pending') removeAlert(snap.key);
-        });
-    }
-
-    function removeAlert(oid) {
-        const el = document.getElementById(`alert-${oid}`);
-        if(el) el.remove();
+        db.ref('orders').on('child_removed', snap => { const el = document.getElementById(`alert-${snap.key}`); if(el) el.remove(); });
+        db.ref('orders').on('child_changed', snap => { if(snap.val().status !== 'pending') { const el = document.getElementById(`alert-${snap.key}`); if(el) el.remove(); } });
     }
 
     function grabOrder(oid) {
         if(!currentUser) return;
-        
-        db.ref(`orders/${oid}`).transaction((order) => {
-            if (order && order.status === 'pending') {
-                order.status = 'taken';
-                order.takerId = currentUser.userId;
-                order.takerName = currentUser.displayName;
-                return order;
-            } else { return; } // 放棄
-        }, (error, committed, snapshot) => {
-            if (error) {
-                Swal.fire('搶單失敗', '系統錯誤', 'error');
-            } else if (!committed) {
-                Swal.fire('慢了一步', '被搶走了！', 'warning');
-                removeAlert(oid);
-            } else {
-                // 搶單成功！
-                const val = snapshot.val();
-                Swal.fire({
-                    icon: 'success',
-                    title: '搶單成功！',
-                    text: '已存入任務列表',
-                    timer: 1500,
-                    showConfirmButton: false
-                });
-                removeAlert(oid);
-                // 這裡不需要手動存，因為 listenForMyMissions 會自動抓到變化
-            }
+        db.ref(`orders/${oid}`).transaction((order) => { if (order && order.status === 'pending') { order.status = 'taken'; order.takerId = currentUser.userId; order.takerName = currentUser.displayName; return order; } else { return; } }, (error, committed, snapshot) => {
+            if (error) Swal.fire('搶單失敗', '系統錯誤', 'error');
+            else if (!committed) { Swal.fire('慢了一步', '被搶走了！', 'warning'); }
+            else { Swal.fire({icon: 'success', title: '搶單成功！', text: '已存入任務列表', timer: 1500, showConfirmButton: false}); }
         });
     }
 
-    // --- 我的任務邏輯 (My Missions) ---
     function listenForMyMissions(uid) {
-        // 監聽所有「我是 takerId」且「狀態是 taken」的訂單
-        // 這裡為了簡化，我們監聽 orders 並過濾 (若訂單量大建議用 query)
         db.ref('orders').on('value', snapshot => {
-            const data = snapshot.val();
-            myMissions = [];
-            if(data) {
-                Object.keys(data).forEach(key => {
-                    const order = data[key];
-                    if(order.takerId === uid && order.status === 'taken') {
-                        order.id = key;
-                        myMissions.push(order);
-                    }
-                });
-            }
-            updateMissionBadge();
-            renderMissionList();
+            const data = snapshot.val(); myMissions = [];
+            if(data) { Object.keys(data).forEach(key => { const order = data[key]; if(order.takerId === uid && order.status === 'taken') { order.id = key; myMissions.push(order); } }); }
+            updateMissionBadge(); renderMissionList();
         });
     }
 
     function updateMissionBadge() {
-        const badge = document.getElementById('mission-badge');
-        const btn = document.getElementById('btn-mission');
-        if(myMissions.length > 0) {
-            badge.style.display = 'flex';
-            badge.innerText = myMissions.length;
-            btn.classList.add('bg-mission'); // 亮燈
-        } else {
-            badge.style.display = 'none';
-            // 恢復原色(這裡簡化，直接維持樣式)
-        }
+        const badge = document.getElementById('mission-badge'); const btn = document.getElementById('btn-mission');
+        if(myMissions.length > 0) { badge.style.display = 'flex'; badge.innerText = myMissions.length; btn.classList.add('bg-mission'); } else { badge.style.display = 'none'; }
     }
-
-    function openMissionModal() {
-        document.getElementById('mission-modal').style.display = 'flex';
-        renderMissionList();
-    }
-    function closeMissionModal() { document.getElementById('mission-modal').style.display = 'none'; }
 
     function renderMissionList() {
         const container = document.getElementById('my-mission-list');
-        if(myMissions.length === 0) {
-            container.innerHTML = `<div style="text-align:center; color:#666; margin-top:50px;">目前沒有執行中的任務</div>`;
-            return;
-        }
-        
+        if(myMissions.length === 0) { container.innerHTML = `<div style="text-align:center; color:#666; margin-top:50px;">目前沒有執行中的任務</div>`; return; }
         container.innerHTML = '';
         myMissions.forEach(m => {
             const phoneBtn = m.phone ? `<a href="tel:${m.phone}" class="btn-action btn-call"><i class="fa-solid fa-phone"></i> 撥給乘客</a>` : `<button class="btn-action btn-call" disabled style="opacity:0.5"><i class="fa-solid fa-phone-slash"></i> 無電話</button>`;
-            
-            // 導航連結 (使用 Google Maps URL Scheme)
-            const navUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(m.from)}`;
-            
-            container.innerHTML += `
-                <div class="mission-card">
-                    <div style="font-weight:bold; font-size:18px; color:#000; margin-bottom:5px;">
-                        <i class="fa-solid fa-location-dot" style="color:#d32f2f"></i> ${m.from}
-                    </div>
-                    <div style="font-size:14px; color:#555; margin-bottom:5px;">
-                        <i class="fa-solid fa-flag-checkered"></i> ${m.to}
-                    </div>
-                    <div style="font-size:14px; color:#888;">
-                        發單人: ${m.ownerName} (${m.time})
-                    </div>
-                    <div class="mc-actions">
-                        ${phoneBtn}
-                        <a href="${navUrl}" target="_blank" class="btn-action btn-nav"><i class="fa-solid fa-diamond-turn-right"></i> 導航</a>
-                    </div>
-                    <button class="btn-done" onclick="completeMission('${m.id}')">✅ 任務完成 (結案)</button>
-                </div>
-            `;
+            const navUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(m.from)}`;
+            container.innerHTML += `<div class="mission-card"><div style="font-weight:bold; font-size:18px; color:#000; margin-bottom:5px;"><i class="fa-solid fa-location-dot" style="color:#d32f2f"></i> ${m.from}</div><div style="font-size:14px; color:#555; margin-bottom:5px;"><i class="fa-solid fa-flag-checkered"></i> ${m.to}</div><div style="font-size:14px; color:#888;">發單人: ${m.ownerName} (${m.time})</div><div class="mc-actions">${phoneBtn}<a href="${navUrl}" target="_blank" class="btn-action btn-nav"><i class="fa-solid fa-diamond-turn-right"></i> 導航</a></div><button class="btn-done" onclick="completeMission('${m.id}')">✅ 任務完成 (結案)</button></div>`;
         });
     }
 
     function completeMission(oid) {
-        Swal.fire({
-            title: '確認結案?',
-            text: "任務將從列表中移除",
-            icon: 'question',
-            showCancelButton: true,
-            confirmButtonColor: '#3085d6',
-            cancelButtonColor: '#d33',
-            confirmButtonText: '是的，已完成!'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                // 將狀態改為 completed (或直接刪除，看需求。這裡改狀態比較好追蹤)
-                db.ref(`orders/${oid}`).update({ status: 'completed' });
-                Swal.fire('已結案!', '辛苦了，繼續接單吧。', 'success');
-            }
-        })
-    }
-
-    // --- 通用函式 ---
-    function togglePower() {
-        const btn = document.getElementById('btn-power');
-        const subBtns = ['btn-sos', 'btn-mission'];
-        
-        if(!isOnline) {
-            isOnline = true; localStorage.setItem('isOnline', 'true');
-            btn.className = "circle-btn bg-on"; btn.innerHTML = `<i class="fa-solid fa-power-off"></i><span class="sub-text">ON</span>`;
-            document.getElementById('hud').innerHTML = `<span class="status-dot" style="background:#00C853;"></span> 上線接單中`;
-            subBtns.forEach(id => document.getElementById(id).style.display = 'flex');
-            
-            if(navigator.geolocation) {
-                watchId = navigator.geolocation.watchPosition(pos => {
-                    const {latitude, longitude} = pos.coords;
-                    db.ref('drivers/' + currentUser.userId).update({
-                        lat: latitude, lng: longitude, status: 'online', lastUpdate: firebase.database.ServerValue.TIMESTAMP
-                    });
-                }, err=>{}, {enableHighAccuracy:true});
-            }
-        } else {
-            isOnline = false; localStorage.setItem('isOnline', 'false');
-            btn.className = "circle-btn bg-off"; btn.innerHTML = `<i class="fa-solid fa-power-off"></i><span class="sub-text">OFF</span>`;
-            document.getElementById('hud').innerHTML = `<span class="status-dot" style="background:gray;"></span> 系統待命`;
-            subBtns.forEach(id => document.getElementById(id).style.display = 'none');
-            
-            if(watchId) navigator.geolocation.clearWatch(watchId);
-            db.ref('drivers/' + currentUser.userId).update({ status: 'offline' });
-        }
+        Swal.fire({ title: '確認結案?', text: "任務將從列表中移除", icon: 'question', showCancelButton: true, confirmButtonColor: '#3085d6', cancelButtonColor: '#d33', confirmButtonText: '是的，已完成!' }).then((result) => { if (result.isConfirmed) { db.ref(`orders/${oid}`).update({ status: 'completed' }); Swal.fire('已結案!', '辛苦了，繼續接單吧。', 'success'); } })
     }
 
     function submitRegistration() {
-        const name = document.getElementById('reg-name').value;
-        const car = document.getElementById('reg-car').value;
-        const phone = document.getElementById('reg-phone').value;
-        const uid = document.getElementById('reg-uid').value;
+        const name = document.getElementById('reg-name').value; const car = document.getElementById('reg-car').value; const phone = document.getElementById('reg-phone').value; const uid = document.getElementById('reg-uid').value;
         if(!name || !car || !phone) return alert("請填寫完整");
-        
         liff.sendMessages([{type:'text', text:`【申請入隊】\n姓名:${name}\n車號:${car}\n電話:${phone}\nID:${uid}`}])
-            .then(() => alert("已送出申請"))
+            .then(() => { alert("已送出申請"); document.querySelector('.btn-submit').disabled=true; })
             .catch(() => alert("請手動複製ID給管理員: " + uid));
     }
   </script>
