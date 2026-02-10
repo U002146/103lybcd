@@ -3,66 +3,57 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>花蓮車隊 - 司機端 (v6.0 Core)</title>
+  <title>花蓮車隊 - 司機端 (v4.3 Classic)</title>
   
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
   <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAIxc6PEhHgUs_A9lyRUg8dNbmwOpSamY8&libraries=geometry"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
   <style>
     body { margin: 0; padding: 0; font-family: -apple-system, Roboto, sans-serif; overflow: hidden; background: #121212; color: white; }
     #map { width: 100vw; height: 100vh; display: none; } 
     
-    @keyframes flash-alert { 0% { background-color: #121212; } 50% { background-color: #b71c1c; } 100% { background-color: #121212; } }
-    .flashing { animation: flash-alert 0.5s infinite; }
-
+    /* 啟動畫面 */
     #unlock-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 20000; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
-    .btn-unlock { width: 120px; height: 120px; border-radius: 50%; background: radial-gradient(circle, #00C853 0%, #009624 100%); border: 4px solid #fff; box-shadow: 0 0 30px rgba(0,200,83,0.6); color: white; font-size: 24px; font-weight: bold; cursor: pointer; animation: pulse-green 2s infinite; display: flex; flex-direction: column; justify-content: center; align-items: center; transition: transform 0.1s; }
-    .btn-unlock:active { transform: scale(0.9); }
-    @keyframes pulse-green { 0% { box-shadow: 0 0 0 0 rgba(0, 200, 83, 0.7); } 70% { box-shadow: 0 0 0 20px rgba(0, 200, 83, 0); } 100% { box-shadow: 0 0 0 0 rgba(0, 200, 83, 0); } }
+    .btn-unlock { width: 120px; height: 120px; border-radius: 50%; background: radial-gradient(circle, #00C853 0%, #009624 100%); border: 4px solid #fff; box-shadow: 0 0 30px rgba(0,200,83,0.6); color: white; font-size: 24px; font-weight: bold; cursor: pointer; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+    .btn-unlock:active { transform: scale(0.95); }
 
+    /* UI 層 */
     #ui-layer { display: none; pointer-events: none; width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 10; }
+    
     #hud { pointer-events: auto; position: absolute; top: 15px; left: 15px; background: rgba(33, 33, 33, 0.9); color: white; padding: 10px 20px; border-radius: 30px; font-weight: bold; font-size: 16px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); display: flex; align-items: center; }
     .status-dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; margin-right: 8px; }
-    .hud-uploading { border-color: #00C853 !important; box-shadow: 0 0 15px rgba(0, 200, 83, 0.5); }
-
+    
+    /* 右上角按鈕 (只留核心3顆) */
     #top-right-panel { pointer-events: auto; position: absolute; top: 15px; right: 15px; display: flex; flex-direction: column; gap: 12px; }
     .circle-btn { width: 60px; height: 60px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.8); color: white; font-weight: bold; font-size: 14px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); cursor: pointer; display: flex; flex-direction: column; justify-content: center; align-items: center; backdrop-filter: blur(4px); position: relative; }
-    .circle-btn:active { transform: scale(0.95); }
-    .sub-text { font-size: 10px; opacity: 0.9; margin-top: 0px; font-weight: normal; }
     .bg-off { background: linear-gradient(145deg, #7f8c8d, #95a5a6); }
     .bg-on { background: linear-gradient(145deg, #d32f2f, #ef5350); }
     .bg-empty { background: linear-gradient(145deg, #2e7d32, #43a047); }
     .bg-queue { background: linear-gradient(145deg, #1565c0, #1976d2); }
     .bg-busy { background: linear-gradient(145deg, #ef6c00, #fb8c00); }
     .bg-dark { background: linear-gradient(145deg, #37474f, #455a64); }
+    .sub-text { font-size: 10px; opacity: 0.9; margin-top: 0px; font-weight: normal; }
 
-    /* v6.0 回歸：乘客呼叫任務面板 (Mission Panel) */
+    /* 乘客呼叫任務面板 (最單純的版本) */
     #mission-panel { 
         pointer-events: auto; display: none; 
         position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); 
         width: 90%; max-width: 350px; 
         background: #222; border: 2px solid #FFD700; border-radius: 15px; 
         padding: 15px; box-shadow: 0 10px 40px rgba(0,0,0,0.8); 
-        text-align: center; color: white; animation: slideUp 0.3s;
+        text-align: center; color: white; 
     }
-    @keyframes slideUp { from { transform: translate(-50%, 100px); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
     .mission-title { color: #FFD700; font-size: 20px; font-weight: bold; margin-bottom: 5px; }
-    .mission-info { font-size: 16px; margin-bottom: 15px; color: #ddd; }
-    .btn-finish { background: #00C853; color: white; border: none; padding: 12px 20px; border-radius: 25px; font-weight: bold; font-size: 18px; cursor: pointer; width: 100%; box-shadow: 0 4px 10px rgba(0,200,83,0.3); }
+    .btn-finish { background: #00C853; color: white; border: none; padding: 12px 20px; border-radius: 25px; font-weight: bold; font-size: 18px; cursor: pointer; width: 100%; }
 
     #register-box { width: 90%; max-width: 400px; background: #222; padding: 25px; border-radius: 15px; border: 1px solid #444; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: none; z-index: 30000; }
     .form-input { width: 100%; padding: 12px; background: #333; border: 1px solid #555; border-radius: 8px; color: white; font-size: 16px; box-sizing: border-box; }
     .btn-post { width: 100%; background: #D50000; color: white; padding: 15px; border: none; border-radius: 8px; font-weight: bold; font-size: 18px; cursor: pointer; }
-
+    
     #saver-overlay { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: black; z-index: 9999; flex-direction: column; justify-content: center; align-items: center; color: #555; user-select: none; }
     #saver-overlay.active { display: flex; }
-    #saver-overlay.pressing p { color: #00C853; transition: color 0.3s; }
-
-    /* SweetAlert2 層級修復 */
-    .swal2-container { z-index: 99999 !important; }
   </style>
 </head>
 <body>
@@ -83,11 +74,11 @@
         <button id="btn-power" class="circle-btn bg-off" onclick="togglePower()"><i class="fa-solid fa-power-off"></i><span class="sub-text">OFF</span></button>
         <button id="btn-status" class="circle-btn bg-empty" style="display:none;" onclick="toggleStatus()"><span id="txt-status">空車</span></button>
         <button id="btn-saver" class="circle-btn bg-dark" style="display:none;" onclick="toggleSaver(true)"><i class="fa-solid fa-moon"></i><span class="sub-text">掛機</span></button>
-        </div>
+      </div>
 
       <div id="mission-panel">
           <div class="mission-title"><i class="fa-solid fa-phone-volume"></i> 乘客呼叫中!</div>
-          <div class="mission-info" id="mission-dist">正在計算距離...</div>
+          <div style="margin-bottom:15px; color:#ccc;">乘客位置已標記於地圖</div>
           <button class="btn-finish" onclick="finishMission()">🏁 我接到了 (清除)</button>
       </div>
   </div>
@@ -117,18 +108,14 @@
     var currentWorkStatus = 'empty'; 
     var watchId = null, wakeLock = null, heartbeatInterval = null;
     var lastUploadTime = 0, lastUploadLat = 0, lastUploadLng = 0;
-    var queueCenter = null; var pressTimer = null;
-    var checkConnectionInterval = null; 
-    
-    // v6.0 回歸：乘客呼叫相關變數
+    var queueCenter = null; 
     var passengerMarker = null, routeLine = null;
 
+    // 省電與更新參數 (保留 v5.8 的好設定)
     const UPDATE_INTERVAL = 15000; 
     const HEARTBEAT_TIME = 180000; 
     const MIN_UPLOAD_DIST = 100; 
     const STATIONARY_THRESHOLD = 20;
-    const CONNECTION_TIMEOUT = 600000; 
-    
     const RENDER_MIN_DIST = 5; 
     var lastRenderLat = 0, lastRenderLng = 0, lastRenderTime = 0;
 
@@ -152,11 +139,6 @@
         setupSaverEvents();
     }
 
-    function playSound(type) {
-        const audio = document.getElementById(type === 'boot' ? 'sound-boot' : 'sound-alert');
-        if(audio) { audio.currentTime = 0; audio.play().catch(e => console.log("Sound error:", e)); }
-    }
-
     function initGoogleMap() {
         map = new google.maps.Map(document.getElementById("map"), { center: { lat: 23.991, lng: 121.601 }, zoom: 15, disableDefaultUI: true });
     }
@@ -164,7 +146,7 @@
     async function initLiff() {
         try { 
             await liff.init({ liffId: LIFF_ID });
-            if (!liff.isInClient()) { return; } 
+            if (!liff.isInClient()) return; 
             if (liff.isLoggedIn()) { currentUser = await liff.getProfile(); localStorage.setItem('driverId', currentUser.userId); }
         } catch (e) {}
     }
@@ -175,9 +157,10 @@
                 const d = snapshot.val();
                 document.getElementById('hud').innerHTML = `<span class="status-dot" style="background:#2ecc71;"></span> 嗨，${d.name}`;
                 document.getElementById('btn-power').style.display = 'flex';
+                // 恢復連線
                 if(localStorage.getItem('isOnline') === 'true') togglePower(true);
                 
-                // v6.0 核心回歸：監聽乘客呼叫
+                // 核心：監聽乘客呼叫 (確保這行一定會執行)
                 listenForRequests(uid);
             } else {
                 document.getElementById('ui-layer').style.display = 'none';
@@ -187,16 +170,15 @@
         });
     }
 
-    // --- v6.0 核心回歸：監聽乘客呼叫 (The Missing Link) ---
+    // --- 核心：監聽乘客呼叫 (最單純版本) ---
     function listenForRequests(uid) {
         db.ref('drivers/' + uid + '/request').on('value', snapshot => {
             const req = snapshot.val();
             if (req) {
-                // 1. 收到請求，觸發警報
-                playSound('alert');
+                // 1. 觸發警報
+                const alert = document.getElementById('sound-alert');
+                if(alert) { alert.currentTime = 0; alert.play().catch(e=>{}); }
                 if(navigator.vibrate) navigator.vibrate([500, 200, 500, 200, 500]);
-                document.body.classList.add('flashing'); 
-                setTimeout(() => { document.body.classList.remove('flashing'); }, 5000);
 
                 // 2. 顯示乘客位置
                 const pLoc = new google.maps.LatLng(req.lat, req.lng);
@@ -208,7 +190,7 @@
                     });
                 } else { passengerMarker.setPosition(pLoc); }
 
-                // 3. 畫線 (如果有司機位置)
+                // 3. 畫線
                 if(myMarker) {
                     if(routeLine) routeLine.setMap(null);
                     routeLine = new google.maps.Polyline({
@@ -217,29 +199,26 @@
                         icons: [{ icon: {path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW}, offset: '100%' }],
                         map: map
                     });
-                    // 計算距離
-                    const dist = google.maps.geometry.spherical.computeDistanceBetween(myMarker.getPosition(), pLoc);
-                    document.getElementById('mission-dist').innerText = `乘客距離：${Math.round(dist)} 公尺`;
                 }
 
                 // 4. 顯示面板
                 document.getElementById('mission-panel').style.display = 'block';
             } else {
-                // 請求被取消或清除
-                finishMission(false); // false 代表是被動清除，不上傳資料庫刪除
+                // 清除
+                if(passengerMarker) { passengerMarker.setMap(null); passengerMarker = null; }
+                if(routeLine) { routeLine.setMap(null); routeLine = null; }
+                document.getElementById('mission-panel').style.display = 'none';
             }
         });
     }
 
-    function finishMission(updateDB = true) {
-        if(passengerMarker) { passengerMarker.setMap(null); passengerMarker = null; }
-        if(routeLine) { routeLine.setMap(null); routeLine = null; }
+    function finishMission() {
+        // 司機按下清除，刪除資料庫請求
+        if(currentUser) db.ref('drivers/' + currentUser.userId + '/request').remove();
         document.getElementById('mission-panel').style.display = 'none';
-        // 如果是司機按下的，要刪除資料庫的請求
-        if(updateDB && currentUser) db.ref('drivers/' + currentUser.userId + '/request').remove();
     }
 
-    // --- GPS 與 上傳邏輯 (v5.8 優化版) ---
+    // --- GPS 與 上傳 (保留 v5.8 省電邏輯) ---
     function startGPS() {
         if (!navigator.geolocation) return;
         watchId = navigator.geolocation.watchPosition((pos) => {
@@ -252,17 +231,18 @@
         if(!currentUser || !isOnline) return;
         const now = Date.now();
         
-        // 更新本地標記 (包含路線重繪)
+        // 本地重繪
         const distRender = Math.sqrt(Math.pow(lat - lastRenderLat, 2) + Math.pow(lng - lastRenderLng, 2)) * 111000;
         if (distRender > RENDER_MIN_DIST || now - lastRenderTime > 2000) {
             updateMarker(lat, lng, heading);
             lastRenderLat = lat; lastRenderLng = lng; lastRenderTime = now;
         }
 
+        // 排班檢查
         if (currentWorkStatus === 'queue' && queueCenter) {
             const distFromQueue = Math.sqrt(Math.pow(lat - queueCenter.lat, 2) + Math.pow(lng - queueCenter.lng, 2)) * 111000;
             if (distFromQueue > 500) {
-                currentWorkStatus = 'empty'; queueCenter = null; updateStatusBtn(); updateHUD(false, "⚠️ 已離開排班區，切換為空車"); forceUpload(lat, lng); return;
+                currentWorkStatus = 'empty'; queueCenter = null; updateStatusBtn(); forceUpload(lat, lng); return;
             }
         }
         
@@ -278,17 +258,10 @@
         const latLng = new google.maps.LatLng(lat, lng);
         const color = currentWorkStatus==='busy'?'#e67e22':(currentWorkStatus==='queue'?'#3498db':'#2ecc71');
         if (!myMarker) { myMarker = new google.maps.Marker({ position: latLng, map: map, icon: getArrowIcon(color, heading), title: "我" }); map.panTo(latLng); } 
-        else { 
-            myMarker.setPosition(latLng); myMarker.setIcon(getArrowIcon(color, heading)); 
-            if(!document.getElementById('saver-overlay').classList.contains('active')) map.panTo(latLng);
-        }
+        else { myMarker.setPosition(latLng); myMarker.setIcon(getArrowIcon(color, heading)); if(!document.getElementById('saver-overlay').classList.contains('active')) map.panTo(latLng); }
         
-        // 如果正在接客任務中，要即時更新路線
-        if(passengerMarker && routeLine) {
-            routeLine.setPath([latLng, passengerMarker.getPosition()]);
-            const dist = google.maps.geometry.spherical.computeDistanceBetween(latLng, passengerMarker.getPosition());
-            document.getElementById('mission-dist').innerText = `乘客距離：${Math.round(dist)} 公尺`;
-        }
+        // 更新乘客路線
+        if(passengerMarker && routeLine) { routeLine.setPath([latLng, passengerMarker.getPosition()]); }
     }
 
     function forceUpload(lat, lng) {
@@ -312,19 +285,6 @@
         if(isUploading) hud.classList.add('hud-uploading'); else hud.classList.remove('hud-uploading');
     }
 
-    function startConnectionCheck() {
-        if(checkConnectionInterval) clearInterval(checkConnectionInterval);
-        checkConnectionInterval = setInterval(() => {
-            if(!isOnline) return;
-            const now = Date.now();
-            if (now - lastUploadTime > CONNECTION_TIMEOUT) {
-                playSound('alert');
-                Swal.fire({ icon: 'error', title: '⚠️ 連線逾時', text: '系統已超過 10 分鐘無法上傳資料。\n請檢查網路連線！', confirmButtonText: '我知道了' });
-                togglePower(false); 
-            }
-        }, 60000); 
-    }
-
     function togglePower(forceOn=false) {
         const btn = document.getElementById('btn-power');
         const subBtns = ['btn-status', 'btn-saver'];
@@ -332,7 +292,7 @@
             isOnline = true; localStorage.setItem('isOnline', 'true');
             btn.className = "circle-btn bg-on"; btn.innerHTML = `<i class="fa-solid fa-power-off"></i><span class="sub-text">ON</span>`;
             subBtns.forEach(id => document.getElementById(id).style.display = 'flex');
-            requestWakeLock(); startGPS(); startConnectionCheck(); 
+            requestWakeLock(); startGPS(); 
             lastUploadTime = Date.now(); 
             if (heartbeatInterval) clearInterval(heartbeatInterval); 
             heartbeatInterval = setInterval(() => { if(Date.now() - lastUploadTime > HEARTBEAT_TIME) forceUpload(); }, 60000);
@@ -342,7 +302,6 @@
             document.getElementById('hud').innerHTML = `<span class="status-dot" style="background:gray;"></span> 系統待命`;
             subBtns.forEach(id => document.getElementById(id).style.display = 'none');
             if (watchId) navigator.geolocation.clearWatch(watchId);
-            if (checkConnectionInterval) clearInterval(checkConnectionInterval); 
             db.ref('drivers/' + currentUser.userId).update({ status: 'offline' });
         }
     }
