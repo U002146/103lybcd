@@ -3,32 +3,50 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>我的數位看板 (Pro)</title>
+    <title>我的數位看板 (Pro)</title> 
     <script src="https://cdn.tailwindcss.com"></script>
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     
     <style>
         .gmnoprint, .gm-control-active { display: none !important; }
         body { overflow: hidden; font-family: 'Noto Sans TC', sans-serif; } 
 
-        /* === 乘客端樣式 === */
+        /* === 乘客端樣式 (精準定位版) === */
         .center-marker {
             position: absolute; top: 50%; left: 50%;
-            transform: translate(-50%, -100%);
+            /* 微調了 offset，並消除底部間隙 */
+            transform: translate(-50%, calc(-100% + 2px));
             z-index: 20; pointer-events: none;
             transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
             display: flex; 
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-end;
         }
-        .center-marker.lifting { transform: translate(-50%, -150%); }
+        /* 拖曳時拔得更高，增加物理反饋感 */
+        .center-marker.lifting { transform: translate(-50%, calc(-100% - 15px)); }
 
+        /* 全新同心圓靶心，給眼睛明確的「降落點」 */
         .target-crosshair {
             position: absolute; top: 50%; left: 50%;
             transform: translate(-50%, -50%);
-            width: 8px; height: 4px;
-            background-color: rgba(0,0,0,0.3);
+            width: 16px; height: 16px;
+            background-color: rgba(225, 29, 72, 0.15); /* 淡淡的紅色基底 */
+            border: 2px solid rgba(225, 29, 72, 0.5); /* 外圈 */
             border-radius: 50%;
             z-index: 19; pointer-events: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .target-crosshair::after {
+            /* 靶心紅點 */
+            content: '';
+            width: 4px; height: 4px;
+            background-color: #e11d48;
+            border-radius: 50%;
             display: block;
         }
 
@@ -81,9 +99,9 @@
 
     <div id="map" class="flex-grow w-full relative"></div>
 
-    <div id="passenger-pin" class="center-marker flex flex-col items-center">
+    <div id="passenger-pin" class="center-marker">
         <div class="bg-slate-800 text-white text-[10px] font-bold px-3 py-1 rounded-full mb-1 shadow-lg tracking-wide opacity-90">上車地點</div>
-        <i class="fa-solid fa-location-dot text-5xl text-rose-600 drop-shadow-xl filter contrast-125"></i>
+        <i class="fa-solid fa-location-dot text-5xl text-rose-600 drop-shadow-xl filter contrast-125 leading-none m-0 p-0 block"></i>
     </div>
     <div id="passenger-shadow" class="target-crosshair"></div>
 
@@ -108,7 +126,6 @@
 
     <script>
         // ========= CONFIG 設定區 =========
-        // 您的個人司機 ID
         const DRIVER_USER_ID = 'U467348846c6b1fa433990d7b75c935b5'; 
         const LIFF_ID = '2008907691-1mAjwojZ'; 
         const FIREBASE_DB_URL = 'https://hualientaxi-bb32f-default-rtdb.asia-southeast1.firebasedatabase.app/';
@@ -120,19 +137,15 @@
         let passengerLatLng = null;
         let currentStatus = 'init';
 
-        // === 專業圖標產生器 (移植自 Project B) ===
         const getPinIcon = (status) => {
-            let color = '#7f8c8d'; // 預設 灰色 (offline)
-            
+            let color = '#7f8c8d'; 
             if (status === 'available') {
-                color = '#00C853'; // 綠色 (空車)
+                color = '#00C853'; 
             } else if (status === 'queue') {
-                color = '#00B0FF'; // 藍色 (排班)
+                color = '#00B0FF'; 
             } else if (status === 'busy') {
-                color = '#FF9800'; // 橘色 (載客)
+                color = '#FF9800'; 
             }
-
-            // 使用 SVG Path 繪製水滴型圖標
             return {
                 path: "M0-48c-9.8 0-17.7 7.8-17.7 17.4 0 15.5 17.7 30.6 17.7 30.6s17.7-15.4 17.7-30.6c0-9.6-7.9-17.4-17.7-17.4z",
                 fillColor: color,
@@ -140,11 +153,10 @@
                 strokeColor: "#fff",
                 strokeWeight: 2,
                 scale: 1.1,
-                labelOrigin: new google.maps.Point(0, -28) // 文字位置修正
+                labelOrigin: new google.maps.Point(0, -28) 
             };
         };
 
-        // 取得對應的文字標籤
         const getPinLabel = (status) => {
             if (status === 'available') return { text: "空", color: "white", fontSize: "14px", fontWeight: "bold" };
             if (status === 'queue') return { text: "排", color: "white", fontSize: "14px", fontWeight: "bold" };
@@ -154,7 +166,13 @@
 
         function loadGoogleMaps() {
             if (GOOGLE_MAPS_API_KEY.includes('請在此填入') || GOOGLE_MAPS_API_KEY === '') {
-                alert('⚠️ 系統偵測到尚未填入 API Key！'); return;
+                Swal.fire({
+                    icon: 'warning',
+                    title: '系統設定錯誤',
+                    text: '⚠️ 尚未填入 Google Maps API Key！',
+                    confirmButtonColor: '#10B981'
+                });
+                return;
             }
             const script = document.createElement('script');
             script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&language=zh-TW&callback=initMap`;
@@ -170,16 +188,14 @@
                 zoom: 17, center: hualienStation, disableDefaultUI: true, gestureHandling: 'greedy'
             });
 
-            // 初始車輛標記 (預設離線狀態)
             carMarker = new google.maps.Marker({
                 position: hualienStation, 
                 map: map, 
                 icon: getPinIcon('offline'), 
-                label: getPinLabel('offline'), // 加上文字
+                label: getPinLabel('offline'), 
                 title: "司機位置"
             });
 
-            // 拖曳邏輯 (保持原樣)
             map.addListener('dragstart', () => {
                 document.getElementById('passenger-pin').classList.add('lifting');
                 document.getElementById('address-display').innerHTML = '<span class="text-gray-400">定位中...</span>';
@@ -223,7 +239,16 @@
 
         async function sendLocationToChat() {
             if (!liff.isLoggedIn()) { liff.login(); return; }
-            if (!passengerLatLng) return alert("請先等待定位完成");
+            if (!passengerLatLng) {
+                Swal.fire({
+                    icon: 'info',
+                    title: '請稍候',
+                    text: '正在為您精準定位中...',
+                    confirmButtonColor: '#10B981',
+                    timer: 2000
+                });
+                return;
+            }
             try {
                 await liff.sendMessages([{
                     type: "location",
@@ -235,11 +260,15 @@
                 liff.closeWindow();
             } catch (err) {
                 console.error("Send Error", err);
-                alert("傳送失敗: " + err.message);
+                Swal.fire({
+                    icon: 'error',
+                    title: '傳送失敗',
+                    text: err.message,
+                    confirmButtonColor: '#EF4444'
+                });
             }
         }
 
-        // === 🔥 Firebase 同步 ===
         function startSyncingDriverData() {
             const url = `${FIREBASE_DB_URL}drivers/${DRIVER_USER_ID}.json`;
             setInterval(() => {
@@ -247,7 +276,7 @@
                     .then(res => res.json())
                     .then(data => { updateDriverUI(data); })
                     .catch(err => console.error("Sync Error:", err));
-            }, 5000); // 5秒更新一次，節省流量
+            }, 5000); 
         }
 
         function updateDriverUI(data) {
@@ -266,15 +295,12 @@
                     status = 'available'; 
                 }
                 
-                // 更新位置
                 const newPos = { lat: parseFloat(data.lat), lng: parseFloat(data.lng) };
                 carMarker.setPosition(newPos);
             }
 
-            // 更新圖標與 UI
             if (currentStatus !== status) {
                 currentStatus = status;
-                // ✅ 重點：同時更新 Icon 和 Label
                 carMarker.setIcon(getPinIcon(status));
                 carMarker.setLabel(getPinLabel(status));
                 updateStatusUI(status);
