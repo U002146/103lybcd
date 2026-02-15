@@ -1,9 +1,10 @@
+// v8.3 跨平台放行版 - 司機端前端
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>花蓮車隊 - 司機端 (v6.1.1 Security)</title>
+  <title>花蓮車隊 - 司機端</title>
   
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
@@ -159,14 +160,19 @@
         try { 
             await liff.init({ liffId: LIFF_ID });
             
-            // v6.1.1 門神歸位：非 LINE 開啟直接擋掉
-            if (!liff.isInClient()) {
-                document.body.innerHTML = "<div style='display:flex;justify-content:center;align-items:center;height:100vh;background:black;color:white;text-align:center;font-size:18px;'><h1>⛔ 存取被拒</h1><p>為了資訊安全，<br>請使用手機 LINE 開啟此系統。</p></div>";
+            // v8.3 跨平台解鎖：非 LINE 環境改為自動喚起登入
+            if (!liff.isLoggedIn()) {
+                // 如果沒有登入，就跳轉到 LINE 的登入畫面
+                liff.login();
                 return;
+            } else {
+                // 已經登入，就抓取資料
+                currentUser = await liff.getProfile(); 
+                localStorage.setItem('driverId', currentUser.userId);
             }
-
-            if (liff.isLoggedIn()) { currentUser = await liff.getProfile(); localStorage.setItem('driverId', currentUser.userId); }
-        } catch (e) {}
+        } catch (e) {
+            console.error("LIFF 初始化失敗", e);
+        }
     }
 
     function checkIdentity(uid) {
