@@ -4,13 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   
-  <title>花蓮敬老愛心車隊：雙向定位系統</title>
-  
-  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>花蓮敬老愛心車隊：雙向定位系統</title> <meta name="apple-mobile-web-app-capable" content="yes">
   
   <meta property="og:title" content="通話叫車：雙向定位系統">
   <meta property="og:description" content="全花蓮唯一！按下通話自動傳送位置，免報路名。司機位置即時看，長輩安心，子女放心。">
-  <meta property="og:image" content="preview.jpg"> </head>
+  <meta property="og:image" content="preview.jpg"> 
 
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
@@ -39,7 +37,6 @@
     .tag-queue { background: #e3f2fd; color: #1565c0; }
     .d-meta { font-size: 13px; color: #666; display: flex; gap: 10px; }
     
-    /* v4.5: 按鈕改為 cursor pointer 且不直接設 href */
     .btn-call { width: 50px; height: 50px; border-radius: 50%; background: linear-gradient(135deg, #00C853, #64DD17); color: white; display: flex; justify-content: center; align-items: center; text-decoration: none; font-size: 20px; box-shadow: 0 4px 10px rgba(76, 175, 80, 0.3); transition: transform 0.1s; cursor: pointer; border: none; }
     .btn-call:active { transform: scale(0.9); }
     .btn-call:disabled { background: #ccc; cursor: not-allowed; transform: none; }
@@ -60,14 +57,18 @@
 
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script>
+    // v7.0 終極推播聯動版
     const LIFF_ID = "2008907691-CzDqd7mm"; 
+    // 【架構師】：請把下面這行換成你剛剛部署的 GAS 網址！
+    const GAS_URL = "https://u002146.github.io/103lybcd/index2.html"; 
+    
     const firebaseConfig = { databaseURL: "https://hualientaxi-bb32f-default-rtdb.asia-southeast1.firebasedatabase.app/" };
     
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
     
     var map, userMarker, markers = {};
-    var myLat = null, myLng = null; // 暫存乘客位置
+    var myLat = null, myLng = null; 
 
     const getPinIcon = (type) => {
         const isQueue = type === 'queue';
@@ -175,7 +176,6 @@
             card.id = `card-${d.id}`;
             card.onclick = () => map.panTo({lat:d.lat, lng:d.lng});
             
-            // v6.2.1: 修正按鈕觸發事件，傳入 event
             card.innerHTML = `
                 <div class="d-avatar"><img src="${avatar}"></div>
                 <div class="d-info">
@@ -185,17 +185,16 @@
                         <span><i class="fa-solid fa-location-arrow"></i> ${distText}</span>
                     </div>
                 </div>
-                <button class="btn-call" onclick="callDriver('${d.id}', '${d.phone}', this)"><i class="fa-solid fa-phone"></i></button>
+                <button class="btn-call" onclick="callDriver('${d.id}', '${d.phone}', this); event.stopPropagation();"><i class="fa-solid fa-phone"></i></button>
             `;
             container.appendChild(card);
         });
     }
 
-    // v6.2.1: 核心修正 - 確保座標傳送後才撥號
+    // 【架構師】：v7.0 雙管齊下核心邏輯
     async function callDriver(driverId, phone, btn) {
         const originalContent = btn.innerHTML;
         
-        // 1. 視覺回饋：轉圈圈，避免重複點擊
         btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i>';
         btn.disabled = true;
 
@@ -205,31 +204,40 @@
             window.location.href = `tel:${phone}`;
         };
 
-        // 2. 如果沒有定位，直接打電話
         if (!myLat || !myLng) {
             makeCall();
             return;
         }
 
-        // 3. 嘗試寫入 Firebase (最多等 2 秒)
         try {
+            // 管線一：寫入 Firebase (更新網頁地圖紅線)
             const writePromise = db.ref('drivers/' + driverId + '/request').set({
                 lat: myLat,
                 lng: myLng,
                 timestamp: firebase.database.ServerValue.TIMESTAMP
             });
 
-            // 設定一個 2秒 的計時器，如果網路太爛就不等了
+            // 管線二：秘密呼叫 GAS 觸發 FCM 推播 (喚醒休眠手機)
+            const pushPromise = fetch(GAS_URL, {
+                method: 'POST',
+                mode: 'no-cors', // 避開瀏覽器跨域限制
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    source: 'web_app',
+                    driverId: driverId
+                })
+            });
+
+            // 2 秒超時機制，確保網路不好也能順利彈出電話介面
             const timeoutPromise = new Promise((resolve) => setTimeout(resolve, 2000));
 
-            // 比賽開始：看是「寫入成功」快，還是「2秒時間到」快
-            await Promise.race([writePromise, timeoutPromise]);
+            // 同步執行，比賽看誰快
+            await Promise.race([Promise.all([writePromise, pushPromise]), timeoutPromise]);
             
-            console.log("座標發送嘗試結束");
+            console.log("雙管發送完成");
         } catch (error) {
-            console.error("Firebase 寫入失敗:", error);
+            console.error("發送失敗:", error);
         } finally {
-            // 4. 無論成功或失敗，最後一定要打電話
             makeCall();
         }
     }
