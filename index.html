@@ -251,7 +251,7 @@
         const distRender = google.maps.geometry.spherical.computeDistanceBetween(currentPos, lastRenderPos);
         
         // 移動超過 10 公尺，才更新地圖上的箭頭位置，避免畫面狂抖
-        if (!myMarker || distRender >= 30) {
+        if (!myMarker || distRender >= 15) {
             updateMarker(lat, lng, heading);
             lastRenderLat = lat; 
             lastRenderLng = lng; 
@@ -286,7 +286,7 @@
         }
         
         // 條件 C：移動超過 15 公尺，且距離上次上傳超過 15 秒 (市區慢行過濾)
-        if (distUploadMeters >= 30 && timeDiff >= UPDATE_INTERVAL) { 
+        if (distUploadMeters >= 15 && timeDiff >= UPDATE_INTERVAL) { 
             forceUpload(lat, lng); return; 
         }
         
