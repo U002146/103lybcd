@@ -3,7 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>花蓮車隊 - 司機端</title>// v7.0 終極動態節流版
+  
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  
+  <title>花蓮車隊 - 司機端</title>
 
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
@@ -115,7 +120,6 @@
     var currentWorkStatus = 'empty'; 
     var watchId = null, wakeLock = null, heartbeatInterval = null;
     
-    // 【架構師】：新增轉角偵測變數 lastUploadHeading
     var lastUploadTime = 0, lastUploadLat = 0, lastUploadLng = 0, lastUploadHeading = 0;
     var lastRenderLat = 0, lastRenderLng = 0; 
     var queueCenter = null; 
@@ -232,11 +236,10 @@
         if (!navigator.geolocation) return;
         watchId = navigator.geolocation.watchPosition((pos) => {
             const { latitude, longitude, heading } = pos.coords;
-            smartUpload(latitude, longitude, heading || 0); // 確保 heading 有預設值
+            smartUpload(latitude, longitude, heading || 0); 
         }, (err) => console.error(err), { enableHighAccuracy: true, maximumAge: 0 });
     }
 
-    // 【架構師】：v7.0 終極動態節流演算法
     function smartUpload(lat, lng, heading) {
         if(!currentUser || !isOnline) return;
         const now = Date.now();
@@ -245,7 +248,6 @@
         if (lastRenderLat === 0) { lastRenderLat = lat; lastRenderLng = lng; }
         if (lastUploadLat === 0) { lastUploadLat = lat; lastUploadLng = lng; lastUploadHeading = heading; forceUpload(lat, lng); return; }
 
-        // --- 視覺防抖：移動超過 10 公尺才重畫畫面 ---
         const lastRenderPos = new google.maps.LatLng(lastRenderLat, lastRenderLng);
         const distRender = google.maps.geometry.spherical.computeDistanceBetween(currentPos, lastRenderPos);
         if (!myMarker || distRender >= 10) {
@@ -257,7 +259,6 @@
         const distUploadMeters = google.maps.geometry.spherical.computeDistanceBetween(currentPos, lastUpPos);
         const timeDiff = now - lastUploadTime;
 
-        // 【智慧省略 1】：載客中 (Busy) -> 深度省電
         if (currentWorkStatus === 'busy') {
             if (timeDiff >= HEARTBEAT_TIME || distUploadMeters >= 500) { 
                 lastUploadHeading = heading; forceUpload(lat, lng); 
@@ -265,7 +266,6 @@
             return; 
         }
 
-        // 【智慧省略 2】：排班區防護與靜止省電 (Queue)
         if (currentWorkStatus === 'queue' && queueCenter) {
             const qPos = new google.maps.LatLng(queueCenter.lat, queueCenter.lng);
             if (google.maps.geometry.spherical.computeDistanceBetween(currentPos, qPos) > 500) {
@@ -281,21 +281,13 @@
             return; 
         }
 
-        // 【智慧省略 3】：空車巡迴狀態 (Empty) -> 轉角偵測與直線巡航
         if (currentWorkStatus === 'empty') {
             let headingDiff = Math.abs(heading - lastUploadHeading);
             if (headingDiff > 180) headingDiff = 360 - headingDiff;
 
-            // 條件 A：3分鐘心跳保活
             if (timeDiff >= HEARTBEAT_TIME) { lastUploadHeading = heading; forceUpload(lat, lng); return; }
-            
-            // 條件 B：轉角強制觸發 (轉角超過 30 度且移動超過 15 公尺)
             if (headingDiff >= 30 && distUploadMeters >= 15) { lastUploadHeading = heading; forceUpload(lat, lng); return; }
-            
-            // 條件 C：【運將專屬設定】高速直線巡航，200公尺上傳一次
             if (distUploadMeters >= 200) { lastUploadHeading = heading; forceUpload(lat, lng); return; }
-            
-            // 條件 D：市區慢行 (直走且速度慢，25公尺 + 15秒)
             if (distUploadMeters >= 25 && timeDiff >= UPDATE_INTERVAL) { lastUploadHeading = heading; forceUpload(lat, lng); return; }
         }
     }
@@ -315,10 +307,16 @@
         }
     }
 
+    // 【架構師】：v7.2 強固版變色函數，安全抓取旋轉角度，確保不報錯
     function refreshMarkerIcon() {
         if (!myMarker) return;
         const color = currentWorkStatus === 'busy' ? '#e67e22' : (currentWorkStatus === 'queue' ? '#3498db' : '#2ecc71');
-        const currentHeading = myMarker.getIcon().rotation || 0;
+        
+        let currentHeading = 0;
+        const currentIcon = myMarker.getIcon();
+        if (currentIcon && currentIcon.rotation !== undefined) {
+            currentHeading = currentIcon.rotation;
+        }
         myMarker.setIcon(getArrowIcon(color, currentHeading));
     }
 
@@ -350,14 +348,30 @@
             if(!isOnline) return;
             const now = Date.now();
             if (now - lastUploadTime > CONNECTION_TIMEOUT) {
-                Swal.fire({
-                    icon: 'error', title: '⚠️ 連線逾時',
-                    text: '系統已超過 10 分鐘無法上傳資料。\n請檢查網路連線！',
-                    confirmButtonText: '我知道了'
-                });
-                togglePower(false); 
+                console.log("網頁從休眠中喚醒，強制更新座標...");
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(pos => {
+                        forceUpload(pos.coords.latitude, pos.coords.longitude);
+                    }, err => console.error(err), { enableHighAccuracy: true });
+                }
             }
         }, 60000); 
+    }
+
+    // 【UI 總監】：此處呼叫 refreshMarkerIcon 秒變色
+    function toggleStatus(){ 
+        const btn = document.getElementById('btn-status'); 
+        const txt = document.getElementById('txt-status'); 
+        if(currentWorkStatus === 'empty') { 
+            currentWorkStatus = 'queue'; btn.className = "circle-btn bg-queue"; txt.innerText = "排班"; 
+            if(myMarker) { const pos = myMarker.getPosition(); queueCenter = { lat: pos.lat(), lng: pos.lng() }; } 
+        } else if (currentWorkStatus === 'queue') { 
+            currentWorkStatus = 'busy'; btn.className = "circle-btn bg-busy"; txt.innerText = "載客"; queueCenter = null; 
+        } else { 
+            currentWorkStatus = 'empty'; btn.className = "circle-btn bg-empty"; txt.innerText = "空車"; queueCenter = null; 
+        } 
+        refreshMarkerIcon();
+        forceUpload(); 
     }
 
     function togglePower(forceOn=false) {
@@ -380,21 +394,6 @@
             if (checkConnectionInterval) clearInterval(checkConnectionInterval);
             db.ref('drivers/' + currentUser.userId).update({ status: 'offline' });
         }
-    }
-
-    function toggleStatus(){ 
-        const btn = document.getElementById('btn-status'); 
-        const txt = document.getElementById('txt-status'); 
-        if(currentWorkStatus === 'empty') { 
-            currentWorkStatus = 'queue'; btn.className = "circle-btn bg-queue"; txt.innerText = "排班"; 
-            if(myMarker) { const pos = myMarker.getPosition(); queueCenter = { lat: pos.lat(), lng: pos.lng() }; } 
-        } else if (currentWorkStatus === 'queue') { 
-            currentWorkStatus = 'busy'; btn.className = "circle-btn bg-busy"; txt.innerText = "載客"; queueCenter = null; 
-        } else { 
-            currentWorkStatus = 'empty'; btn.className = "circle-btn bg-empty"; txt.innerText = "空車"; queueCenter = null; 
-        } 
-        refreshMarkerIcon();
-        forceUpload(); 
     }
 
     function getWorkStatusText() { return currentWorkStatus==='queue'?'排班':(currentWorkStatus==='busy'?'載客':'空車'); }
