@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>花蓮車隊 - 司機端</title> // v6.2 智慧節流修復版
+  <title>花蓮車隊 - 司機端</title>
 
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
@@ -251,7 +251,7 @@
         const distRender = google.maps.geometry.spherical.computeDistanceBetween(currentPos, lastRenderPos);
         
         // 移動超過 10 公尺，才更新地圖上的箭頭位置，避免畫面狂抖
-        if (!myMarker || distRender >= 100) {
+        if (!myMarker || distRender >= 30) {
             updateMarker(lat, lng, heading);
             lastRenderLat = lat; 
             lastRenderLng = lng; 
