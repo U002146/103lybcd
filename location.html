@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>我的數位看板 (Pro)</title> 
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>我的數位看板 (Pro)</title> <script src="https://cdn.tailwindcss.com"></script>
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -16,7 +15,6 @@
         /* === 乘客端樣式 (精準定位版) === */
         .center-marker {
             position: absolute; top: 50%; left: 50%;
-            /* 微調了 offset，並消除底部間隙 */
             transform: translate(-50%, calc(-100% + 2px));
             z-index: 20; pointer-events: none;
             transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
@@ -25,16 +23,14 @@
             align-items: center;
             justify-content: flex-end;
         }
-        /* 拖曳時拔得更高，增加物理反饋感 */
         .center-marker.lifting { transform: translate(-50%, calc(-100% - 15px)); }
 
-        /* 全新同心圓靶心，給眼睛明確的「降落點」 */
         .target-crosshair {
             position: absolute; top: 50%; left: 50%;
             transform: translate(-50%, -50%);
             width: 16px; height: 16px;
-            background-color: rgba(225, 29, 72, 0.15); /* 淡淡的紅色基底 */
-            border: 2px solid rgba(225, 29, 72, 0.5); /* 外圈 */
+            background-color: rgba(225, 29, 72, 0.15);
+            border: 2px solid rgba(225, 29, 72, 0.5);
             border-radius: 50%;
             z-index: 19; pointer-events: none;
             display: flex;
@@ -42,29 +38,18 @@
             justify-content: center;
         }
         .target-crosshair::after {
-            /* 靶心紅點 */
-            content: '';
-            width: 4px; height: 4px;
-            background-color: #e11d48;
-            border-radius: 50%;
-            display: block;
+            content: ''; width: 4px; height: 4px; background-color: #e11d48; border-radius: 50%; display: block;
         }
 
         #passenger-panel {
             position: fixed; bottom: 0; left: 0; right: 0;
-            background: white;
-            border-top-left-radius: 24px;
-            border-top-right-radius: 24px;
-            box-shadow: 0 -4px 20px rgba(0,0,0,0.1);
-            z-index: 30;
-            padding: 20px;
-            padding-bottom: 30px;
-            transform: translateY(0);
-            transition: transform 0.3s ease-out;
+            background: white; border-top-left-radius: 24px; border-top-right-radius: 24px;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.1); z-index: 30;
+            padding: 20px; padding-bottom: 30px;
+            transform: translateY(0); transition: transform 0.3s ease-out;
             display: flex; flex-direction: column; gap: 10px;
         }
 
-        /* 呼吸燈動畫 */
         @keyframes pulse-green {
             0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
             70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
@@ -79,6 +64,8 @@
         }
         .call-btn-pulse-red { animation: pulse-red 2s infinite; }
         .call-btn-pulse { animation: pulse-green 2s infinite; }
+
+        .swal2-container { z-index: 99999 !important; }
     </style>
 </head>
 <body class="bg-gray-100 h-screen flex flex-col font-sans">
@@ -118,9 +105,9 @@
             </div>
         </div>
         <div class="border-t border-gray-100 my-1"></div>
-        <button onclick="sendLocationToChat()" id="btn-send-loc" class="w-full bg-emerald-500 text-white font-bold py-4 rounded-xl shadow-lg active:scale-[0.98] transition-all text-xl flex items-center justify-center space-x-2 btn-pulse">
-            <i class="fa-regular fa-paper-plane"></i>
-            <span>傳送當前位置</span>
+        <button onclick="summonDriver()" id="btn-send-loc" class="w-full bg-emerald-500 text-white font-bold py-4 rounded-xl shadow-lg active:scale-[0.98] transition-all text-xl flex items-center justify-center space-x-2 btn-pulse">
+            <i class="fa-solid fa-taxi"></i>
+            <span>傳送位置並呼叫司機</span>
         </button>
     </div>
 
@@ -128,31 +115,28 @@
         // ========= CONFIG 設定區 =========
         const DRIVER_USER_ID = 'U467348846c6b1fa433990d7b75c935b5'; 
         const LIFF_ID = '2008907691-1mAjwojZ'; 
-        const FIREBASE_DB_URL = 'https://hualientaxi-bb32f-default-rtdb.asia-southeast1.firebasedatabase.app/';
         const GOOGLE_MAPS_API_KEY = 'AIzaSyAIxc6PEhHgUs_A9lyRUg8dNbmwOpSamY8';
+        const GAS_URL = "https://script.google.com/macros/s/AKfycbzjWZ8j394jfKoMVbPWGvHJHqwF7RBCQxnxyju1ifWKoKdM7RE512F7qrhUsQqQGoWg/exec"; 
         // ====================================================
 
         let map, carMarker, geocoder;
         let passengerAddress = "定位中...";
         let passengerLatLng = null;
         let currentStatus = 'init';
+        let lastGeocodePos = null;
+
+        const firebaseConfig = { databaseURL: "https://hualientaxi-bb32f-default-rtdb.asia-southeast1.firebasedatabase.app/" };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
 
         const getPinIcon = (status) => {
             let color = '#7f8c8d'; 
-            if (status === 'available') {
-                color = '#00C853'; 
-            } else if (status === 'queue') {
-                color = '#00B0FF'; 
-            } else if (status === 'busy') {
-                color = '#FF9800'; 
-            }
+            if (status === 'available') color = '#00C853'; 
+            else if (status === 'queue') color = '#00B0FF'; 
+            else if (status === 'busy') color = '#FF9800'; 
             return {
                 path: "M0-48c-9.8 0-17.7 7.8-17.7 17.4 0 15.5 17.7 30.6 17.7 30.6s17.7-15.4 17.7-30.6c0-9.6-7.9-17.4-17.7-17.4z",
-                fillColor: color,
-                fillOpacity: 1,
-                strokeColor: "#fff",
-                strokeWeight: 2,
-                scale: 1.1,
+                fillColor: color, fillOpacity: 1, strokeColor: "#fff", strokeWeight: 2, scale: 1.1,
                 labelOrigin: new google.maps.Point(0, -28) 
             };
         };
@@ -165,17 +149,9 @@
         };
 
         function loadGoogleMaps() {
-            if (GOOGLE_MAPS_API_KEY.includes('請在此填入') || GOOGLE_MAPS_API_KEY === '') {
-                Swal.fire({
-                    icon: 'warning',
-                    title: '系統設定錯誤',
-                    text: '⚠️ 尚未填入 Google Maps API Key！',
-                    confirmButtonColor: '#10B981'
-                });
-                return;
-            }
+            if (GOOGLE_MAPS_API_KEY.includes('請在此填入') || GOOGLE_MAPS_API_KEY === '') return;
             const script = document.createElement('script');
-            script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&language=zh-TW&callback=initMap`;
+            script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&language=zh-TW&libraries=geometry&callback=initMap`;
             script.defer = true;
             document.body.appendChild(script);
         }
@@ -189,11 +165,7 @@
             });
 
             carMarker = new google.maps.Marker({
-                position: hualienStation, 
-                map: map, 
-                icon: getPinIcon('offline'), 
-                label: getPinLabel('offline'), 
-                title: "司機位置"
+                position: hualienStation, map: map, icon: getPinIcon('offline'), label: getPinLabel('offline'), title: "司機位置"
             });
 
             map.addListener('dragstart', () => {
@@ -207,7 +179,15 @@
                 document.getElementById('passenger-pin').classList.remove('lifting');
                 const center = map.getCenter();
                 passengerLatLng = { lat: center.lat(), lng: center.lng() };
-                geocodePosition(center);
+                
+                if (!lastGeocodePos || google.maps.geometry.spherical.computeDistanceBetween(lastGeocodePos, center) > 50) {
+                    geocodePosition(center);
+                    lastGeocodePos = center;
+                } else {
+                    document.getElementById('address-display').innerText = passengerAddress;
+                    document.getElementById('btn-send-loc').disabled = false;
+                    document.getElementById('btn-send-loc').classList.remove('opacity-50');
+                }
             });
 
             startSyncingDriverData();
@@ -220,11 +200,11 @@
                     let addr = results[0].formatted_address.replace(/^\d+\s*/, '').replace(/台灣/, '').replace(/花蓮縣/, '');
                     passengerAddress = addr;
                     document.getElementById('address-display').innerText = addr;
-                    document.getElementById('btn-send-loc').disabled = false;
-                    document.getElementById('btn-send-loc').classList.remove('opacity-50');
                 } else {
                     document.getElementById('address-display').innerText = "未知的位置";
                 }
+                document.getElementById('btn-send-loc').disabled = false;
+                document.getElementById('btn-send-loc').classList.remove('opacity-50');
             });
         }
 
@@ -237,46 +217,77 @@
             }
         }
 
-        async function sendLocationToChat() {
-            if (!liff.isLoggedIn()) { liff.login(); return; }
+        // 🚀 v1.2 核心升級：完全同步專案 B 的雙管齊下免費呼叫邏輯
+        async function summonDriver() {
             if (!passengerLatLng) {
-                Swal.fire({
-                    icon: 'info',
-                    title: '請稍候',
-                    text: '正在為您精準定位中...',
-                    confirmButtonColor: '#10B981',
-                    timer: 2000
-                });
+                Swal.fire({ icon: 'info', title: '請稍候', text: '正在為您精準定位中...', confirmButtonColor: '#10B981', timer: 2000 });
                 return;
             }
+
+            const btn = document.getElementById('btn-send-loc');
+            const originalContent = btn.innerHTML;
+            
+            // 按鈕顯示轉圈圈
+            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> <span>呼叫發送中...</span>';
+            btn.disabled = true;
+
             try {
-                await liff.sendMessages([{
-                    type: "location",
-                    title: "乘客叫車位置",
-                    address: passengerAddress,
-                    latitude: passengerLatLng.lat,
-                    longitude: passengerLatLng.lng
-                }]);
-                liff.closeWindow();
-            } catch (err) {
-                console.error("Send Error", err);
-                Swal.fire({
-                    icon: 'error',
-                    title: '傳送失敗',
-                    text: err.message,
-                    confirmButtonColor: '#EF4444'
+                // 第一管：寫入 Firebase 畫紅線
+                const writePromise = db.ref('drivers/' + DRIVER_USER_ID + '/request').set({
+                    lat: passengerLatLng.lat,
+                    lng: passengerLatLng.lng,
+                    timestamp: firebase.database.ServerValue.TIMESTAMP
                 });
+
+                // 第二管：呼叫 GAS 觸發手機推播喚醒
+                const pushPromise = fetch(GAS_URL, {
+                    method: 'POST', mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ source: 'web_app', driverId: DRIVER_USER_ID })
+                });
+
+                // 2秒逾時防護
+                const timeoutPromise = new Promise((resolve) => setTimeout(resolve, 2000));
+                await Promise.race([Promise.all([writePromise, pushPromise]), timeoutPromise]);
+
+                // 成功後彈出防呆提示，並提供備用通話按鈕
+                Swal.fire({
+                    icon: 'success',
+                    title: '已通知專屬司機！',
+                    html: `司機已收到您的精準位置：<br><strong class="text-emerald-600">${passengerAddress}</strong><br><br><span class="text-sm text-gray-500">若司機未及時回應，或您有急事，建議直接通話聯絡。</span>`,
+                    confirmButtonText: '<i class="fa-solid fa-phone"></i> 聯繫客服/司機',
+                    showCancelButton: true,
+                    cancelButtonText: '關閉等待',
+                    confirmButtonColor: '#10B981',
+                    cancelButtonColor: '#6B7280',
+                    reverseButtons: true
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        // 引導至 LINE 客服或撥打電話
+                        window.location.href = "https://lin.ee/9Davl6e"; 
+                    }
+                });
+
+            } catch (error) {
+                console.error("發送失敗:", error);
+                Swal.fire({ icon: 'error', title: '呼叫失敗', text: '請檢查網路連線，或直接撥打電話', confirmButtonColor: '#EF4444' });
+            } finally {
+                // 恢復按鈕狀態
+                btn.innerHTML = originalContent;
+                btn.disabled = false;
             }
         }
 
+        // 🚀 同步專案 B 的 15 秒更新頻率
         function startSyncingDriverData() {
-            const url = `${FIREBASE_DB_URL}drivers/${DRIVER_USER_ID}.json`;
-            setInterval(() => {
-                fetch(url)
-                    .then(res => res.json())
-                    .then(data => { updateDriverUI(data); })
-                    .catch(err => console.error("Sync Error:", err));
-            }, 5000); 
+            const fetchDriver = () => {
+                db.ref('drivers/' + DRIVER_USER_ID).once('value').then(snapshot => {
+                    updateDriverUI(snapshot.val());
+                }).catch(err => console.error("Sync Error:", err));
+            };
+            
+            fetchDriver(); 
+            setInterval(fetchDriver, 15000); // 15秒
         }
 
         function updateDriverUI(data) {
@@ -287,13 +298,9 @@
             let status = 'offline'; 
 
             if (!isStale && data.status === 'online') {
-                if (data.workStatus === 'busy') {
-                    status = 'busy';
-                } else if (data.workStatus === 'queue') {
-                    status = 'queue';
-                } else {
-                    status = 'available'; 
-                }
+                if (data.workStatus === 'busy') status = 'busy';
+                else if (data.workStatus === 'queue') status = 'queue';
+                else status = 'available'; 
                 
                 const newPos = { lat: parseFloat(data.lat), lng: parseFloat(data.lng) };
                 carMarker.setPosition(newPos);
@@ -317,18 +324,15 @@
                 sub.innerText = "🚕 空車，歡迎搭乘！";
                 callBtn.classList.remove('call-btn-pulse-red'); 
                 callBtn.classList.add('call-btn-pulse');
-
             } else if (status === 'queue') {
                 bar.className = "bg-blue-600 text-white p-4 shadow-md z-50 flex items-center justify-between transition-colors duration-500";
                 sub.innerText = "🚕 排班中，歡迎預約！";
                 callBtn.classList.remove('call-btn-pulse-red'); 
                 callBtn.classList.add('call-btn-pulse');
-
             } else if (status === 'busy') {
                 bar.className = "bg-yellow-500 text-black p-4 shadow-md z-50 flex items-center justify-between transition-colors duration-500";
                 sub.innerText = "🚫 載客中，請稍候。";
                 callBtn.classList.remove('call-btn-pulse', 'call-btn-pulse-red'); 
-
             } else {
                 bar.className = "bg-gray-600 text-white p-4 shadow-md z-50 flex items-center justify-between transition-colors duration-500";
                 sub.innerText = "💤 司機休息中 (請通話確認)";
@@ -341,7 +345,8 @@
             try {
                 await liff.init({ liffId: LIFF_ID });
                 if (!liff.isLoggedIn()) {
-                    liff.login({ redirectUri: window.location.href });
+                    // 個人看板可以不用強制登入，若要強制登入可解開這行
+                    // liff.login({ redirectUri: window.location.href });
                     return; 
                 }
                 const profile = await liff.getProfile();
