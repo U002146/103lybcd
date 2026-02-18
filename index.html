@@ -8,9 +8,7 @@
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
   
-  <title>花蓮車隊 - 司機端</title>
-
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <title>花蓮車隊 - 司機端</title><script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
   <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAIxc6PEhHgUs_A9lyRUg8dNbmwOpSamY8&libraries=geometry"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -266,13 +264,15 @@
             return; 
         }
 
+        // 🚀 v7.4 核心修改：排班駛離自動切換為【載客 (busy)】防呆機制
         if (currentWorkStatus === 'queue' && queueCenter) {
             const qPos = new google.maps.LatLng(queueCenter.lat, queueCenter.lng);
             if (google.maps.geometry.spherical.computeDistanceBetween(currentPos, qPos) > 500) {
-                currentWorkStatus = 'empty'; queueCenter = null; 
-                document.getElementById('btn-status').className = "circle-btn bg-empty";
-                document.getElementById('txt-status').innerText = "空車";
-                updateHUD(false, "⚠️ 已離開排班區，自動切換空車"); 
+                currentWorkStatus = 'busy'; // 離開排班區高機率是接單出車，防呆預設為載客
+                queueCenter = null; 
+                document.getElementById('btn-status').className = "circle-btn bg-busy";
+                document.getElementById('txt-status').innerText = "載客";
+                updateHUD(false, "⚠️ 已離開排班區，自動切換為載客"); 
                 refreshMarkerIcon(); 
                 lastUploadHeading = heading; forceUpload(lat, lng); 
             } else if (timeDiff >= HEARTBEAT_TIME) {
@@ -307,11 +307,9 @@
         }
     }
 
-    // 【架構師】：v7.2 強固版變色函數，安全抓取旋轉角度，確保不報錯
     function refreshMarkerIcon() {
         if (!myMarker) return;
         const color = currentWorkStatus === 'busy' ? '#e67e22' : (currentWorkStatus === 'queue' ? '#3498db' : '#2ecc71');
-        
         let currentHeading = 0;
         const currentIcon = myMarker.getIcon();
         if (currentIcon && currentIcon.rotation !== undefined) {
@@ -358,7 +356,6 @@
         }, 60000); 
     }
 
-    // 【UI 總監】：此處呼叫 refreshMarkerIcon 秒變色
     function toggleStatus(){ 
         const btn = document.getElementById('btn-status'); 
         const txt = document.getElementById('txt-status'); 
@@ -374,6 +371,7 @@
         forceUpload(); 
     }
 
+    // 🚀 v7.3/v7.4 核心修改：下線時強制清除排班狀態
     function togglePower(forceOn=false) {
         const btn = document.getElementById('btn-power');
         const subBtns = ['btn-status', 'btn-saver'];
@@ -392,7 +390,18 @@
             subBtns.forEach(id => document.getElementById(id).style.display = 'none');
             if (watchId) navigator.geolocation.clearWatch(watchId);
             if (checkConnectionInterval) clearInterval(checkConnectionInterval);
-            db.ref('drivers/' + currentUser.userId).update({ status: 'offline' });
+            
+            // 🚀 防呆機制：下線瞬間重置為空車，清空排班中心點
+            currentWorkStatus = 'empty'; 
+            queueCenter = null;
+            document.getElementById('btn-status').className = "circle-btn bg-empty";
+            document.getElementById('txt-status').innerText = "空車";
+            refreshMarkerIcon();
+
+            db.ref('drivers/' + currentUser.userId).update({ 
+                status: 'offline',
+                workStatus: 'empty' // 雲端同步切換為空車，防止變成幽靈排班車
+            });
         }
     }
 
