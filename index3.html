@@ -3,9 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>花蓮車隊 - 戰情中心 (v4.20)</title>
-  
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <title>花蓮車隊 - 排班區</title> <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
   <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAIxc6PEhHgUs_A9lyRUg8dNbmwOpSamY8&libraries=geometry"></script>
   
@@ -22,14 +20,19 @@
     .zone-header:hover { background: #34495e; }
     
     .zone-title { font-size: 16px; font-weight: bold; color: #fff; display: flex; align-items: center; }
+    /* v4.21 UI優化：戰區淨空時 數字顯示綠色閃爍，提示前往支援 */
     .zone-count { background: #f1c40f; color: #000; padding: 2px 10px; border-radius: 20px; font-weight: bold; font-size: 14px; min-width: 25px; text-align: center; }
+    .zone-count.empty { background: #00C853; color: white; animation: pulse 2s infinite; }
+    @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(0,200,83,0.7); } 70% { box-shadow: 0 0 0 10px rgba(0,200,83,0); } 100% { box-shadow: 0 0 0 0 rgba(0,200,83,0); } }
     
     .driver-list { display: none; padding: 10px; background: #222; border-bottom: 1px solid #444; }
     .driver-list.active { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
     
-    /* v4.20 優化卡片樣式，容納電話按鈕 */
+    /* v4.20/4.21 卡片樣式 */
     .driver-card { background: #333; border-radius: 8px; padding: 10px; display: flex; align-items: center; border-left: 4px solid #00C853; justify-content: space-between; }
     .driver-card.queue { border-left-color: #3498db; }
+    /* UX優化：載客中的卡片變暗，避免誤撥 */
+    .driver-card.busy { border-left-color: #e67e22; opacity: 0.5; }
     
     .d-left { display: flex; align-items: center; }
     .d-avatar { width: 40px; height: 40px; border-radius: 50%; background: #555; overflow: hidden; margin-right: 10px; }
@@ -38,21 +41,23 @@
     .d-info p { margin: 2px 0 0; font-size: 12px; color: #aaa; }
 
     /* 撥號按鈕 */
-    .btn-dial {
-        background: #00C853; color: white; width: 40px; height: 40px; border-radius: 50%;
-        display: flex; justify-content: center; align-items: center; text-decoration: none;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.3); transition: transform 0.1s;
-    }
+    .btn-dial { background: #00C853; color: white; width: 40px; height: 40px; border-radius: 50%; display: flex; justify-content: center; align-items: center; text-decoration: none; box-shadow: 0 2px 5px rgba(0,0,0,0.3); transition: transform 0.1s; }
     .btn-dial:active { transform: scale(0.9); }
+    .btn-dial.disabled { background: #555; pointer-events: none; }
     .btn-dial i { font-size: 18px; }
 
-    .marquee { background: #000; color: #00C853; padding: 8px; font-size: 14px; white-space: nowrap; overflow: hidden; text-align: center; border-bottom: 1px solid #333; }
+    .marquee { background: #000; color: #00C853; padding: 8px; font-size: 14px; white-space: nowrap; overflow: hidden; text-align: center; border-bottom: 1px solid #333; display: flex; justify-content: center; align-items: center; gap: 10px;}
+    .radar-indicator { background: #111; color: #00C853; padding: 2px 8px; border-radius: 10px; border: 1px solid #00C853; font-size: 12px; font-weight: bold;}
   </style>
 </head>
 <body>
 
   <div id="map-container"><div id="map"></div></div>
-  <div class="marquee">花蓮車隊戰情中心 • 全境監控中 (14區) • <span id="clock"></span></div>
+  <div class="marquee">
+    <span>全境監控中 (14區)</span>
+    <span class="radar-indicator"><i class="fa-solid fa-satellite-dish"></i> <span id="radar-timer">60s</span></span>
+    <span id="clock"></span>
+  </div>
 
   <div id="board-container" style="overflow-y: auto;">
     <div id="zones-wrapper"></div>
@@ -130,7 +135,10 @@
     window.onload = function() {
         initMap();
         processGeoData(); 
-        listenToDrivers();
+        
+        // v4.21 節能雷達版：啟動60秒掃描與倒數計時器
+        fetchRadarData(); 
+        startRadarTimer();
         setInterval(() => document.getElementById('clock').innerText = new Date().toLocaleString(), 1000);
     };
 
@@ -138,6 +146,103 @@
         map = new google.maps.Map(document.getElementById("map"), {
             center: { lat: 23.991, lng: 121.601 }, zoom: 12, 
             disableDefaultUI: true
+        });
+    }
+
+    // 🚀 v4.21 核心改動：改用 .once 單次讀取
+    function fetchRadarData() {
+        db.ref('drivers').once('value').then(snapshot => {
+            updateDashboard(snapshot);
+        }).catch(err => console.error("雷達掃描失敗:", err));
+    }
+
+    // 🕒 v4.21 UI改動：倒數計時器
+    let countdown = 60;
+    function startRadarTimer() {
+        setInterval(() => {
+            countdown--;
+            if(countdown <= 0) {
+                countdown = 60;
+                fetchRadarData(); // 倒數歸零時觸發掃描
+            }
+            document.getElementById('radar-timer').innerText = countdown + 's';
+        }, 1000);
+    }
+
+    // 將原本的 on() 內部邏輯抽出來，變成獨立的更新畫面函數
+    function updateDashboard(snapshot) {
+        const data = snapshot.val();
+        if (!data) return;
+        const now = Date.now();
+        const zoneDrivers = {}; 
+        ZONES_DATA.forEach(z => zoneDrivers[z.id] = []);
+        const activeIds = new Set();
+
+        Object.keys(data).forEach(key => {
+            const d = data[key];
+            const timeout = d.workStatus === 'queue' ? 3600000 : 600000;
+            
+            if (d.status !== 'online') return;
+            if (now - d.lastUpdate > timeout) return;
+
+            activeIds.add(key);
+            const pos = new google.maps.LatLng(d.lat, d.lng);
+            
+            if (!markers[key]) {
+                markers[key] = new google.maps.Marker({ position: pos, map: map, icon: getPinIcon(d.workStatus), title: d.name });
+            } else {
+                markers[key].setPosition(pos);
+                markers[key].setIcon(getPinIcon(d.workStatus));
+            }
+
+            ZONES_DATA.forEach(z => {
+                const poly = zonePolygons[z.id];
+                if (poly && google.maps.geometry.poly.containsLocation(pos, poly)) {
+                    zoneDrivers[z.id].push(d);
+                }
+            });
+        });
+
+        for(let k in markers) { if(!activeIds.has(k)) { markers[k].setMap(null); delete markers[k]; } }
+
+        ZONES_DATA.forEach(z => {
+            const list = document.getElementById(`list-${z.id}`);
+            const count = document.getElementById(`count-${z.id}`);
+            if(!list || !count) return;
+
+            list.innerHTML = "";
+            count.innerText = zoneDrivers[z.id].length;
+            
+            // v4.21 UI優化：戰區淨空時 數字顯示綠色閃爍
+            if(zoneDrivers[z.id].length === 0) {
+                count.classList.add('empty');
+            } else {
+                count.classList.remove('empty');
+            }
+            
+            if(zoneDrivers[z.id].length > 0) {
+                zoneDrivers[z.id].forEach(d => {
+                    const statusClass = d.workStatus === 'queue' ? 'queue' : (d.workStatus === 'busy' ? 'busy' : '');
+                    const avatar = d.photo || 'https://cdn-icons-png.flaticon.com/512/3237/3237472.png';
+                    const isBusy = d.workStatus === 'busy';
+                    
+                    const phoneBtn = d.phone 
+                        ? `<a href="tel:${d.phone}" class="btn-dial ${isBusy ? 'disabled' : ''}"><i class="fa-solid fa-phone"></i></a>` 
+                        : `<div style="width:40px;"></div>`;
+
+                    list.innerHTML += `
+                        <div class="driver-card ${statusClass}">
+                            <div class="d-left">
+                                <div class="d-avatar"><img src="${avatar}"></div>
+                                <div class="d-info"><h3>${d.name}</h3><p>${d.car || '計程車'}</p></div>
+                            </div>
+                            ${phoneBtn}
+                        </div>
+                    `;
+                });
+            } else {
+                list.innerHTML = `<div style="color:#00C853;text-align:center;padding:10px;font-weight:bold;"><i class="fa-solid fa-bolt"></i> 戰區淨空，急需支援！</div>`;
+            }
         });
     }
 
@@ -217,76 +322,6 @@
         const list = document.getElementById(`list-${id}`);
         if(list) list.classList.toggle('active');
     };
-
-    function listenToDrivers() {
-        db.ref('drivers').on('value', snapshot => {
-            const data = snapshot.val();
-            if (!data) return;
-            const now = Date.now();
-            const zoneDrivers = {}; 
-            ZONES_DATA.forEach(z => zoneDrivers[z.id] = []);
-            const activeIds = new Set();
-
-            Object.keys(data).forEach(key => {
-                const d = data[key];
-                const timeout = d.workStatus === 'queue' ? 3600000 : 600000;
-                
-                if (d.status !== 'online') return;
-                if (now - d.lastUpdate > timeout) return;
-
-                activeIds.add(key);
-                const pos = new google.maps.LatLng(d.lat, d.lng);
-                
-                if (!markers[key]) {
-                    markers[key] = new google.maps.Marker({ position: pos, map: map, icon: getPinIcon(d.workStatus), title: d.name });
-                } else {
-                    markers[key].setPosition(pos);
-                    markers[key].setIcon(getPinIcon(d.workStatus));
-                }
-
-                ZONES_DATA.forEach(z => {
-                    const poly = zonePolygons[z.id];
-                    if (poly && google.maps.geometry.poly.containsLocation(pos, poly)) {
-                        zoneDrivers[z.id].push(d);
-                    }
-                });
-            });
-
-            for(let k in markers) { if(!activeIds.has(k)) { markers[k].setMap(null); delete markers[k]; } }
-
-            ZONES_DATA.forEach(z => {
-                const list = document.getElementById(`list-${z.id}`);
-                const count = document.getElementById(`count-${z.id}`);
-                if(!list || !count) return;
-
-                list.innerHTML = "";
-                count.innerText = zoneDrivers[z.id].length;
-                
-                if(zoneDrivers[z.id].length > 0) {
-                    zoneDrivers[z.id].forEach(d => {
-                        const statusClass = d.workStatus === 'queue' ? 'queue' : '';
-                        const avatar = d.photo || 'https://cdn-icons-png.flaticon.com/512/3237/3237472.png';
-                        // v4.20: 核心改動 - 加入電話按鈕
-                        const phoneBtn = d.phone 
-                            ? `<a href="tel:${d.phone}" class="btn-dial"><i class="fa-solid fa-phone"></i></a>` 
-                            : `<div style="width:40px;"></div>`; // 佔位符保持對齊
-
-                        list.innerHTML += `
-                            <div class="driver-card ${statusClass}">
-                                <div class="d-left">
-                                    <div class="d-avatar"><img src="${avatar}"></div>
-                                    <div class="d-info"><h3>${d.name}</h3><p>${d.car || '計程車'}</p></div>
-                                </div>
-                                ${phoneBtn}
-                            </div>
-                        `;
-                    });
-                } else {
-                    list.innerHTML = `<div style="color:#666;text-align:center;padding:10px;">戰區淨空</div>`;
-                }
-            });
-        });
-    }
   </script>
 </body>
 </html>
