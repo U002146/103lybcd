@@ -5,63 +5,45 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>我的數位看板 (Pro)</title> <script src="https://cdn.tailwindcss.com"></script>
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAIxc6PEhHgUs_A9lyRUg8dNbmwOpSamY8&libraries=geometry"></script>
     
     <style>
         .gmnoprint, .gm-control-active { display: none !important; }
         body { overflow: hidden; font-family: 'Noto Sans TC', sans-serif; } 
 
-        /* === 乘客端樣式 (精準定位版) === */
         .center-marker {
             position: absolute; top: 50%; left: 50%;
             transform: translate(-50%, calc(-100% + 2px));
             z-index: 20; pointer-events: none;
             transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
-            display: flex; 
-            flex-direction: column;
-            align-items: center;
-            justify-content: flex-end;
+            display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
         }
         .center-marker.lifting { transform: translate(-50%, calc(-100% - 15px)); }
 
         .target-crosshair {
-            position: absolute; top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            width: 16px; height: 16px;
-            background-color: rgba(225, 29, 72, 0.15);
-            border: 2px solid rgba(225, 29, 72, 0.5);
-            border-radius: 50%;
-            z-index: 19; pointer-events: none;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 16px; height: 16px; background-color: rgba(225, 29, 72, 0.15);
+            border: 2px solid rgba(225, 29, 72, 0.5); border-radius: 50%;
+            z-index: 19; pointer-events: none; display: flex; align-items: center; justify-content: center;
         }
-        .target-crosshair::after {
-            content: ''; width: 4px; height: 4px; background-color: #e11d48; border-radius: 50%; display: block;
-        }
+        .target-crosshair::after { content: ''; width: 4px; height: 4px; background-color: #e11d48; border-radius: 50%; display: block; }
 
         #passenger-panel {
-            position: fixed; bottom: 0; left: 0; right: 0;
-            background: white; border-top-left-radius: 24px; border-top-right-radius: 24px;
-            box-shadow: 0 -4px 20px rgba(0,0,0,0.1); z-index: 30;
-            padding: 20px; padding-bottom: 30px;
-            transform: translateY(0); transition: transform 0.3s ease-out;
-            display: flex; flex-direction: column; gap: 10px;
+            position: fixed; bottom: 0; left: 0; right: 0; background: white;
+            border-top-left-radius: 24px; border-top-right-radius: 24px;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.1); z-index: 30; padding: 20px; padding-bottom: 30px;
+            transform: translateY(0); transition: transform 0.3s ease-out; display: flex; flex-direction: column; gap: 10px;
         }
 
-        @keyframes pulse-green {
-            0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
-            70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
-        }
+        @keyframes pulse-green { 0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); } 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); } }
         .btn-pulse { animation: pulse-green 2s infinite; }
         
-        @keyframes pulse-red {
-            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
-            70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
-        }
+        @keyframes pulse-red { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
         .call-btn-pulse-red { animation: pulse-red 2s infinite; }
         .call-btn-pulse { animation: pulse-green 2s infinite; }
 
@@ -74,7 +56,7 @@
         <div class="flex items-center flex-grow" id="status-info-area">
             <img id="user-avatar" src="https://via.placeholder.com/40" class="w-12 h-12 rounded-full border-2 border-white mr-3 hidden">
             <div>
-                <h2 id="welcome-text" class="text-lg font-bold">資料同步中...</h2>
+                <h2 id="welcome-text" class="text-lg font-bold">資料載入中...</h2>
                 <p id="status-text" class="text-sm opacity-90">正在連線至車隊系統</p>
             </div>
         </div>
@@ -115,7 +97,6 @@
         // ========= CONFIG 設定區 =========
         const DRIVER_USER_ID = 'U467348846c6b1fa433990d7b75c935b5'; 
         const LIFF_ID = '2008907691-1mAjwojZ'; 
-        const GOOGLE_MAPS_API_KEY = 'AIzaSyAIxc6PEhHgUs_A9lyRUg8dNbmwOpSamY8';
         const GAS_URL = "https://script.google.com/macros/s/AKfycbzjWZ8j394jfKoMVbPWGvHJHqwF7RBCQxnxyju1ifWKoKdM7RE512F7qrhUsQqQGoWg/exec"; 
         // ====================================================
 
@@ -148,13 +129,11 @@
             return { text: "休", color: "white", fontSize: "14px", fontWeight: "bold" };
         };
 
-        function loadGoogleMaps() {
-            if (GOOGLE_MAPS_API_KEY.includes('請在此填入') || GOOGLE_MAPS_API_KEY === '') return;
-            const script = document.createElement('script');
-            script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&language=zh-TW&libraries=geometry&callback=initMap`;
-            script.defer = true;
-            document.body.appendChild(script);
-        }
+        // 🚀 網頁載入完畢後，確保依序執行
+        window.onload = async function() {
+            initMap();
+            await initLiff();
+        };
 
         function initMap() {
             geocoder = new google.maps.Geocoder();
@@ -217,7 +196,6 @@
             }
         }
 
-        // 🚀 v1.2 核心升級：完全同步專案 B 的雙管齊下免費呼叫邏輯
         async function summonDriver() {
             if (!passengerLatLng) {
                 Swal.fire({ icon: 'info', title: '請稍候', text: '正在為您精準定位中...', confirmButtonColor: '#10B981', timer: 2000 });
@@ -227,30 +205,25 @@
             const btn = document.getElementById('btn-send-loc');
             const originalContent = btn.innerHTML;
             
-            // 按鈕顯示轉圈圈
             btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> <span>呼叫發送中...</span>';
             btn.disabled = true;
 
             try {
-                // 第一管：寫入 Firebase 畫紅線
                 const writePromise = db.ref('drivers/' + DRIVER_USER_ID + '/request').set({
                     lat: passengerLatLng.lat,
                     lng: passengerLatLng.lng,
                     timestamp: firebase.database.ServerValue.TIMESTAMP
                 });
 
-                // 第二管：呼叫 GAS 觸發手機推播喚醒
                 const pushPromise = fetch(GAS_URL, {
                     method: 'POST', mode: 'no-cors',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ source: 'web_app', driverId: DRIVER_USER_ID })
                 });
 
-                // 2秒逾時防護
                 const timeoutPromise = new Promise((resolve) => setTimeout(resolve, 2000));
                 await Promise.race([Promise.all([writePromise, pushPromise]), timeoutPromise]);
 
-                // 成功後彈出防呆提示，並提供備用通話按鈕
                 Swal.fire({
                     icon: 'success',
                     title: '已通知專屬司機！',
@@ -263,7 +236,6 @@
                     reverseButtons: true
                 }).then((result) => {
                     if (result.isConfirmed) {
-                        // 引導至 LINE 客服或撥打電話
                         window.location.href = "https://lin.ee/9Davl6e"; 
                     }
                 });
@@ -272,13 +244,11 @@
                 console.error("發送失敗:", error);
                 Swal.fire({ icon: 'error', title: '呼叫失敗', text: '請檢查網路連線，或直接撥打電話', confirmButtonColor: '#EF4444' });
             } finally {
-                // 恢復按鈕狀態
                 btn.innerHTML = originalContent;
                 btn.disabled = false;
             }
         }
 
-        // 🚀 同步專案 B 的 15 秒更新頻率
         function startSyncingDriverData() {
             const fetchDriver = () => {
                 db.ref('drivers/' + DRIVER_USER_ID).once('value').then(snapshot => {
@@ -287,7 +257,7 @@
             };
             
             fetchDriver(); 
-            setInterval(fetchDriver, 15000); // 15秒
+            setInterval(fetchDriver, 15000); 
         }
 
         function updateDriverUI(data) {
@@ -344,23 +314,16 @@
         async function initLiff() {
             try {
                 await liff.init({ liffId: LIFF_ID });
-                if (!liff.isLoggedIn()) {
-                    // 個人看板可以不用強制登入，若要強制登入可解開這行
-                    // liff.login({ redirectUri: window.location.href });
-                    return; 
+                if (liff.isLoggedIn()) {
+                    const profile = await liff.getProfile();
+                    document.getElementById('user-avatar').src = profile.pictureUrl;
+                    document.getElementById('user-avatar').style.display = 'block';
+                    document.getElementById('welcome-text').innerText = `你好，${profile.displayName}`;
                 }
-                const profile = await liff.getProfile();
-                document.getElementById('user-avatar').src = profile.pictureUrl;
-                document.getElementById('user-avatar').style.display = 'block';
-                document.getElementById('welcome-text').innerText = `你好，${profile.displayName}`;
             } catch (err) {
                 console.error('LIFF Init Error', err);
-                document.getElementById('welcome-text').innerText = "歡迎搭乘";
             }
         }
-
-        loadGoogleMaps();
-        initLiff();
     </script>
 </body>
 </html>
