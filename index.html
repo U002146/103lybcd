@@ -8,7 +8,7 @@
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
   
-  <title>花蓮車隊 - 司機端</title><script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <title>花蓮車隊 - 司機端</title> <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
   <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAIxc6PEhHgUs_A9lyRUg8dNbmwOpSamY8&libraries=geometry"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -139,6 +139,35 @@
         document.getElementById('loading-text').innerText = "準備就緒，請點擊啟動";
     };
 
+    // 🚀 v7.5 核心修改：植入 Google Maps 深色夜間模式主題 (Night Mode)
+    function initGoogleMap() {
+        map = new google.maps.Map(document.getElementById("map"), { 
+            center: { lat: 23.991, lng: 121.601 }, 
+            zoom: 15, 
+            disableDefaultUI: true,
+            styles: [
+                { elementType: "geometry", stylers: [{ color: "#242f3e" }] },
+                { elementType: "labels.text.stroke", stylers: [{ color: "#242f3e" }] },
+                { elementType: "labels.text.fill", stylers: [{ color: "#746855" }] },
+                { featureType: "administrative.locality", elementType: "labels.text.fill", stylers: [{ color: "#d59563" }] },
+                { featureType: "poi", elementType: "labels.text.fill", stylers: [{ color: "#d59563" }] },
+                { featureType: "poi.park", elementType: "geometry", stylers: [{ color: "#263c3f" }] },
+                { featureType: "poi.park", elementType: "labels.text.fill", stylers: [{ color: "#6b9a76" }] },
+                { featureType: "road", elementType: "geometry", stylers: [{ color: "#38414e" }] },
+                { featureType: "road", elementType: "geometry.stroke", stylers: [{ color: "#212a37" }] },
+                { featureType: "road", elementType: "labels.text.fill", stylers: [{ color: "#9ca5b3" }] },
+                { featureType: "road.highway", elementType: "geometry", stylers: [{ color: "#746855" }] },
+                { featureType: "road.highway", elementType: "geometry.stroke", stylers: [{ color: "#1f2835" }] },
+                { featureType: "road.highway", elementType: "labels.text.fill", stylers: [{ color: "#f3d19c" }] },
+                { featureType: "transit", elementType: "geometry", stylers: [{ color: "#2f3948" }] },
+                { featureType: "transit.station", elementType: "labels.text.fill", stylers: [{ color: "#d59563" }] },
+                { featureType: "water", elementType: "geometry", stylers: [{ color: "#17263c" }] },
+                { featureType: "water", elementType: "labels.text.fill", stylers: [{ color: "#515c6d" }] },
+                { featureType: "water", elementType: "labels.text.stroke", stylers: [{ color: "#17263c" }] }
+            ]
+        });
+    }
+
     function systemStart() {
         const boot = document.getElementById('sound-boot');
         if(boot) boot.play().catch(e=>{});
@@ -148,10 +177,6 @@
         document.getElementById('ui-layer').style.display = 'block';
         if (currentUser) checkIdentity(currentUser.userId);
         setupSaverEvents();
-    }
-
-    function initGoogleMap() {
-        map = new google.maps.Map(document.getElementById("map"), { center: { lat: 23.991, lng: 121.601 }, zoom: 15, disableDefaultUI: true });
     }
 
     async function initLiff() {
@@ -264,11 +289,10 @@
             return; 
         }
 
-        // 🚀 v7.4 核心修改：排班駛離自動切換為【載客 (busy)】防呆機制
         if (currentWorkStatus === 'queue' && queueCenter) {
             const qPos = new google.maps.LatLng(queueCenter.lat, queueCenter.lng);
             if (google.maps.geometry.spherical.computeDistanceBetween(currentPos, qPos) > 500) {
-                currentWorkStatus = 'busy'; // 離開排班區高機率是接單出車，防呆預設為載客
+                currentWorkStatus = 'busy'; 
                 queueCenter = null; 
                 document.getElementById('btn-status').className = "circle-btn bg-busy";
                 document.getElementById('txt-status').innerText = "載客";
@@ -371,7 +395,6 @@
         forceUpload(); 
     }
 
-    // 🚀 v7.3/v7.4 核心修改：下線時強制清除排班狀態
     function togglePower(forceOn=false) {
         const btn = document.getElementById('btn-power');
         const subBtns = ['btn-status', 'btn-saver'];
@@ -391,7 +414,6 @@
             if (watchId) navigator.geolocation.clearWatch(watchId);
             if (checkConnectionInterval) clearInterval(checkConnectionInterval);
             
-            // 🚀 防呆機制：下線瞬間重置為空車，清空排班中心點
             currentWorkStatus = 'empty'; 
             queueCenter = null;
             document.getElementById('btn-status').className = "circle-btn bg-empty";
@@ -400,7 +422,7 @@
 
             db.ref('drivers/' + currentUser.userId).update({ 
                 status: 'offline',
-                workStatus: 'empty' // 雲端同步切換為空車，防止變成幽靈排班車
+                workStatus: 'empty' 
             });
         }
     }
