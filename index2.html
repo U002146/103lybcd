@@ -57,9 +57,8 @@
 
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script>
-    // v7.0 終極推播聯動版
+    // v7.1 乘客端效能與流量雙重優化版 (15秒掃描 + 地圖API防護)
     const LIFF_ID = "2008907691-CzDqd7mm"; 
-    // 【架構師】：請把下面這行換成你剛剛部署的 GAS 網址！
     const GAS_URL = "https://script.google.com/macros/s/AKfycbzjWZ8j394jfKoMVbPWGvHJHqwF7RBCQxnxyju1ifWKoKdM7RE512F7qrhUsQqQGoWg/exec"; 
     
     const firebaseConfig = { databaseURL: "https://hualientaxi-bb32f-default-rtdb.asia-southeast1.firebasedatabase.app/" };
@@ -69,6 +68,7 @@
     
     var map, userMarker, markers = {};
     var myLat = null, myLng = null; 
+    var lastGeocodePos = null; // 記錄上次轉換路名的座標
 
     const getPinIcon = (type) => {
         const isQueue = type === 'queue';
@@ -84,7 +84,10 @@
     window.onload = async function() {
         initMap();
         await initLiff();
-        listenToDrivers();
+        
+        // 🚀 v7.1：啟動 15 秒雷達掃描，取代原本的 .on()
+        fetchDriversData();
+        setInterval(fetchDriversData, 15000); 
     };
 
     function initMap() {
@@ -92,6 +95,7 @@
             center: { lat: 23.991, lng: 121.601 }, zoom: 15,
             disableDefaultUI: true, styles: [ { featureType: "poi", elementType: "labels", stylers: [{ visibility: "off" }] } ]
         });
+        
         if(navigator.geolocation) {
             navigator.geolocation.watchPosition(pos => {
                 myLat = pos.coords.latitude;
@@ -104,15 +108,23 @@
                 } else {
                     userMarker.setPosition(p);
                 }
-                getAddress(myLat, myLng);
-            });
+                
+                // 🛡️ v7.1 防破產機制：移動超過 100 公尺才重新呼叫 Google 抓路名
+                const currentGooglePos = new google.maps.LatLng(myLat, myLng);
+                if (!lastGeocodePos || google.maps.geometry.spherical.computeDistanceBetween(lastGeocodePos, currentGooglePos) > 100) {
+                    getAddress(myLat, myLng);
+                    lastGeocodePos = currentGooglePos;
+                }
+                
+            }, (err) => console.log(err), { enableHighAccuracy: true });
         }
     }
 
     async function initLiff() { try { await liff.init({ liffId: LIFF_ID }); if(!liff.isLoggedIn()) liff.login(); } catch(e){} }
 
-    function listenToDrivers() {
-        db.ref('drivers').on('value', snapshot => {
+    // 🚀 v7.1 核心：改為 .once() 單次讀取
+    function fetchDriversData() {
+        db.ref('drivers').once('value').then(snapshot => {
             const data = snapshot.val();
             if (!data) return;
             const now = Date.now();
@@ -159,42 +171,47 @@
 
             for(let k in markers) { if(!activeIds.has(k)) { markers[k].setMap(null); delete markers[k]; } }
             updateCarousel(activeDrivers.sort((a,b) => a.distUser - b.distUser));
-        });
+        }).catch(err => console.error("獲取司機資料失敗", err));
     }
 
     function updateCarousel(drivers) {
         const container = document.getElementById('driver-carousel');
-        container.innerHTML = drivers.length ? '' : '<div style="width:100%;text-align:center;color:#999;padding:20px;">附近暫無空車</div>';
         
+        // 🎨 v7.1 UI防呆：記錄當下捲動位置，避免更新時畫面跳動
+        const currentScroll = container.scrollLeft;
+        
+        if (drivers.length === 0) {
+            container.innerHTML = '<div style="width:100%;text-align:center;color:#999;padding:20px;background:white;border-radius:20px;box-shadow:0 5px 15px rgba(0,0,0,0.1);">附近暫無空車</div>';
+            return;
+        }
+
+        let newHTML = '';
         drivers.forEach(d => {
             const statusTag = d.workStatus === 'queue' ? '<span class="tag tag-queue">排班中</span>' : '<span class="tag tag-empty">空車</span>';
             const distText = d.distUser < 1 ? (d.distUser*1000).toFixed(0)+'m' : d.distUser.toFixed(1)+'km';
             const avatar = d.photo || 'https://cdn-icons-png.flaticon.com/512/3237/3237472.png';
             
-            const card = document.createElement('div');
-            card.className = 'driver-card';
-            card.id = `card-${d.id}`;
-            card.onclick = () => map.panTo({lat:d.lat, lng:d.lng});
-            
-            card.innerHTML = `
-                <div class="d-avatar"><img src="${avatar}"></div>
-                <div class="d-info">
-                    <div class="d-name">${d.name} ${statusTag}</div>
-                    <div class="d-meta">
-                        <span><i class="fa-solid fa-taxi"></i> ${d.car || '計程車'}</span>
-                        <span><i class="fa-solid fa-location-arrow"></i> ${distText}</span>
+            newHTML += `
+                <div class="driver-card" id="card-${d.id}" onclick="map.panTo({lat:${d.lat}, lng:${d.lng}})">
+                    <div class="d-avatar"><img src="${avatar}"></div>
+                    <div class="d-info">
+                        <div class="d-name">${d.name} ${statusTag}</div>
+                        <div class="d-meta">
+                            <span><i class="fa-solid fa-taxi"></i> ${d.car || '計程車'}</span>
+                            <span><i class="fa-solid fa-location-arrow"></i> ${distText}</span>
+                        </div>
                     </div>
+                    <button class="btn-call" onclick="callDriver('${d.id}', '${d.phone}', this); event.stopPropagation();"><i class="fa-solid fa-phone"></i></button>
                 </div>
-                <button class="btn-call" onclick="callDriver('${d.id}', '${d.phone}', this); event.stopPropagation();"><i class="fa-solid fa-phone"></i></button>
             `;
-            container.appendChild(card);
         });
+        
+        container.innerHTML = newHTML;
+        container.scrollLeft = currentScroll; // 恢復捲動位置
     }
 
-    // 【架構師】：v7.0 雙管齊下核心邏輯
     async function callDriver(driverId, phone, btn) {
         const originalContent = btn.innerHTML;
-        
         btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i>';
         btn.disabled = true;
 
@@ -210,31 +227,18 @@
         }
 
         try {
-            // 管線一：寫入 Firebase (更新網頁地圖紅線)
             const writePromise = db.ref('drivers/' + driverId + '/request').set({
-                lat: myLat,
-                lng: myLng,
-                timestamp: firebase.database.ServerValue.TIMESTAMP
+                lat: myLat, lng: myLng, timestamp: firebase.database.ServerValue.TIMESTAMP
             });
 
-            // 管線二：秘密呼叫 GAS 觸發 FCM 推播 (喚醒休眠手機)
             const pushPromise = fetch(GAS_URL, {
-                method: 'POST',
-                mode: 'no-cors', // 避開瀏覽器跨域限制
+                method: 'POST', mode: 'no-cors',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    source: 'web_app',
-                    driverId: driverId
-                })
+                body: JSON.stringify({ source: 'web_app', driverId: driverId })
             });
 
-            // 2 秒超時機制，確保網路不好也能順利彈出電話介面
             const timeoutPromise = new Promise((resolve) => setTimeout(resolve, 2000));
-
-            // 同步執行，比賽看誰快
             await Promise.race([Promise.all([writePromise, pushPromise]), timeoutPromise]);
-            
-            console.log("雙管發送完成");
         } catch (error) {
             console.error("發送失敗:", error);
         } finally {
@@ -243,6 +247,7 @@
     }
 
     function centerMap(){ if(userMarker) { map.panTo(userMarker.getPosition()); map.setZoom(15); } }
+    
     function getAddress(lat, lng) {
         const geocoder = new google.maps.Geocoder();
         geocoder.geocode({ location: { lat: lat, lng: lng } }, (results, status) => {
