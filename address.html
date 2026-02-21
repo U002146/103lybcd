@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>個人車行：遠距預約</title>
+    <title>個人車行：遠距預約</title> // v1.2 LIFF強制登入修復版
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
@@ -58,11 +58,10 @@
             <h1 class="text-xl font-black text-slate-800 tracking-wide">專屬預約系統</h1>
             <p class="text-xs text-emerald-600 font-bold mt-0.5">跨縣市免地圖 • 直覺秒預約</p>
         </div>
-        <div id="liff-status-dot" class="w-3 h-3 rounded-full bg-red-500 shadow-md"></div>
+        <div id="liff-status-dot" class="w-3 h-3 rounded-full bg-red-500 shadow-md transition-colors duration-300"></div>
     </div>
 
     <div class="main-container">
-        
         <div class="booking-card">
             <div class="flex items-center justify-between mb-4">
                 <h2 class="text-sm font-bold text-slate-500 uppercase tracking-widest">行程設定</h2>
@@ -130,7 +129,6 @@
                 <input type="hidden" id="payment-value" value="現金">
             </div>
         </div>
-
     </div>
 
     <div class="fixed bottom-0 left-0 right-0 p-5 bg-white/95 backdrop-blur-md border-t border-gray-100 z-30 max-w-[600px] mx-auto">
@@ -158,7 +156,7 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script>
-        const VERSION = "v1.1"; // 純回傳聊天室版 - 拔除 Firebase 依賴
+        const VERSION = "v1.2"; // LIFF強制登入修復版
         
         const LIFF_ID = '2008907691-MAdAtfyf'; 
         const PROJECT_B_URL = 'https://liff.line.me/2008907691-1mAjwojZ'; 
@@ -196,14 +194,21 @@
             }
         };
 
+        // 🔧 關鍵修正：強制處理授權與登入
         async function initLiff() {
             try { 
                 await liff.init({ liffId: LIFF_ID }); 
-                if(liff.isLoggedIn()) {
-                    document.getElementById('liff-status-dot').classList.remove('bg-red-500'); 
-                    document.getElementById('liff-status-dot').classList.add('bg-green-500');
+                if(!liff.isLoggedIn()) {
+                    // 如果沒登入，自動觸發登入索取 Token
+                    liff.login({ redirectUri: window.location.href });
+                } else {
+                    // 登入成功，亮綠燈
+                    document.getElementById('liff-status-dot').classList.replace('bg-red-500', 'bg-green-500');
                 }
-            } catch (e) { console.error('LIFF Init Failed:', e); }
+            } catch (e) { 
+                console.error('LIFF Init Failed:', e); 
+                Swal.fire('系統連線異常', '請重新關閉並開啟此畫面', 'error');
+            }
         }
 
         function swapLocations() {
@@ -305,8 +310,22 @@
             document.getElementById('submit-btn-text').innerText = "確認預約"; 
         }
 
-        // --- 送出訂單 (單純回傳 LINE 聊天室) ---
+        // --- 送出訂單 ---
         async function submitOrder() {
+            // 🔧 雙重攔截：確保送出前已取得 Token
+            if (!liff.isLoggedIn()) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: '系統需要授權',
+                    text: '為了將預約單傳送到聊天室，系統正在為您進行安全認證...',
+                    timer: 2000,
+                    showConfirmButton: false
+                }).then(() => {
+                    liff.login({ redirectUri: window.location.href });
+                });
+                return;
+            }
+
             const phone = document.getElementById('phone').value;
             const pickup = document.getElementById('pickup').value.trim();
             let dropoff = document.getElementById('dropoff').value.trim();
@@ -334,7 +353,6 @@
             let headerTitle = bookingMode === 'NOW' ? `即時單 ${nowTimeStr}` : `預約單 ${bookingTime}`;
             let headerColor = bookingMode === 'NOW' ? "#000000" : "#1d4ed8";
 
-            // 產生送回聊天室的 Flex Message
             const flexMsg = {
                 type: "flex",
                 altText: bookingMode === 'NOW' ? "🚕 即時叫車" : "📅 遠距預約",
@@ -383,11 +401,10 @@
 
             try {
                 if (liff.isInClient()) {
-                    // 單純透過 LIFF 把卡片送回聊天室
                     await liff.sendMessages([flexMsg]);
                     liff.closeWindow(); 
                 } else {
-                    Swal.fire({ icon: 'info', title: '測試模式', text: '如果在 LINE 裡面開啟，這張卡片會直接傳送到聊天室！' });
+                    Swal.fire({ icon: 'info', title: '外部測試', text: '如果在 LINE 聊天室內開啟，這張卡片會直接傳送出去！' });
                     btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-paper-plane mr-2"></i>確認送出預約';
                 }
             } catch (e) {
