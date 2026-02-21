@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>花蓮車隊 - 排班區</title> <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <title>花蓮車隊 - 排班區</title> // v5.0 瘦客戶端顯示器版 (純數據渲染)
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
   <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAIxc6PEhHgUs_A9lyRUg8dNbmwOpSamY8&libraries=geometry"></script>
   
@@ -20,7 +21,6 @@
     .zone-header:hover { background: #34495e; }
     
     .zone-title { font-size: 16px; font-weight: bold; color: #fff; display: flex; align-items: center; }
-    /* v4.21 UI優化：戰區淨空時 數字顯示綠色閃爍，提示前往支援 */
     .zone-count { background: #f1c40f; color: #000; padding: 2px 10px; border-radius: 20px; font-weight: bold; font-size: 14px; min-width: 25px; text-align: center; }
     .zone-count.empty { background: #00C853; color: white; animation: pulse 2s infinite; }
     @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(0,200,83,0.7); } 70% { box-shadow: 0 0 0 10px rgba(0,200,83,0); } 100% { box-shadow: 0 0 0 0 rgba(0,200,83,0); } }
@@ -28,10 +28,8 @@
     .driver-list { display: none; padding: 10px; background: #222; border-bottom: 1px solid #444; }
     .driver-list.active { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
     
-    /* v4.20/4.21 卡片樣式 */
     .driver-card { background: #333; border-radius: 8px; padding: 10px; display: flex; align-items: center; border-left: 4px solid #00C853; justify-content: space-between; }
     .driver-card.queue { border-left-color: #3498db; }
-    /* UX優化：載客中的卡片變暗，避免誤撥 */
     .driver-card.busy { border-left-color: #e67e22; opacity: 0.5; }
     
     .d-left { display: flex; align-items: center; }
@@ -40,14 +38,13 @@
     .d-info h3 { margin: 0; font-size: 16px; color: #fff; }
     .d-info p { margin: 2px 0 0; font-size: 12px; color: #aaa; }
 
-    /* 撥號按鈕 */
     .btn-dial { background: #00C853; color: white; width: 40px; height: 40px; border-radius: 50%; display: flex; justify-content: center; align-items: center; text-decoration: none; box-shadow: 0 2px 5px rgba(0,0,0,0.3); transition: transform 0.1s; }
     .btn-dial:active { transform: scale(0.9); }
     .btn-dial.disabled { background: #555; pointer-events: none; }
     .btn-dial i { font-size: 18px; }
 
     .marquee { background: #000; color: #00C853; padding: 8px; font-size: 14px; white-space: nowrap; overflow: hidden; text-align: center; border-bottom: 1px solid #333; display: flex; justify-content: center; align-items: center; gap: 10px;}
-    .radar-indicator { background: #111; color: #00C853; padding: 2px 8px; border-radius: 10px; border: 1px solid #00C853; font-size: 12px; font-weight: bold;}
+    .radar-indicator { background: #111; color: #00C853; padding: 2px 8px; border-radius: 10px; border: 1px solid #00C853; font-size: 12px; font-weight: bold; font-variant-numeric: tabular-nums;}
   </style>
 </head>
 <body>
@@ -71,7 +68,6 @@
     var map, markers = {}, zonePolygons = {}; 
     var ZONES_DATA = []; 
 
-    // 14區戰略定義
     const ZONE_CONFIG = {
         "花蓮前站":   { color: "#2980b9", priority: 1 },
         "花蓮市區":   { color: "#c0392b", priority: 2 },
@@ -92,7 +88,6 @@
     const GEO_RAW = {
       "type": "FeatureCollection",
       "features": [
-        // POINTS
         { "type": "Feature", "properties": { "花蓮前站": "" }, "geometry": { "coordinates": [ 121.60168998252806, 23.992626784625898 ], "type": "Point" }, "id": 0 },
         { "type": "Feature", "properties": { "門諾醫院": "" }, "geometry": { "coordinates": [ 121.62634974720402, 23.988350693835287 ], "type": "Point" }, "id": 1 },
         { "type": "Feature", "properties": { "七星潭": "" }, "geometry": { "coordinates": [ 121.62985443925902, 24.0240452839449 ], "type": "Point" }, "id": 2 },
@@ -108,7 +103,6 @@
         { "type": "Feature", "properties": { "新城區": "" }, "geometry": { "coordinates": [ 121.65311981456426, 24.128359901120476 ], "type": "Point" }, "id": 12 },
         { "type": "Feature", "properties": { "花蓮後站": "" }, "geometry": { "coordinates": [ 121.59913250603176, 23.994160342822838 ], "type": "Point" }, "id": 24 },
         
-        // POLYGONS
         { "type": "Feature", "geometry": { "coordinates": [[[121.621501,24.092506],[121.653926,24.116610],[121.666316,24.142070],[121.668852,24.178144],[121.657187,24.181655],[121.644718,24.155221],[121.606200,24.166211],[121.600318,24.161506],[121.619900,24.153495],[121.632674,24.137602],[121.613742,24.105961],[121.599645,24.108858],[121.597810,24.104062],[121.607230,24.103632],[121.607789,24.100907],[121.615904,24.100453],[121.621501,24.092506]]], "type": "Polygon" } },
         { "type": "Feature", "geometry": { "coordinates": [[[121.604948,23.901474],[121.610687,23.926220],[121.612580,23.942989],[121.608024,23.941799],[121.591145,23.909209],[121.577361,23.892592],[121.601849,23.876074],[121.604948,23.901474]]], "type": "Polygon" } },
         { "type": "Feature", "geometry": { "coordinates": [[[121.639506,23.993598],[121.648135,24.008651],[121.643382,24.019640],[121.623962,24.042681],[121.619458,24.041224],[121.628747,24.024339],[121.615551,24.008296],[121.618160,24.005953],[121.631206,24.007526],[121.632488,24.008181],[121.638329,24.005843],[121.637199,23.994001],[121.639506,23.993598]]], "type": "Polygon" } },
@@ -136,7 +130,6 @@
         initMap();
         processGeoData(); 
         
-        // v4.21 節能雷達版：啟動60秒掃描與倒數計時器
         fetchRadarData(); 
         startRadarTimer();
         setInterval(() => document.getElementById('clock').innerText = new Date().toLocaleString(), 1000);
@@ -149,41 +142,37 @@
         });
     }
 
-    // 🚀 v4.21 核心改動：改用 .once 單次讀取
     function fetchRadarData() {
         db.ref('drivers').once('value').then(snapshot => {
             updateDashboard(snapshot);
         }).catch(err => console.error("雷達掃描失敗:", err));
     }
 
-    // 🕒 v4.21 UI改動：倒數計時器
     let countdown = 60;
     function startRadarTimer() {
         setInterval(() => {
             countdown--;
             if(countdown <= 0) {
                 countdown = 60;
-                fetchRadarData(); // 倒數歸零時觸發掃描
+                fetchRadarData(); 
             }
             document.getElementById('radar-timer').innerText = countdown + 's';
         }, 1000);
     }
 
-    // 將原本的 on() 內部邏輯抽出來，變成獨立的更新畫面函數
+    // 🚀 v5.0 核心：拔除幽靈車時間判斷，100% 相信 Firebase 狀態
     function updateDashboard(snapshot) {
         const data = snapshot.val();
         if (!data) return;
-        const now = Date.now();
         const zoneDrivers = {}; 
         ZONES_DATA.forEach(z => zoneDrivers[z.id] = []);
         const activeIds = new Set();
 
         Object.keys(data).forEach(key => {
             const d = data[key];
-            const timeout = d.workStatus === 'queue' ? 3600000 : 600000;
             
+            // 🛑 只判斷狀態，完全不再計算 lastUpdate 時間差！
             if (d.status !== 'online') return;
-            if (now - d.lastUpdate > timeout) return;
 
             activeIds.add(key);
             const pos = new google.maps.LatLng(d.lat, d.lng);
@@ -213,7 +202,6 @@
             list.innerHTML = "";
             count.innerText = zoneDrivers[z.id].length;
             
-            // v4.21 UI優化：戰區淨空時 數字顯示綠色閃爍
             if(zoneDrivers[z.id].length === 0) {
                 count.classList.add('empty');
             } else {
