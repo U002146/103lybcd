@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>個人車行：遠距預約</title> // v2.0 絕對領域融合版
+    <title>個人車行：遠距預約</title> // v1.1 純回傳聊天室版
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
@@ -53,100 +53,91 @@
 </head>
 <body>
 
-    <div id="loading-overlay" class="fixed inset-0 bg-white z-[9999] flex flex-col items-center justify-center">
-        <div class="loader mb-4 w-12 h-12 border-4 text-emerald-500"></div>
-        <p class="text-slate-600 font-bold text-lg tracking-widest animate-pulse">系統連線中...</p>
-        <p class="text-xs text-slate-400 mt-2">正在安全驗證您的身分</p>
+    <div class="bg-white px-6 py-4 shadow-sm flex items-center justify-between sticky top-0 z-40">
+        <div>
+            <h1 class="text-xl font-black text-slate-800 tracking-wide">專屬預約系統</h1>
+            <p class="text-xs text-emerald-600 font-bold mt-0.5">跨縣市免地圖 • 直覺秒預約</p>
+        </div>
+        <div id="liff-status-dot" class="w-3 h-3 rounded-full bg-red-500 shadow-md"></div>
     </div>
 
-    <div id="app" class="hidden flex-col min-h-screen">
-        <div class="bg-white px-6 py-4 shadow-sm flex items-center justify-between sticky top-0 z-40">
-            <div class="flex items-center">
-                <img id="user-avatar" src="https://via.placeholder.com/40" class="w-10 h-10 rounded-full mr-3 hidden shadow-sm border border-gray-100">
-                <div>
-                    <h1 id="greeting-text" class="text-xl font-black text-slate-800 tracking-wide">專屬預約系統</h1>
-                    <p class="text-[10px] text-emerald-600 font-bold mt-0.5 uppercase tracking-wider">跨縣市免地圖 • 直覺秒預約</p>
-                </div>
+    <div class="main-container">
+        
+        <div class="booking-card">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-sm font-bold text-slate-500 uppercase tracking-widest">行程設定</h2>
             </div>
-            <div id="liff-status-dot" class="w-3 h-3 rounded-full bg-red-500 shadow-md transition-colors duration-300"></div>
-        </div>
-
-        <div class="main-container">
-            <div class="booking-card">
-                <div class="flex items-center justify-between mb-4">
-                    <h2 class="text-sm font-bold text-slate-500 uppercase tracking-widest">行程設定</h2>
-                </div>
-                
-                <div class="location-inputs">
-                    <div class="loc-row relative">
-                        <i class="fa-solid fa-circle-dot text-emerald-500 text-lg mr-4 w-5 text-center"></i>
-                        <div class="flex-1 mr-12">
-                            <label class="block text-[10px] text-slate-400 font-bold uppercase mb-1">Pickup (上車點)</label>
-                            <input type="text" id="pickup" placeholder="請輸入或選擇上車地址" class="w-full bg-transparent font-bold text-slate-800 outline-none text-lg">
-                        </div>
-                        <button onclick="openPresetLocations('pickup')" class="absolute right-4 p-3 -mr-3 text-yellow-400 active:scale-90 transition-transform"><i class="fa-solid fa-star text-xl drop-shadow-sm"></i></button>
+            
+            <div class="location-inputs">
+                <div class="loc-row relative">
+                    <i class="fa-solid fa-circle-dot text-emerald-500 text-lg mr-4 w-5 text-center"></i>
+                    <div class="flex-1 mr-12">
+                        <label class="block text-[10px] text-slate-400 font-bold uppercase mb-1">Pickup (上車點)</label>
+                        <input type="text" id="pickup" placeholder="請輸入或選擇上車地址" class="w-full bg-transparent font-bold text-slate-800 outline-none text-lg">
                     </div>
-
-                    <div class="loc-divider"></div>
-
-                    <button onclick="swapLocations()" class="btn-swap" title="起訖點對調">
-                        <i class="fa-solid fa-arrow-right-arrow-left rotate-90 text-slate-500"></i>
-                    </button>
-
-                    <div class="loc-row relative">
-                        <i class="fa-solid fa-location-dot text-rose-500 text-xl mr-4 w-5 text-center"></i>
-                        <div class="flex-1 mr-12">
-                            <label class="block text-[10px] text-slate-400 font-bold uppercase mb-1">Drop-off (下車點 • 選填)</label>
-                            <input type="text" id="dropoff" placeholder="未填則顯示：上車告知" class="w-full bg-transparent font-bold text-slate-800 outline-none text-lg">
-                        </div>
-                        <button onclick="openPresetLocations('dropoff')" class="absolute right-4 p-3 -mr-3 text-yellow-400 active:scale-90 transition-transform"><i class="fa-solid fa-star text-xl drop-shadow-sm"></i></button>
-                    </div>
-                </div>
-            </div>
-
-            <div class="booking-card">
-                <div class="input-group cursor-pointer !bg-blue-50/50 !border-blue-100" onclick="openModernTimeSelector()">
-                    <i id="time-icon" class="fa-solid fa-calendar-check input-icon text-blue-600 text-xl"></i>
-                    <div class="flex-1">
-                        <label class="block text-[10px] text-blue-500 font-bold uppercase">Pickup Time (用車時間)</label>
-                        <div class="flex items-center justify-between mt-1">
-                            <span id="time-display" class="font-bold text-blue-700 text-lg">請選擇預約時間</span>
-                            <div class="bg-blue-100 text-blue-700 px-2 py-1 rounded-md text-xs font-bold">點擊選擇</div>
-                        </div>
-                    </div>
-                    <input type="hidden" id="booking-mode" value="RESERVE">
-                    <input type="hidden" id="booking-time-val" value="">
+                    <button onclick="openPresetLocations('pickup')" class="absolute right-4 p-3 -mr-3 text-yellow-400 active:scale-90 transition-transform"><i class="fa-solid fa-star text-xl drop-shadow-sm"></i></button>
                 </div>
 
-                <div class="input-group">
-                    <i class="fa-solid fa-phone input-icon text-slate-400"></i>
-                    <div class="flex-1">
-                        <label class="block text-[10px] text-slate-400 font-bold uppercase">Phone (聯絡電話)</label>
-                        <input type="tel" id="phone" placeholder="09xx-xxx-xxx" class="w-full bg-transparent font-bold text-slate-800 outline-none text-lg">
-                    </div>
-                </div>
+                <div class="loc-divider"></div>
 
-                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-xl mt-2 cursor-pointer active:bg-gray-100" onclick="openPaymentPicker()">
-                    <div class="flex items-center">
-                        <i class="fa-solid fa-wallet text-slate-500 mr-3"></i>
-                        <span class="text-sm font-bold text-slate-600">付款方式</span>
+                <button onclick="swapLocations()" class="btn-swap" title="起訖點對調">
+                    <i class="fa-solid fa-arrow-right-arrow-left rotate-90 text-slate-500"></i>
+                </button>
+
+                <div class="loc-row relative">
+                    <i class="fa-solid fa-location-dot text-rose-500 text-xl mr-4 w-5 text-center"></i>
+                    <div class="flex-1 mr-12">
+                        <label class="block text-[10px] text-slate-400 font-bold uppercase mb-1">Drop-off (下車點 • 選填)</label>
+                        <input type="text" id="dropoff" placeholder="未填則顯示：上車告知" class="w-full bg-transparent font-bold text-slate-800 outline-none text-lg">
                     </div>
-                    <div class="flex items-center">
-                        <i id="payment-icon-small" class="fa-solid fa-coins text-slate-600 mr-2"></i>
-                        <span id="payment-text-small" class="font-bold text-slate-800">現金</span>
-                        <i class="fa-solid fa-chevron-right text-xs text-slate-400 ml-2"></i>
-                    </div>
-                    <input type="hidden" id="payment-value" value="現金">
+                    <button onclick="openPresetLocations('dropoff')" class="absolute right-4 p-3 -mr-3 text-yellow-400 active:scale-90 transition-transform"><i class="fa-solid fa-star text-xl drop-shadow-sm"></i></button>
                 </div>
             </div>
         </div>
 
-        <div class="fixed bottom-0 left-0 right-0 p-5 bg-white/95 backdrop-blur-md border-t border-gray-100 z-30 max-w-[600px] mx-auto">
-            <button id="submitBtn" onclick="submitOrder()" class="w-full bg-slate-900 text-white font-bold py-4 rounded-2xl shadow-xl shadow-slate-300 active:scale-[0.98] transition-all text-xl flex items-center justify-center space-x-3">
-                <i class="fa-solid fa-paper-plane"></i>
-                <span id="submit-btn-text">確認送出預約</span>
-            </button>
+        <div class="booking-card">
+            <div class="input-group cursor-pointer !bg-blue-50/50 !border-blue-100" onclick="openModernTimeSelector()">
+                <i id="time-icon" class="fa-solid fa-calendar-check input-icon text-blue-600 text-xl"></i>
+                <div class="flex-1">
+                    <label class="block text-[10px] text-blue-500 font-bold uppercase">Pickup Time (用車時間)</label>
+                    <div class="flex items-center justify-between mt-1">
+                        <span id="time-display" class="font-bold text-blue-700 text-lg">請選擇預約時間</span>
+                        <div class="bg-blue-100 text-blue-700 px-2 py-1 rounded-md text-xs font-bold">點擊選擇</div>
+                    </div>
+                </div>
+                <input type="hidden" id="booking-mode" value="RESERVE">
+                <input type="hidden" id="booking-time-val" value="">
+            </div>
+
+            <div class="input-group">
+                <i class="fa-solid fa-phone input-icon text-slate-400"></i>
+                <div class="flex-1">
+                    <label class="block text-[10px] text-slate-400 font-bold uppercase">Phone (聯絡電話)</label>
+                    <input type="tel" id="phone" placeholder="09xx-xxx-xxx" class="w-full bg-transparent font-bold text-slate-800 outline-none text-lg">
+                </div>
+            </div>
+
+            <div class="flex items-center justify-between p-3 bg-gray-50 rounded-xl mt-2 cursor-pointer active:bg-gray-100" onclick="openPaymentPicker()">
+                <div class="flex items-center">
+                    <i class="fa-solid fa-wallet text-slate-500 mr-3"></i>
+                    <span class="text-sm font-bold text-slate-600">付款方式</span>
+                </div>
+                <div class="flex items-center">
+                    <i id="payment-icon-small" class="fa-solid fa-coins text-slate-600 mr-2"></i>
+                    <span id="payment-text-small" class="font-bold text-slate-800">現金</span>
+                    <i class="fa-solid fa-chevron-right text-xs text-slate-400 ml-2"></i>
+                </div>
+                <input type="hidden" id="payment-value" value="現金">
+            </div>
         </div>
+
+    </div>
+
+    <div class="fixed bottom-0 left-0 right-0 p-5 bg-white/95 backdrop-blur-md border-t border-gray-100 z-30 max-w-[600px] mx-auto">
+        <button id="submitBtn" onclick="submitOrder()" class="w-full bg-slate-900 text-white font-bold py-4 rounded-2xl shadow-xl shadow-slate-300 active:scale-[0.98] transition-all text-xl flex items-center justify-center space-x-3">
+            <i class="fa-solid fa-paper-plane"></i>
+            <span id="submit-btn-text">確認送出預約</span>
+        </button>
     </div>
 
     <div id="time-selector-modal" onclick="closeModernTimeSelector(event)">
@@ -167,10 +158,9 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script>
-        const VERSION = "v2.0"; // 絕對領域融合版 - 完美複製舊版神級驗證
+        const VERSION = "v1.1"; // 純回傳聊天室版 - 拔除 Firebase 依賴
         
-        // ⚠️ 如果你舊版的比較穩，請隨時換回舊版的 LIFF ID
-        const LIFF_ID = '2008907691-MAdAtfyf'; 
+        const LIFF_ID = '2008907691-3P676tTN'; 
         const PROJECT_B_URL = 'https://liff.line.me/2008907691-1mAjwojZ'; 
 
         const PRESET_LOCATIONS = [
@@ -193,75 +183,54 @@
 
         let pickerState = { dateIndex: 0, hour: null, minute: null, dates: [] };
         let currentTargetInput = 'pickup';
-        let userName = "乘客"; // 預設稱呼
 
-        // ★★★ 完美複製舊版邏輯：先載入 SDK，再執行 INIT ★★★
         window.onload = function() {
-            // 還原舊版：先抓暫存資料
+            initLiff();
             const savedPhone = localStorage.getItem('taxi_user_phone');
             if(savedPhone) document.getElementById('phone').value = savedPhone;
+            
             const savedPayment = localStorage.getItem('taxi_selected_payment');
             if(savedPayment) { 
                 const method = PAYMENT_METHODS.find(m => m.label === savedPayment); 
                 if(method) updatePaymentUI(method.label, method.icon, method.color); 
             }
-
-            // 完全套用舊版的初始化金鐘罩
-            liff.init({ liffId: LIFF_ID }).then(() => {
-                // 如果沒登入，毫不廢話直接導向登入，中斷後面所有動作！
-                if (!liff.isLoggedIn()) {
-                    liff.login();
-                    return; 
-                }
-                
-                // 確定登入了，才開始抓名字
-                liff.getProfile().then(profile => {
-                    userName = profile.displayName;
-                    document.getElementById('greeting-text').innerText = `嗨，${userName}`;
-                    if(profile.pictureUrl) {
-                        const avatar = document.getElementById('user-avatar');
-                        avatar.src = profile.pictureUrl;
-                        avatar.classList.remove('hidden');
-                    }
-                    
-                    // ★ 核心防護：成功抓到資料後，才把載入畫面關掉，秀出表單
-                    document.getElementById('loading-overlay').style.display = 'none';
-                    document.getElementById('app').classList.remove('hidden');
-                    document.getElementById('app').classList.add('flex');
-                    document.getElementById('liff-status-dot').classList.replace('bg-red-500', 'bg-green-500');
-
-                }).catch(err => {
-                    // 就算頭像抓失敗（例如沒給權限），也放行讓他填單
-                    document.getElementById('loading-overlay').style.display = 'none';
-                    document.getElementById('app').classList.remove('hidden');
-                    document.getElementById('app').classList.add('flex');
-                    document.getElementById('liff-status-dot').classList.replace('bg-red-500', 'bg-green-500');
-                });
-            }).catch(err => {
-                Swal.fire('系統異常', '無法連線至 LINE 伺服器，請重新開啟。', 'error');
-            });
         };
 
-        // --- 地點互換與 UI 功能 ---
+        async function initLiff() {
+            try { 
+                await liff.init({ liffId: LIFF_ID }); 
+                if(liff.isLoggedIn()) {
+                    document.getElementById('liff-status-dot').classList.remove('bg-red-500'); 
+                    document.getElementById('liff-status-dot').classList.add('bg-green-500');
+                }
+            } catch (e) { console.error('LIFF Init Failed:', e); }
+        }
+
         function swapLocations() {
             const pickupEl = document.getElementById('pickup');
             const dropoffEl = document.getElementById('dropoff');
             const temp = pickupEl.value;
             pickupEl.value = dropoffEl.value;
             dropoffEl.value = temp;
+            
             const inputs = document.querySelectorAll('.loc-row');
-            inputs.forEach(el => { el.style.transform = 'scale(0.98)'; setTimeout(() => el.style.transform = 'scale(1)', 150); });
+            inputs.forEach(el => {
+                el.style.transform = 'scale(0.98)';
+                setTimeout(() => el.style.transform = 'scale(1)', 150);
+            });
         }
 
         function openPresetLocations(target) { 
             currentTargetInput = target; 
             const targetName = target === 'pickup' ? '上車點' : '下車點';
+            
             let html = '<div class="grid grid-cols-2 gap-3 mt-2 location-grid">'; 
             PRESET_LOCATIONS.forEach(loc => { 
                 let bgClass = (loc.value && loc.value.includes('FAV')) ? 'bg-yellow-50 hover:bg-yellow-100 border-yellow-200' : 'bg-gray-50 hover:bg-slate-100 border-gray-100'; 
                 html += `<button type="button" onclick="selectPreset('${loc.value || loc.name}', '${loc.name}')" class="flex flex-col items-center justify-center p-3 border rounded-xl transition-all active:scale-95 ${bgClass}"><span class="text-2xl mb-1">${loc.icon}</span><span class="text-sm font-bold text-slate-700">${loc.name}</span></button>`; 
             }); 
             html += '</div>'; 
+            
             Swal.fire({ title: `快速選擇${targetName}`, html: html, showConfirmButton: false, showCloseButton: true, customClass: {popup: 'rounded-[24px]'} }); 
         }
 
@@ -272,7 +241,8 @@
                 const savedAddr = localStorage.getItem(key); 
                 if (savedAddr) { 
                     Swal.fire({ title: `📍 使用「${label}」？`, text: savedAddr, showDenyButton: true, confirmButtonText: '填入', denyButtonText: '修改地址', confirmButtonColor: '#10b981', denyButtonColor: '#94a3b8' }).then((r) => { 
-                        if (r.isConfirmed) { input.value = savedAddr; Swal.close(); } else if (r.isDenied) { promptSave(key, label, input); } 
+                        if (r.isConfirmed) { input.value = savedAddr; Swal.close(); } 
+                        else if (r.isDenied) { promptSave(key, label, input); } 
                     }); 
                 } else { promptSave(key, label, input); } 
             } else { input.value = val; Swal.close(); } 
@@ -335,7 +305,7 @@
             document.getElementById('submit-btn-text').innerText = "確認預約"; 
         }
 
-        // --- 核心送單 ---
+        // --- 送出訂單 (單純回傳 LINE 聊天室) ---
         async function submitOrder() {
             const phone = document.getElementById('phone').value;
             const pickup = document.getElementById('pickup').value.trim();
@@ -364,6 +334,7 @@
             let headerTitle = bookingMode === 'NOW' ? `即時單 ${nowTimeStr}` : `預約單 ${bookingTime}`;
             let headerColor = bookingMode === 'NOW' ? "#000000" : "#1d4ed8";
 
+            // 產生送回聊天室的 Flex Message
             const flexMsg = {
                 type: "flex",
                 altText: bookingMode === 'NOW' ? "🚕 即時叫車" : "📅 遠距預約",
@@ -378,11 +349,6 @@
                     body: {
                         type: "box", layout: "vertical",
                         contents: [
-                            {
-                                type: "box", layout: "horizontal", margin: "md",
-                                contents: [ { type: "text", text: "👤 乘客", flex: 2, color: "#888888", size: "md" }, { type: "text", text: userName, flex: 5, color: "#111111", size: "md", weight: "bold" } ]
-                            },
-                            { type: "separator", margin: "md", color: "#EEEEEE" },
                             {
                                 type: "box", layout: "horizontal", margin: "md",
                                 contents: [ { type: "text", text: "🟢 上車", flex: 2, color: "#888888", size: "md" }, { type: "text", text: pickup, flex: 5, color: "#111111", size: "md", wrap: true, action: { type: "uri", label: "導航", uri: googleMapUrl } } ]
@@ -417,17 +383,16 @@
 
             try {
                 if (liff.isInClient()) {
+                    // 單純透過 LIFF 把卡片送回聊天室
                     await liff.sendMessages([flexMsg]);
                     liff.closeWindow(); 
                 } else {
-                    Swal.fire({ icon: 'info', title: '外部測試模式', text: '請在 LINE 聊天室內開啟此連結，卡片才能直接傳送出去喔！' });
-                    btn.disabled = false;
-                    btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i><span id="submit-btn-text">確認送出預約</span>';
+                    Swal.fire({ icon: 'info', title: '測試模式', text: '如果在 LINE 裡面開啟，這張卡片會直接傳送到聊天室！' });
+                    btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-paper-plane mr-2"></i>確認送出預約';
                 }
             } catch (e) {
-                Swal.fire({ icon: 'error', title: '發送失敗', text: 'LINE API 回傳錯誤: ' + e.message });
-                btn.disabled = false;
-                btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i><span id="submit-btn-text">確認送出預約</span>';
+                Swal.fire({ icon: 'error', title: '發送失敗', text: e.message });
+                btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-paper-plane mr-2"></i>確認送出預約';
             }
         }
     </script>
