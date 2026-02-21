@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>常用地址預約</title> // v3.1 標題防截斷版
+    <title>常用地址預約</title> // v3.2 時間付款合併版
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
@@ -108,38 +108,36 @@
             </div>
 
             <div class="booking-card">
-                <div class="input-group cursor-pointer !bg-blue-50/50 !border-blue-100" onclick="openModernTimeSelector()">
+                
+                <div class="input-group cursor-pointer relative !bg-blue-50/50 !border-blue-100" onclick="openModernTimeSelector()">
                     <i id="time-icon" class="fa-solid fa-calendar-check input-icon text-blue-600 text-xl"></i>
                     <div class="flex-1">
                         <label class="block text-[10px] text-blue-500 font-bold uppercase">Pickup Time (用車時間)</label>
                         <div class="flex items-center justify-between mt-1">
                             <span id="time-display" class="font-bold text-slate-400 text-lg">請點擊選擇時間</span>
-                            <div class="bg-blue-100 text-blue-700 px-2 py-1 rounded-md text-xs font-bold">點擊選擇</div>
+                            
+                            <div class="flex items-center space-x-2" onclick="event.stopPropagation(); openPaymentPicker();">
+                                <span class="w-[1px] h-5 bg-blue-200"></span>
+                                <div class="flex items-center bg-white px-2 py-1.5 rounded-md border border-blue-100 shadow-sm active:bg-blue-50 transition-colors">
+                                    <i id="payment-icon-small" class="fa-solid fa-coins text-slate-600 text-xs mr-1.5"></i>
+                                    <span id="payment-text-small" class="text-xs font-bold text-slate-700">現金</span>
+                                    <i class="fa-solid fa-caret-down text-[10px] text-gray-400 ml-1.5"></i>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <input type="hidden" id="booking-time-val" value="">
+                    <input type="hidden" id="payment-value" value="現金">
                 </div>
 
-                <div class="input-group">
+                <div class="input-group !mb-0">
                     <i class="fa-solid fa-phone input-icon text-slate-400"></i>
                     <div class="flex-1">
                         <label class="block text-[10px] text-slate-400 font-bold uppercase">Phone (聯絡電話)</label>
                         <input type="tel" id="phone" placeholder="09xx-xxx-xxx" class="w-full bg-transparent font-bold text-slate-800 outline-none text-lg">
                     </div>
                 </div>
-
-                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-xl mt-2 cursor-pointer active:bg-gray-100" onclick="openPaymentPicker()">
-                    <div class="flex items-center">
-                        <i class="fa-solid fa-wallet text-slate-500 mr-3"></i>
-                        <span class="text-sm font-bold text-slate-600">付款方式</span>
-                    </div>
-                    <div class="flex items-center">
-                        <i id="payment-icon-small" class="fa-solid fa-coins text-slate-600 mr-2"></i>
-                        <span id="payment-text-small" class="font-bold text-slate-800">現金</span>
-                        <i class="fa-solid fa-chevron-right text-xs text-slate-400 ml-2"></i>
-                    </div>
-                    <input type="hidden" id="payment-value" value="現金">
-                </div>
+                
             </div>
         </div>
 
@@ -183,7 +181,7 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script>
-        const VERSION = "v3.1"; // 標題防截斷版
+        const VERSION = "v3.2"; // 時間付款合併版
         const LIFF_ID = '2008907691-3P676tTN'; 
         const PROJECT_B_URL = 'https://liff.line.me/2008907691-1mAjwojZ'; 
 
@@ -304,8 +302,21 @@
             html += '</div>'; 
             Swal.fire({ title: '選擇付款方式', html: html, showConfirmButton: false, showCloseButton: true, customClass: {popup: 'rounded-[24px]'} }); 
         }
-        window.selectPaymentMethod = function(label, iconClass, colorClass) { updatePaymentUI(label, iconClass, colorClass); localStorage.setItem('taxi_selected_payment', label); Swal.close(); }
-        function updatePaymentUI(label, iconClass, colorClass) { document.getElementById('payment-value').value = label; document.getElementById('payment-text-small').innerText = label; const iconElem = document.getElementById('payment-icon-small'); iconElem.className = `fa-solid ${iconClass} text-slate-600 mr-2`; if(label !== '現金') iconElem.classList.add(colorClass.split(' ')[0]); }
+        
+        window.selectPaymentMethod = function(label, iconClass, colorClass) { 
+            updatePaymentUI(label, iconClass, colorClass); 
+            localStorage.setItem('taxi_selected_payment', label); 
+            Swal.close(); 
+        }
+        
+        function updatePaymentUI(label, iconClass, colorClass) { 
+            document.getElementById('payment-value').value = label; 
+            document.getElementById('payment-text-small').innerText = label; 
+            const iconElem = document.getElementById('payment-icon-small'); 
+            // 🌟 恢復原版小巧的 icon 尺寸，匹配同一欄的版面
+            iconElem.className = `fa-solid ${iconClass} text-xs mr-1.5`; 
+            if(label !== '現金') iconElem.classList.add(colorClass.split(' ')[0]); 
+        }
 
         function generateDates() { 
             const dates = []; const today = new Date(); 
@@ -453,7 +464,7 @@
             
             const flexMsg = {
                 type: "flex",
-                altText: `預約：${bookingTime}`, // 推播通知的預覽文字
+                altText: `預約：${bookingTime}`,
                 contents: {
                     type: "bubble",
                     styles: { header: { backgroundColor: "#FFFFFF" }, body: { backgroundColor: "#FFFFFF" }, footer: { backgroundColor: "#F8F8F8" } },
@@ -462,12 +473,12 @@
                         contents: [ 
                             { 
                                 type: "text", 
-                                text: `${bookingTime}`, // 🌟 拿掉「預約單」與圖示，只顯示最核心的時間
+                                text: `${bookingTime}`, 
                                 weight: "bold", 
                                 size: "xxl", 
                                 color: "#1d4ed8", 
                                 align: "center",
-                                adjustMode: "shrink-to-fit" // 🌟 核心防呆：防止字體過大被截斷，會自動縮小排版
+                                adjustMode: "shrink-to-fit" 
                             } 
                         ],
                         paddingAll: "5px"
