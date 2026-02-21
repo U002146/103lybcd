@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>個人車行：遠距預約</title> // v1.3 LIFF讀取名字先決版
+    <title>個人車行：遠距預約</title> // v1.4 回歸初心穩定版
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
@@ -55,10 +55,9 @@
 
     <div class="bg-white px-6 py-4 shadow-sm flex items-center justify-between sticky top-0 z-40">
         <div class="flex items-center">
-            <img id="user-avatar" src="https://via.placeholder.com/40" class="w-10 h-10 rounded-full mr-3 hidden shadow-sm border border-gray-100">
             <div>
-                <h1 id="greeting-text" class="text-xl font-black text-slate-800 tracking-wide">系統連線中...</h1>
-                <p class="text-[10px] text-emerald-600 font-bold mt-0.5 uppercase tracking-wider">專屬預約服務</p>
+                <h1 id="greeting-text" class="text-xl font-black text-slate-800 tracking-wide">專屬預約系統</h1>
+                <p class="text-[10px] text-emerald-600 font-bold mt-0.5 uppercase tracking-wider">跨縣市免地圖 • 直覺秒預約</p>
             </div>
         </div>
         <div id="liff-status-dot" class="w-3 h-3 rounded-full bg-red-500 shadow-md transition-colors duration-300"></div>
@@ -159,7 +158,7 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script>
-        const VERSION = "v1.3"; // LIFF讀取名字先決版
+        const VERSION = "v1.4"; // 回歸初心穩定版
         
         const LIFF_ID = '2008907691-MAdAtfyf'; 
         const PROJECT_B_URL = 'https://liff.line.me/2008907691-1mAjwojZ'; 
@@ -184,7 +183,7 @@
 
         let pickerState = { dateIndex: 0, hour: null, minute: null, dates: [] };
         let currentTargetInput = 'pickup';
-        let userName = "貴賓"; // 預設稱呼
+        let userName = "乘客"; // 預設稱呼
 
         window.onload = function() {
             initLiff();
@@ -198,81 +197,56 @@
             }
         };
 
-        // 🔧 終極修正：遵循老闆的「先抓資料、再解鎖按鈕」架構
+        // 🔧 核心退回第一版：只等初始化，不亂擋人
         async function initLiff() {
             try { 
                 await liff.init({ liffId: LIFF_ID }); 
                 
-                if (liff.isInClient() || liff.isLoggedIn()) {
-                    // 1. 成功連線，亮綠燈
+                if(liff.isLoggedIn() || liff.isInClient()) {
+                    // 亮綠燈
                     document.getElementById('liff-status-dot').classList.replace('bg-red-500', 'bg-green-500');
                     
-                    // 2. 抓取客人資料 (Profile)
-                    const profile = await liff.getProfile();
-                    userName = profile.displayName;
-                    
-                    // 3. 更新頂部 UI：顯示頭像與客製化打招呼
-                    document.getElementById('greeting-text').innerText = `嗨，${userName}`;
-                    const avatar = document.getElementById('user-avatar');
-                    if(profile.pictureUrl) {
-                        avatar.src = profile.pictureUrl;
-                        avatar.classList.remove('hidden');
+                    // 防呆讀取：試著抓名字，失敗也沒關係，不報錯。
+                    try {
+                        const profile = await liff.getProfile();
+                        userName = profile.displayName;
+                        document.getElementById('greeting-text').innerText = `嗨，${userName}`;
+                    } catch(err) {
+                        console.log("讀取 Profile 略過（可能無權限）", err);
                     }
-
-                    // 4. 解鎖送出按鈕
-                    enableSubmitButton();
-
-                } else {
-                    // 如果是用外部瀏覽器打開，引導登入
-                    document.getElementById('greeting-text').innerText = '請先登入 LINE';
-                    liff.login({ redirectUri: window.location.href });
                 }
             } catch (e) { 
                 console.error('LIFF Init Failed:', e); 
-                Swal.fire({
-                    icon: 'error',
-                    title: '初始化失敗',
-                    text: '無法連線至 LINE，請確認網路或重新開啟此頁面。',
-                    confirmButtonText: '確定'
-                });
-                document.getElementById('greeting-text').innerText = '系統連線失敗';
+            } finally {
+                // 🚀 最重要的這步：初始化跑完後，解鎖按鈕，防止客人太快點擊觸發 access_token 錯誤
+                const btn = document.getElementById('submitBtn');
+                btn.disabled = false;
+                btn.classList.remove('bg-slate-300', 'opacity-80');
+                btn.classList.add('bg-slate-900', 'shadow-xl', 'shadow-slate-300', 'active:scale-[0.98]');
+                btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i><span id="submit-btn-text">確認送出預約</span>';
             }
         }
 
-        // 解鎖按鈕 UI
-        function enableSubmitButton() {
-            const btn = document.getElementById('submitBtn');
-            btn.disabled = false;
-            btn.classList.remove('bg-slate-300', 'opacity-80');
-            btn.classList.add('bg-slate-900', 'shadow-xl', 'shadow-slate-300', 'active:scale-[0.98]');
-            btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i><span id="submit-btn-text">確認送出預約</span>';
-        }
-
+        // --- 地點互換與各種 UI 功能 ---
         function swapLocations() {
             const pickupEl = document.getElementById('pickup');
             const dropoffEl = document.getElementById('dropoff');
             const temp = pickupEl.value;
             pickupEl.value = dropoffEl.value;
             dropoffEl.value = temp;
-            
             const inputs = document.querySelectorAll('.loc-row');
-            inputs.forEach(el => {
-                el.style.transform = 'scale(0.98)';
-                setTimeout(() => el.style.transform = 'scale(1)', 150);
-            });
+            inputs.forEach(el => { el.style.transform = 'scale(0.98)'; setTimeout(() => el.style.transform = 'scale(1)', 150); });
         }
 
         function openPresetLocations(target) { 
             currentTargetInput = target; 
             const targetName = target === 'pickup' ? '上車點' : '下車點';
-            
             let html = '<div class="grid grid-cols-2 gap-3 mt-2 location-grid">'; 
             PRESET_LOCATIONS.forEach(loc => { 
                 let bgClass = (loc.value && loc.value.includes('FAV')) ? 'bg-yellow-50 hover:bg-yellow-100 border-yellow-200' : 'bg-gray-50 hover:bg-slate-100 border-gray-100'; 
                 html += `<button type="button" onclick="selectPreset('${loc.value || loc.name}', '${loc.name}')" class="flex flex-col items-center justify-center p-3 border rounded-xl transition-all active:scale-95 ${bgClass}"><span class="text-2xl mb-1">${loc.icon}</span><span class="text-sm font-bold text-slate-700">${loc.name}</span></button>`; 
             }); 
             html += '</div>'; 
-            
             Swal.fire({ title: `快速選擇${targetName}`, html: html, showConfirmButton: false, showCloseButton: true, customClass: {popup: 'rounded-[24px]'} }); 
         }
 
@@ -283,8 +257,7 @@
                 const savedAddr = localStorage.getItem(key); 
                 if (savedAddr) { 
                     Swal.fire({ title: `📍 使用「${label}」？`, text: savedAddr, showDenyButton: true, confirmButtonText: '填入', denyButtonText: '修改地址', confirmButtonColor: '#10b981', denyButtonColor: '#94a3b8' }).then((r) => { 
-                        if (r.isConfirmed) { input.value = savedAddr; Swal.close(); } 
-                        else if (r.isDenied) { promptSave(key, label, input); } 
+                        if (r.isConfirmed) { input.value = savedAddr; Swal.close(); } else if (r.isDenied) { promptSave(key, label, input); } 
                     }); 
                 } else { promptSave(key, label, input); } 
             } else { input.value = val; Swal.close(); } 
@@ -347,13 +320,8 @@
             document.getElementById('submit-btn-text').innerText = "確認預約"; 
         }
 
-        // --- 送出訂單 ---
+        // --- 核心送單：100% 退回第一版寫法 ---
         async function submitOrder() {
-            // 安全鎖：確保有 token 才執行
-            if (!liff.isLoggedIn() && !liff.isInClient()) {
-                return Swal.fire('尚未連線', '請重新整理頁面或在 LINE 內部開啟', 'error');
-            }
-
             const phone = document.getElementById('phone').value;
             const pickup = document.getElementById('pickup').value.trim();
             let dropoff = document.getElementById('dropoff').value.trim();
@@ -381,7 +349,6 @@
             let headerTitle = bookingMode === 'NOW' ? `即時單 ${nowTimeStr}` : `預約單 ${bookingTime}`;
             let headerColor = bookingMode === 'NOW' ? "#000000" : "#1d4ed8";
 
-            // 建立回傳的 Flex Message，加入客人的名字讓司機更好稱呼
             const flexMsg = {
                 type: "flex",
                 altText: bookingMode === 'NOW' ? "🚕 即時叫車" : "📅 遠距預約",
@@ -434,16 +401,19 @@
             };
 
             try {
+                // 完全還原第一版：只判斷是否在 LINE APP 內，是就傳，不是就給提示
                 if (liff.isInClient()) {
                     await liff.sendMessages([flexMsg]);
                     liff.closeWindow(); 
                 } else {
-                    Swal.fire({ icon: 'info', title: '外部測試', text: '如果在 LINE 聊天室內開啟，這張卡片會直接傳送出去！' });
-                    enableSubmitButton();
+                    Swal.fire({ icon: 'info', title: '外部測試模式', text: '請在 LINE 聊天室內開啟此連結，卡片才能直接傳送出去喔！' });
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i><span id="submit-btn-text">確認送出預約</span>';
                 }
             } catch (e) {
-                Swal.fire({ icon: 'error', title: '發送失敗', text: e.message });
-                enableSubmitButton();
+                Swal.fire({ icon: 'error', title: '發送失敗', text: 'LINE API 回傳錯誤: ' + e.message });
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i><span id="submit-btn-text">確認送出預約</span>';
             }
         }
     </script>
