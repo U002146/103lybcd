@@ -3,13 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>個人車行：遠距預約</title> // v1.0 異地純預約版
+    <title>個人車行：遠距預約</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
-
     <style>
         body { font-family: 'Noto Sans TC', sans-serif; background-color: #f8fafc; overflow-x: hidden; min-height: 100vh; display: flex; flex-direction: column; }
         input, select, textarea { font-size: 17px !important; }
@@ -149,6 +146,7 @@
                 <div class="flex items-baseline"><h3 class="text-xl font-bold text-slate-800 mr-2">選擇用車時間</h3></div>
                 <button type="button" onclick="closeModernTimeSelector()" class="w-8 h-8 rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
             </div>
+            
             <button type="button" onclick="selectNowAndClose()" id="btn-quick-now" class="w-full bg-gray-100 text-slate-700 py-3 rounded-xl font-bold mb-4 flex items-center justify-center active:scale-[0.98] transition-transform"><i class="fa-solid fa-bolt mr-2 text-yellow-500"></i> 我要現在立刻出發</button>
             
             <div class="text-xs text-emerald-600 font-bold mb-2 uppercase tracking-wide">預約未來時間</div>
@@ -160,18 +158,11 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script>
-        const VERSION = "v1.0"; // 異地純預約版 - 拔除地圖優化長途預約體驗
+        const VERSION = "v1.1"; // 純回傳聊天室版 - 拔除 Firebase 依賴
         
-        // --- 設定與 API ---
         const LIFF_ID = '2008907691-MAdAtfyf'; 
         const PROJECT_B_URL = 'https://liff.line.me/2008907691-1mAjwojZ'; 
-        const MY_DRIVER_ID = 'U467348846c6b1fa433990d7b75c935b5'; 
 
-        const firebaseConfig = { databaseURL: "https://hualientaxi-bb32f-default-rtdb.asia-southeast1.firebasedatabase.app/" };
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.database();
-
-        // 預設清單
         const PRESET_LOCATIONS = [
             {name:'我的最愛 A', icon:'⭐', value:'FAV_ADDR_A'},
             {name:'我的最愛 B', icon:'⭐', value:'FAV_ADDR_B'},
@@ -191,7 +182,7 @@
         ];
 
         let pickerState = { dateIndex: 0, hour: null, minute: null, dates: [] };
-        let currentTargetInput = 'pickup'; // 記錄目前操作的是上車還是下車
+        let currentTargetInput = 'pickup';
 
         window.onload = function() {
             initLiff();
@@ -215,7 +206,6 @@
             } catch (e) { console.error('LIFF Init Failed:', e); }
         }
 
-        // --- 地點互換功能 ---
         function swapLocations() {
             const pickupEl = document.getElementById('pickup');
             const dropoffEl = document.getElementById('dropoff');
@@ -223,7 +213,6 @@
             pickupEl.value = dropoffEl.value;
             dropoffEl.value = temp;
             
-            // 視覺震動回饋
             const inputs = document.querySelectorAll('.loc-row');
             inputs.forEach(el => {
                 el.style.transform = 'scale(0.98)';
@@ -231,9 +220,8 @@
             });
         }
 
-        // --- 常用地址功能 ---
         function openPresetLocations(target) { 
-            currentTargetInput = target; // 設定目標輸入框 ('pickup' 或 'dropoff')
+            currentTargetInput = target; 
             const targetName = target === 'pickup' ? '上車點' : '下車點';
             
             let html = '<div class="grid grid-cols-2 gap-3 mt-2 location-grid">'; 
@@ -243,13 +231,7 @@
             }); 
             html += '</div>'; 
             
-            Swal.fire({ 
-                title: `快速選擇${targetName}`, 
-                html: html, 
-                showConfirmButton: false, 
-                showCloseButton: true, 
-                customClass: {popup: 'rounded-[24px]'} 
-            }); 
+            Swal.fire({ title: `快速選擇${targetName}`, html: html, showConfirmButton: false, showCloseButton: true, customClass: {popup: 'rounded-[24px]'} }); 
         }
 
         window.selectPreset = function(val, label) { 
@@ -258,45 +240,20 @@
                 const key = val === 'FAV_ADDR_A' ? 'taxi_fav_a' : 'taxi_fav_b'; 
                 const savedAddr = localStorage.getItem(key); 
                 if (savedAddr) { 
-                    Swal.fire({ 
-                        title: `📍 使用「${label}」？`, 
-                        text: savedAddr, 
-                        showDenyButton: true, 
-                        confirmButtonText: '填入', 
-                        denyButtonText: '修改地址', 
-                        confirmButtonColor: '#10b981', 
-                        denyButtonColor: '#94a3b8' 
-                    }).then((r) => { 
+                    Swal.fire({ title: `📍 使用「${label}」？`, text: savedAddr, showDenyButton: true, confirmButtonText: '填入', denyButtonText: '修改地址', confirmButtonColor: '#10b981', denyButtonColor: '#94a3b8' }).then((r) => { 
                         if (r.isConfirmed) { input.value = savedAddr; Swal.close(); } 
                         else if (r.isDenied) { promptSave(key, label, input); } 
                     }); 
-                } else { 
-                    promptSave(key, label, input); 
-                } 
-            } else { 
-                input.value = val; 
-                Swal.close(); 
-            } 
+                } else { promptSave(key, label, input); } 
+            } else { input.value = val; Swal.close(); } 
         };
 
         function promptSave(key, label, input) { 
-            Swal.fire({ 
-                title: `設定${label}`, 
-                input: 'text', 
-                inputPlaceholder: '請輸入完整地址...', 
-                showCancelButton: true, 
-                confirmButtonText: '記憶並套用', 
-                confirmButtonColor: '#0f172a' 
-            }).then((r) => { 
-                if (r.isConfirmed && r.value) { 
-                    localStorage.setItem(key, r.value); 
-                    input.value = r.value; 
-                    Swal.fire({ icon: 'success', title: '已記憶！', timer: 1000, showConfirmButton: false }); 
-                } 
+            Swal.fire({ title: `設定${label}`, input: 'text', inputPlaceholder: '請輸入完整地址...', showCancelButton: true, confirmButtonText: '記憶並套用', confirmButtonColor: '#0f172a' }).then((r) => { 
+                if (r.isConfirmed && r.value) { localStorage.setItem(key, r.value); input.value = r.value; Swal.fire({ icon: 'success', title: '已記憶！', timer: 1000, showConfirmButton: false }); } 
             }); 
         }
 
-        // --- 付款方式 ---
         function openPaymentPicker() { 
             let html = '<div class="grid grid-cols-2 gap-3 mt-2 location-grid">'; 
             const currentVal = document.getElementById('payment-value').value; 
@@ -308,20 +265,9 @@
             html += '</div>'; 
             Swal.fire({ title: '選擇付款方式', html: html, showConfirmButton: false, showCloseButton: true, customClass: {popup: 'rounded-[24px]'} }); 
         }
-        window.selectPaymentMethod = function(label, iconClass, colorClass) { 
-            updatePaymentUI(label, iconClass, colorClass); 
-            localStorage.setItem('taxi_selected_payment', label); 
-            Swal.close(); 
-        }
-        function updatePaymentUI(label, iconClass, colorClass) { 
-            document.getElementById('payment-value').value = label; 
-            document.getElementById('payment-text-small').innerText = label; 
-            const iconElem = document.getElementById('payment-icon-small'); 
-            iconElem.className = `fa-solid ${iconClass} text-slate-600 mr-2`; 
-            if(label !== '現金') iconElem.classList.add(colorClass.split(' ')[0]); 
-        }
+        window.selectPaymentMethod = function(label, iconClass, colorClass) { updatePaymentUI(label, iconClass, colorClass); localStorage.setItem('taxi_selected_payment', label); Swal.close(); }
+        function updatePaymentUI(label, iconClass, colorClass) { document.getElementById('payment-value').value = label; document.getElementById('payment-text-small').innerText = label; const iconElem = document.getElementById('payment-icon-small'); iconElem.className = `fa-solid ${iconClass} text-slate-600 mr-2`; if(label !== '現金') iconElem.classList.add(colorClass.split(' ')[0]); }
 
-        // --- 時間選擇器邏輯 ---
         function generateDates() { const dates = []; const today = new Date(); const weekDays = ['日','一','二','三','四','五','六']; for(let i=0; i<7; i++) { const d = new Date(today); d.setDate(today.getDate() + i); const m = (d.getMonth()+1).toString(); const day = d.getDate().toString(); const w = weekDays[d.getDay()]; const label = i === 0 ? '今天' : (i === 1 ? '明天' : `${m}/${day}`); dates.push({ val: i, label: label, sub: i > 1 ? `週${w}` : '', fullDate: `${m}月${day}日` }); } return dates; }
         function openModernTimeSelector() { const modal = document.getElementById('time-selector-modal'); const content = document.getElementById('time-selector-content'); pickerState.dates = generateDates(); renderDateTabs(); renderHourGrid(); document.getElementById('hour-selection-view').classList.remove('hidden'); document.getElementById('minute-selection-view').classList.add('hidden'); document.getElementById('minute-selection-view').classList.remove('flex'); modal.style.display = 'flex'; setTimeout(() => { modal.style.opacity = '1'; content.style.transform = 'translateY(0)'; }, 10); }
         function closeModernTimeSelector(e) { if(e && e.target.id !== 'time-selector-modal' && !e.target.closest('button')) return; const modal = document.getElementById('time-selector-modal'); const content = document.getElementById('time-selector-content'); modal.style.opacity = '0'; content.style.transform = 'translateY(100%)'; setTimeout(() => { modal.style.display = 'none'; }, 300); }
@@ -359,7 +305,7 @@
             document.getElementById('submit-btn-text').innerText = "確認預約"; 
         }
 
-        // --- 送出訂單 (字串純淨版) ---
+        // --- 送出訂單 (單純回傳 LINE 聊天室) ---
         async function submitOrder() {
             const phone = document.getElementById('phone').value;
             const pickup = document.getElementById('pickup').value.trim();
@@ -370,7 +316,6 @@
             const bookingMode = document.getElementById('booking-mode').value;
             const bookingTime = document.getElementById('booking-time-val').value;
 
-            // 擋下必填項目
             if(!pickup) return Swal.fire('請填寫上車點', '系統需要知道去哪接您', 'warning');
             if(bookingMode === 'RESERVE' && !bookingTime) return Swal.fire('請選擇時間', '您還沒指定用車時間喔', 'warning');
             if(!phone || phone.length < 8) return Swal.fire('請輸入電話', '請留下聯絡方式', 'warning');
@@ -381,7 +326,6 @@
             btn.disabled = true;
             btn.innerHTML = '<div class="loader mr-3 w-5 h-5 border-2 border-white border-t-transparent"></div> 處理中...';
 
-            // 🚀 改用 Google Maps 文字搜尋 URL
             const mapBaseUrl = "https://www.google.com/maps/search/?api=1&query=";
             const googleMapUrl = mapBaseUrl + encodeURIComponent(pickup);
             const dropoffMapUrl = mapBaseUrl + encodeURIComponent(dropoff);
@@ -390,20 +334,7 @@
             let headerTitle = bookingMode === 'NOW' ? `即時單 ${nowTimeStr}` : `預約單 ${bookingTime}`;
             let headerColor = bookingMode === 'NOW' ? "#000000" : "#1d4ed8";
 
-            // 1. 寫入 Firebase (移除 lat/lng，純字串)
-            try {
-                await db.ref(`drivers/${MY_DRIVER_ID}/request`).set({
-                    pickup: pickup,
-                    dropoff: dropoff,
-                    mode: bookingMode,
-                    bookingTime: bookingTime,
-                    timestamp: firebase.database.ServerValue.TIMESTAMP
-                });
-            } catch(e) {
-                console.error("Firebase Error", e);
-            }
-
-            // 2. 產生 Flex Message
+            // 產生送回聊天室的 Flex Message
             const flexMsg = {
                 type: "flex",
                 altText: bookingMode === 'NOW' ? "🚕 即時叫車" : "📅 遠距預約",
@@ -452,10 +383,11 @@
 
             try {
                 if (liff.isInClient()) {
+                    // 單純透過 LIFF 把卡片送回聊天室
                     await liff.sendMessages([flexMsg]);
                     liff.closeWindow(); 
                 } else {
-                    Swal.fire({ icon: 'success', title: '預約已送出', text: '純文字預約單已寫入 Firebase。' });
+                    Swal.fire({ icon: 'info', title: '測試模式', text: '如果在 LINE 裡面開啟，這張卡片會直接傳送到聊天室！' });
                     btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-paper-plane mr-2"></i>確認送出預約';
                 }
             } catch (e) {
