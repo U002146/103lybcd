@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>常用地址預約</title>
+    <title>常用地址預約</title> // v3.1 標題防截斷版
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
@@ -183,7 +183,7 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script>
-        const VERSION = "v3.0"; // 常用地址預約 - 滿版UI與防呆30分鐘機制
+        const VERSION = "v3.1"; // 標題防截斷版
         const LIFF_ID = '2008907691-3P676tTN'; 
         const PROJECT_B_URL = 'https://liff.line.me/2008907691-1mAjwojZ'; 
 
@@ -198,7 +198,6 @@
             {name:'東大門夜市', icon:'🌭'}
         ];
 
-        // 💳 付款方式擴充
         const PAYMENT_METHODS = [
             {id:'現金',label:'現金',icon:'fa-coins',color:'text-slate-600'},
             {id:'敬老卡',label:'敬老卡',icon:'fa-person-cane',color:'text-orange-500'},
@@ -308,7 +307,6 @@
         window.selectPaymentMethod = function(label, iconClass, colorClass) { updatePaymentUI(label, iconClass, colorClass); localStorage.setItem('taxi_selected_payment', label); Swal.close(); }
         function updatePaymentUI(label, iconClass, colorClass) { document.getElementById('payment-value').value = label; document.getElementById('payment-text-small').innerText = label; const iconElem = document.getElementById('payment-icon-small'); iconElem.className = `fa-solid ${iconClass} text-slate-600 mr-2`; if(label !== '現金') iconElem.classList.add(colorClass.split(' ')[0]); }
 
-        // --- 核心邏輯：滿版一體化選單與 30 分鐘防呆 ---
         function generateDates() { 
             const dates = []; const today = new Date(); 
             const weekDays = ['日','一','二','三','四','五','六']; 
@@ -325,7 +323,7 @@
             const modal = document.getElementById('time-selector-modal'); 
             const content = document.getElementById('time-selector-content'); 
             pickerState.dates = generateDates(); 
-            pickerState.hour = null; // 重置，強迫重新選
+            pickerState.hour = null; 
             pickerState.minute = null;
             renderDateTabs(); 
             renderHourGrid(); 
@@ -363,14 +361,14 @@
 
         function renderHourGrid() { 
             const container = document.getElementById('hour-grid'); 
-            const minTime = new Date(new Date().getTime() + 30 * 60000); // 30分鐘後
+            const minTime = new Date(new Date().getTime() + 30 * 60000); 
             const selectedDateObj = pickerState.dates[pickerState.dateIndex];
             
             let html = ''; 
             for(let h=0; h<24; h++) { 
                 let disabled = '';
                 const testTime = new Date(selectedDateObj.rawDate);
-                testTime.setHours(h, 59, 59); // 該小時的最後一秒
+                testTime.setHours(h, 59, 59); 
 
                 if (testTime < minTime) { disabled = 'disabled'; }
                 const selected = (pickerState.hour === h) ? 'selected' : ''; 
@@ -426,7 +424,6 @@
             document.getElementById('time-icon').className = "fa-solid fa-calendar-check input-icon text-blue-600 text-xl"; 
         }
 
-        // --- 送出訂單 ---
         async function submitOrder() {
             if (!liff.isLoggedIn() && !liff.isInClient()) {
                 return Swal.fire('尚未連線', '請重新整理頁面或在 LINE 內部開啟', 'error');
@@ -456,13 +453,23 @@
             
             const flexMsg = {
                 type: "flex",
-                altText: "📅 常用地址預約",
+                altText: `預約：${bookingTime}`, // 推播通知的預覽文字
                 contents: {
                     type: "bubble",
                     styles: { header: { backgroundColor: "#FFFFFF" }, body: { backgroundColor: "#FFFFFF" }, footer: { backgroundColor: "#F8F8F8" } },
                     header: {
                         type: "box", layout: "vertical",
-                        contents: [ { type: "text", text: `📅 預約單 ${bookingTime}`, weight: "bold", size: "xxl", color: "#1d4ed8", align: "center" } ],
+                        contents: [ 
+                            { 
+                                type: "text", 
+                                text: `${bookingTime}`, // 🌟 拿掉「預約單」與圖示，只顯示最核心的時間
+                                weight: "bold", 
+                                size: "xxl", 
+                                color: "#1d4ed8", 
+                                align: "center",
+                                adjustMode: "shrink-to-fit" // 🌟 核心防呆：防止字體過大被截斷，會自動縮小排版
+                            } 
+                        ],
                         paddingAll: "5px"
                     },
                     body: {
