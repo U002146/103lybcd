@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>常用地址預約</title>
+    <title>常用地址預約</title> // v3.3 雙層選時流暢版
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
@@ -157,8 +157,7 @@
                 <button type="button" onclick="closeModernTimeSelector()" class="w-10 h-10 rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 flex items-center justify-center text-lg"><i class="fa-solid fa-xmark"></i></button>
             </div>
             
-            <div class="flex-1 flex flex-col min-h-0 overflow-y-auto pr-1">
-                
+            <div id="hour-selection-view" class="flex-1 flex flex-col min-h-0 overflow-y-auto pr-1">
                 <div class="mb-5 flex-shrink-0">
                     <div class="text-xs text-emerald-600 font-bold mb-2 uppercase tracking-wide flex items-center"><i class="fa-solid fa-calendar-day mr-1"></i> 1. 選擇日期</div>
                     <div class="date-tabs-container" id="date-tabs-list"></div>
@@ -166,22 +165,38 @@
 
                 <div class="mb-5 flex-shrink-0">
                     <div class="text-xs text-emerald-600 font-bold mb-2 uppercase tracking-wide flex items-center"><i class="fa-solid fa-clock mr-1"></i> 2. 選擇小時 (24H)</div>
-                    <div class="time-grid" id="hour-grid"></div>
+                    <div class="time-grid pb-10" id="hour-grid"></div>
+                </div>
+            </div>
+
+            <div id="minute-selection-view" class="hidden flex-1 flex-col min-h-0 overflow-y-auto pr-1">
+                
+                <div class="flex items-center mb-6 flex-shrink-0 border-b border-gray-100 pb-4">
+                    <button type="button" onclick="backToHourView()" class="mr-4 w-12 h-12 rounded-full border border-gray-200 flex items-center justify-center text-gray-600 active:bg-gray-100 transition-colors shadow-sm">
+                        <i class="fa-solid fa-arrow-left text-xl"></i>
+                    </button>
+                    <div>
+                        <div class="text-xs text-slate-400 font-bold mb-0.5 uppercase tracking-wider">已選日期 / 小時</div>
+                        <div class="text-xl font-bold text-blue-600">
+                            <span id="selected-date-display"></span> 
+                            <span id="selected-hour-display"></span> 點
+                        </div>
+                    </div>
                 </div>
 
                 <div class="mb-4 flex-shrink-0">
-                    <div class="text-xs text-emerald-600 font-bold mb-2 uppercase tracking-wide flex items-center"><i class="fa-solid fa-stopwatch mr-1"></i> 3. 選擇分鐘</div>
+                    <div class="text-xs text-emerald-600 font-bold mb-2 uppercase tracking-wide flex items-center"><i class="fa-solid fa-stopwatch mr-1"></i> 3. 選擇出發分鐘</div>
                     <div class="time-grid pb-10" id="minute-grid-container"></div>
                 </div>
-                
             </div>
+
         </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script>
-        const VERSION = "v3.2"; // 時間付款合併版
+        const VERSION = "v3.3"; // 雙層選時防截斷版
         const LIFF_ID = '2008907691-3P676tTN'; 
         const PROJECT_B_URL = 'https://liff.line.me/2008907691-1mAjwojZ'; 
 
@@ -313,11 +328,11 @@
             document.getElementById('payment-value').value = label; 
             document.getElementById('payment-text-small').innerText = label; 
             const iconElem = document.getElementById('payment-icon-small'); 
-            // 🌟 恢復原版小巧的 icon 尺寸，匹配同一欄的版面
             iconElem.className = `fa-solid ${iconClass} text-xs mr-1.5`; 
             if(label !== '現金') iconElem.classList.add(colorClass.split(' ')[0]); 
         }
 
+        // --- 核心邏輯：雙層視圖選單與 30 分鐘防呆 ---
         function generateDates() { 
             const dates = []; const today = new Date(); 
             const weekDays = ['日','一','二','三','四','五','六']; 
@@ -336,9 +351,16 @@
             pickerState.dates = generateDates(); 
             pickerState.hour = null; 
             pickerState.minute = null;
+            
+            // 初始化時，顯示視圖A(小時)，隱藏視圖B(分鐘)
+            document.getElementById('hour-selection-view').classList.remove('hidden');
+            document.getElementById('hour-selection-view').classList.add('flex');
+            document.getElementById('minute-selection-view').classList.add('hidden');
+            document.getElementById('minute-selection-view').classList.remove('flex');
+            
             renderDateTabs(); 
             renderHourGrid(); 
-            renderMinuteGrid();
+            
             modal.style.display = 'flex'; 
             setTimeout(() => { modal.style.opacity = '1'; content.style.transform = 'translateY(0)'; }, 10); 
         }
@@ -367,7 +389,6 @@
             pickerState.hour = null; 
             renderDateTabs(); 
             renderHourGrid(); 
-            renderMinuteGrid();
         }
 
         function renderHourGrid() { 
@@ -388,19 +409,39 @@
             container.innerHTML = html; 
         }
 
+        // 🌟 神操作：點完小時，直接切換到分鐘視圖
         window.selectPickerHour = function(h) { 
             pickerState.hour = h; 
-            renderHourGrid(); 
+            
+            // 隱藏視圖 A
+            document.getElementById('hour-selection-view').classList.add('hidden');
+            document.getElementById('hour-selection-view').classList.remove('flex');
+            
+            // 顯示視圖 B
+            document.getElementById('minute-selection-view').classList.remove('hidden');
+            document.getElementById('minute-selection-view').classList.add('flex');
+            
+            // 更新視圖 B 頂部的文字
+            const dateObj = pickerState.dates[pickerState.dateIndex];
+            document.getElementById('selected-date-display').innerText = dateObj.fullDate;
+            document.getElementById('selected-hour-display').innerText = h.toString().padStart(2, '0');
+            
             renderMinuteGrid(); 
+            
+            // 自動滾動到頂部
+            document.getElementById('minute-selection-view').scrollTop = 0;
+        }
+
+        // 🌟 返回修改按鈕邏輯
+        window.backToHourView = function() {
+            document.getElementById('minute-selection-view').classList.add('hidden');
+            document.getElementById('minute-selection-view').classList.remove('flex');
+            document.getElementById('hour-selection-view').classList.remove('hidden');
+            document.getElementById('hour-selection-view').classList.add('flex');
         }
 
         function renderMinuteGrid() { 
             const container = document.getElementById('minute-grid-container'); 
-            if (pickerState.hour === null) {
-                container.innerHTML = '<div class="col-span-4 text-center text-slate-400 py-6 font-bold bg-slate-50 rounded-2xl border border-dashed border-slate-200">請先選擇上方小時</div>';
-                return;
-            }
-
             const minTime = new Date(new Date().getTime() + 30 * 60000);
             const selectedDateObj = pickerState.dates[pickerState.dateIndex];
 
