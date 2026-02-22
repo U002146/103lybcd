@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   
-  <title>花蓮敬老愛心車隊：雙向定位系統9.0</title>
+  <title>花蓮敬老愛心車隊：雙向定位系統9.1</title> 
   <meta name="apple-mobile-web-app-capable" content="yes">
   
   <meta property="og:title" content="通話叫車：雙向定位系統">
@@ -26,11 +26,9 @@
     .btn-customer { background: linear-gradient(135deg, #00C853, #64DD17); color: white; width: 50px; height: 50px; border-radius: 50%; display: flex; flex-direction: column; justify-content: center; align-items: center; box-shadow: 0 4px 15px rgba(0,0,0,0.2); text-decoration: none; pointer-events: auto; font-size: 12px; font-weight: bold; border: 2px solid white; }
     .btn-customer i { font-size: 20px; margin-bottom: 2px; }
 
-    /* 司機名片輪播區 - 調整底部間距 */
     #driver-carousel { position: absolute; bottom: 20px; left: 0; width: 100%; display: flex; gap: 15px; padding: 10px 20px; box-sizing: border-box; overflow-x: auto; scroll-snap-type: x mandatory; z-index: 20; scrollbar-width: none; }
     #driver-carousel::-webkit-scrollbar { display: none; }
     
-    /* v9.0 敬老巨型名片版 - 高度加倍、改為上下佈局 */
     .driver-card { 
       flex: 0 0 92%; 
       max-width: 380px; 
@@ -47,30 +45,27 @@
       position: relative; 
     }
     
-    /* 上半部：大頭貼與司機資訊 */
     .d-top-section {
       display: flex;
       align-items: center;
       width: 100%;
     }
 
-    /* 放大頭像 */
     .d-avatar { width: 85px; height: 85px; background: #eee; border-radius: 50%; overflow: hidden; margin-right: 18px; border: 3px solid #00C853; box-shadow: 0 4px 12px rgba(0,0,0,0.15); flex-shrink: 0; }
     .d-avatar img { width: 100%; height: 100%; object-fit: cover; }
     
-    /* 加深對比、放大字體 */
     .d-info { flex: 1; }
-    .d-name { font-size: 26px; font-weight: 900; color: #000; margin-bottom: 8px; display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+    /* v9.1 調整：加大 gap 讓名字與標籤有呼吸空間 */
+    .d-name { font-size: 26px; font-weight: 900; color: #000; margin-bottom: 8px; display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
     .tag { font-size: 14px; padding: 4px 10px; border-radius: 6px; font-weight: bold; }
     .tag-empty { background: #e8f5e9; color: #1B5E20; border: 1px solid #4CAF50; }
     .tag-queue { background: #e3f2fd; color: #0D47A1; border: 1px solid #2196F3; }
     
-    /* 距離與車號放大加黑 */
     .d-meta { font-size: 18px; font-weight: 700; color: #222; display: flex; flex-direction: column; gap: 6px; }
     .d-meta span { display: flex; align-items: center; gap: 8px; }
-    .d-meta i { width: 20px; text-align: center; color: #555; }
+    /* v9.1 調整：固定 icon 寬度，確保後方文字絕對垂直對齊 */
+    .d-meta i { width: 24px; text-align: center; color: #555; }
     
-    /* 下半部：巨型一鍵叫車按鈕 */
     .btn-call { 
       width: 100%; 
       height: 65px; 
@@ -92,7 +87,6 @@
     .btn-call:active { transform: scale(0.96); background: #1B5E20; }
     .btn-call:disabled { background: #9E9E9E; border-color: #757575; cursor: not-allowed; transform: none; box-shadow: none; }
 
-    /* 定位按鈕因為卡片變高，需往上移動避免被遮擋 */
     #btn-loc { position: absolute; bottom: 300px; right: 20px; width: 55px; height: 55px; background: white; border-radius: 50%; box-shadow: 0 4px 15px rgba(0,0,0,0.25); display: flex; justify-content: center; align-items: center; font-size: 24px; color: #333; cursor: pointer; z-index: 15; border: 2px solid #eee; }
   </style>
 </head>
@@ -112,7 +106,7 @@
 
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script>
-    const VERSION = "v9.0"; // 敬老巨型名片版 - 介面高度加倍，長輩友善UI
+    const VERSION = "v9.1"; // 視覺微調極致版 - 修正圖示對齊與標籤間距
     const LIFF_ID = "2008907691-CzDqd7mm"; 
     const GAS_URL = "https://script.google.com/macros/s/AKfycbzjWZ8j394jfKoMVbPWGvHJHqwF7RBCQxnxyju1ifWKoKdM7RE512F7qrhUsQqQGoWg/exec"; 
     
@@ -249,7 +243,6 @@
             const distText = d.distUser < 1 ? (d.distUser*1000).toFixed(0)+' 公尺' : d.distUser.toFixed(1)+' 公里';
             const avatar = d.photo || 'https://cdn-icons-png.flaticon.com/512/3237/3237472.png';
             
-            // v9.0 新版卡片結構
             newHTML += `
                 <div class="driver-card" id="card-${d.id}" onclick="map.panTo({lat:${d.lat}, lng:${d.lng}})">
                     <div class="d-top-section">
