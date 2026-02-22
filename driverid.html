@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>司機資料註冊</title> // v1.0 基礎資料收集版
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <style>
+        body {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            background-color: #f8f9fa;
+            padding: 20px;
+            color: #333;
+        }
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 25px 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        h2 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 25px;
+            font-size: 24px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            font-size: 18px; /* 放大標籤字體 */
+            color: #555;
+        }
+        input[type="text"], input[type="tel"] {
+            width: 100%;
+            padding: 16px; /* 加大點擊範圍 */
+            font-size: 18px; /* 放大輸入字體 */
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            box-sizing: border-box;
+            transition: border-color 0.3s;
+        }
+        input:focus {
+            border-color: #00B900;
+            outline: none;
+        }
+        /* 唯讀欄位防護視覺設計 */
+        input[readonly] {
+            background-color: #e9ecef;
+            color: #6c757d;
+            border-color: #ccc;
+            user-select: none;
+        }
+        .btn-submit {
+            width: 100%;
+            padding: 18px;
+            font-size: 22px; /* 巨大按鈕字體 */
+            font-weight: bold;
+            color: #fff;
+            background-color: #00B900; /* LINE 官方綠色 */
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0, 185, 0, 0.3);
+            margin-top: 10px;
+        }
+        .btn-submit:active {
+            transform: scale(0.98);
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>🚕 司機資料綁定</h2>
+    
+    <div class="form-group">
+        <label for="lineId">LINE ID (系統讀取・無法修改)</label>
+        <input type="text" id="lineId" readonly placeholder="系統自動讀取中...">
+    </div>
+
+    <div class="form-group">
+        <label for="driverName">姓名 (或稱呼)</label>
+        <input type="text" id="driverName" placeholder="請輸入姓名">
+    </div>
+
+    <div class="form-group">
+        <label for="carNumber">車牌號碼</label>
+        <input type="text" id="carNumber" placeholder="例如: TDA-1234">
+    </div>
+
+    <div class="form-group">
+        <label for="phone">聯絡電話</label>
+        <input type="tel" id="phone" placeholder="例如: 0912345678">
+    </div>
+
+    <button class="btn-submit" onclick="submitData()">確認送出</button>
+</div>
+
+<script>
+    const VERSION = "v1.0"; // 基礎資料收集版 - 實作LIFF回傳機制與資安防呆
+
+    // TODO: 請務必替換成你新申請的 LIFF ID！
+    const myLiffId = "2008907691-77sJ7QkA";
+
+    // 1. 初始化 LIFF 與取得 ID
+    async function initializeLiff() {
+        try {
+            await liff.init({ liffId: myLiffId });
+            if (!liff.isLoggedIn()) {
+                liff.login();
+                return;
+            }
+            const profile = await liff.getProfile();
+            document.getElementById("lineId").value = profile.userId;
+        } catch (error) {
+            Swal.fire({
+                icon: 'error',
+                title: '讀取失敗',
+                text: '無法取得授權，請確保從 LINE 聊天室內開啟此連結！',
+                confirmButtonText: '確定',
+                confirmButtonColor: '#00B900'
+            });
+        }
+    }
+
+    initializeLiff();
+
+    // 2. 驗證與準備送出資料
+    function submitData() {
+        const lineId = document.getElementById("lineId").value;
+        const driverName = document.getElementById("driverName").value.trim();
+        const carNumber = document.getElementById("carNumber").value.trim();
+        const phone = document.getElementById("phone").value.trim();
+
+        // 資安/防呆：檢查必填欄位
+        if (!lineId || !driverName || !carNumber || !phone) {
+            Swal.fire({
+                icon: 'warning',
+                title: '資料不完整',
+                text: '請填寫所有欄位後再送出！',
+                confirmButtonText: '我知道了',
+                confirmButtonColor: '#00B900'
+            });
+            return;
+        }
+
+        // 再次確認彈窗
+        Swal.fire({
+            title: '確認資料無誤？',
+            html: `<div style="text-align:left; padding:10px;">姓名：${driverName}<br>車號：${carNumber}<br>電話：${phone}</div>`,
+            icon: 'info',
+            showCancelButton: true,
+            confirmButtonColor: '#00B900',
+            cancelButtonColor: '#d33',
+            confirmButtonText: '確認送出',
+            cancelButtonText: '修改一下'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                sendToChat(lineId, driverName, carNumber, phone);
+            }
+        });
+    }
+
+    // 3. 回傳至聊天室並關閉視窗
+    async function sendToChat(id, name, car, phone) {
+        if (!liff.isInClient()) {
+            Swal.fire({
+                icon: 'error',
+                title: '環境錯誤',
+                text: '請在 LINE 聊天室內使用此功能才能回傳！',
+                confirmButtonColor: '#00B900'
+            });
+            return;
+        }
+
+        try {
+            // 組裝回傳文字，你可以依照後端 GAS 需要的格式自行調整
+            const msg = `#綁定資料\n姓名：${name}\n車號：${car}\n電話：${phone}\nID：${id}`;
+            
+            await liff.sendMessages([{
+                'type': 'text',
+                'text': msg
+            }]);
+
+            // 成功提示後自動關閉
+            Swal.fire({
+                icon: 'success',
+                title: '註冊成功！',
+                text: '資料已傳送至系統',
+                confirmButtonColor: '#00B900',
+                timer: 2000,
+                showConfirmButton: false
+            }).then(() => {
+                liff.closeWindow();
+            });
+
+        } catch (error) {
+            Swal.fire({
+                icon: 'error',
+                title: '傳送失敗',
+                text: '請稍後再試一次！',
+                confirmButtonColor: '#00B900'
+            });
+        }
+    }
+</script>
+</body>
+</html>
