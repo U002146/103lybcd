@@ -43,6 +43,12 @@
         @keyframes pulse-green { 0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); } 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); } }
         .btn-pulse { animation: pulse-green 2s infinite; }
 
+        /* v8.1 新增連線狀態指示燈 */
+        .status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; }
+        .dot-online { background-color: #10B981; animation: pulse-opacity 1.5s infinite; }
+        .dot-offline { background-color: #F59E0B; }
+        @keyframes pulse-opacity { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
         .swal2-container { z-index: 99999 !important; }
     </style>
 </head>
@@ -55,7 +61,9 @@
                 <h2 id="welcome-text" class="text-lg font-bold leading-tight">資料載入中...</h2>
                 <div class="flex items-center mt-1">
                     <p id="status-text" class="text-sm font-medium opacity-90">正在連線至車隊系統</p>
-                    <span class="ml-2 px-2 py-0.5 bg-black/20 rounded-md text-[11px] font-mono border border-white/20">📡 <span id="radar-timer">20s</span></span>
+                    <span class="ml-2 px-2 py-0.5 bg-black/20 rounded-md text-[11px] border border-white/20 flex items-center">
+                        <span id="conn-dot" class="status-dot dot-online"></span><span id="conn-text">即時連線</span>
+                    </span>
                 </div>
             </div>
         </div>
@@ -95,6 +103,7 @@
 
     <script>
         // ========= CONFIG 設定區 =========
+        const VERSION = "v8.1"; // 乘客端：即時監聽 + 背景自動斷線防呆
         const DRIVER_USER_ID = 'U467348846c6b1fa433990d7b75c935b5'; 
         const LIFF_ID = '2008907691-1mAjwojZ'; 
         const GAS_URL = "https://script.google.com/macros/s/AKfycbzjWZ8j394jfKoMVbPWGvHJHqwF7RBCQxnxyju1ifWKoKdM7RE512F7qrhUsQqQGoWg/exec"; 
@@ -132,9 +141,27 @@
         window.onload = async function() {
             initMap();
             await initLiff();
-            fetchDriverData();  // 初次載入
-            startRadarTimer();  // 啟動雷達迴圈
+            setupConnectionManager(); // 啟動背景斷線防呆機制
+            startRealtimeRadar();     // 啟動真正的即時監聽
         };
+
+        // v8.1 新增：背景自動斷線防呆 (省流量神器)
+        function setupConnectionManager() {
+            document.addEventListener("visibilitychange", () => {
+                const dot = document.getElementById('conn-dot');
+                const text = document.getElementById('conn-text');
+                
+                if (document.visibilityState === "visible") {
+                    firebase.database().goOnline();
+                    dot.className = "status-dot dot-online";
+                    text.innerText = "即時連線";
+                } else {
+                    firebase.database().goOffline();
+                    dot.className = "status-dot dot-offline";
+                    text.innerText = "暫停同步";
+                }
+            });
+        }
 
         function initMap() {
             geocoder = new google.maps.Geocoder();
@@ -160,7 +187,6 @@
                 const center = map.getCenter();
                 passengerLatLng = { lat: center.lat(), lng: center.lng() };
                 
-                // 每次地圖滑動結束，重新計算並顯示距離
                 updateDistanceDisplay();
 
                 if (!lastGeocodePos || google.maps.geometry.spherical.computeDistanceBetween(lastGeocodePos, center) > 50) {
@@ -199,30 +225,16 @@
             }
         }
 
-        // 🚀 v8.0 UI：20 秒雷達倒數邏輯
-        let countdown = 20;
-        function startRadarTimer() {
-            setInterval(() => {
-                countdown--;
-                if(countdown <= 0) {
-                    countdown = 20;
-                    fetchDriverData();
-                }
-                document.getElementById('radar-timer').innerText = countdown + 's';
-            }, 1000);
-        }
-
-        // 🚀 v8.0 核心：拔除幽靈車時間判斷，100% 信任 Firebase
-        function fetchDriverData() {
-            db.ref('drivers/' + DRIVER_USER_ID).once('value').then(snapshot => {
+        // v8.1 修正：拔除 20 秒 setInterval，改用 Firebase 即時監聽 .on()
+        function startRealtimeRadar() {
+            db.ref('drivers/' + DRIVER_USER_ID).on('value', snapshot => {
                 updateDriverUI(snapshot.val());
-            }).catch(err => console.error("Sync Error:", err));
+            }, err => console.error("Sync Error:", err));
         }
 
         function updateDriverUI(data) {
             let status = 'offline'; 
 
-            // 🛑 只判斷線上狀態，不再計算 lastUpdate
             if (data && data.status === 'online') { 
                 if (data.workStatus === 'busy') status = 'busy';
                 else if (data.workStatus === 'queue') status = 'queue';
@@ -239,11 +251,9 @@
                 updateStatusUI(status);
             }
             
-            // 資料更新後，重新計算距離
             updateDistanceDisplay();
         }
 
-        // 🚀 新增：計算並顯示乘客與司機的即時距離
         function updateDistanceDisplay() {
             const distSpan = document.getElementById('dist-text');
             if (currentStatus === 'offline' || !carMarker.getPosition() || !passengerLatLng) {
