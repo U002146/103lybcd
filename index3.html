@@ -3,8 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>花蓮車隊 - 排班區</title>
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <title>花蓮車隊 - 排班區</title> <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
   <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAIxc6PEhHgUs_A9lyRUg8dNbmwOpSamY8&libraries=geometry"></script>
   
@@ -44,7 +43,10 @@
     .btn-dial i { font-size: 18px; }
 
     .marquee { background: #000; color: #00C853; padding: 8px; font-size: 14px; white-space: nowrap; overflow: hidden; text-align: center; border-bottom: 1px solid #333; display: flex; justify-content: center; align-items: center; gap: 10px;}
-    .radar-indicator { background: #111; color: #00C853; padding: 2px 8px; border-radius: 10px; border: 1px solid #00C853; font-size: 12px; font-weight: bold; font-variant-numeric: tabular-nums;}
+    .radar-indicator { background: #111; color: #00C853; padding: 2px 8px; border-radius: 10px; border: 1px solid #00C853; font-size: 12px; font-weight: bold; }
+    
+    @keyframes pulse-radar { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
+    .radar-active { animation: pulse-radar 2s infinite; color: #00C853; border-color: #00C853; }
   </style>
 </head>
 <body>
@@ -52,7 +54,7 @@
   <div id="map-container"><div id="map"></div></div>
   <div class="marquee">
     <span>全境監控中 (14區)</span>
-    <span class="radar-indicator"><i class="fa-solid fa-satellite-dish"></i> <span id="radar-timer">60s</span></span>
+    <span class="radar-indicator radar-active" id="radar-status-box"><i class="fa-solid fa-satellite-dish"></i> <span id="radar-status-text">即時連機</span></span>
     <span id="clock"></span>
   </div>
 
@@ -61,6 +63,7 @@
   </div>
 
   <script>
+    const VERSION = "v6.1"; // 移除背景斷線，確保排班常駐
     const firebaseConfig = { databaseURL: "https://hualientaxi-bb32f-default-rtdb.asia-southeast1.firebasedatabase.app/" };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
@@ -129,9 +132,7 @@
     window.onload = function() {
         initMap();
         processGeoData(); 
-        
-        fetchRadarData(); 
-        startRadarTimer();
+        startRealtimeRadar(); // 啟動即時監聽，且不再受 visibilitychange 影響
         setInterval(() => document.getElementById('clock').innerText = new Date().toLocaleString(), 1000);
     };
 
@@ -142,25 +143,12 @@
         });
     }
 
-    function fetchRadarData() {
-        db.ref('drivers').once('value').then(snapshot => {
+    function startRealtimeRadar() {
+        db.ref('drivers').on('value', snapshot => {
             updateDashboard(snapshot);
-        }).catch(err => console.error("雷達掃描失敗:", err));
+        }, err => console.error("即時監聽失敗:", err));
     }
 
-    let countdown = 60;
-    function startRadarTimer() {
-        setInterval(() => {
-            countdown--;
-            if(countdown <= 0) {
-                countdown = 60;
-                fetchRadarData(); 
-            }
-            document.getElementById('radar-timer').innerText = countdown + 's';
-        }, 1000);
-    }
-
-    // 🚀 v5.0 核心：拔除幽靈車時間判斷，100% 相信 Firebase 狀態
     function updateDashboard(snapshot) {
         const data = snapshot.val();
         if (!data) return;
@@ -171,7 +159,6 @@
         Object.keys(data).forEach(key => {
             const d = data[key];
             
-            // 🛑 只判斷狀態，完全不再計算 lastUpdate 時間差！
             if (d.status !== 'online') return;
 
             activeIds.add(key);
