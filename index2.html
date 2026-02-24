@@ -75,7 +75,7 @@
 
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script>
-    const VERSION = "v9.9"; 
+    const VERSION = "v9.10"; 
     const LIFF_ID = "2008907691-CzDqd7mm"; 
     const GAS_URL = "https://script.google.com/macros/s/AKfycbzjWZ8j394jfKoMVbPWGvHJHqwF7RBCQxnxyju1ifWKoKdM7RE512F7qrhUsQqQGoWg/exec"; 
     
@@ -281,6 +281,7 @@
             const avatar = d.photo || 'https://cdn-icons-png.flaticon.com/512/3237/3237472.png';
             const cardClass = d.isTracked ? "driver-card tracking-mode" : "driver-card";
             
+            // 🚀 保留專屬面板上的聯絡按鈕，讓客人有需要時能主動打電話
             const btnCallHtml = d.isTracked 
                 ? `<button class="btn-call" onclick="window.location.href='tel:${d.phone}'"><i class="fa-solid fa-phone-volume"></i> 聯絡專屬司機</button>
                    <button class="btn-cancel-track" onclick="exitTrackingMode(false)"><i class="fa-solid fa-xmark"></i> 結束行程 / 取消追蹤</button>`
@@ -342,7 +343,7 @@
         }
 
         const originalContent = btn.innerHTML;
-        btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> 正在撥號...';
+        btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> 處理中...';
         btn.disabled = true;
 
         const makeCallAndTrack = () => {
@@ -354,7 +355,15 @@
 
             btn.innerHTML = originalContent;
             btn.disabled = false;
-            window.location.href = `tel:${phone}`;
+            
+            // 🚀 v9.10 靜默派車：移除 window.location.href = `tel:${phone}`; 改為顯示成功提示
+            Swal.fire({
+                icon: 'success',
+                title: '✅ 叫車成功！',
+                text: '司機已收到通知，將為您切換至雷達追蹤。',
+                timer: 2000,
+                showConfirmButton: false
+            });
         };
 
         if (!myLat || !myLng) { makeCallAndTrack(); return; }
@@ -384,10 +393,8 @@
         }
     }
 
-    // 🚀 v9.9 核心防呆與取消警報觸發
     async function exitTrackingMode(isAuto) {
         if (!isAuto && myTrackedDriverId) {
-            // 乘客主動取消時，跳出防呆確認框
             const confirm = await Swal.fire({
                 title: '確定要取消叫車嗎？',
                 text: "取消後將立即通知司機",
@@ -399,9 +406,8 @@
                 cancelButtonText: '按錯了'
             });
             
-            if (!confirm.isConfirmed) return; // 沒確認就中斷取消
+            if (!confirm.isConfirmed) return; 
 
-            // 主動對 Firebase 發送刪除指令，這會瞬間觸發司機端的取消警報！
             try {
                 await db.ref('drivers/' + myTrackedDriverId + '/request').remove();
             } catch (e) {
