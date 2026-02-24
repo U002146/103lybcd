@@ -4,8 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   
-  <title>花蓮敬老愛心車隊：雙向定位系統</title> // v9.5 Firestore黑名單連動版
-  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>花蓮敬老愛心車隊：雙向定位系統</title> <meta name="apple-mobile-web-app-capable" content="yes">
   
   <meta property="og:title" content="通話叫車：雙向定位系統">
   <meta property="og:description" content="全花蓮唯一！按下通話自動傳送位置，免報路名。司機位置即時看，長輩安心，子女放心。">
@@ -13,7 +12,9 @@
 
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script> <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAIxc6PEhHgUs_A9lyRUg8dNbmwOpSamY8&libraries=geometry"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script> 
+  
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAIxc6PEhHgUs_A9lyRUg8dNbmwOpSamY8&libraries=geometry"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
@@ -35,7 +36,6 @@
       flex-direction: column; gap: 15px; transition: transform 0.2s; border: 2px solid #ddd; position: relative; 
     }
     
-    /* 追蹤模式的專屬樣式 */
     .driver-card.tracking-mode {
       flex: 1; border-color: #00B0FF; box-shadow: 0 10px 35px rgba(0, 176, 255, 0.3);
     }
@@ -96,15 +96,19 @@
 
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script>
-    const VERSION = "v9.5"; 
+    const VERSION = "v9.6"; 
     const LIFF_ID = "2008907691-CzDqd7mm"; 
     const GAS_URL = "https://script.google.com/macros/s/AKfycbzjWZ8j394jfKoMVbPWGvHJHqwF7RBCQxnxyju1ifWKoKdM7RE512F7qrhUsQqQGoWg/exec"; 
     
-    const firebaseConfig = { databaseURL: "https://hualientaxi-bb32f-default-rtdb.asia-southeast1.firebasedatabase.app/" };
+    // 🚀 v9.6 關鍵修復：加入 projectId，這是啟動 Firestore 的必要晶片！
+    const firebaseConfig = { 
+        databaseURL: "https://hualientaxi-bb32f-default-rtdb.asia-southeast1.firebasedatabase.app/",
+        projectId: "hualientaxi-bb32f" 
+    };
     firebase.initializeApp(firebaseConfig);
     
-    const db = firebase.database(); // 給雷達找車用的 RTDB
-    const firestoreDb = firebase.firestore(); // 🚀 給查黑名單用的 Firestore 保險箱
+    const db = firebase.database(); 
+    const firestoreDb = firebase.firestore(); 
     
     var map, userMarker, markers = {};
     var myLat = null, myLng = null; 
@@ -136,9 +140,8 @@
             passengerId = profile.userId;
             passengerName = profile.displayName || "乘客";
 
-            // 🚀 v9.5 攔截機制升級：去 Firestore 查 blacklists
             const blockDoc = await firestoreDb.collection('blacklists').doc(passengerId).get();
-            if (blockDoc.exists) { // 如果在保險箱找到這個 ID，封殺！
+            if (blockDoc.exists) { 
                 document.body.innerHTML = ''; 
                 document.body.style.backgroundColor = '#f8d7da';
                 Swal.fire({
