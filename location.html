@@ -2,8 +2,10 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>我的數位看板 (Pro)</title> // v8.2 個人輕量回傳版
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    
+    <title>我的數位看板 (Pro)</title> <meta name="apple-mobile-web-app-capable" content="yes">
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
@@ -15,33 +17,14 @@
     
     <style>
         .gmnoprint, .gm-control-active { display: none !important; }
-        body { overflow: hidden; font-family: 'Noto Sans TC', sans-serif; } 
+        body { overflow: hidden; font-family: 'Noto Sans TC', -apple-system, sans-serif; background: #f0f2f5; } 
 
-        .center-marker {
-            position: absolute; top: 50%; left: 50%;
-            transform: translate(-50%, calc(-100% + 2px));
-            z-index: 20; pointer-events: none;
-            transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
-            display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+        /* 🚀 v8.3 核心視覺：呼吸燈動畫 */
+        @keyframes pulse-green { 
+            0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); } 
+            70% { box-shadow: 0 0 0 15px rgba(16, 185, 129, 0); } 
+            100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); } 
         }
-        .center-marker.lifting { transform: translate(-50%, calc(-100% - 15px)); }
-
-        .target-crosshair {
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            width: 16px; height: 16px; background-color: rgba(225, 29, 72, 0.15);
-            border: 2px solid rgba(225, 29, 72, 0.5); border-radius: 50%;
-            z-index: 19; pointer-events: none; display: flex; align-items: center; justify-content: center;
-        }
-        .target-crosshair::after { content: ''; width: 4px; height: 4px; background-color: #e11d48; border-radius: 50%; display: block; }
-
-        #passenger-panel {
-            position: fixed; bottom: 0; left: 0; right: 0; background: white;
-            border-top-left-radius: 24px; border-top-right-radius: 24px;
-            box-shadow: 0 -4px 20px rgba(0,0,0,0.1); z-index: 30; padding: 20px; padding-bottom: 30px;
-            transform: translateY(0); transition: transform 0.3s ease-out; display: flex; flex-direction: column; gap: 10px;
-        }
-
-        @keyframes pulse-green { 0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); } 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); } }
         .btn-pulse { animation: pulse-green 2s infinite; }
 
         .status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; }
@@ -50,9 +33,53 @@
         @keyframes pulse-opacity { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 
         .swal2-container { z-index: 99999 !important; }
+
+        /* 巨型通話按鈕樣式 */
+        #btn-call-official {
+            position: absolute;
+            bottom: 30px;
+            right: 20px;
+            width: 85px;
+            height: 85px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #00C853, #1B5E20);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 8px 25px rgba(0, 200, 83, 0.4);
+            border: 3px solid #00E676;
+            z-index: 40;
+            text-decoration: none;
+            transition: transform 0.1s;
+        }
+        #btn-call-official:active { transform: scale(0.92); }
+        #btn-call-official i { font-size: 32px; margin-bottom: 2px; }
+        #btn-call-official span { font-size: 13px; font-weight: 900; letter-spacing: 0.5px; }
+
+        /* 回到自己位置的小按鈕 */
+        #btn-my-loc {
+            position: absolute;
+            bottom: 135px; /* 移到大按鈕上方 */
+            right: 32px;
+            width: 55px;
+            height: 55px;
+            border-radius: 50%;
+            background: white;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            border: 2px solid #eee;
+            z-index: 30;
+            cursor: pointer;
+        }
+        #btn-my-loc:active { background: #f5f5f5; }
     </style>
 </head>
-<body class="bg-gray-100 h-screen flex flex-col font-sans">
+<body class="h-screen flex flex-col">
 
     <div id="status-bar" class="bg-gray-800 text-white p-4 shadow-md z-50 flex items-center justify-between transition-all duration-500">
         <div class="flex items-center flex-grow" id="status-info-area">
@@ -76,48 +103,31 @@
 
     <div id="map" class="flex-grow w-full relative"></div>
 
-    <div id="passenger-pin" class="center-marker">
-        <div class="bg-slate-800 text-white text-[10px] font-bold px-3 py-1 rounded-full mb-1 shadow-lg tracking-wide opacity-90">上車地點</div>
-        <i class="fa-solid fa-location-dot text-5xl text-rose-600 drop-shadow-xl filter contrast-125 leading-none m-0 p-0 block"></i>
-    </div>
-    <div id="passenger-shadow" class="target-crosshair"></div>
-
-    <button id="btn-my-loc" onclick="panToCurrentLocation()" class="flex absolute bottom-48 right-4 bg-white w-12 h-12 rounded-full shadow-lg z-30 text-slate-700 active:bg-slate-100 active:scale-95 transition-all items-center justify-center border border-gray-100">
-        <i class="fa-solid fa-crosshairs text-xl"></i>
+    <button id="btn-my-loc" onclick="panToCurrentLocation()">
+        <i class="fa-solid fa-crosshairs text-2xl"></i>
     </button>
 
-    <div id="passenger-panel">
-        <div class="flex items-start space-x-3 mb-2">
-            <i class="fa-solid fa-map-pin text-rose-500 text-xl mt-1"></i>
-            <div>
-                <p class="text-xs text-gray-400 font-bold uppercase tracking-wider">目前定位地址</p>
-                <h3 id="address-display" class="text-lg font-bold text-slate-800 leading-tight">讀取中...</h3>
-            </div>
-        </div>
-        <div class="border-t border-gray-100 my-1"></div>
-        <button onclick="summonDriver()" id="btn-send-loc" class="w-full bg-emerald-500 text-white font-bold py-4 rounded-xl shadow-lg active:scale-[0.98] transition-all text-xl flex items-center justify-center space-x-2 btn-pulse">
-            <i class="fa-solid fa-paper-plane"></i>
-            <span>傳送位置至聊天室</span>
-        </button>
-    </div>
+    <a href="https://lin.ee/9Davl6e" target="_blank" id="btn-call-official" class="btn-pulse">
+        <i class="fa-solid fa-phone-volume"></i>
+        <span>官方通話</span>
+    </a>
 
     <script>
         // ========= CONFIG 設定區 =========
-        const VERSION = "v8.2"; // 個人輕量回傳版 - 脫離車隊系統，改為 LIFF 直接回傳聊天室
+        const VERSION = "v8.3"; 
         const DRIVER_USER_ID = 'U467348846c6b1fa433990d7b75c935b5'; 
         const LIFF_ID = '2008907691-1mAjwojZ'; 
         // ====================================================
 
-        let map, carMarker, geocoder;
-        let passengerAddress = "定位中...";
+        let map, carMarker;
         let passengerLatLng = null;
         let currentStatus = 'init';
-        let lastGeocodePos = null;
 
         const firebaseConfig = { databaseURL: "https://hualientaxi-bb32f-default-rtdb.asia-southeast1.firebasedatabase.app/" };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
+        // 司機狀態大頭針圖示
         const getPinIcon = (status) => {
             let color = '#7f8c8d'; 
             if (status === 'available') color = '#00C853'; 
@@ -138,6 +148,7 @@
         };
 
         window.onload = async function() {
+            Swal.fire({ title: '連線中', text: '正在尋找劉學銘的專車位置...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
             initMap();
             await initLiff();
             setupConnectionManager(); 
@@ -162,56 +173,23 @@
         }
 
         function initMap() {
-            geocoder = new google.maps.Geocoder();
             const hualienStation = { lat: 23.9933, lng: 121.6011 };
             
             map = new google.maps.Map(document.getElementById("map"), {
-                zoom: 17, center: hualienStation, disableDefaultUI: true, gestureHandling: 'greedy'
+                zoom: 15, center: hualienStation, disableDefaultUI: true, gestureHandling: 'greedy'
             });
 
             carMarker = new google.maps.Marker({
                 position: hualienStation, map: map, icon: getPinIcon('offline'), label: getPinLabel('offline'), title: "司機位置"
             });
 
-            map.addListener('dragstart', () => {
-                document.getElementById('passenger-pin').classList.add('lifting');
-                document.getElementById('address-display').innerHTML = '<span class="text-gray-400">定位中...</span>';
-                document.getElementById('btn-send-loc').disabled = true;
-                document.getElementById('btn-send-loc').classList.add('opacity-50');
-            });
-
-            map.addListener('idle', () => {
-                document.getElementById('passenger-pin').classList.remove('lifting');
-                const center = map.getCenter();
-                passengerLatLng = { lat: center.lat(), lng: center.lng() };
-                
-                updateDistanceDisplay();
-
-                if (!lastGeocodePos || google.maps.geometry.spherical.computeDistanceBetween(lastGeocodePos, center) > 50) {
-                    geocodePosition(center);
-                    lastGeocodePos = center;
-                } else {
-                    document.getElementById('address-display').innerText = passengerAddress;
-                    document.getElementById('btn-send-loc').disabled = false;
-                    document.getElementById('btn-send-loc').classList.remove('opacity-50');
-                }
-            });
-
-            panToCurrentLocation(); 
-        }
-
-        function geocodePosition(pos) {
-            geocoder.geocode({ location: pos }, (results, status) => {
-                if (status === "OK" && results[0]) {
-                    let addr = results[0].formatted_address.replace(/^\d+\s*/, '').replace(/台灣/, '').replace(/花蓮縣/, '');
-                    passengerAddress = addr;
-                    document.getElementById('address-display').innerText = addr;
-                } else {
-                    document.getElementById('address-display').innerText = "未知的位置";
-                }
-                document.getElementById('btn-send-loc').disabled = false;
-                document.getElementById('btn-send-loc').classList.remove('opacity-50');
-            });
+            // 持續追蹤使用者位置以計算距離
+            if (navigator.geolocation) {
+                navigator.geolocation.watchPosition((pos) => {
+                    passengerLatLng = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+                    updateDistanceDisplay();
+                }, null, { enableHighAccuracy: true });
+            }
         }
 
         function panToCurrentLocation() {
@@ -219,12 +197,14 @@
                 navigator.geolocation.getCurrentPosition((pos) => {
                     const newPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
                     map.panTo(newPos);
+                    map.setZoom(16);
                 });
             }
         }
 
         function startRealtimeRadar() {
             db.ref('drivers/' + DRIVER_USER_ID).on('value', snapshot => {
+                Swal.close(); // 資料一進來就關閉讀取動畫
                 updateDriverUI(snapshot.val());
             }, err => console.error("Sync Error:", err));
         }
@@ -286,56 +266,6 @@
             } else {
                 bar.className = "bg-gray-600 text-white p-4 shadow-md z-50 flex items-center justify-between transition-colors duration-500";
                 sub.innerText = "💤 司機休息中";
-            }
-        }
-
-        // 🚀 v8.2 核心改造：拔除 Firebase 寫入，改用 liff.sendMessages 直接回傳聊天室
-        async function summonDriver() {
-            if (!passengerLatLng) {
-                Swal.fire({ icon: 'info', title: '請稍候', text: '正在為您精準定位中...', confirmButtonColor: '#10B981', timer: 2000 });
-                return;
-            }
-
-            const btn = document.getElementById('btn-send-loc');
-            const originalContent = btn.innerHTML;
-            
-            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> <span>處理中...</span>';
-            btn.disabled = true;
-
-            try {
-                if (!liff.isLoggedIn() || !liff.isInClient()) {
-                    Swal.fire({ icon: 'warning', title: '無法發送', text: '請在 LINE 聊天室內開啟此網頁，才能自動回傳地址喔！', confirmButtonColor: '#F59E0B' });
-                    return;
-                }
-
-                // 組合要傳送到聊天室的文字訊息
-                const messageText = `🚕 司機大哥您好，我要叫車！\n\n📍 我的上車點：\n${passengerAddress}\n\n🌐 點此開啟 Google 導航：\nhttps://www.google.com/maps/search/?api=1&query=${passengerLatLng.lat},${passengerLatLng.lng}`;
-
-                // 透過 LIFF 代替使用者在聊天室發言
-                await liff.sendMessages([
-                    {
-                        type: 'text',
-                        text: messageText
-                    }
-                ]);
-
-                // 傳送成功後，提示並直接關閉網頁
-                Swal.fire({
-                    icon: 'success',
-                    title: '定位已傳送！',
-                    text: '請在聊天室與司機確認叫車細節。',
-                    showConfirmButton: false,
-                    timer: 1500
-                }).then(() => {
-                    liff.closeWindow(); // 瞬間回到 LINE 聊天室
-                });
-
-            } catch (error) {
-                console.error("發送失敗:", error);
-                Swal.fire({ icon: 'error', title: '傳送失敗', text: '請手動複製地址，或直接在聊天室留言。', confirmButtonColor: '#EF4444' });
-            } finally {
-                btn.innerHTML = originalContent;
-                btn.disabled = false;
             }
         }
 
