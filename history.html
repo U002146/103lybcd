@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  
+  <title>我的乘車紀錄 - 花蓮車隊</title> <meta name="apple-mobile-web-app-capable" content="yes">
+  
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script> 
+  
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+  <style>
+    body { 
+        margin: 0; padding: 0; 
+        font-family: 'Noto Sans TC', -apple-system, sans-serif; 
+        background-color: #f0f2f5; color: #333;
+    }
+    
+    .header {
+        background: linear-gradient(135deg, #00C853, #1B5E20);
+        color: white; padding: 30px 20px;
+        border-bottom-left-radius: 24px; border-bottom-right-radius: 24px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        text-align: center; position: relative;
+    }
+    
+    .header h1 { margin: 0; font-size: 26px; font-weight: 900; letter-spacing: 1px; }
+    .header p { margin: 8px 0 0 0; font-size: 16px; opacity: 0.9; }
+    
+    .stats-card {
+        background: white; margin: -25px 20px 20px 20px; padding: 20px;
+        border-radius: 16px; box-shadow: 0 8px 25px rgba(0,0,0,0.08);
+        display: flex; justify-content: space-around; position: relative; z-index: 10;
+    }
+    
+    .stat-item { text-align: center; }
+    .stat-value { font-size: 32px; font-weight: 900; color: #00C853; line-height: 1.2; }
+    .stat-label { font-size: 14px; color: #757575; font-weight: bold; }
+    
+    .history-container { padding: 0 20px 40px 20px; }
+    
+    .trip-card {
+        background: white; border-radius: 16px; padding: 18px; margin-bottom: 15px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05); border: 1px solid #eee;
+        display: flex; flex-direction: column; gap: 12px;
+    }
+    
+    .trip-top { display: flex; justify-content: space-between; align-items: flex-start; }
+    
+    .trip-date {
+        font-size: 14px; color: #888; font-weight: bold;
+        display: flex; align-items: center; gap: 6px;
+    }
+    
+    .trip-status {
+        background: #e8f5e9; color: #2E7D32; padding: 4px 10px;
+        border-radius: 20px; font-size: 12px; font-weight: 900; border: 1px solid #4CAF50;
+    }
+    
+    .driver-info { display: flex; align-items: center; gap: 12px; }
+    .driver-avatar {
+        width: 55px; height: 55px; background: #eee; border-radius: 50%;
+        display: flex; justify-content: center; align-items: center;
+        color: #00C853; font-size: 24px; border: 2px solid #E0F2F1;
+    }
+    
+    .driver-details h3 { margin: 0 0 4px 0; font-size: 20px; color: #222; font-weight: 900; }
+    .driver-details p { margin: 0; font-size: 14px; color: #666; font-weight: bold; }
+    
+    .trip-bottom {
+        border-top: 1px dashed #eee; padding-top: 12px;
+        display: flex; justify-content: space-between; align-items: center;
+    }
+    
+    .btn-lost {
+        background: white; color: #E65100; border: 1px solid #FF9800;
+        padding: 6px 12px; border-radius: 8px; font-size: 13px; font-weight: bold;
+        text-decoration: none; display: inline-flex; align-items: center; gap: 6px;
+        transition: background 0.2s;
+    }
+    .btn-lost:active { background: #FFF3E0; }
+    
+    .empty-state { text-align: center; padding: 50px 20px; color: #999; }
+    .empty-state i { font-size: 60px; color: #ddd; margin-bottom: 15px; }
+    .empty-state h3 { color: #555; font-size: 20px; margin-bottom: 8px; }
+  </style>
+</head>
+<body>
+
+  <div id="app" style="display: none;">
+    <div class="header">
+      <h1>🗂️ 我的乘車紀錄</h1>
+      <p id="user-name">載入中...</p>
+    </div>
+
+    <div class="stats-card">
+      <div class="stat-item">
+        <div class="stat-value" id="total-trips">-</div>
+        <div class="stat-label">總搭乘趟數</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value" style="color: #FF9800;">安心</div>
+        <div class="stat-label">車隊服務評級</div>
+      </div>
+    </div>
+
+    <div class="history-container" id="history-list">
+      <div style="text-align: center; padding: 40px; color: #00C853;">
+        <i class="fa-solid fa-circle-notch fa-spin fa-3x"></i>
+        <p style="margin-top: 15px; font-weight: bold;">正在翻閱帳本中...</p>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <script>
+    const VERSION = "v10.0"; 
+    // ⚠️ 請務必替換為這支網頁專屬的 LIFF ID (建議在 LINE Developers 申請一個新的)
+    const LIFF_ID = "2008907691-fVLGsJtK"; 
+    
+    // 官方客服電話 (用於遺失物協尋)
+    const OFFICIAL_PHONE = "0976981123"; 
+
+    const firebaseConfig = { 
+        databaseURL: "https://hualientaxi-bb32f-default-rtdb.asia-southeast1.firebasedatabase.app/",
+        projectId: "hualientaxi-bb32f" 
+    };
+    firebase.initializeApp(firebaseConfig);
+    
+    const db = firebase.database(); 
+    const firestoreDb = firebase.firestore(); 
+    
+    let passengerId = "";
+
+    window.onload = async function() {
+        await initLiff(); 
+    };
+
+    async function initLiff() { 
+        try { 
+            await liff.init({ liffId: LIFF_ID }); 
+            if(!liff.isLoggedIn()) { 
+                liff.login(); 
+                return; 
+            }
+
+            const profile = await liff.getProfile();
+            passengerId = profile.userId;
+            document.getElementById('user-name').innerText = profile.displayName || "乘客您好";
+            document.getElementById('app').style.display = 'block';
+
+            fetchHistory();
+
+        } catch(e) {
+            console.error("LIFF 初始化錯誤:", e);
+            Swal.fire({ icon: 'error', title: '系統錯誤', text: '請重新開啟網頁' });
+        } 
+    }
+
+    async function fetchHistory() {
+        try {
+            // 1. 從 Firestore 撈取該乘客的所有搭車紀錄
+            const snapshot = await firestoreDb.collection('trips')
+                                              .where('passengerId', '==', passengerId)
+                                              .get();
+
+            const container = document.getElementById('history-list');
+
+            if (snapshot.empty) {
+                document.getElementById('total-trips').innerText = "0";
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fa-solid fa-receipt"></i>
+                        <h3>目前尚無紀錄</h3>
+                        <p>您還沒有搭乘過我們的車喔！<br>期待為您服務。</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // 2. 本地端時間排序 (越新的在越上面)
+            let trips = [];
+            snapshot.forEach(doc => trips.push(doc.data()));
+            
+            trips.sort((a, b) => {
+                let tA = a.timestamp ? a.timestamp.toDate() : new Date(0);
+                let tB = b.timestamp ? b.timestamp.toDate() : new Date(0);
+                return tB - tA;
+            });
+
+            // 統計正常完成的趟數
+            let validTripsCount = trips.filter(t => t.isBlacklist === false).length;
+            document.getElementById('total-trips').innerText = validTripsCount.toString();
+
+            // 3. 跨資料庫撈取司機真實資料並渲染畫面
+            let html = '';
+            for (let trip of trips) {
+                // 如果是黑名單紀錄，對乘客隱藏或顯示特定提示 (這裡選擇過濾掉，避免乘客看到自己被拉黑的紀錄)
+                if(trip.isBlacklist === true) continue; 
+
+                let driverName = "花蓮車隊司機";
+                let driverCar = "專屬座車";
+                
+                // 拿著 driverId 去 RTDB 查真實名字跟車號
+                if (trip.driverId) {
+                    try {
+                        let dSnap = await db.ref('drivers/' + trip.driverId).once('value');
+                        if (dSnap.exists()) {
+                            let dData = dSnap.val();
+                            if (dData.name) driverName = dData.name;
+                            if (dData.car) driverCar = dData.car;
+                        }
+                    } catch (err) { console.error("無法取得司機資料", err); }
+                }
+
+                // 格式化時間 (MM/DD HH:mm)
+                let timeString = "未知時間";
+                if (trip.timestamp) {
+                    let d = trip.timestamp.toDate();
+                    let mo = (d.getMonth() + 1).toString().padStart(2, '0');
+                    let da = d.getDate().toString().padStart(2, '0');
+                    let hr = d.getHours().toString().padStart(2, '0');
+                    let mi = d.getMinutes().toString().padStart(2, '0');
+                    timeString = `${mo}/${da} ${hr}:${mi}`;
+                }
+
+                html += `
+                    <div class="trip-card">
+                        <div class="trip-top">
+                            <div class="trip-date"><i class="fa-regular fa-clock"></i> ${timeString}</div>
+                            <div class="trip-status">已完成</div>
+                        </div>
+                        <div class="driver-info">
+                            <div class="driver-avatar"><i class="fa-solid fa-taxi"></i></div>
+                            <div class="driver-details">
+                                <h3>${driverName}</h3>
+                                <p>車號：${driverCar}</p>
+                            </div>
+                        </div>
+                        <div class="trip-bottom">
+                            <span style="font-size: 13px; color: #999;">由 花蓮車隊 服務</span>
+                            <a href="tel:${OFFICIAL_PHONE}" class="btn-lost">
+                                <i class="fa-solid fa-phone"></i> 尋找遺失物
+                            </a>
+                        </div>
+                    </div>
+                `;
+            }
+
+            container.innerHTML = html || `
+                <div class="empty-state">
+                    <i class="fa-solid fa-receipt"></i>
+                    <h3>目前尚無有效紀錄</h3>
+                </div>
+            `;
+
+        } catch (error) {
+            console.error("讀取歷史紀錄失敗:", error);
+            document.getElementById('history-list').innerHTML = `
+                <div class="empty-state">
+                    <i class="fa-solid fa-triangle-exclamation" style="color: #FF9800;"></i>
+                    <h3>讀取失敗</h3>
+                    <p>請檢查網路連線後重新開啟</p>
+                </div>
+            `;
+        }
+    }
+  </script>
+</body>
+</html>
