@@ -19,63 +19,277 @@
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
   <style>
-    body { margin: 0; padding: 0; font-family: -apple-system, Roboto, sans-serif; overflow: hidden; background: #f0f2f5; }
-    #map { width: 100vw; height: 100vh; }
+    /* 🚀 恢復完整排版，不再壓縮 */
+    body { 
+        margin: 0; 
+        padding: 0; 
+        font-family: -apple-system, Roboto, sans-serif; 
+        overflow: hidden; 
+        background: #f0f2f5; 
+    }
+    #map { 
+        width: 100vw; 
+        height: 100vh; 
+    }
 
-    #top-bar { position: absolute; top: 15px; left: 15px; right: 15px; z-index: 10; display: flex; justify-content: space-between; pointer-events: none; }
-    .status-pill { background: white; padding: 10px 15px; border-radius: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); font-weight: bold; color: #333; pointer-events: auto; display: flex; align-items: center; font-size: 14px; }
-    .btn-customer { background: linear-gradient(135deg, #00C853, #64DD17); color: white; width: 50px; height: 50px; border-radius: 50%; display: flex; flex-direction: column; justify-content: center; align-items: center; box-shadow: 0 4px 15px rgba(0,0,0,0.2); text-decoration: none; pointer-events: auto; font-size: 12px; font-weight: bold; border: 2px solid white; }
-    .btn-customer i { font-size: 20px; margin-bottom: 2px; }
+    #top-bar { 
+        position: absolute; 
+        top: 15px; 
+        left: 15px; 
+        right: 15px; 
+        z-index: 10; 
+        display: flex; 
+        justify-content: space-between; 
+        pointer-events: none; 
+    }
+    
+    .status-pill { 
+        background: white; 
+        padding: 10px 15px; 
+        border-radius: 30px; 
+        box-shadow: 0 4px 15px rgba(0,0,0,0.15); 
+        font-weight: bold; 
+        color: #333; 
+        pointer-events: auto; 
+        display: flex; 
+        align-items: center; 
+        font-size: 14px; 
+    }
+    
+    .btn-customer { 
+        background: linear-gradient(135deg, #00C853, #64DD17); 
+        color: white; 
+        width: 50px; 
+        height: 50px; 
+        border-radius: 50%; 
+        display: flex; 
+        flex-direction: column; 
+        justify-content: center; 
+        align-items: center; 
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2); 
+        text-decoration: none; 
+        pointer-events: auto; 
+        font-size: 12px; 
+        font-weight: bold; 
+        border: 2px solid white; 
+    }
+    
+    .btn-customer i { 
+        font-size: 20px; 
+        margin-bottom: 2px; 
+    }
 
-    #driver-carousel { position: absolute; bottom: 20px; left: 0; width: 100%; display: flex; gap: 15px; padding: 10px 20px; box-sizing: border-box; overflow-x: auto; scroll-snap-type: x mandatory; z-index: 20; scrollbar-width: none; }
-    #driver-carousel::-webkit-scrollbar { display: none; }
+    #driver-carousel { 
+        position: absolute; 
+        bottom: 20px; 
+        left: 0; 
+        width: 100%; 
+        display: flex; 
+        gap: 15px; 
+        padding: 10px 20px; 
+        box-sizing: border-box; 
+        overflow-x: auto; 
+        scroll-snap-type: x mandatory; 
+        z-index: 20; 
+        scrollbar-width: none; 
+    }
+    
+    #driver-carousel::-webkit-scrollbar { 
+        display: none; 
+    }
     
     .driver-card { 
-      flex: 0 0 92%; max-width: 380px; background: white; border-radius: 24px; padding: 20px; 
-      box-shadow: 0 10px 30px rgba(0,0,0,0.25); scroll-snap-align: center; display: flex; 
-      flex-direction: column; gap: 15px; transition: transform 0.2s; border: 2px solid #ddd; position: relative; 
+        flex: 0 0 92%; 
+        max-width: 380px; 
+        background: white; 
+        border-radius: 24px; 
+        padding: 20px; 
+        box-shadow: 0 10px 30px rgba(0,0,0,0.25); 
+        scroll-snap-align: center; 
+        display: flex; 
+        flex-direction: column; 
+        gap: 15px; 
+        transition: transform 0.2s; 
+        border: 2px solid #ddd; 
+        position: relative; 
     }
     
+    /* 追蹤模式的專屬樣式 */
     .driver-card.tracking-mode {
-      flex: 1; border-color: #00B0FF; box-shadow: 0 10px 35px rgba(0, 176, 255, 0.3);
+        flex: 1; 
+        border-color: #00B0FF; 
+        box-shadow: 0 10px 35px rgba(0, 176, 255, 0.3);
     }
     
-    .d-top-section { display: flex; align-items: center; width: 100%; }
-    .d-avatar { width: 85px; height: 85px; background: #eee; border-radius: 50%; overflow: hidden; margin-right: 18px; border: 3px solid #00C853; box-shadow: 0 4px 12px rgba(0,0,0,0.15); flex-shrink: 0; }
-    .driver-card.tracking-mode .d-avatar { border-color: #00B0FF; }
-    .d-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .d-top-section { 
+        display: flex; 
+        align-items: center; 
+        width: 100%; 
+    }
     
-    .d-info { flex: 1; }
-    .d-name { font-size: 26px; font-weight: 900; color: #000; margin-bottom: 8px; display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
-    .tag { font-size: 14px; padding: 4px 10px; border-radius: 6px; font-weight: bold; }
-    .tag-empty { background: #e8f5e9; color: #1B5E20; border: 1px solid #4CAF50; }
-    .tag-queue { background: #e3f2fd; color: #0D47A1; border: 1px solid #2196F3; }
-    .tag-tracking { background: #fff3e0; color: #E65100; border: 1px solid #FF9800; animation: pulse-radar 2s infinite; }
+    .d-avatar { 
+        width: 85px; 
+        height: 85px; 
+        background: #eee; 
+        border-radius: 50%; 
+        overflow: hidden; 
+        margin-right: 18px; 
+        border: 3px solid #00C853; 
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15); 
+        flex-shrink: 0; 
+    }
     
-    .d-meta { font-size: 18px; font-weight: 700; color: #222; display: flex; flex-direction: column; gap: 6px; }
-    .d-meta span { display: flex; align-items: center; gap: 8px; }
-    .d-meta i { width: 24px; text-align: center; color: #555; }
+    .driver-card.tracking-mode .d-avatar { 
+        border-color: #00B0FF; 
+    }
+    
+    .d-avatar img { 
+        width: 100%; 
+        height: 100%; 
+        object-fit: cover; 
+    }
+    
+    .d-info { 
+        flex: 1; 
+    }
+    
+    .d-name { 
+        font-size: 26px; 
+        font-weight: 900; 
+        color: #000; 
+        margin-bottom: 8px; 
+        display: flex; 
+        align-items: center; 
+        flex-wrap: wrap; 
+        gap: 12px; 
+    }
+    
+    .tag { 
+        font-size: 14px; 
+        padding: 4px 10px; 
+        border-radius: 6px; 
+        font-weight: bold; 
+    }
+    
+    .tag-empty { 
+        background: #e8f5e9; 
+        color: #1B5E20; 
+        border: 1px solid #4CAF50; 
+    }
+    
+    .tag-queue { 
+        background: #e3f2fd; 
+        color: #0D47A1; 
+        border: 1px solid #2196F3; 
+    }
+    
+    .tag-tracking { 
+        background: #fff3e0; 
+        color: #E65100; 
+        border: 1px solid #FF9800; 
+        animation: pulse-radar 2s infinite; 
+    }
+    
+    .d-meta { 
+        font-size: 18px; 
+        font-weight: 700; 
+        color: #222; 
+        display: flex; 
+        flex-direction: column; 
+        gap: 6px; 
+    }
+    
+    .d-meta span { 
+        display: flex; 
+        align-items: center; 
+        gap: 8px; 
+    }
+    
+    .d-meta i { 
+        width: 24px; 
+        text-align: center; 
+        color: #555; 
+    }
     
     .btn-call { 
-      width: 100%; height: 65px; border-radius: 16px; 
-      background: linear-gradient(135deg, #00C853, #1B5E20); color: white; 
-      display: flex; justify-content: center; align-items: center; gap: 12px;
-      text-decoration: none; font-size: 24px; font-weight: 900;
-      box-shadow: 0 6px 15px rgba(76, 175, 80, 0.4); 
-      transition: transform 0.1s, background 0.2s; cursor: pointer; border: 2px solid #00E676; 
+        width: 100%; 
+        height: 65px; 
+        border-radius: 16px; 
+        background: linear-gradient(135deg, #00C853, #1B5E20); 
+        color: white; 
+        display: flex; 
+        justify-content: center; 
+        align-items: center; 
+        gap: 12px;
+        text-decoration: none; 
+        font-size: 24px; 
+        font-weight: 900;
+        box-shadow: 0 6px 15px rgba(76, 175, 80, 0.4); 
+        transition: transform 0.1s, background 0.2s; 
+        cursor: pointer; 
+        border: 2px solid #00E676; 
     }
-    .btn-call:active { transform: scale(0.96); background: #1B5E20; }
-    .btn-call:disabled { background: #9E9E9E; border-color: #757575; cursor: not-allowed; transform: none; box-shadow: none; }
+    
+    .btn-call:active { 
+        transform: scale(0.96); 
+        background: #1B5E20; 
+    }
+    
+    .btn-call:disabled { 
+        background: #9E9E9E; 
+        border-color: #757575; 
+        cursor: not-allowed; 
+        transform: none; 
+        box-shadow: none; 
+    }
 
     .btn-cancel-track {
-      width: 100%; height: 45px; border-radius: 12px; background: #f5f5f5; color: #757575;
-      display: flex; justify-content: center; align-items: center; gap: 8px; font-size: 16px; font-weight: bold; border: 1px solid #ddd; margin-top: -5px; cursor: pointer;
+        width: 100%; 
+        height: 45px; 
+        border-radius: 12px; 
+        background: #f5f5f5; 
+        color: #757575;
+        display: flex; 
+        justify-content: center; 
+        align-items: center; 
+        gap: 8px; 
+        font-size: 16px; 
+        font-weight: bold; 
+        border: 1px solid #ddd; 
+        margin-top: -5px; 
+        cursor: pointer;
     }
 
-    #btn-loc { position: absolute; bottom: 300px; right: 20px; width: 55px; height: 55px; background: white; border-radius: 50%; box-shadow: 0 4px 15px rgba(0,0,0,0.25); display: flex; justify-content: center; align-items: center; font-size: 24px; color: #333; cursor: pointer; z-index: 15; border: 2px solid #eee; }
+    #btn-loc { 
+        position: absolute; 
+        bottom: 300px; 
+        right: 20px; 
+        width: 55px; 
+        height: 55px; 
+        background: white; 
+        border-radius: 50%; 
+        box-shadow: 0 4px 15px rgba(0,0,0,0.25); 
+        display: flex; 
+        justify-content: center; 
+        align-items: center; 
+        font-size: 24px; 
+        color: #333; 
+        cursor: pointer; 
+        z-index: 15; 
+        border: 2px solid #eee; 
+    }
 
-    @keyframes pulse-radar { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
-    .radar-active { animation: pulse-radar 2s infinite; color: #00C853; font-weight: 900; }
+    @keyframes pulse-radar { 
+        0% { opacity: 1; } 
+        50% { opacity: 0.4; } 
+        100% { opacity: 1; } 
+    }
+    
+    .radar-active { 
+        animation: pulse-radar 2s infinite; 
+        color: #00C853; 
+        font-weight: 900; 
+    }
   </style>
 </head>
 <body>
@@ -83,8 +297,14 @@
   <div id="app-content" style="display: none;">
     <div id="top-bar">
       <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-        <div class="status-pill" id="location-pill"><i class="fa-solid fa-location-dot" style="color:#e74c3c;margin-right:5px;"></i> <span id="loc-text">定位中...</span></div>
-        <div class="status-pill" style="color:#00C853; border: 1px solid #00C853;"><i class="fa-solid fa-satellite-dish" style="margin-right:5px;"></i> 雷達 <span id="radar-status" class="radar-active" style="margin-left:5px;">即時</span></div>
+        <div class="status-pill" id="location-pill">
+            <i class="fa-solid fa-location-dot" style="color:#e74c3c;margin-right:5px;"></i> 
+            <span id="loc-text">定位中...</span>
+        </div>
+        <div class="status-pill" style="color:#00C853; border: 1px solid #00C853;">
+            <i class="fa-solid fa-satellite-dish" style="margin-right:5px;"></i> 雷達 
+            <span id="radar-status" class="radar-active" style="margin-left:5px;">即時</span>
+        </div>
       </div>
       <a href="https://lin.ee/9Davl6e" target="_blank" class="btn-customer"><i class="fa-solid fa-headset"></i>客服</a>
     </div>
@@ -96,11 +316,10 @@
 
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script>
-    const VERSION = "v9.6"; 
+    const VERSION = "v9.7"; 
     const LIFF_ID = "2008907691-CzDqd7mm"; 
     const GAS_URL = "https://script.google.com/macros/s/AKfycbzjWZ8j394jfKoMVbPWGvHJHqwF7RBCQxnxyju1ifWKoKdM7RE512F7qrhUsQqQGoWg/exec"; 
     
-    // 🚀 v9.6 關鍵修復：加入 projectId，這是啟動 Firestore 的必要晶片！
     const firebaseConfig = { 
         databaseURL: "https://hualientaxi-bb32f-default-rtdb.asia-southeast1.firebasedatabase.app/",
         projectId: "hualientaxi-bb32f" 
@@ -223,10 +442,21 @@
         const activeDrivers = [];
         const activeIds = new Set();
 
+        // 🚀 v9.7 關鍵防呆與記憶引擎：wasBusy 狀態機
         if (myTrackedDriverId) {
             const trackedData = data[myTrackedDriverId];
-            if (!trackedData || trackedData.status !== 'online' || trackedData.workStatus === 'empty') {
+            if (!trackedData || trackedData.status !== 'online') {
+                // 司機離線，強制解除追蹤
                 exitTrackingMode(true); 
+            } else if (trackedData.workStatus === 'empty') {
+                // 如果司機是空車，必須檢查他是否「曾經」載客過。如果是，代表行程結束。
+                if (localStorage.getItem('wasBusy') === 'true') {
+                    localStorage.removeItem('wasBusy');
+                    exitTrackingMode(true);
+                }
+            } else if (trackedData.workStatus === 'busy') {
+                // 只要司機進入 busy 狀態，就死死鎖住他，記憶開啟
+                localStorage.setItem('wasBusy', 'true');
             }
         }
 
@@ -258,7 +488,7 @@
                     if(card) card.scrollIntoView({ behavior: 'smooth', inline: 'center' });
                 });
             } else {
-                markers[key].setPosition(pos);
+                markers[key].setPosition(pos); // 🚀 只要進來這裡，大頭針絕對會更新
                 markers[key].setIcon(getPinIcon(iconType, isTracked));
                 markers[key].setLabel({ text: labelText, color: "white", fontSize: "14px", fontWeight: "bold" });
                 markers[key].setZIndex(isTracked ? 999 : 1);
@@ -330,6 +560,8 @@
         const makeCallAndTrack = () => {
             myTrackedDriverId = driverId;
             localStorage.setItem('trackedDriverId', driverId);
+            localStorage.setItem('wasBusy', 'false'); // 🚀 初始重置記憶
+            
             if (lastDriversData) processDriversData(lastDriversData); 
 
             btn.innerHTML = originalContent;
@@ -364,6 +596,7 @@
     function exitTrackingMode(isAuto) {
         myTrackedDriverId = null;
         localStorage.removeItem('trackedDriverId');
+        localStorage.removeItem('wasBusy'); // 🚀 清除記憶
         
         if (isAuto) {
             Swal.fire({
@@ -375,7 +608,12 @@
         if (lastDriversData) processDriversData(lastDriversData); 
     }
 
-    function centerMap(){ if(userMarker) { map.panTo(userMarker.getPosition()); map.setZoom(15); } }
+    function centerMap(){ 
+        if(userMarker) { 
+            map.panTo(userMarker.getPosition()); 
+            map.setZoom(15); 
+        } 
+    }
     
     function getAddress(lat, lng) {
         const geocoder = new google.maps.Geocoder();
