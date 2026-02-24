@@ -29,23 +29,19 @@
     #driver-carousel::-webkit-scrollbar { display: none; }
     
     .driver-card { 
-      flex: 0 0 92%; 
-      max-width: 380px; 
-      background: white; 
-      border-radius: 24px; 
-      padding: 20px; 
-      box-shadow: 0 10px 30px rgba(0,0,0,0.25); 
-      scroll-snap-align: center; 
-      display: flex; 
-      flex-direction: column;
-      gap: 15px;
-      transition: transform 0.2s; 
-      border: 2px solid #ddd; 
-      position: relative; 
+      flex: 0 0 92%; max-width: 380px; background: white; border-radius: 24px; padding: 20px; 
+      box-shadow: 0 10px 30px rgba(0,0,0,0.25); scroll-snap-align: center; display: flex; 
+      flex-direction: column; gap: 15px; transition: transform 0.2s; border: 2px solid #ddd; position: relative; 
+    }
+    
+    /* 追蹤模式的專屬樣式 */
+    .driver-card.tracking-mode {
+      flex: 1; border-color: #00B0FF; box-shadow: 0 10px 35px rgba(0, 176, 255, 0.3);
     }
     
     .d-top-section { display: flex; align-items: center; width: 100%; }
     .d-avatar { width: 85px; height: 85px; background: #eee; border-radius: 50%; overflow: hidden; margin-right: 18px; border: 3px solid #00C853; box-shadow: 0 4px 12px rgba(0,0,0,0.15); flex-shrink: 0; }
+    .driver-card.tracking-mode .d-avatar { border-color: #00B0FF; }
     .d-avatar img { width: 100%; height: 100%; object-fit: cover; }
     
     .d-info { flex: 1; }
@@ -53,6 +49,7 @@
     .tag { font-size: 14px; padding: 4px 10px; border-radius: 6px; font-weight: bold; }
     .tag-empty { background: #e8f5e9; color: #1B5E20; border: 1px solid #4CAF50; }
     .tag-queue { background: #e3f2fd; color: #0D47A1; border: 1px solid #2196F3; }
+    .tag-tracking { background: #fff3e0; color: #E65100; border: 1px solid #FF9800; animation: pulse-radar 2s infinite; }
     
     .d-meta { font-size: 18px; font-weight: 700; color: #222; display: flex; flex-direction: column; gap: 6px; }
     .d-meta span { display: flex; align-items: center; gap: 8px; }
@@ -69,69 +66,108 @@
     .btn-call:active { transform: scale(0.96); background: #1B5E20; }
     .btn-call:disabled { background: #9E9E9E; border-color: #757575; cursor: not-allowed; transform: none; box-shadow: none; }
 
+    .btn-cancel-track {
+      width: 100%; height: 45px; border-radius: 12px; background: #f5f5f5; color: #757575;
+      display: flex; justify-content: center; align-items: center; gap: 8px; font-size: 16px; font-weight: bold; border: 1px solid #ddd; margin-top: -5px; cursor: pointer;
+    }
+
     #btn-loc { position: absolute; bottom: 300px; right: 20px; width: 55px; height: 55px; background: white; border-radius: 50%; box-shadow: 0 4px 15px rgba(0,0,0,0.25); display: flex; justify-content: center; align-items: center; font-size: 24px; color: #333; cursor: pointer; z-index: 15; border: 2px solid #eee; }
 
-    /* 雷達呼吸燈動畫 */
     @keyframes pulse-radar { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
     .radar-active { animation: pulse-radar 2s infinite; color: #00C853; font-weight: 900; }
   </style>
 </head>
 <body>
 
-  <div id="top-bar">
-    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-      <div class="status-pill" id="location-pill"><i class="fa-solid fa-location-dot" style="color:#e74c3c;margin-right:5px;"></i> <span id="loc-text">定位中...</span></div>
-      <div class="status-pill" style="color:#00C853; border: 1px solid #00C853;"><i class="fa-solid fa-satellite-dish" style="margin-right:5px;"></i> 雷達 <span id="radar-status" class="radar-active" style="margin-left:5px;">即時</span></div>
+  <div id="app-content" style="display: none;">
+    <div id="top-bar">
+      <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+        <div class="status-pill" id="location-pill"><i class="fa-solid fa-location-dot" style="color:#e74c3c;margin-right:5px;"></i> <span id="loc-text">定位中...</span></div>
+        <div class="status-pill" style="color:#00C853; border: 1px solid #00C853;"><i class="fa-solid fa-satellite-dish" style="margin-right:5px;"></i> 雷達 <span id="radar-status" class="radar-active" style="margin-left:5px;">即時</span></div>
+      </div>
+      <a href="https://lin.ee/9Davl6e" target="_blank" class="btn-customer"><i class="fa-solid fa-headset"></i>客服</a>
     </div>
-    <a href="https://lin.ee/9Davl6e" target="_blank" class="btn-customer"><i class="fa-solid fa-headset"></i>客服</a>
+
+    <div id="map"></div>
+    <div id="btn-loc" onclick="centerMap()"><i class="fa-solid fa-crosshairs"></i></div>
+    <div id="driver-carousel"></div>
   </div>
 
-  <div id="map"></div>
-  <div id="btn-loc" onclick="centerMap()"><i class="fa-solid fa-crosshairs"></i></div>
-  <div id="driver-carousel"></div>
-
-  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script>
-    const VERSION = "v9.2"; // 流量與連線優化版 - 改用即時監聽與背景斷線
+    const VERSION = "v9.4"; // 專屬追蹤版 - 夾帶乘客身分與專屬地圖追蹤
     const LIFF_ID = "2008907691-CzDqd7mm"; 
     const GAS_URL = "https://script.google.com/macros/s/AKfycbzjWZ8j394jfKoMVbPWGvHJHqwF7RBCQxnxyju1ifWKoKdM7RE512F7qrhUsQqQGoWg/exec"; 
     
     const firebaseConfig = { databaseURL: "https://hualientaxi-bb32f-default-rtdb.asia-southeast1.firebasedatabase.app/" };
-    
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
     
     var map, userMarker, markers = {};
     var myLat = null, myLng = null; 
     var lastGeocodePos = null; 
+    
+    // 🚀 全域乘客身分變數
+    let passengerId = "unknown";
+    let passengerName = "未授權乘客";
 
-    const getPinIcon = (type) => {
+    // 🚀 追蹤模式變數 (讀取 localStorage 避免重新整理就消失)
+    let myTrackedDriverId = localStorage.getItem('trackedDriverId') || null;
+
+    const getPinIcon = (type, isTracked) => {
+        if (isTracked) return { path: "M0-48c-9.8 0-17.7 7.8-17.7 17.4 0 15.5 17.7 30.6 17.7 30.6s17.7-15.4 17.7-30.6c0-9.6-7.9-17.4-17.7-17.4z", fillColor: '#FF9800', fillOpacity: 1, strokeColor: "#fff", strokeWeight: 3, scale: 1.3, labelOrigin: new google.maps.Point(0, -28) };
         const isQueue = type === 'queue';
         const color = isQueue ? '#00B0FF' : '#00C853';
-        const labelText = isQueue ? "排" : "空";
-        return {
-            path: "M0-48c-9.8 0-17.7 7.8-17.7 17.4 0 15.5 17.7 30.6 17.7 30.6s17.7-15.4 17.7-30.6c0-9.6-7.9-17.4-17.7-17.4z",
-            fillColor: color, fillOpacity: 1, strokeColor: "#fff", strokeWeight: 2, scale: 1.1,
-            labelOrigin: new google.maps.Point(0, -28)
-        };
+        return { path: "M0-48c-9.8 0-17.7 7.8-17.7 17.4 0 15.5 17.7 30.6 17.7 30.6s17.7-15.4 17.7-30.6c0-9.6-7.9-17.4-17.7-17.4z", fillColor: color, fillOpacity: 1, strokeColor: "#fff", strokeWeight: 2, scale: 1.1, labelOrigin: new google.maps.Point(0, -28) };
     };
 
     window.onload = async function() {
+        Swal.fire({ title: '連線中', text: '正在為您尋找附近車輛...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
         initMap();
-        await initLiff();
-        setupConnectionManager(); // 啟動背景斷線防呆機制
-        startRealtimeRadar();     // 啟動真正的即時監聽
+        await initLiffAndCheckBlacklist(); 
     };
 
-    // v9.2 新增：背景自動斷線機制 (解決11個幽靈連線的問題)
+    async function initLiffAndCheckBlacklist() { 
+        try { 
+            await liff.init({ liffId: LIFF_ID }); 
+            if(!liff.isLoggedIn()) { liff.login(); return; }
+
+            const profile = await liff.getProfile();
+            passengerId = profile.userId;
+            passengerName = profile.displayName || "乘客";
+
+            // ⛔ 攔截機制
+            const blockRef = await db.ref('blacklists/' + passengerId).once('value');
+            if (blockRef.exists()) {
+                document.body.innerHTML = ''; 
+                document.body.style.backgroundColor = '#f8d7da';
+                Swal.fire({
+                    icon: 'error', title: '服務暫停',
+                    html: '您的帳號目前<b>無法使用叫車服務</b>。<br>如有疑問，請聯繫客服中心處理。',
+                    confirmButtonText: '<i class="fa-solid fa-headset"></i> 聯繫客服',
+                    confirmButtonColor: '#e74c3c', allowOutsideClick: false, allowEscapeKey: false
+                }).then(() => { window.location.href = "https://lin.ee/9Davl6e"; });
+                return; 
+            }
+
+            Swal.close();
+            document.getElementById('app-content').style.display = 'block';
+            setupConnectionManager(); 
+            startRealtimeRadar();
+
+        } catch(e) {
+            console.error("LIFF 錯誤:", e);
+            Swal.fire({ icon: 'error', title: '系統錯誤', text: '請重新開啟網頁' });
+        } 
+    }
+
     function setupConnectionManager() {
         document.addEventListener("visibilitychange", () => {
             if (document.visibilityState === "visible") {
-                firebase.database().goOnline(); // 回到畫面，秒速重連
+                firebase.database().goOnline(); 
                 document.getElementById('radar-status').innerText = "即時";
                 document.getElementById('radar-status').classList.add('radar-active');
             } else {
-                firebase.database().goOffline(); // 離開畫面，立刻切斷連線省流量
+                firebase.database().goOffline(); 
                 document.getElementById('radar-status').innerText = "暫停";
                 document.getElementById('radar-status').classList.remove('radar-active');
             }
@@ -162,18 +198,13 @@
                     getAddress(myLat, myLng);
                     lastGeocodePos = currentGooglePos;
                 }
-                // 當乘客位置更新時，重新計算與現有司機的距離並排序介面
                 if (Object.keys(markers).length > 0) processDriversData(lastDriversData);
-                
             }, (err) => console.log(err), { enableHighAccuracy: true });
         }
     }
 
-    async function initLiff() { try { await liff.init({ liffId: LIFF_ID }); if(!liff.isLoggedIn()) liff.login(); } catch(e){} }
+    let lastDriversData = null; 
 
-    let lastDriversData = null; // 緩存最新資料供距離重算使用
-
-    // v9.2 修正：廢除 20 秒 setInterval，改用 Firebase 原生 .on() 監聽
     function startRealtimeRadar() {
         db.ref('drivers').on('value', snapshot => {
             const data = snapshot.val();
@@ -183,27 +214,44 @@
         }, err => console.error("即時監聽失敗", err));
     }
 
-    // 獨立出資料處理邏輯，方便位置更新或資料更新時呼叫
     function processDriversData(data) {
         if (!data) return;
         const activeDrivers = [];
         const activeIds = new Set();
 
+        // 🚀 檢查追蹤狀態：如果司機下線或變回空車，自動解除追蹤
+        if (myTrackedDriverId) {
+            const trackedData = data[myTrackedDriverId];
+            if (!trackedData || trackedData.status !== 'online' || trackedData.workStatus === 'empty') {
+                exitTrackingMode(true); // true 代表是自動完成的
+            }
+        }
+
         Object.keys(data).forEach(key => {
             const d = data[key];
             if (d.status !== 'online') return;
-            if (d.workStatus === 'busy') return; 
+
+            // 🚀 雙模式核心過濾邏輯
+            let isTracked = false;
+            if (myTrackedDriverId) {
+                // 如果在追蹤模式，過濾掉除了專屬司機以外的所有車！
+                if (key !== myTrackedDriverId) return; 
+                isTracked = true;
+            } else {
+                // 正常找車模式：過濾掉載客中 (busy) 的車
+                if (d.workStatus === 'busy') return; 
+            }
 
             activeIds.add(key);
             const pos = { lat: d.lat, lng: d.lng };
             const iconType = d.workStatus === 'queue' ? 'queue' : 'empty';
-            const labelText = d.workStatus === 'queue' ? '排' : '空';
+            const labelText = isTracked ? '專車' : (d.workStatus === 'queue' ? '排' : '空');
 
             if (!markers[key]) {
                 markers[key] = new google.maps.Marker({
-                    position: pos, map: map, icon: getPinIcon(iconType),
+                    position: pos, map: map, icon: getPinIcon(iconType, isTracked),
                     label: { text: labelText, color: "white", fontSize: "14px", fontWeight: "bold" },
-                    title: d.name
+                    title: d.name, zIndex: isTracked ? 999 : 1
                 });
                 markers[key].addListener('click', () => {
                     const card = document.getElementById(`card-${key}`);
@@ -211,8 +259,9 @@
                 });
             } else {
                 markers[key].setPosition(pos);
-                markers[key].setIcon(getPinIcon(iconType));
+                markers[key].setIcon(getPinIcon(iconType, isTracked));
                 markers[key].setLabel({ text: labelText, color: "white", fontSize: "14px", fontWeight: "bold" });
+                markers[key].setZIndex(isTracked ? 999 : 1);
             }
 
             let distUser = 999;
@@ -221,10 +270,10 @@
             }
             d.id = key;
             d.distUser = distUser;
+            d.isTracked = isTracked;
             activeDrivers.push(d);
         });
 
-        // 清除已下線或載客中的大頭針
         for(let k in markers) { if(!activeIds.has(k)) { markers[k].setMap(null); delete markers[k]; } }
         updateCarousel(activeDrivers.sort((a,b) => a.distUser - b.distUser));
     }
@@ -240,12 +289,21 @@
 
         let newHTML = '';
         drivers.forEach(d => {
-            const statusTag = d.workStatus === 'queue' ? '<span class="tag tag-queue">排班中</span>' : '<span class="tag tag-empty">🟢 空車</span>';
+            // 狀態標籤切換
+            let statusTag = d.workStatus === 'queue' ? '<span class="tag tag-queue">排班中</span>' : '<span class="tag tag-empty">🟢 空車</span>';
+            if (d.isTracked) statusTag = '<span class="tag tag-tracking">🚕 專屬司機服務中</span>';
+
             const distText = d.distUser < 1 ? (d.distUser*1000).toFixed(0)+' 公尺' : d.distUser.toFixed(1)+' 公里';
             const avatar = d.photo || 'https://cdn-icons-png.flaticon.com/512/3237/3237472.png';
+            const cardClass = d.isTracked ? "driver-card tracking-mode" : "driver-card";
             
+            const btnCallHtml = d.isTracked 
+                ? `<button class="btn-call" onclick="window.location.href='tel:${d.phone}'"><i class="fa-solid fa-phone-volume"></i> 聯絡專屬司機</button>
+                   <button class="btn-cancel-track" onclick="exitTrackingMode(false)"><i class="fa-solid fa-xmark"></i> 結束行程 / 取消追蹤</button>`
+                : `<button class="btn-call" onclick="callDriver('${d.id}', '${d.phone}', this); event.stopPropagation();"><i class="fa-solid fa-phone-volume"></i> 一鍵叫車</button>`;
+
             newHTML += `
-                <div class="driver-card" id="card-${d.id}" onclick="map.panTo({lat:${d.lat}, lng:${d.lng}})">
+                <div class="${cardClass}" id="card-${d.id}" onclick="map.panTo({lat:${d.lat}, lng:${d.lng}})">
                     <div class="d-top-section">
                         <div class="d-avatar"><img src="${avatar}"></div>
                         <div class="d-info">
@@ -256,9 +314,7 @@
                             </div>
                         </div>
                     </div>
-                    <button class="btn-call" onclick="callDriver('${d.id}', '${d.phone}', this); event.stopPropagation();">
-                        <i class="fa-solid fa-phone-volume"></i> 一鍵叫車
-                    </button>
+                    ${btnCallHtml}
                 </div>
             `;
         });
@@ -272,20 +328,25 @@
         btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> 正在撥號...';
         btn.disabled = true;
 
-        const makeCall = () => {
+        const makeCallAndTrack = () => {
+            // 🚀 進入追蹤模式
+            myTrackedDriverId = driverId;
+            localStorage.setItem('trackedDriverId', driverId);
+            if (lastDriversData) processDriversData(lastDriversData); // 瞬間重繪地圖與 UI
+
             btn.innerHTML = originalContent;
             btn.disabled = false;
             window.location.href = `tel:${phone}`;
         };
 
-        if (!myLat || !myLng) {
-            makeCall();
-            return;
-        }
+        if (!myLat || !myLng) { makeCallAndTrack(); return; }
 
         try {
+            // 🚀 夾帶身分證字號 (userId, userName)
             const writePromise = db.ref('drivers/' + driverId + '/request').set({
-                lat: myLat, lng: myLng, timestamp: firebase.database.ServerValue.TIMESTAMP
+                lat: myLat, lng: myLng, 
+                userId: passengerId, userName: passengerName,
+                timestamp: firebase.database.ServerValue.TIMESTAMP
             });
 
             const pushPromise = fetch(GAS_URL, {
@@ -299,8 +360,24 @@
         } catch (error) {
             console.error("發送失敗:", error);
         } finally {
-            makeCall();
+            makeCallAndTrack();
         }
+    }
+
+    // 🚀 退出追蹤模式邏輯
+    function exitTrackingMode(isAuto) {
+        myTrackedDriverId = null;
+        localStorage.removeItem('trackedDriverId');
+        
+        if (isAuto) {
+            // 司機切換回空車，自動觸發感謝視窗
+            Swal.fire({
+                icon: 'success', title: '行程已結束', text: '感謝您搭乘花蓮車隊，期待下次為您服務！',
+                confirmButtonColor: '#00C853', confirmButtonText: '確定'
+            });
+        }
+        
+        if (lastDriversData) processDriversData(lastDriversData); // 恢復地圖顯示所有車輛
     }
 
     function centerMap(){ if(userMarker) { map.panTo(userMarker.getPosition()); map.setZoom(15); } }
