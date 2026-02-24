@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>我的數位看板 (Pro)</title> <script src="https://cdn.tailwindcss.com"></script>
+    <title>我的數位看板 (Pro)</title> // v8.2 個人輕量回傳版
+    <script src="https://cdn.tailwindcss.com"></script>
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -43,7 +44,6 @@
         @keyframes pulse-green { 0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); } 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); } }
         .btn-pulse { animation: pulse-green 2s infinite; }
 
-        /* v8.1 新增連線狀態指示燈 */
         .status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; }
         .dot-online { background-color: #10B981; animation: pulse-opacity 1.5s infinite; }
         .dot-offline { background-color: #F59E0B; }
@@ -60,7 +60,7 @@
             <div>
                 <h2 id="welcome-text" class="text-lg font-bold leading-tight">資料載入中...</h2>
                 <div class="flex items-center mt-1">
-                    <p id="status-text" class="text-sm font-medium opacity-90">正在連線至車隊系統</p>
+                    <p id="status-text" class="text-sm font-medium opacity-90">正在連線至車輛系統</p>
                     <span class="ml-2 px-2 py-0.5 bg-black/20 rounded-md text-[11px] border border-white/20 flex items-center">
                         <span id="conn-dot" class="status-dot dot-online"></span><span id="conn-text">即時連線</span>
                     </span>
@@ -96,17 +96,16 @@
         </div>
         <div class="border-t border-gray-100 my-1"></div>
         <button onclick="summonDriver()" id="btn-send-loc" class="w-full bg-emerald-500 text-white font-bold py-4 rounded-xl shadow-lg active:scale-[0.98] transition-all text-xl flex items-center justify-center space-x-2 btn-pulse">
-            <i class="fa-solid fa-taxi"></i>
-            <span>傳送位置並呼叫司機</span>
+            <i class="fa-solid fa-paper-plane"></i>
+            <span>傳送位置至聊天室</span>
         </button>
     </div>
 
     <script>
         // ========= CONFIG 設定區 =========
-        const VERSION = "v8.1"; // 乘客端：即時監聽 + 背景自動斷線防呆
+        const VERSION = "v8.2"; // 個人輕量回傳版 - 脫離車隊系統，改為 LIFF 直接回傳聊天室
         const DRIVER_USER_ID = 'U467348846c6b1fa433990d7b75c935b5'; 
         const LIFF_ID = '2008907691-1mAjwojZ'; 
-        const GAS_URL = "https://script.google.com/macros/s/AKfycbzjWZ8j394jfKoMVbPWGvHJHqwF7RBCQxnxyju1ifWKoKdM7RE512F7qrhUsQqQGoWg/exec"; 
         // ====================================================
 
         let map, carMarker, geocoder;
@@ -141,11 +140,10 @@
         window.onload = async function() {
             initMap();
             await initLiff();
-            setupConnectionManager(); // 啟動背景斷線防呆機制
-            startRealtimeRadar();     // 啟動真正的即時監聽
+            setupConnectionManager(); 
+            startRealtimeRadar();     
         };
 
-        // v8.1 新增：背景自動斷線防呆 (省流量神器)
         function setupConnectionManager() {
             document.addEventListener("visibilitychange", () => {
                 const dot = document.getElementById('conn-dot');
@@ -225,7 +223,6 @@
             }
         }
 
-        // v8.1 修正：拔除 20 秒 setInterval，改用 Firebase 即時監聽 .on()
         function startRealtimeRadar() {
             db.ref('drivers/' + DRIVER_USER_ID).on('value', snapshot => {
                 updateDriverUI(snapshot.val());
@@ -292,6 +289,7 @@
             }
         }
 
+        // 🚀 v8.2 核心改造：拔除 Firebase 寫入，改用 liff.sendMessages 直接回傳聊天室
         async function summonDriver() {
             if (!passengerLatLng) {
                 Swal.fire({ icon: 'info', title: '請稍候', text: '正在為您精準定位中...', confirmButtonColor: '#10B981', timer: 2000 });
@@ -301,44 +299,40 @@
             const btn = document.getElementById('btn-send-loc');
             const originalContent = btn.innerHTML;
             
-            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> <span>呼叫發送中...</span>';
+            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> <span>處理中...</span>';
             btn.disabled = true;
 
             try {
-                const writePromise = db.ref('drivers/' + DRIVER_USER_ID + '/request').set({
-                    lat: passengerLatLng.lat,
-                    lng: passengerLatLng.lng,
-                    timestamp: firebase.database.ServerValue.TIMESTAMP
-                });
+                if (!liff.isLoggedIn() || !liff.isInClient()) {
+                    Swal.fire({ icon: 'warning', title: '無法發送', text: '請在 LINE 聊天室內開啟此網頁，才能自動回傳地址喔！', confirmButtonColor: '#F59E0B' });
+                    return;
+                }
 
-                const pushPromise = fetch(GAS_URL, {
-                    method: 'POST', mode: 'no-cors',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ source: 'web_app', driverId: DRIVER_USER_ID })
-                });
+                // 組合要傳送到聊天室的文字訊息
+                const messageText = `🚕 司機大哥您好，我要叫車！\n\n📍 我的上車點：\n${passengerAddress}\n\n🌐 點此開啟 Google 導航：\nhttps://www.google.com/maps/search/?api=1&query=${passengerLatLng.lat},${passengerLatLng.lng}`;
 
-                const timeoutPromise = new Promise((resolve) => setTimeout(resolve, 2000));
-                await Promise.race([Promise.all([writePromise, pushPromise]), timeoutPromise]);
+                // 透過 LIFF 代替使用者在聊天室發言
+                await liff.sendMessages([
+                    {
+                        type: 'text',
+                        text: messageText
+                    }
+                ]);
 
+                // 傳送成功後，提示並直接關閉網頁
                 Swal.fire({
                     icon: 'success',
-                    title: '已通知專屬司機！',
-                    html: `司機已收到您的精準位置：<br><strong class="text-emerald-600">${passengerAddress}</strong><br><br><span class="text-sm text-gray-500">若司機未及時回應，或您有急事，建議直接通話聯絡。</span>`,
-                    confirmButtonText: '<i class="fa-solid fa-phone"></i> 聯繫客服/司機',
-                    showCancelButton: true,
-                    cancelButtonText: '關閉等待',
-                    confirmButtonColor: '#10B981',
-                    cancelButtonColor: '#6B7280',
-                    reverseButtons: true
-                }).then((result) => {
-                    if (result.isConfirmed) {
-                        window.location.href = "https://lin.ee/9Davl6e"; 
-                    }
+                    title: '定位已傳送！',
+                    text: '請在聊天室與司機確認叫車細節。',
+                    showConfirmButton: false,
+                    timer: 1500
+                }).then(() => {
+                    liff.closeWindow(); // 瞬間回到 LINE 聊天室
                 });
 
             } catch (error) {
                 console.error("發送失敗:", error);
-                Swal.fire({ icon: 'error', title: '呼叫失敗', text: '請檢查網路連線，或直接撥打電話', confirmButtonColor: '#EF4444' });
+                Swal.fire({ icon: 'error', title: '傳送失敗', text: '請手動複製地址，或直接在聊天室留言。', confirmButtonColor: '#EF4444' });
             } finally {
                 btn.innerHTML = originalContent;
                 btn.disabled = false;
@@ -353,6 +347,8 @@
                     document.getElementById('user-avatar').src = profile.pictureUrl;
                     document.getElementById('user-avatar').style.display = 'block';
                     document.getElementById('welcome-text').innerText = `你好，${profile.displayName}`;
+                } else {
+                    liff.login();
                 }
             } catch (err) {
                 console.error('LIFF Init Error', err);
