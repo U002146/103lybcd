@@ -4,7 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   
-  <title>花蓮敬老愛心車隊：雙向定位系統</title> <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>花蓮敬老愛心車隊：雙向定位系統</title> // v9.5 Firestore黑名單連動版
+  <meta name="apple-mobile-web-app-capable" content="yes">
   
   <meta property="og:title" content="通話叫車：雙向定位系統">
   <meta property="og:description" content="全花蓮唯一！按下通話自動傳送位置，免報路名。司機位置即時看，長輩安心，子女放心。">
@@ -12,7 +13,7 @@
 
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
-  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAIxc6PEhHgUs_A9lyRUg8dNbmwOpSamY8&libraries=geometry"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script> <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAIxc6PEhHgUs_A9lyRUg8dNbmwOpSamY8&libraries=geometry"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
@@ -93,24 +94,24 @@
     <div id="driver-carousel"></div>
   </div>
 
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script>
-    const VERSION = "v9.4"; // 專屬追蹤版 - 夾帶乘客身分與專屬地圖追蹤
+    const VERSION = "v9.5"; 
     const LIFF_ID = "2008907691-CzDqd7mm"; 
     const GAS_URL = "https://script.google.com/macros/s/AKfycbzjWZ8j394jfKoMVbPWGvHJHqwF7RBCQxnxyju1ifWKoKdM7RE512F7qrhUsQqQGoWg/exec"; 
     
     const firebaseConfig = { databaseURL: "https://hualientaxi-bb32f-default-rtdb.asia-southeast1.firebasedatabase.app/" };
     firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
+    
+    const db = firebase.database(); // 給雷達找車用的 RTDB
+    const firestoreDb = firebase.firestore(); // 🚀 給查黑名單用的 Firestore 保險箱
     
     var map, userMarker, markers = {};
     var myLat = null, myLng = null; 
     var lastGeocodePos = null; 
     
-    // 🚀 全域乘客身分變數
     let passengerId = "unknown";
     let passengerName = "未授權乘客";
-
-    // 🚀 追蹤模式變數 (讀取 localStorage 避免重新整理就消失)
     let myTrackedDriverId = localStorage.getItem('trackedDriverId') || null;
 
     const getPinIcon = (type, isTracked) => {
@@ -135,9 +136,9 @@
             passengerId = profile.userId;
             passengerName = profile.displayName || "乘客";
 
-            // ⛔ 攔截機制
-            const blockRef = await db.ref('blacklists/' + passengerId).once('value');
-            if (blockRef.exists()) {
+            // 🚀 v9.5 攔截機制升級：去 Firestore 查 blacklists
+            const blockDoc = await firestoreDb.collection('blacklists').doc(passengerId).get();
+            if (blockDoc.exists) { // 如果在保險箱找到這個 ID，封殺！
                 document.body.innerHTML = ''; 
                 document.body.style.backgroundColor = '#f8d7da';
                 Swal.fire({
@@ -155,7 +156,7 @@
             startRealtimeRadar();
 
         } catch(e) {
-            console.error("LIFF 錯誤:", e);
+            console.error("初始化或黑名單驗證錯誤:", e);
             Swal.fire({ icon: 'error', title: '系統錯誤', text: '請重新開啟網頁' });
         } 
     }
@@ -219,11 +220,10 @@
         const activeDrivers = [];
         const activeIds = new Set();
 
-        // 🚀 檢查追蹤狀態：如果司機下線或變回空車，自動解除追蹤
         if (myTrackedDriverId) {
             const trackedData = data[myTrackedDriverId];
             if (!trackedData || trackedData.status !== 'online' || trackedData.workStatus === 'empty') {
-                exitTrackingMode(true); // true 代表是自動完成的
+                exitTrackingMode(true); 
             }
         }
 
@@ -231,14 +231,11 @@
             const d = data[key];
             if (d.status !== 'online') return;
 
-            // 🚀 雙模式核心過濾邏輯
             let isTracked = false;
             if (myTrackedDriverId) {
-                // 如果在追蹤模式，過濾掉除了專屬司機以外的所有車！
                 if (key !== myTrackedDriverId) return; 
                 isTracked = true;
             } else {
-                // 正常找車模式：過濾掉載客中 (busy) 的車
                 if (d.workStatus === 'busy') return; 
             }
 
@@ -289,7 +286,6 @@
 
         let newHTML = '';
         drivers.forEach(d => {
-            // 狀態標籤切換
             let statusTag = d.workStatus === 'queue' ? '<span class="tag tag-queue">排班中</span>' : '<span class="tag tag-empty">🟢 空車</span>';
             if (d.isTracked) statusTag = '<span class="tag tag-tracking">🚕 專屬司機服務中</span>';
 
@@ -329,10 +325,9 @@
         btn.disabled = true;
 
         const makeCallAndTrack = () => {
-            // 🚀 進入追蹤模式
             myTrackedDriverId = driverId;
             localStorage.setItem('trackedDriverId', driverId);
-            if (lastDriversData) processDriversData(lastDriversData); // 瞬間重繪地圖與 UI
+            if (lastDriversData) processDriversData(lastDriversData); 
 
             btn.innerHTML = originalContent;
             btn.disabled = false;
@@ -342,7 +337,6 @@
         if (!myLat || !myLng) { makeCallAndTrack(); return; }
 
         try {
-            // 🚀 夾帶身分證字號 (userId, userName)
             const writePromise = db.ref('drivers/' + driverId + '/request').set({
                 lat: myLat, lng: myLng, 
                 userId: passengerId, userName: passengerName,
@@ -364,20 +358,18 @@
         }
     }
 
-    // 🚀 退出追蹤模式邏輯
     function exitTrackingMode(isAuto) {
         myTrackedDriverId = null;
         localStorage.removeItem('trackedDriverId');
         
         if (isAuto) {
-            // 司機切換回空車，自動觸發感謝視窗
             Swal.fire({
                 icon: 'success', title: '行程已結束', text: '感謝您搭乘花蓮車隊，期待下次為您服務！',
                 confirmButtonColor: '#00C853', confirmButtonText: '確定'
             });
         }
         
-        if (lastDriversData) processDriversData(lastDriversData); // 恢復地圖顯示所有車輛
+        if (lastDriversData) processDriversData(lastDriversData); 
     }
 
     function centerMap(){ if(userMarker) { map.panTo(userMarker.getPosition()); map.setZoom(15); } }
