@@ -33,72 +33,41 @@
 
         .swal2-container { z-index: 99999 !important; }
 
-        /* 右下角：官方通話按鈕 */
         #btn-call-official {
-            position: absolute;
-            bottom: 30px;
-            right: 20px;
-            width: 85px;
-            height: 85px;
-            border-radius: 50%;
+            position: absolute; bottom: 30px; right: 20px;
+            width: 85px; height: 85px; border-radius: 50%;
             background: linear-gradient(135deg, #00C853, #1B5E20);
-            color: white;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
+            color: white; display: flex; flex-direction: column;
+            justify-content: center; align-items: center;
             box-shadow: 0 8px 25px rgba(0, 200, 83, 0.4);
-            border: 3px solid #00E676;
-            z-index: 40;
-            text-decoration: none;
-            transition: transform 0.1s;
+            border: 3px solid #00E676; z-index: 40;
+            text-decoration: none; transition: transform 0.1s;
         }
         #btn-call-official:active { transform: scale(0.92); }
         #btn-call-official i { font-size: 32px; margin-bottom: 2px; }
         #btn-call-official span { font-size: 13px; font-weight: 900; letter-spacing: 0.5px; }
 
-        /* 🚀 v8.4 左下角：分享給好友按鈕 */
         #btn-share {
-            position: absolute;
-            bottom: 30px;
-            left: 20px;
-            width: 85px;
-            height: 85px;
-            border-radius: 50%;
+            position: absolute; bottom: 30px; left: 20px;
+            width: 85px; height: 85px; border-radius: 50%;
             background: linear-gradient(135deg, #FFB300, #F57F17);
-            color: white;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
+            color: white; display: flex; flex-direction: column;
+            justify-content: center; align-items: center;
             box-shadow: 0 8px 25px rgba(255, 179, 0, 0.4);
-            border: 3px solid #FFE082;
-            z-index: 40;
-            text-decoration: none;
-            cursor: pointer;
-            transition: transform 0.1s;
+            border: 3px solid #FFE082; z-index: 40;
+            text-decoration: none; cursor: pointer; transition: transform 0.1s;
         }
         #btn-share:active { transform: scale(0.92); }
         #btn-share i { font-size: 32px; margin-bottom: 2px; }
         #btn-share span { font-size: 13px; font-weight: 900; letter-spacing: 0.5px; }
 
-        /* 回到自己位置的小按鈕 */
         #btn-my-loc {
-            position: absolute;
-            bottom: 135px; 
-            right: 32px;
-            width: 55px;
-            height: 55px;
-            border-radius: 50%;
-            background: white;
-            color: #333;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            position: absolute; bottom: 135px; right: 32px;
+            width: 55px; height: 55px; border-radius: 50%;
+            background: white; color: #333; display: flex;
+            justify-content: center; align-items: center;
             box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-            border: 2px solid #eee;
-            z-index: 30;
-            cursor: pointer;
+            border: 2px solid #eee; z-index: 30; cursor: pointer;
         }
         #btn-my-loc:active { background: #f5f5f5; }
     </style>
@@ -143,11 +112,9 @@
 
     <script>
         // ========= CONFIG 設定區 =========
-        const VERSION = "v8.4"; 
+        const VERSION = "v8.5"; 
         const DRIVER_USER_ID = 'U467348846c6b1fa433990d7b75c935b5'; 
         const LIFF_ID = '2008907691-1mAjwojZ'; 
-        
-        // 你的 LIFF 連結，用於產生分享卡片
         const MY_LIFF_URL = `https://liff.line.me/${LIFF_ID}`;
         // ====================================================
 
@@ -178,19 +145,61 @@
             return { text: "休", color: "white", fontSize: "14px", fontWeight: "bold" };
         };
 
+        // 🚀 v8.5 核心升級：先抓 GPS，抓完才畫地圖，避免畫面閃跳
         window.onload = async function() {
-            Swal.fire({ title: '連線中', text: '正在尋找劉學銘的專車位置...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
-            initMap();
+            Swal.fire({ title: '連線中', text: '正在準備您的專屬地圖...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
+            
+            // 1. 等待獲取使用者初始位置
+            const initialPos = await getUserLocation();
+            passengerLatLng = initialPos;
+            
+            // 2. 以真實位置初始化地圖
+            initMap(initialPos);
+            
+            // 3. 初始化 LIFF 與 Firebase
             await initLiff();
             setupConnectionManager(); 
-            startRealtimeRadar();     
+            startRealtimeRadar(); // 資料一回來就會自動關閉 Swal
         };
+
+        // 取得 GPS 封裝成 Promise
+        function getUserLocation() {
+            return new Promise((resolve) => {
+                if (!navigator.geolocation) {
+                    resolve({ lat: 23.9933, lng: 121.6011 }); // 失敗則回傳花蓮車站
+                } else {
+                    navigator.geolocation.getCurrentPosition(
+                        (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+                        (err) => resolve({ lat: 23.9933, lng: 121.6011 }), // 超時或拒絕也回傳車站
+                        { enableHighAccuracy: true, timeout: 3000 }
+                    );
+                }
+            });
+        }
+
+        function initMap(startPos) {
+            map = new google.maps.Map(document.getElementById("map"), {
+                zoom: 16, center: startPos, disableDefaultUI: true, gestureHandling: 'greedy'
+            });
+
+            // 司機預設先放車站，等 Firebase 回傳真實位置就會瞬間移動
+            carMarker = new google.maps.Marker({
+                position: { lat: 23.9933, lng: 121.6011 }, 
+                map: map, icon: getPinIcon('offline'), label: getPinLabel('offline'), title: "司機位置"
+            });
+
+            if (navigator.geolocation) {
+                navigator.geolocation.watchPosition((pos) => {
+                    passengerLatLng = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+                    updateDistanceDisplay();
+                }, null, { enableHighAccuracy: true });
+            }
+        }
 
         function setupConnectionManager() {
             document.addEventListener("visibilitychange", () => {
                 const dot = document.getElementById('conn-dot');
                 const text = document.getElementById('conn-text');
-                
                 if (document.visibilityState === "visible") {
                     firebase.database().goOnline();
                     dot.className = "status-dot dot-online";
@@ -201,25 +210,6 @@
                     text.innerText = "暫停同步";
                 }
             });
-        }
-
-        function initMap() {
-            const hualienStation = { lat: 23.9933, lng: 121.6011 };
-            
-            map = new google.maps.Map(document.getElementById("map"), {
-                zoom: 15, center: hualienStation, disableDefaultUI: true, gestureHandling: 'greedy'
-            });
-
-            carMarker = new google.maps.Marker({
-                position: hualienStation, map: map, icon: getPinIcon('offline'), label: getPinLabel('offline'), title: "司機位置"
-            });
-
-            if (navigator.geolocation) {
-                navigator.geolocation.watchPosition((pos) => {
-                    passengerLatLng = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-                    updateDistanceDisplay();
-                }, null, { enableHighAccuracy: true });
-            }
         }
 
         function panToCurrentLocation() {
@@ -241,7 +231,6 @@
 
         function updateDriverUI(data) {
             let status = 'offline'; 
-
             if (data && data.status === 'online') { 
                 if (data.workStatus === 'busy') status = 'busy';
                 else if (data.workStatus === 'queue') status = 'queue';
@@ -257,7 +246,6 @@
                 carMarker.setLabel(getPinLabel(status));
                 updateStatusUI(status);
             }
-            
             updateDistanceDisplay();
         }
 
@@ -267,17 +255,12 @@
                 distSpan.innerText = '---';
                 return;
             }
-            
             const dist = google.maps.geometry.spherical.computeDistanceBetween(
                 new google.maps.LatLng(passengerLatLng.lat, passengerLatLng.lng),
                 carMarker.getPosition()
             );
-            
-            if (dist < 1000) {
-                distSpan.innerText = Math.round(dist) + ' m';
-            } else {
-                distSpan.innerText = (dist / 1000).toFixed(1) + ' km';
-            }
+            if (dist < 1000) { distSpan.innerText = Math.round(dist) + ' m'; } 
+            else { distSpan.innerText = (dist / 1000).toFixed(1) + ' km'; }
         }
 
         function updateStatusUI(status) {
@@ -315,7 +298,7 @@
             }
         }
 
-        // 🚀 v8.4 核心：使用 LIFF shareTargetPicker 分享給好友
+        // 🚀 v8.5 增加防呆：提醒使用者去 LINE Developers 後台開啟權限
         async function shareToFriends() {
             if (!liff.isLoggedIn()) {
                 Swal.fire({ icon: 'warning', title: '請先登入', text: '需登入 LINE 才能分享給好友喔！' });
@@ -323,7 +306,11 @@
             }
 
             if (!liff.isApiAvailable('shareTargetPicker')) {
-                Swal.fire({ icon: 'error', title: '無法分享', text: '您的 LINE 版本或環境不支援分享功能。' });
+                Swal.fire({ 
+                    icon: 'error', 
+                    title: '未開啟分享權限', 
+                    html: '<div style="text-align:left; font-size:15px; line-height:1.6;">請開發者至 <b>LINE Developers 後台</b>：<br>1. 選擇此 LIFF App<br>2. 找到 <b>Share Target Picker</b><br>3. 將開關切換為 <b>ON</b><br>即可解鎖分享功能！</div>'
+                });
                 return;
             }
 
@@ -334,7 +321,7 @@
                     type: "bubble",
                     hero: {
                         type: "image",
-                        url: "https://u002146.github.io/103lybcd/preview.jpg", // 如果有更換網址，請記得修改圖片路徑
+                        url: "https://u002146.github.io/103lybcd/preview.jpg", 
                         size: "full",
                         aspectRatio: "20:13",
                         aspectMode: "cover"
@@ -366,9 +353,6 @@
                 const res = await liff.shareTargetPicker([flexMsg]);
                 if (res) {
                     Swal.fire({ icon: 'success', title: '分享成功！', text: '謝謝您的推薦，司機會更努力為大家服務！', timer: 2500, showConfirmButton: false });
-                } else {
-                    // 使用者取消分享
-                    console.log("TargetPicker was closed or cancelled");
                 }
             } catch (error) {
                 console.error("分享發生錯誤", error);
