@@ -3,8 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>花蓮車隊 - 使用說明</title>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <title>花蓮車隊 - 使用說明</title> <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
     /* --- 基礎設定 --- */
     body {
@@ -42,6 +41,7 @@
 
     /* 不同類型的卡片邊框色 */
     .card.loc { border-left-color: #FF5722; }
+    .card.menu { border-left-color: #009688; } /* 🚀 新增：圖文選單重置卡片專屬顏色 */
     .card.cache { border-left-color: #FFC107; }
     .card.reset { border-left-color: #2196F3; }
     .card.app { border-left-color: #9C27B0; }
@@ -103,6 +103,21 @@
   </div>
 
   <div class="container">
+
+    <div class="card menu">
+      <div class="card-title" style="color:#009688">
+        <i class="fa-solid fa-arrows-rotate"></i> 圖文選單沒更新？
+      </div>
+      <p style="font-size:14px; color:#666; margin-top:0;">強制重新載入最新選單的隱藏密技：</p>
+      <ol>
+        <li>在我們的 LINE 聊天室畫面</li>
+        <li>點擊右上角的 <span class="highlight">≡</span> (選單)</li>
+        <li>點擊 <span class="warning">封鎖</span>，再點擊一次 <span class="highlight">解除封鎖</span></li>
+        <li>按左上角 <b>＜ 返回</b> 上一頁</li>
+        <li>再按 <b>＜ 返回</b> 聊天分頁</li>
+        <li><span class="highlight">重新進入聊天室</span>，就會顯示最新選單囉！</li>
+      </ol>
+    </div>
 
     <div class="card loc">
       <div class="card-title" style="color:#FF5722">
@@ -166,15 +181,15 @@
       </div>
       <ol>
         <li>在我們的 LINE 聊天室畫面</li>
-        <li>點擊右上角的 <span class="highlight">三</span> (選單)</li>
-        <li>點擊 <span class="highlight">設定</span> ⚙️</li>
-        <li>選擇 <span class="highlight">建立聊天室捷徑</span></li>
+        <li>點擊右上角的 <span class="highlight">≡</span> (選單)</li>
+        <li>點擊 <span class="highlight">其他設定</span> ⚙️</li>
+        <li>選擇 <span class="highlight">建立聊天室的捷徑</span></li>
         <li>回到桌面，就會看到圖示囉！</li>
       </ol>
     </div>
 
     <div style="text-align:center; color:#999; font-size:12px; margin-top:20px;">
-      花蓮計程車隊 v4.10<br>Designed for Hualien
+      花蓮計程車隊 v4.11<br>Designed for Hualien
     </div>
 
   </div>
