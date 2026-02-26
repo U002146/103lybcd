@@ -19,7 +19,6 @@
         .gmnoprint, .gm-control-active { display: none !important; }
         body { overflow: hidden; font-family: 'Noto Sans TC', -apple-system, sans-serif; background: #f0f2f5; } 
 
-        /* 🚀 v8.3 核心視覺：呼吸燈動畫 */
         @keyframes pulse-green { 
             0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); } 
             70% { box-shadow: 0 0 0 15px rgba(16, 185, 129, 0); } 
@@ -34,7 +33,7 @@
 
         .swal2-container { z-index: 99999 !important; }
 
-        /* 巨型通話按鈕樣式 */
+        /* 右下角：官方通話按鈕 */
         #btn-call-official {
             position: absolute;
             bottom: 30px;
@@ -58,10 +57,35 @@
         #btn-call-official i { font-size: 32px; margin-bottom: 2px; }
         #btn-call-official span { font-size: 13px; font-weight: 900; letter-spacing: 0.5px; }
 
+        /* 🚀 v8.4 左下角：分享給好友按鈕 */
+        #btn-share {
+            position: absolute;
+            bottom: 30px;
+            left: 20px;
+            width: 85px;
+            height: 85px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #FFB300, #F57F17);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 8px 25px rgba(255, 179, 0, 0.4);
+            border: 3px solid #FFE082;
+            z-index: 40;
+            text-decoration: none;
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+        #btn-share:active { transform: scale(0.92); }
+        #btn-share i { font-size: 32px; margin-bottom: 2px; }
+        #btn-share span { font-size: 13px; font-weight: 900; letter-spacing: 0.5px; }
+
         /* 回到自己位置的小按鈕 */
         #btn-my-loc {
             position: absolute;
-            bottom: 135px; /* 移到大按鈕上方 */
+            bottom: 135px; 
             right: 32px;
             width: 55px;
             height: 55px;
@@ -107,6 +131,11 @@
         <i class="fa-solid fa-crosshairs text-2xl"></i>
     </button>
 
+    <div id="btn-share" onclick="shareToFriends()">
+        <i class="fa-solid fa-share-nodes"></i>
+        <span>分享給好友</span>
+    </div>
+
     <a href="https://lin.ee/9Davl6e" target="_blank" id="btn-call-official" class="btn-pulse">
         <i class="fa-solid fa-phone-volume"></i>
         <span>官方通話</span>
@@ -114,9 +143,12 @@
 
     <script>
         // ========= CONFIG 設定區 =========
-        const VERSION = "v8.3"; 
+        const VERSION = "v8.4"; 
         const DRIVER_USER_ID = 'U467348846c6b1fa433990d7b75c935b5'; 
         const LIFF_ID = '2008907691-1mAjwojZ'; 
+        
+        // 你的 LIFF 連結，用於產生分享卡片
+        const MY_LIFF_URL = `https://liff.line.me/${LIFF_ID}`;
         // ====================================================
 
         let map, carMarker;
@@ -127,7 +159,6 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
-        // 司機狀態大頭針圖示
         const getPinIcon = (status) => {
             let color = '#7f8c8d'; 
             if (status === 'available') color = '#00C853'; 
@@ -183,7 +214,6 @@
                 position: hualienStation, map: map, icon: getPinIcon('offline'), label: getPinLabel('offline'), title: "司機位置"
             });
 
-            // 持續追蹤使用者位置以計算距離
             if (navigator.geolocation) {
                 navigator.geolocation.watchPosition((pos) => {
                     passengerLatLng = { lat: pos.coords.latitude, lng: pos.coords.longitude };
@@ -204,7 +234,7 @@
 
         function startRealtimeRadar() {
             db.ref('drivers/' + DRIVER_USER_ID).on('value', snapshot => {
-                Swal.close(); // 資料一進來就關閉讀取動畫
+                Swal.close(); 
                 updateDriverUI(snapshot.val());
             }, err => console.error("Sync Error:", err));
         }
@@ -282,6 +312,67 @@
                 }
             } catch (err) {
                 console.error('LIFF Init Error', err);
+            }
+        }
+
+        // 🚀 v8.4 核心：使用 LIFF shareTargetPicker 分享給好友
+        async function shareToFriends() {
+            if (!liff.isLoggedIn()) {
+                Swal.fire({ icon: 'warning', title: '請先登入', text: '需登入 LINE 才能分享給好友喔！' });
+                return;
+            }
+
+            if (!liff.isApiAvailable('shareTargetPicker')) {
+                Swal.fire({ icon: 'error', title: '無法分享', text: '您的 LINE 版本或環境不支援分享功能。' });
+                return;
+            }
+
+            const flexMsg = {
+                type: "flex",
+                altText: "🚕 推薦我的專屬司機給你",
+                contents: {
+                    type: "bubble",
+                    hero: {
+                        type: "image",
+                        url: "https://u002146.github.io/103lybcd/preview.jpg", // 如果有更換網址，請記得修改圖片路徑
+                        size: "full",
+                        aspectRatio: "20:13",
+                        aspectMode: "cover"
+                    },
+                    body: {
+                        type: "box", layout: "vertical",
+                        contents: [
+                            { type: "text", text: "花蓮專屬司機推薦", weight: "bold", size: "xl", color: "#1B5E20" },
+                            {
+                                type: "box", layout: "baseline", margin: "md",
+                                contents: [ { type: "icon", size: "sm", url: "https://cdn-icons-png.flaticon.com/512/3237/3237472.png" }, { type: "text", text: "劉學銘 TDP-1123", weight: "bold", size: "md", margin: "sm", color: "#333333" } ]
+                            },
+                            { type: "text", text: "服務好、準時！點擊下方按鈕，看看他現在的即時位置，或是直接與他聯繫喔！", size: "sm", color: "#666666", wrap: true, margin: "md" }
+                        ]
+                    },
+                    footer: {
+                        type: "box", layout: "vertical", spacing: "sm",
+                        contents: [
+                            {
+                                type: "button", style: "primary", color: "#00C853", height: "sm",
+                                action: { type: "uri", label: "👀 查看司機位置", uri: MY_LIFF_URL }
+                            }
+                        ]
+                    }
+                }
+            };
+
+            try {
+                const res = await liff.shareTargetPicker([flexMsg]);
+                if (res) {
+                    Swal.fire({ icon: 'success', title: '分享成功！', text: '謝謝您的推薦，司機會更努力為大家服務！', timer: 2500, showConfirmButton: false });
+                } else {
+                    // 使用者取消分享
+                    console.log("TargetPicker was closed or cancelled");
+                }
+            } catch (error) {
+                console.error("分享發生錯誤", error);
+                Swal.fire({ icon: 'error', title: '分享失敗', text: '發生錯誤，請稍後再試。' });
             }
         }
     </script>
