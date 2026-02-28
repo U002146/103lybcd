@@ -96,7 +96,7 @@
 
     <div id="map" class="flex-grow w-full relative"></div>
 
-    <button id="btn-my-loc" onclick="panToCurrentLocation()">
+    <button id="btn-my-loc" onclick="panToDriverLocation()">
         <i class="fa-solid fa-crosshairs text-2xl"></i>
     </button>
 
@@ -112,7 +112,7 @@
 
     <script>
         // ========= CONFIG 設定區 =========
-        const VERSION = "v8.5"; 
+        const VERSION = "v8.6"; 
         const DRIVER_USER_ID = 'U467348846c6b1fa433990d7b75c935b5'; 
         const LIFF_ID = '2008907691-1mAjwojZ'; 
         const MY_LIFF_URL = `https://liff.line.me/${LIFF_ID}`;
@@ -121,6 +121,7 @@
         let map, carMarker;
         let passengerLatLng = null;
         let currentStatus = 'init';
+        let isFirstFocus = true; // 🚀 v8.6 新增：判斷是否為第一次載入位置
 
         const firebaseConfig = { databaseURL: "https://hualientaxi-bb32f-default-rtdb.asia-southeast1.firebasedatabase.app/" };
         firebase.initializeApp(firebaseConfig);
@@ -145,33 +146,33 @@
             return { text: "休", color: "white", fontSize: "14px", fontWeight: "bold" };
         };
 
-        // 🚀 v8.5 核心升級：先抓 GPS，抓完才畫地圖，避免畫面閃跳
         window.onload = async function() {
-            Swal.fire({ title: '連線中', text: '正在準備您的專屬地圖...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
+            Swal.fire({ title: '連線中', text: '正在鎖定專車即時位置...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
             
-            // 1. 等待獲取使用者初始位置
-            const initialPos = await getUserLocation();
-            passengerLatLng = initialPos;
+            // 1. 初始化地圖 (預設花蓮車站，會瞬間被 Firebase 司機真實位置覆蓋)
+            initMap({ lat: 23.9933, lng: 121.6011 });
             
-            // 2. 以真實位置初始化地圖
-            initMap(initialPos);
+            // 2. 背景默默抓取乘客 GPS (僅用於計算距離，不干擾地圖視角)
+            getUserLocation().then(pos => {
+                passengerLatLng = pos;
+                updateDistanceDisplay();
+            });
             
             // 3. 初始化 LIFF 與 Firebase
             await initLiff();
             setupConnectionManager(); 
-            startRealtimeRadar(); // 資料一回來就會自動關閉 Swal
+            startRealtimeRadar(); 
         };
 
-        // 取得 GPS 封裝成 Promise
         function getUserLocation() {
             return new Promise((resolve) => {
                 if (!navigator.geolocation) {
-                    resolve({ lat: 23.9933, lng: 121.6011 }); // 失敗則回傳花蓮車站
+                    resolve(null);
                 } else {
                     navigator.geolocation.getCurrentPosition(
                         (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-                        (err) => resolve({ lat: 23.9933, lng: 121.6011 }), // 超時或拒絕也回傳車站
-                        { enableHighAccuracy: true, timeout: 3000 }
+                        (err) => resolve(null), 
+                        { enableHighAccuracy: true, timeout: 5000 }
                     );
                 }
             });
@@ -182,9 +183,8 @@
                 zoom: 16, center: startPos, disableDefaultUI: true, gestureHandling: 'greedy'
             });
 
-            // 司機預設先放車站，等 Firebase 回傳真實位置就會瞬間移動
             carMarker = new google.maps.Marker({
-                position: { lat: 23.9933, lng: 121.6011 }, 
+                position: startPos, 
                 map: map, icon: getPinIcon('offline'), label: getPinLabel('offline'), title: "司機位置"
             });
 
@@ -212,19 +212,18 @@
             });
         }
 
-        function panToCurrentLocation() {
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition((pos) => {
-                    const newPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-                    map.panTo(newPos);
-                    map.setZoom(16);
-                });
+        // 🚀 v8.6 核心修改：按下準星回到「司機」位置
+        function panToDriverLocation() {
+            if (carMarker && carMarker.getPosition()) {
+                map.panTo(carMarker.getPosition());
+                map.setZoom(16);
+            } else {
+                Swal.fire({ icon: 'info', title: '定位中', text: '尚未鎖定司機位置', timer: 1500, showConfirmButton: false });
             }
         }
 
         function startRealtimeRadar() {
             db.ref('drivers/' + DRIVER_USER_ID).on('value', snapshot => {
-                Swal.close(); 
                 updateDriverUI(snapshot.val());
             }, err => console.error("Sync Error:", err));
         }
@@ -238,6 +237,13 @@
                 
                 const newPos = { lat: parseFloat(data.lat), lng: parseFloat(data.lng) };
                 carMarker.setPosition(newPos);
+
+                // 🚀 v8.6 第一次抓到司機位置時，關閉 Swal 並強制將鏡頭鎖定司機
+                if (isFirstFocus) {
+                    map.panTo(newPos);
+                    isFirstFocus = false;
+                    Swal.close(); 
+                }
             }
 
             if (currentStatus !== status) {
@@ -298,7 +304,6 @@
             }
         }
 
-        // 🚀 v8.5 增加防呆：提醒使用者去 LINE Developers 後台開啟權限
         async function shareToFriends() {
             if (!liff.isLoggedIn()) {
                 Swal.fire({ icon: 'warning', title: '請先登入', text: '需登入 LINE 才能分享給好友喔！' });
