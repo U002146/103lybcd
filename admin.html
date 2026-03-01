@@ -3,9 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>花蓮車隊 - 人事管理後台</title>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <title>花蓮車隊 - 人事管理後台</title> <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
     <style>
         body { font-family: -apple-system, sans-serif; background: #f0f2f5; padding: 20px; max-width: 600px; margin: 0 auto; }
         .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin-bottom: 20px; }
@@ -13,13 +14,17 @@
         .form-group { margin-bottom: 15px; }
         label { display: block; margin-bottom: 5px; font-weight: bold; color: #555; }
         input { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
-        button { width: 100%; padding: 15px; background: #2ecc71; color: white; border: none; border-radius: 8px; font-size: 18px; font-weight: bold; cursor: pointer; }
+        button { width: 100%; padding: 15px; background: #2ecc71; color: white; border: none; border-radius: 8px; font-size: 18px; font-weight: bold; cursor: pointer; transition: 0.2s; }
         button:hover { background: #27ae60; }
-        .del-btn { background: #e74c3c; margin-top: 5px; padding: 8px; font-size: 14px; }
+        .del-btn { background: #e74c3c; margin-top: 5px; padding: 8px; font-size: 14px; border-radius: 6px; }
+        .del-btn:hover { background: #c0392b; }
         #driver-list { list-style: none; padding: 0; }
-        .driver-item { background: #fff; border-bottom: 1px solid #eee; padding: 15px; display: flex; justify-content: space-between; align-items: center; }
-        .driver-info span { display: block; font-size: 14px; color: #666; }
+        .driver-item { background: #fff; border-bottom: 1px solid #eee; padding: 15px; display: flex; justify-content: space-between; align-items: center; border-radius: 8px; margin-bottom: 8px; transition: 0.2s; }
+        .driver-item:hover { background: #f8f9fa; cursor: pointer; }
+        .driver-info span { display: block; font-size: 14px; color: #666; margin-top: 4px; }
         .driver-info b { font-size: 18px; color: #333; }
+        .avatar-preview { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid #ddd; margin-right: 12px; }
+        .driver-flex { display: flex; align-items: center; }
     </style>
 </head>
 <body>
@@ -27,22 +32,26 @@
     <div class="card">
         <h2>👮‍♂️ 新增/修改司機</h2>
         <div class="form-group">
-            <label>LINE ID (從司機端複製)</label>
+            <label>LINE ID (系統唯一識別碼)</label>
             <input type="text" id="uid" placeholder="Uxxxxxxxx...">
         </div>
         <div class="form-group">
             <label>姓名 (暱稱)</label>
-            <input type="text" id="name" placeholder="例如：銘哥">
+            <input type="text" id="name" placeholder="例如：學銘">
         </div>
         <div class="form-group">
-            <label>車號</label>
-            <input type="text" id="car" placeholder="例如：TDP-1234">
+            <label>車牌號碼</label>
+            <input type="text" id="car" placeholder="例如：TDP-1123">
         </div>
         <div class="form-group">
-            <label>電話</label>
-            <input type="tel" id="phone" placeholder="09xx-xxx-xxx">
+            <label>聯絡電話</label>
+            <input type="tel" id="phone" placeholder="例如：0912345678">
         </div>
-        <button onclick="saveDriver()">💾 儲存資料</button>
+        <div class="form-group">
+            <label>個人圓形大頭照 (圖片網址)</label>
+            <input type="url" id="photo" placeholder="https://... (選填)">
+        </div>
+        <button onclick="saveDriver()">💾 儲存 / 更新資料</button>
     </div>
 
     <div class="card">
@@ -70,15 +79,23 @@
                     count++;
                     const item = document.createElement('div');
                     item.className = 'driver-item';
+                    
+                    // 若無照片給予預設圖示
+                    const avatarUrl = d.photo || 'https://cdn-icons-png.flaticon.com/512/3237/3237472.png';
+
                     item.innerHTML = `
-                        <div class="driver-info">
-                            <b>${d.name}</b>
-                            <span>${d.car} | ${d.phone}</span>
-                            <span style="font-size:10px;color:#aaa;">${key}</span>
+                        <div class="driver-flex">
+                            <img src="${avatarUrl}" class="avatar-preview" onerror="this.src='https://cdn-icons-png.flaticon.com/512/3237/3237472.png'">
+                            <div class="driver-info">
+                                <b>${d.name}</b>
+                                <span>${d.car} | ${d.phone}</span>
+                                <span style="font-size:10px;color:#aaa;">ID: ${key}</span>
+                            </div>
                         </div>
                         <button class="del-btn" style="width:auto;" onclick="deleteDriver('${key}', '${d.name}')">刪除</button>
                     `;
-                    // 點擊項目可帶入編輯
+                    
+                    // 點擊項目可帶入編輯 (避開刪除按鈕)
                     item.onclick = (e) => { 
                         if(e.target.tagName !== 'BUTTON') fillForm(key, d); 
                     };
@@ -94,26 +111,52 @@
         const name = document.getElementById('name').value.trim();
         const car = document.getElementById('car').value.trim();
         const phone = document.getElementById('phone').value.trim();
+        const photo = document.getElementById('photo').value.trim(); // 🚀 獲取照片網址
 
-        if(!uid || !name || !car || !phone) { alert("所有欄位都要填喔！"); return; }
+        if(!uid || !name || !car || !phone) { 
+            Swal.fire({ icon: 'warning', title: '資料不完整', text: '除照片外，所有欄位皆為必填！' });
+            return; 
+        }
+
+        // 顯示儲存中
+        Swal.fire({ title: '儲存中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
 
         db.ref('drivers/' + uid).update({
             name: name,
             car: car,
             phone: phone,
+            photo: photo, // 🚀 寫入照片網址
             role: 'driver',
             staticDataSynced: true,
-            lastUpdate: Date.now() // 給一個初始時間
+            lastUpdate: Date.now()
         }).then(() => {
-            alert("✅ 儲存成功！");
+            Swal.fire({ icon: 'success', title: '✅ 儲存成功！', timer: 1500, showConfirmButton: false });
             clearForm();
-        }).catch(err => alert("錯誤：" + err.message));
+        }).catch(err => {
+            Swal.fire({ icon: 'error', title: '儲存失敗', text: err.message });
+        });
     }
 
     function deleteDriver(uid, name) {
-        if(confirm(`確定要刪除「${name}」的權限嗎？\n他將無法再登入司機端。`)) {
-            db.ref('drivers/' + uid).remove();
-        }
+        // 🚀 使用 SweetAlert 進行刪除確認
+        Swal.fire({
+            title: `確定要刪除「${name}」的權限嗎？`,
+            text: "刪除後他將無法登入司機端 APP！",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: '是的，我要刪除',
+            cancelButtonText: '取消'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                db.ref('drivers/' + uid).remove()
+                .then(() => {
+                    Swal.fire({ icon: 'success', title: '已刪除', text: `「${name}」已被移除`, timer: 1500, showConfirmButton: false });
+                    clearForm(); // 如果正在編輯該人，順便清空表單
+                });
+            }
+        });
     }
 
     function fillForm(uid, d) {
@@ -121,7 +164,13 @@
         document.getElementById('name').value = d.name;
         document.getElementById('car').value = d.car;
         document.getElementById('phone').value = d.phone;
-        window.scrollTo(0,0);
+        document.getElementById('photo').value = d.photo || ''; // 🚀 載入照片網址
+        
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        
+        // 提醒已載入資料
+        const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, timerProgressBar: true });
+        Toast.fire({ icon: 'info', title: `已帶入 ${d.name} 的資料` });
     }
 
     function clearForm() {
@@ -129,6 +178,7 @@
         document.getElementById('name').value = '';
         document.getElementById('car').value = '';
         document.getElementById('phone').value = '';
+        document.getElementById('photo').value = ''; // 🚀 清空照片欄位
     }
 </script>
 </body>
