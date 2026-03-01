@@ -27,27 +27,41 @@
     .btn-customer i { font-size: 20px; margin-bottom: 2px; }
     #driver-carousel { position: absolute; bottom: 20px; left: 0; width: 100%; display: flex; gap: 15px; padding: 10px 20px; box-sizing: border-box; overflow-x: auto; scroll-snap-type: x mandatory; z-index: 20; scrollbar-width: none; }
     #driver-carousel::-webkit-scrollbar { display: none; }
+    
     .driver-card { flex: 0 0 92%; max-width: 380px; background: white; border-radius: 24px; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.25); scroll-snap-align: center; display: flex; flex-direction: column; gap: 15px; transition: transform 0.2s; border: 2px solid #ddd; position: relative; }
+    /* 追蹤模式 (司機前往中) */
     .driver-card.tracking-mode { flex: 1; border-color: #00B0FF; box-shadow: 0 10px 35px rgba(0, 176, 255, 0.3); }
+    /* 🚀 v9.11 新增：抵達模式 (司機已到) */
+    .driver-card.arrived-mode { flex: 1; border-color: #FF9800; box-shadow: 0 10px 35px rgba(255, 152, 0, 0.4); animation: card-pulse 2s infinite; }
+    
     .d-top-section { display: flex; align-items: center; width: 100%; }
     .d-avatar { width: 85px; height: 85px; background: #eee; border-radius: 50%; overflow: hidden; margin-right: 18px; border: 3px solid #00C853; box-shadow: 0 4px 12px rgba(0,0,0,0.15); flex-shrink: 0; }
     .driver-card.tracking-mode .d-avatar { border-color: #00B0FF; }
+    .driver-card.arrived-mode .d-avatar { border-color: #FF9800; } /* 抵達時頭像框變橘色 */
+    
     .d-avatar img { width: 100%; height: 100%; object-fit: cover; }
     .d-info { flex: 1; }
     .d-name { font-size: 26px; font-weight: 900; color: #000; margin-bottom: 8px; display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+    
     .tag { font-size: 14px; padding: 4px 10px; border-radius: 6px; font-weight: bold; }
     .tag-empty { background: #e8f5e9; color: #1B5E20; border: 1px solid #4CAF50; }
     .tag-queue { background: #e3f2fd; color: #0D47A1; border: 1px solid #2196F3; }
-    .tag-tracking { background: #fff3e0; color: #E65100; border: 1px solid #FF9800; animation: pulse-radar 2s infinite; }
+    .tag-tracking { background: #E1F5FE; color: #0277BD; border: 1px solid #03A9F4; animation: pulse-radar 2s infinite; }
+    /* 🚀 v9.11 新增：抵達標籤 */
+    .tag-arrived { background: #FFF3E0; color: #E65100; border: 1px solid #FF9800; animation: pulse-radar 1.5s infinite; font-size: 15px; }
+
     .d-meta { font-size: 18px; font-weight: 700; color: #222; display: flex; flex-direction: column; gap: 6px; }
     .d-meta span { display: flex; align-items: center; gap: 8px; }
     .d-meta i { width: 24px; text-align: center; color: #555; }
+    
     .btn-call { width: 100%; height: 65px; border-radius: 16px; background: linear-gradient(135deg, #00C853, #1B5E20); color: white; display: flex; justify-content: center; align-items: center; gap: 12px; text-decoration: none; font-size: 24px; font-weight: 900; box-shadow: 0 6px 15px rgba(76, 175, 80, 0.4); transition: transform 0.1s, background 0.2s; cursor: pointer; border: 2px solid #00E676; }
     .btn-call:active { transform: scale(0.96); background: #1B5E20; }
     .btn-call:disabled { background: #9E9E9E; border-color: #757575; cursor: not-allowed; transform: none; box-shadow: none; }
     .btn-cancel-track { width: 100%; height: 45px; border-radius: 12px; background: #f5f5f5; color: #757575; display: flex; justify-content: center; align-items: center; gap: 8px; font-size: 16px; font-weight: bold; border: 1px solid #ddd; margin-top: -5px; cursor: pointer; }
     #btn-loc { position: absolute; bottom: 300px; right: 20px; width: 55px; height: 55px; background: white; border-radius: 50%; box-shadow: 0 4px 15px rgba(0,0,0,0.25); display: flex; justify-content: center; align-items: center; font-size: 24px; color: #333; cursor: pointer; z-index: 15; border: 2px solid #eee; }
+    
     @keyframes pulse-radar { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
+    @keyframes card-pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 152, 0, 0.4); } 70% { box-shadow: 0 0 0 15px rgba(255, 152, 0, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 152, 0, 0); } }
     .radar-active { animation: pulse-radar 2s infinite; color: #00C853; font-weight: 900; }
   </style>
 </head>
@@ -75,7 +89,7 @@
 
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script>
-    const VERSION = "v9.10"; 
+    const VERSION = "v9.11"; 
     const LIFF_ID = "2008907691-CzDqd7mm"; 
     const GAS_URL = "https://script.google.com/macros/s/AKfycbzjWZ8j394jfKoMVbPWGvHJHqwF7RBCQxnxyju1ifWKoKdM7RE512F7qrhUsQqQGoWg/exec"; 
     
@@ -96,8 +110,13 @@
     let passengerName = "未授權乘客";
     let myTrackedDriverId = localStorage.getItem('trackedDriverId') || null;
 
-    const getPinIcon = (type, isTracked) => {
-        if (isTracked) return { path: "M0-48c-9.8 0-17.7 7.8-17.7 17.4 0 15.5 17.7 30.6 17.7 30.6s17.7-15.4 17.7-30.6c0-9.6-7.9-17.4-17.7-17.4z", fillColor: '#FF9800', fillOpacity: 1, strokeColor: "#fff", strokeWeight: 3, scale: 1.3, labelOrigin: new google.maps.Point(0, -28) };
+    // 🚀 v9.11 核心升級：加入 arrived (已抵達) 的圖標顏色
+    const getPinIcon = (type, isTracked, workStatus) => {
+        if (isTracked) {
+            // 如果追蹤中且司機已抵達，大頭針變橘色
+            let trackColor = workStatus === 'arrived' ? '#FF9800' : '#00B0FF';
+            return { path: "M0-48c-9.8 0-17.7 7.8-17.7 17.4 0 15.5 17.7 30.6 17.7 30.6s17.7-15.4 17.7-30.6c0-9.6-7.9-17.4-17.7-17.4z", fillColor: trackColor, fillOpacity: 1, strokeColor: "#fff", strokeWeight: 3, scale: 1.3, labelOrigin: new google.maps.Point(0, -28) };
+        }
         const isQueue = type === 'queue';
         const color = isQueue ? '#00B0FF' : '#00C853';
         return { path: "M0-48c-9.8 0-17.7 7.8-17.7 17.4 0 15.5 17.7 30.6 17.7 30.6s17.7-15.4 17.7-30.6c0-9.6-7.9-17.4-17.7-17.4z", fillColor: color, fillOpacity: 1, strokeColor: "#fff", strokeWeight: 2, scale: 1.1, labelOrigin: new google.maps.Point(0, -28) };
@@ -220,21 +239,24 @@
             if (d.status !== 'online') return;
 
             let isTracked = false;
+            // 🚀 v9.11 核心修改：判斷是否為追蹤對象，且加入 arrived 狀態識別
             if (myTrackedDriverId) {
                 if (key !== myTrackedDriverId) return; 
                 isTracked = true;
             } else {
-                if (d.workStatus === 'busy') return; 
+                if (d.workStatus === 'busy' || d.workStatus === 'arrived') return; 
             }
 
             activeIds.add(key);
             const pos = { lat: d.lat, lng: d.lng };
             const iconType = d.workStatus === 'queue' ? 'queue' : 'empty';
-            const labelText = isTracked ? '專車' : (d.workStatus === 'queue' ? '排' : '空');
+            let labelText = isTracked ? '專車' : (d.workStatus === 'queue' ? '排' : '空');
+            // 🚀 抵達時改變地圖文字
+            if (isTracked && d.workStatus === 'arrived') labelText = '抵達';
 
             if (!markers[key]) {
                 markers[key] = new google.maps.Marker({
-                    position: pos, map: map, icon: getPinIcon(iconType, isTracked),
+                    position: pos, map: map, icon: getPinIcon(iconType, isTracked, d.workStatus),
                     label: { text: labelText, color: "white", fontSize: "14px", fontWeight: "bold" },
                     title: d.name, zIndex: isTracked ? 999 : 1
                 });
@@ -244,7 +266,7 @@
                 });
             } else {
                 markers[key].setPosition(pos); 
-                markers[key].setIcon(getPinIcon(iconType, isTracked));
+                markers[key].setIcon(getPinIcon(iconType, isTracked, d.workStatus));
                 markers[key].setLabel({ text: labelText, color: "white", fontSize: "14px", fontWeight: "bold" });
                 markers[key].setZIndex(isTracked ? 999 : 1);
             }
@@ -275,16 +297,25 @@
         let newHTML = '';
         drivers.forEach(d => {
             let statusTag = d.workStatus === 'queue' ? '<span class="tag tag-queue">排班中</span>' : '<span class="tag tag-empty">🟢 空車</span>';
-            if (d.isTracked) statusTag = '<span class="tag tag-tracking">🚕 專屬司機服務中</span>';
+            let cardClass = "driver-card";
+            
+            // 🚀 v9.11 核心修改：依據司機狀態切換卡片外觀
+            if (d.isTracked) {
+                if (d.workStatus === 'arrived') {
+                    statusTag = '<span class="tag tag-arrived"><i class="fa-solid fa-location-dot"></i> 司機已在門口等候</span>';
+                    cardClass = "driver-card arrived-mode"; // 橘色閃爍模式
+                } else {
+                    statusTag = '<span class="tag tag-tracking">🚕 專屬司機前往中</span>';
+                    cardClass = "driver-card tracking-mode"; // 藍色追蹤模式
+                }
+            }
 
             const distText = d.distUser < 1 ? (d.distUser*1000).toFixed(0)+' 公尺' : d.distUser.toFixed(1)+' 公里';
             const avatar = d.photo || 'https://cdn-icons-png.flaticon.com/512/3237/3237472.png';
-            const cardClass = d.isTracked ? "driver-card tracking-mode" : "driver-card";
             
-            // 🚀 保留專屬面板上的聯絡按鈕，讓客人有需要時能主動打電話
             const btnCallHtml = d.isTracked 
                 ? `<button class="btn-call" onclick="window.location.href='tel:${d.phone}'"><i class="fa-solid fa-phone-volume"></i> 聯絡專屬司機</button>
-                   <button class="btn-cancel-track" onclick="exitTrackingMode(false)"><i class="fa-solid fa-xmark"></i> 結束行程 / 取消追蹤</button>`
+                   <button class="btn-cancel-track" onclick="exitTrackingMode(false)"><i class="fa-solid fa-xmark"></i> 結束行程 / 取消叫車</button>`
                 : `<button class="btn-call" onclick="callDriver('${d.id}', '${d.phone}', this); event.stopPropagation();"><i class="fa-solid fa-phone-volume"></i> 一鍵叫車</button>`;
 
             newHTML += `
@@ -292,7 +323,8 @@
                     <div class="d-top-section">
                         <div class="d-avatar"><img src="${avatar}"></div>
                         <div class="d-info">
-                            <div class="d-name">${d.name} ${statusTag}</div>
+                            <div class="d-name">${d.name}</div>
+                            <div style="margin-bottom: 8px;">${statusTag}</div>
                             <div class="d-meta">
                                 <span><i class="fa-solid fa-taxi"></i> ${d.car || '花蓮計程車'}</span>
                                 <span><i class="fa-solid fa-location-arrow"></i> 距離 ${distText}</span>
@@ -356,7 +388,6 @@
             btn.innerHTML = originalContent;
             btn.disabled = false;
             
-            // 🚀 v9.10 靜默派車：移除 window.location.href = `tel:${phone}`; 改為顯示成功提示
             Swal.fire({
                 icon: 'success',
                 title: '✅ 叫車成功！',
