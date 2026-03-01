@@ -30,10 +30,9 @@
     
     .driver-card { flex: 0 0 92%; max-width: 380px; background: white; border-radius: 24px; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.25); scroll-snap-align: center; display: flex; flex-direction: column; gap: 15px; transition: transform 0.2s; border: 2px solid #ddd; position: relative; }
     
-    /* 🚀 三種追蹤狀態的卡片樣式 */
-    .driver-card.tracking-mode { flex: 1; border-color: #00B0FF; box-shadow: 0 10px 35px rgba(0, 176, 255, 0.3); } /* 藍色前往中 */
-    .driver-card.arrived-mode { flex: 1; border-color: #FF9800; box-shadow: 0 10px 35px rgba(255, 152, 0, 0.4); animation: card-pulse 2s infinite; } /* 橘色抵達 */
-    .driver-card.busy-mode { flex: 1; border-color: #00C853; box-shadow: 0 10px 35px rgba(0, 200, 83, 0.3); } /* 綠色載客中 */
+    .driver-card.tracking-mode { flex: 1; border-color: #00B0FF; box-shadow: 0 10px 35px rgba(0, 176, 255, 0.3); } 
+    .driver-card.arrived-mode { flex: 1; border-color: #FF9800; box-shadow: 0 10px 35px rgba(255, 152, 0, 0.4); animation: card-pulse 2s infinite; } 
+    .driver-card.busy-mode { flex: 1; border-color: #00C853; box-shadow: 0 10px 35px rgba(0, 200, 83, 0.3); } 
     
     .d-top-section { display: flex; align-items: center; width: 100%; }
     .d-avatar { width: 85px; height: 85px; background: #eee; border-radius: 50%; overflow: hidden; margin-right: 18px; border: 3px solid #00C853; box-shadow: 0 4px 12px rgba(0,0,0,0.15); flex-shrink: 0; }
@@ -46,13 +45,12 @@
     .d-info { flex: 1; }
     .d-name { font-size: 26px; font-weight: 900; color: #000; margin-bottom: 8px; display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
     
-    /* 標籤樣式 */
     .tag { font-size: 14px; padding: 4px 10px; border-radius: 6px; font-weight: bold; }
     .tag-empty { background: #e8f5e9; color: #1B5E20; border: 1px solid #4CAF50; }
     .tag-queue { background: #e3f2fd; color: #0D47A1; border: 1px solid #2196F3; }
     .tag-tracking { background: #E1F5FE; color: #0277BD; border: 1px solid #03A9F4; animation: pulse-radar 2s infinite; }
     .tag-arrived { background: #FFF3E0; color: #E65100; border: 1px solid #FF9800; animation: pulse-radar 1.5s infinite; font-size: 15px; }
-    .tag-busy { background: #E8F5E9; color: #2E7D32; border: 1px solid #4CAF50; font-size: 15px; } /* 🚀 新增：載客中標籤 */
+    .tag-busy { background: #E8F5E9; color: #2E7D32; border: 1px solid #4CAF50; font-size: 15px; } 
 
     .d-meta { font-size: 18px; font-weight: 700; color: #222; display: flex; flex-direction: column; gap: 6px; }
     .d-meta span { display: flex; align-items: center; gap: 8px; }
@@ -93,7 +91,7 @@
 
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script>
-    const VERSION = "v9.12"; 
+    const VERSION = "v9.13"; 
     const LIFF_ID = "2008907691-CzDqd7mm"; 
     const GAS_URL = "https://script.google.com/macros/s/AKfycbzjWZ8j394jfKoMVbPWGvHJHqwF7RBCQxnxyju1ifWKoKdM7RE512F7qrhUsQqQGoWg/exec"; 
     
@@ -113,13 +111,15 @@
     let passengerId = "unknown";
     let passengerName = "未授權乘客";
     let myTrackedDriverId = localStorage.getItem('trackedDriverId') || null;
+    
+    // 🚀 v9.13 新增：網頁專屬狀態機 (記憶晶片)
+    let currentTrackStep = localStorage.getItem('trackStep') || '1';
 
-    // 🚀 v9.12 大頭針顏色修正 (加入 busy 狀態)
-    const getPinIcon = (type, isTracked, workStatus) => {
+    const getPinIcon = (type, isTracked, workStatus, trackStep) => {
         if (isTracked) {
-            let trackColor = '#00B0FF'; // 預設前往中為藍色
-            if (workStatus === 'arrived') trackColor = '#FF9800'; // 抵達為橘色
-            else if (workStatus === 'busy') trackColor = '#00C853'; // 載客中為綠色
+            let trackColor = '#00B0FF'; 
+            if (trackStep === '1.5' || workStatus === 'arrived') trackColor = '#FF9800'; 
+            else if (trackStep === '2') trackColor = '#00C853'; 
             return { path: "M0-48c-9.8 0-17.7 7.8-17.7 17.4 0 15.5 17.7 30.6 17.7 30.6s17.7-15.4 17.7-30.6c0-9.6-7.9-17.4-17.7-17.4z", fillColor: trackColor, fillOpacity: 1, strokeColor: "#fff", strokeWeight: 3, scale: 1.3, labelOrigin: new google.maps.Point(0, -28) };
         }
         const isQueue = type === 'queue';
@@ -234,8 +234,19 @@
                     localStorage.removeItem('wasBusy');
                     exitTrackingMode(true);
                 }
-            } else if (trackedData.workStatus === 'busy') {
-                localStorage.setItem('wasBusy', 'true');
+            } else {
+                // 🚀 v9.13 狀態機核心運算：分辨前往中與行程中
+                if (trackedData.workStatus === 'arrived') {
+                    currentTrackStep = '1.5';
+                    localStorage.setItem('trackStep', '1.5');
+                } else if (trackedData.workStatus === 'busy') {
+                    localStorage.setItem('wasBusy', 'true');
+                    // 如果原本是 1.5 (已抵達)，現在變成 busy，才升級成 2 (載客行程中)
+                    if (currentTrackStep === '1.5') {
+                        currentTrackStep = '2';
+                        localStorage.setItem('trackStep', '2');
+                    }
+                }
             }
         }
 
@@ -244,7 +255,6 @@
             if (d.status !== 'online') return;
 
             let isTracked = false;
-            // 允許 empty(前往中), arrived(抵達), busy(載客中) 顯示在畫面上
             if (myTrackedDriverId) {
                 if (key !== myTrackedDriverId) return; 
                 isTracked = true;
@@ -257,15 +267,16 @@
             const iconType = d.workStatus === 'queue' ? 'queue' : 'empty';
             let labelText = isTracked ? '專車' : (d.workStatus === 'queue' ? '排' : '空');
             
-            // 🚀 v9.12 大頭針文字修正
+            // 🚀 v9.13 配合狀態機顯示大頭針文字
             if (isTracked) {
-                if (d.workStatus === 'arrived') labelText = '抵達';
-                else if (d.workStatus === 'busy') labelText = '載客';
+                if (currentTrackStep === '1.5' || d.workStatus === 'arrived') labelText = '抵達';
+                else if (currentTrackStep === '2') labelText = '載客';
+                else labelText = '前往';
             }
 
             if (!markers[key]) {
                 markers[key] = new google.maps.Marker({
-                    position: pos, map: map, icon: getPinIcon(iconType, isTracked, d.workStatus),
+                    position: pos, map: map, icon: getPinIcon(iconType, isTracked, d.workStatus, currentTrackStep),
                     label: { text: labelText, color: "white", fontSize: "14px", fontWeight: "bold" },
                     title: d.name, zIndex: isTracked ? 999 : 1
                 });
@@ -275,7 +286,7 @@
                 });
             } else {
                 markers[key].setPosition(pos); 
-                markers[key].setIcon(getPinIcon(iconType, isTracked, d.workStatus));
+                markers[key].setIcon(getPinIcon(iconType, isTracked, d.workStatus, currentTrackStep));
                 markers[key].setLabel({ text: labelText, color: "white", fontSize: "14px", fontWeight: "bold" });
                 markers[key].setZIndex(isTracked ? 999 : 1);
             }
@@ -308,16 +319,15 @@
             let statusTag = d.workStatus === 'queue' ? '<span class="tag tag-queue">排班中</span>' : '<span class="tag tag-empty">🟢 空車</span>';
             let cardClass = "driver-card";
             
-            // 🚀 v9.12 核心：修正 tracking mode 判斷邏輯，加入 busy 狀態
+            // 🚀 v9.13 核心：讀取記憶晶片，正確顯示各階段面板
             if (d.isTracked) {
-                if (d.workStatus === 'arrived') {
+                if (currentTrackStep === '1.5' || d.workStatus === 'arrived') {
                     statusTag = '<span class="tag tag-arrived"><i class="fa-solid fa-location-dot"></i> 司機已在門口等候</span>';
                     cardClass = "driver-card arrived-mode"; 
-                } else if (d.workStatus === 'busy') {
+                } else if (currentTrackStep === '2') {
                     statusTag = '<span class="tag tag-busy"><i class="fa-solid fa-car-side"></i> 載客行程中</span>';
                     cardClass = "driver-card busy-mode"; 
                 } else {
-                    // empty 狀態，但因為是被追蹤，所以是前往中
                     statusTag = '<span class="tag tag-tracking">🚕 專屬司機前往中</span>';
                     cardClass = "driver-card tracking-mode"; 
                 }
@@ -326,10 +336,9 @@
             const distText = d.distUser < 1 ? (d.distUser*1000).toFixed(0)+' 公尺' : d.distUser.toFixed(1)+' 公里';
             const avatar = d.photo || 'https://cdn-icons-png.flaticon.com/512/3237/3237472.png';
             
-            // 🚀 v9.12 核心：客人上車後，隱藏聯絡與取消按鈕，改為貼心提示
             let btnCallHtml = '';
             if (d.isTracked) {
-                if (d.workStatus === 'busy') {
+                if (currentTrackStep === '2') {
                     btnCallHtml = `<div style="text-align: center; color: #2E7D32; font-weight: bold; padding: 12px; background: #e8f5e9; border-radius: 12px; border: 2px dashed #4CAF50; line-height: 1.5;">✅ 您已在車上，祝您旅途愉快！<br><span style="font-size: 13px; color: #555;"><i class="fa-solid fa-flag-checkered"></i> 行程結束將由司機為您結帳</span></div>`;
                 } else {
                     btnCallHtml = `<button class="btn-call" onclick="window.location.href='tel:${d.phone}'"><i class="fa-solid fa-phone-volume"></i> 聯絡專屬司機</button>
@@ -404,6 +413,10 @@
             localStorage.setItem('trackedDriverId', driverId);
             localStorage.setItem('wasBusy', 'false'); 
             
+            // 🚀 v9.13 啟動記憶晶片：進度設為 1 (前往中)
+            localStorage.setItem('trackStep', '1');
+            currentTrackStep = '1';
+            
             if (lastDriversData) processDriversData(lastDriversData); 
 
             btn.innerHTML = originalContent;
@@ -470,6 +483,10 @@
         myTrackedDriverId = null;
         localStorage.removeItem('trackedDriverId');
         localStorage.removeItem('wasBusy'); 
+        
+        // 🚀 v9.13 結束時清除記憶晶片
+        localStorage.removeItem('trackStep');
+        currentTrackStep = '1';
         
         if (isAuto) {
             Swal.fire({
