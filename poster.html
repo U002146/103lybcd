@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>吸客海報 // v6.0 A4 吸客海報列印版</title>
+    
+    <!-- 引入 FontAwesome 圖示 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        /* 重置預設樣式 */
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        body { 
+            font-family: 'PingFang TC', 'Microsoft JhengHei', sans-serif; 
+            background: #e0e0e0; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            min-height: 100vh;
+        }
+
+        /* 🖨️ 列印按鈕區塊 (螢幕上顯示，列印時隱藏) */
+        .print-control {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #333;
+            color: white;
+            padding: 15px 25px;
+            border-radius: 50px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            z-index: 999;
+        }
+        .btn-print {
+            background: #00C853;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            font-size: 18px;
+            font-weight: 900;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: 0.2s;
+            box-shadow: 0 4px 15px rgba(0,200,83,0.4);
+        }
+        .btn-print:hover { background: #00E676; transform: scale(1.05); }
+
+        /* 📄 A4 畫布設定 (嚴格限制為 297mm x 210mm 橫式) */
+        .a4-canvas {
+            width: 297mm;
+            height: 210mm;
+            background: #FFB300; /* 計程車標誌黃色 */
+            background-image: radial-gradient(circle at top right, #FFCA28, #FFB300);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.2);
+            overflow: hidden;
+            display: flex;
+            position: relative;
+            border: 1mm solid #fff; /* 白邊保護框 */
+        }
+
+        /* 📍 左半邊 (誘餌區 60%) */
+        .left-section {
+            width: 60%;
+            padding: 15mm;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .brand-badge {
+            background: #111;
+            color: #FFB300;
+            display: inline-block;
+            padding: 5mm 10mm;
+            border-radius: 50px;
+            font-size: 6.5mm;
+            font-weight: 900;
+            letter-spacing: 2px;
+            margin-bottom: 8mm;
+            align-self: flex-start;
+            border: 1mm solid #333;
+        }
+
+        .main-title {
+            font-size: 16mm;
+            font-weight: 900;
+            color: #111;
+            line-height: 1.2;
+            margin-bottom: 12mm;
+            text-shadow: 2px 2px 0px rgba(255,255,255,0.5);
+        }
+        .main-title span { color: #D50000; }
+
+        .feature-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 6mm;
+        }
+
+        .feature-item {
+            display: flex;
+            align-items: center;
+            font-size: 7.5mm;
+            font-weight: 900;
+            color: #222;
+            background: rgba(255,255,255,0.7);
+            padding: 4mm 6mm;
+            border-radius: 15px;
+            border-left: 2mm solid #00C853;
+        }
+        .feature-item i {
+            color: #00C853;
+            font-size: 9mm;
+            margin-right: 5mm;
+            width: 10mm;
+            text-align: center;
+        }
+
+        /* 📍 右半邊 (行動區 40%) */
+        .right-section {
+            width: 40%;
+            background: #111;
+            padding: 15mm 10mm;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            position: relative;
+            border-top-left-radius: 80px;
+            border-bottom-left-radius: 80px;
+            box-shadow: -10px 0 30px rgba(0,0,0,0.2);
+        }
+
+        .action-title {
+            font-size: 9mm;
+            font-weight: 900;
+            color: #00E676;
+            margin-bottom: 8mm;
+            text-align: center;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            animation: bounce 2s infinite;
+        }
+
+        .qr-wrapper {
+            background: white;
+            padding: 5mm;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            margin-bottom: 8mm;
+            position: relative;
+        }
+        
+        .qr-wrapper img {
+            width: 65mm; /* 巨大 QR Code */
+            height: 65mm;
+            display: block;
+        }
+
+        /* QR Code 中心的點綴圖示 (可選) */
+        .qr-center-icon {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            width: 16mm;
+            height: 16mm;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border: 1mm solid #FFB300;
+        }
+        .qr-center-icon i { color: #111; font-size: 8mm; }
+
+        .scan-hint {
+            font-size: 5mm;
+            color: #ccc;
+            text-align: center;
+            line-height: 1.5;
+            font-weight: bold;
+        }
+
+        .footer-tag {
+            position: absolute;
+            bottom: 5mm;
+            left: 15mm;
+            font-size: 4mm;
+            color: #666;
+            font-weight: bold;
+        }
+
+        /* 動態箭頭 */
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        /* 🖨️ 魔法列印設定 (破解 Mac 隱形墨水) */
+        @media print {
+            @page { 
+                size: A4 landscape; /* 強制 A4 橫向 */
+                margin: 0; /* 消除系統白邊 */
+            }
+            body { 
+                background: white !important; 
+                margin: 0 !important; 
+                padding: 0 !important; 
+            }
+            .no-print { display: none !important; } /* 隱藏列印按鈕 */
+            .a4-canvas { 
+                box-shadow: none !important; 
+                border: none !important; 
+                margin: 0 !important; 
+                -webkit-print-color-adjust: exact !important; /* 強制印出背景色 */
+                print-color-adjust: exact !important; 
+            }
+            /* 強制文字顏色，防止深色模式反轉 */
+            .main-title, .feature-item { color: #111 !important; -webkit-text-fill-color: #111 !important; }
+            .brand-badge { color: #FFB300 !important; -webkit-text-fill-color: #FFB300 !important; }
+            .right-section { color: white !important; -webkit-text-fill-color: white !important; }
+            .action-title { color: #00E676 !important; -webkit-text-fill-color: #00E676 !important; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 螢幕操作區塊 (列印時隱藏) -->
+    <div class="print-control no-print">
+        <div>
+            <div style="font-weight: bold; font-size: 16px;">🖨️ 準備好發大財了嗎？</div>
+            <div style="font-size: 12px; color: #ccc;">點擊列印後，請確認配置為「橫向 (Landscape)」，邊界設為「無」</div>
+        </div>
+        <button class="btn-print" onclick="window.print()"><i class="fa-solid fa-print"></i> 立即列印</button>
+    </div>
+
+    <!-- A4 實體畫布 -->
+    <div class="a4-canvas">
+        
+        <!-- 左半邊：超狂誘餌區 -->
+        <div class="left-section">
+            <div class="brand-badge">
+                <i class="fa-solid fa-crown" style="color:#FFD700; margin-right:8px;"></i>花蓮在地第一品牌 ‧ 敬老愛心車隊
+            </div>
+            
+            <div class="main-title">
+                免打電話！<br>
+                <span>一秒叫車</span> 不用等 🚕💨
+            </div>
+            
+            <ul class="feature-list">
+                <li class="feature-item">
+                    <i class="fa-brands fa-line"></i>
+                    最快速｜免載 APP，用 LINE 直接叫車
+                </li>
+                <li class="feature-item">
+                    <i class="fa-solid fa-shield-halved"></i>
+                    最安心｜獨家雷達系統，遺失物 100% 找得回
+                </li>
+                <li class="feature-item">
+                    <i class="fa-solid fa-gift"></i>
+                    最優惠｜掃碼加入好友，享車隊專屬貴賓服務
+                </li>
+            </ul>
+        </div>
+
+        <!-- 右半邊：行動指令區 -->
+        <div class="right-section">
+            <div class="action-title">
+                <i class="fa-solid fa-arrow-down"></i> 請打開相機掃描 <i class="fa-solid fa-arrow-down"></i>
+            </div>
+            
+            <div class="qr-wrapper">
+                <!-- 這裡串接你之前上傳的 QR Code -->
+                <img src="https://u002146.github.io/103lybcd/qrcode.png" alt="叫車 QR Code" onerror="this.src='https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=https://lin.ee/9Davl6e';">
+                <div class="qr-center-icon"><i class="fa-solid fa-taxi"></i></div>
+            </div>
+            
+            <div class="scan-hint">
+                <i class="fa-solid fa-hand-pointer" style="color:#FFB300;"></i><br>
+                加好友後，點擊下方選單<br>即可馬上叫車出發！
+            </div>
+        </div>
+
+        <!-- 底部版權宣告 -->
+        <div class="footer-tag">
+            花蓮數位車隊：雙向定位系統 V1.0 © 2026
+        </div>
+
+    </div>
+
+</body>
+</html>
