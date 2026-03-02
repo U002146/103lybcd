@@ -42,39 +42,37 @@
         .leaderboard-table tr:nth-child(even) { background-color: #fcfcfc; }
         .medal { font-size: 22px; }
         
+        /* 🚀 v3.2 統一管理顏色，禁止寫在 HTML 裡面 */
+        .td-name { font-size: 16px; font-weight: bold; color: #000; }
+        .td-car { color: #555; }
+        .td-success { color: #2ecc71; font-weight: 900; font-size: 18px; }
+        .td-fail { color: #e74c3c; font-weight: bold; }
+        
         .print-only-header { display: none; text-align: center; margin-bottom: 30px; }
         .print-only-header h1 { margin: 0; font-size: 28px; color: #000; }
         .print-only-header h2 { margin: 10px 0 0 0; font-size: 20px; color: #555; justify-content: center; }
 
-        /* 🚀 🖨️ v3.1 強制列印模式：終結隱形墨水 Bug */
+        /* 🖨️ v3.2 強制列印模式：徹底覆蓋深色模式 Bug */
         @media print {
-            body { 
+            @page { margin: 1.5cm; }
+            body, html { 
                 background: white !important; 
-                padding: 0 !important; 
-                /* 強制指定安全的中文字體 */
-                font-family: 'PingFang TC', 'Microsoft JhengHei', sans-serif !important; 
-                color: #000 !important;
+                color: black !important; 
             }
             .no-print { display: none !important; } 
             .card { box-shadow: none !important; border: none !important; margin: 0 !important; padding: 0 !important; }
             .print-only-header { display: block !important; } 
-            .print-only-header h1, .print-only-header h2 { color: #000 !important; }
             
-            /* 強制覆蓋所有 JS 寫入的顏色，全部變黑字以防消失 */
-            #leaderboard-content * { 
-                color: #000 !important; 
-                text-shadow: none !important;
+            /* 強制所有表格內的字體變黑色，無視任何螢幕顏色 */
+            .leaderboard-table, .leaderboard-table th, .leaderboard-table td,
+            .td-name, .td-car, .td-success, .td-fail, b, span {
+                color: black !important;
+                border-color: black !important;
+                -webkit-text-fill-color: black !important;
             }
             
-            .leaderboard-table { width: 100% !important; border-collapse: collapse !important; }
-            .leaderboard-table th, .leaderboard-table td { 
-                border: 1px solid #000 !important; /* 加深表格線條 */
-                padding: 12px !important;
-                font-size: 14pt !important;
-            }
             .leaderboard-table th { 
-                background-color: #eee !important; 
-                /* 告訴瀏覽器強制印出背景色 */
+                background-color: #eeeeee !important; 
                 -webkit-print-color-adjust: exact !important; 
                 print-color-adjust: exact !important; 
             }
@@ -244,13 +242,14 @@
                     else if(index === 1) medal = '🥈';
                     else if(index === 2) medal = '🥉';
 
+                    // 🚀 v3.2 拔除所有 style=""，改用 class
                     html += `
                         <tr>
                             <td class="medal">${medal}</td>
-                            <td><b style="font-size:16px;">${r.name}</b></td>
-                            <td style="color:#555;">${r.car}</td>
-                            <td style="color:#2ecc71; font-weight:900; font-size:18px;">${r.completed}</td>
-                            <td style="color:#e74c3c; font-weight:bold;">${r.failed}</td>
+                            <td class="td-name">${r.name}</td>
+                            <td class="td-car">${r.car}</td>
+                            <td class="td-success">${r.completed}</td>
+                            <td class="td-fail">${r.failed}</td>
                         </tr>
                     `;
                 });
