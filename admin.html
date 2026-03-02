@@ -10,7 +10,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <style>
-        body { font-family: -apple-system, sans-serif; background: #f0f2f5; padding: 20px; max-width: 800px; margin: 0 auto; color: #333; }
+        body { font-family: -apple-system, 'PingFang TC', 'Microsoft JhengHei', sans-serif; background: #f0f2f5; padding: 20px; max-width: 800px; margin: 0 auto; color: #333; }
         .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin-bottom: 25px; }
         h2 { margin-top: 0; color: #333; display: flex; justify-content: space-between; align-items: center; }
         
@@ -32,7 +32,7 @@
         .avatar-preview { width: 45px; height: 45px; border-radius: 50%; object-fit: cover; border: 2px solid #ddd; margin-right: 15px; }
         .driver-flex { display: flex; align-items: center; }
 
-        /* 🚀 v3.0 排行榜與列印專屬樣式 */
+        /* 排行榜專屬樣式 */
         .btn-print { background: #34495e; color: white; border: none; padding: 10px 15px; border-radius: 8px; font-size: 14px; font-weight: bold; cursor: pointer; }
         .btn-print:hover { background: #2c3e50; }
         
@@ -46,14 +46,38 @@
         .print-only-header h1 { margin: 0; font-size: 28px; color: #000; }
         .print-only-header h2 { margin: 10px 0 0 0; font-size: 20px; color: #555; justify-content: center; }
 
-        /* 🖨️ 列印模式：隱藏雜物，只印報表 */
+        /* 🚀 🖨️ v3.1 強制列印模式：終結隱形墨水 Bug */
         @media print {
-            body { background: white; padding: 0; }
-            .no-print { display: none !important; } /* 隱藏表單、名單、按鈕 */
-            .card { box-shadow: none; border: none; margin: 0; padding: 0; }
-            .print-only-header { display: block; } /* 顯示正式報表表頭 */
-            .leaderboard-table th, .leaderboard-table td { border: 1px solid #000; color: #000; } /* 加深表格格線 */
-            .leaderboard-table th { background: #eee; }
+            body { 
+                background: white !important; 
+                padding: 0 !important; 
+                /* 強制指定安全的中文字體 */
+                font-family: 'PingFang TC', 'Microsoft JhengHei', sans-serif !important; 
+                color: #000 !important;
+            }
+            .no-print { display: none !important; } 
+            .card { box-shadow: none !important; border: none !important; margin: 0 !important; padding: 0 !important; }
+            .print-only-header { display: block !important; } 
+            .print-only-header h1, .print-only-header h2 { color: #000 !important; }
+            
+            /* 強制覆蓋所有 JS 寫入的顏色，全部變黑字以防消失 */
+            #leaderboard-content * { 
+                color: #000 !important; 
+                text-shadow: none !important;
+            }
+            
+            .leaderboard-table { width: 100% !important; border-collapse: collapse !important; }
+            .leaderboard-table th, .leaderboard-table td { 
+                border: 1px solid #000 !important; /* 加深表格線條 */
+                padding: 12px !important;
+                font-size: 14pt !important;
+            }
+            .leaderboard-table th { 
+                background-color: #eee !important; 
+                /* 告訴瀏覽器強制印出背景色 */
+                -webkit-print-color-adjust: exact !important; 
+                print-color-adjust: exact !important; 
+            }
         }
     </style>
 </head>
@@ -108,15 +132,13 @@
     </div>
 
 <script>
-    // Config
     const firebaseConfig = { projectId: "hualientaxi-bb32f", databaseURL: "https://hualientaxi-bb32f-default-rtdb.asia-southeast1.firebasedatabase.app/" };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
     const firestoreDb = firebase.firestore();
 
-    let driverMap = {}; // 存放所有司機資料供排行榜查詢名字
+    let driverMap = {}; 
 
-    // 1. 讀取現有司機名單
     db.ref('drivers').on('value', snapshot => {
         const list = document.getElementById('driver-list');
         list.innerHTML = '';
@@ -129,7 +151,7 @@
                 const d = data[key];
                 if(d.role === 'driver') {
                     count++;
-                    driverMap[key] = d; // 儲存到記憶體
+                    driverMap[key] = d; 
                     
                     const item = document.createElement('div');
                     item.className = 'driver-item';
@@ -154,24 +176,20 @@
         }
         document.getElementById('count').innerText = count;
         
-        // 司機名單載入後，開始結算排行榜
         generateLeaderboard(); 
     });
 
-    // 🚀 v3.0 核心：生成本月排行榜
     async function generateLeaderboard() {
         const now = new Date();
         const year = now.getFullYear();
         const month = now.getMonth(); 
         
-        // 設定本月 1 號 00:00:00 到 本月底 23:59:59
         const startOfMonth = new Date(year, month, 1, 0, 0, 0);
         const endOfMonth = new Date(year, month + 1, 0, 23, 59, 59);
 
         document.getElementById('report-month-title').innerText = `${year}年${month + 1}月份`;
 
         try {
-            // 從 Firestore 撈取本月所有趟次
             const snapshot = await firestoreDb.collection('trips')
                 .where('timestamp', '>=', firebase.firestore.Timestamp.fromDate(startOfMonth))
                 .where('timestamp', '<=', firebase.firestore.Timestamp.fromDate(endOfMonth))
@@ -188,18 +206,16 @@
                 
                 stats[dId].total++;
                 
-                // 判斷是否為成功結帳
                 let isBlacklist = data.isBlacklist || false;
                 let status = data.status || '';
                 
                 if (status === 'completed' && !isBlacklist) {
                     stats[dId].completed++;
                 } else {
-                    stats[dId].failed++; // 取消或黑名單都算失敗/無效趟次
+                    stats[dId].failed++; 
                 }
             });
 
-            // 轉換為陣列並按「完成趟數」降序排列
             let ranked = Object.keys(stats).map(id => ({
                 id: id,
                 name: driverMap[id] ? driverMap[id].name : '未知司機 (已刪除)',
@@ -245,7 +261,6 @@
 
         } catch (error) {
             console.error("結算排行榜失敗:", error);
-            // 💡 如果出現索引錯誤，在 Console 點連結建立即可
             document.getElementById('leaderboard-content').innerHTML = `
                 <div style="text-align:center; padding: 20px; color:#e74c3c;">
                     <i class="fa-solid fa-triangle-exclamation fa-2x"></i><br><br>
@@ -255,7 +270,6 @@
         }
     }
 
-    // 2. 儲存/更新司機
     function saveDriver() {
         const uid = document.getElementById('uid').value.trim();
         const name = document.getElementById('name').value.trim();
@@ -281,7 +295,6 @@
         });
     }
 
-    // 3. 刪除司機
     function deleteDriver(uid, name) {
         Swal.fire({
             title: `確定要刪除「${name}」的權限嗎？`,
@@ -300,7 +313,6 @@
         });
     }
 
-    // 4. 帶入編輯
     function fillForm(uid, d) {
         document.getElementById('uid').value = uid;
         document.getElementById('name').value = d.name;
@@ -312,7 +324,6 @@
         Toast.fire({ icon: 'info', title: `已帶入 ${d.name} 的資料` });
     }
 
-    // 5. 清空表單
     function clearForm() {
         document.getElementById('uid').value = ''; document.getElementById('name').value = '';
         document.getElementById('car').value = ''; document.getElementById('phone').value = '';
