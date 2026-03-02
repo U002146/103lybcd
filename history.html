@@ -22,30 +22,20 @@
     
     .header {
         background: linear-gradient(135deg, #00C853, #1B5E20);
-        color: white; padding: 30px 20px;
-        border-bottom-left-radius: 24px; border-bottom-right-radius: 24px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        color: white; padding: 35px 20px 45px 20px;
+        border-bottom-left-radius: 30px; border-bottom-right-radius: 30px;
+        box-shadow: 0 6px 20px rgba(0,200,83,0.3);
         text-align: center; position: relative;
     }
     
-    .header h1 { margin: 0; font-size: 26px; font-weight: 900; letter-spacing: 1px; }
-    .header p { margin: 8px 0 0 0; font-size: 16px; opacity: 0.9; }
+    .header h1 { margin: 0; font-size: 28px; font-weight: 900; letter-spacing: 1px; }
+    .header p { margin: 8px 0 0 0; font-size: 16px; opacity: 0.9; font-weight: bold; }
     
-    .stats-card {
-        background: white; margin: -25px 20px 20px 20px; padding: 20px;
-        border-radius: 16px; box-shadow: 0 8px 25px rgba(0,0,0,0.08);
-        display: flex; justify-content: space-around; position: relative; z-index: 10;
-    }
-    
-    .stat-item { text-align: center; }
-    .stat-value { font-size: 32px; font-weight: 900; color: #00C853; line-height: 1.2; }
-    .stat-label { font-size: 14px; color: #757575; font-weight: bold; }
-    
-    .history-container { padding: 0 20px 40px 20px; }
+    .history-container { padding: 0 20px 40px 20px; margin-top: -25px; position: relative; z-index: 10; }
     
     .trip-card {
         background: white; border-radius: 16px; padding: 18px; margin-bottom: 15px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.05); border: 1px solid #eee;
+        box-shadow: 0 8px 20px rgba(0,0,0,0.06); border: 1px solid #eee;
         display: flex; flex-direction: column; gap: 12px;
     }
     
@@ -93,33 +83,22 @@
 
   <div id="app" style="display: none;">
     <div class="header">
-      <h1>🗂️ 我的乘車紀錄</h1>
+      <h1>🗂️ 近期乘車紀錄</h1>
       <p id="user-name">載入中...</p>
-    </div>
-
-    <div class="stats-card">
-      <div class="stat-item">
-        <div class="stat-value" id="total-trips">-</div>
-        <div class="stat-label">總搭乘趟數</div>
-      </div>
-      <div class="stat-item">
-        <div class="stat-value" style="color: #FF9800;">安心</div>
-        <div class="stat-label">車隊服務評級</div>
-      </div>
     </div>
 
     <div class="history-container" id="history-list">
       <div style="text-align: center; padding: 40px; color: #00C853;">
         <i class="fa-solid fa-circle-notch fa-spin fa-3x"></i>
-        <p style="margin-top: 15px; font-weight: bold;">正在翻閱帳本中...</p>
+        <p style="margin-top: 15px; font-weight: bold;">正在為您撈取近期紀錄...</p>
       </div>
     </div>
   </div>
 
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script>
-    const VERSION = "v10.0"; 
-    // ⚠️ 請務必替換為這支網頁專屬的 LIFF ID (建議在 LINE Developers 申請一個新的)
+    const VERSION = "v10.1"; 
+    // ⚠️ 請務必替換為這支網頁專屬的 LIFF ID
     const LIFF_ID = "2008907691-fVLGsJtK"; 
     
     // 官方客服電話 (用於遺失物協尋)
@@ -163,15 +142,16 @@
 
     async function fetchHistory() {
         try {
-            // 1. 從 Firestore 撈取該乘客的所有搭車紀錄
+            // 🚀 v10.1 核心防禦：強制時間倒序，且最多只抓取 10 筆！
             const snapshot = await firestoreDb.collection('trips')
                                               .where('passengerId', '==', passengerId)
+                                              .orderBy('timestamp', 'desc')
+                                              .limit(10)
                                               .get();
 
             const container = document.getElementById('history-list');
 
             if (snapshot.empty) {
-                document.getElementById('total-trips').innerText = "0";
                 container.innerHTML = `
                     <div class="empty-state">
                         <i class="fa-solid fa-receipt"></i>
@@ -182,30 +162,18 @@
                 return;
             }
 
-            // 2. 本地端時間排序 (越新的在越上面)
             let trips = [];
             snapshot.forEach(doc => trips.push(doc.data()));
-            
-            trips.sort((a, b) => {
-                let tA = a.timestamp ? a.timestamp.toDate() : new Date(0);
-                let tB = b.timestamp ? b.timestamp.toDate() : new Date(0);
-                return tB - tA;
-            });
 
-            // 統計正常完成的趟數
-            let validTripsCount = trips.filter(t => t.isBlacklist === false).length;
-            document.getElementById('total-trips').innerText = validTripsCount.toString();
-
-            // 3. 跨資料庫撈取司機真實資料並渲染畫面
             let html = '';
             for (let trip of trips) {
-                // 如果是黑名單紀錄，對乘客隱藏或顯示特定提示 (這裡選擇過濾掉，避免乘客看到自己被拉黑的紀錄)
+                // 如果是黑名單紀錄，對乘客隱藏
                 if(trip.isBlacklist === true) continue; 
 
                 let driverName = "花蓮車隊司機";
                 let driverCar = "專屬座車";
                 
-                // 拿著 driverId 去 RTDB 查真實名字跟車號
+                // 拿著 driverId 去 RTDB 查真實名字跟車號 (此為 RTDB 流量，極便宜)
                 if (trip.driverId) {
                     try {
                         let dSnap = await db.ref('drivers/' + trip.driverId).once('value');
@@ -260,11 +228,12 @@
 
         } catch (error) {
             console.error("讀取歷史紀錄失敗:", error);
+            // 💡 如果 Firestore 顯示沒有建立索引 (Index) 的錯誤，在 console 會給一條連結，點進去建立即可。
             document.getElementById('history-list').innerHTML = `
                 <div class="empty-state">
                     <i class="fa-solid fa-triangle-exclamation" style="color: #FF9800;"></i>
                     <h3>讀取失敗</h3>
-                    <p>請檢查網路連線後重新開啟</p>
+                    <p>伺服器正在升級索引中<br>請稍後再試</p>
                 </div>
             `;
         }
