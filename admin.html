@@ -5,31 +5,79 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>花蓮車隊 - 人事管理後台</title> <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script> 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <style>
-        body { font-family: -apple-system, sans-serif; background: #f0f2f5; padding: 20px; max-width: 600px; margin: 0 auto; }
-        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        h2 { margin-top: 0; color: #333; }
+        body { font-family: -apple-system, sans-serif; background: #f0f2f5; padding: 20px; max-width: 800px; margin: 0 auto; color: #333; }
+        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin-bottom: 25px; }
+        h2 { margin-top: 0; color: #333; display: flex; justify-content: space-between; align-items: center; }
+        
+        /* 表單與司機清單樣式 */
         .form-group { margin-bottom: 15px; }
         label { display: block; margin-bottom: 5px; font-weight: bold; color: #555; }
         input { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
-        button { width: 100%; padding: 15px; background: #2ecc71; color: white; border: none; border-radius: 8px; font-size: 18px; font-weight: bold; cursor: pointer; transition: 0.2s; }
-        button:hover { background: #27ae60; }
-        .del-btn { background: #e74c3c; margin-top: 5px; padding: 8px; font-size: 14px; border-radius: 6px; }
+        button.btn-save { width: 100%; padding: 15px; background: #2ecc71; color: white; border: none; border-radius: 8px; font-size: 18px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        button.btn-save:hover { background: #27ae60; }
+        
+        .del-btn { background: #e74c3c; color: white; padding: 8px 15px; font-size: 14px; border-radius: 6px; border: none; cursor: pointer; }
         .del-btn:hover { background: #c0392b; }
+        
         #driver-list { list-style: none; padding: 0; }
-        .driver-item { background: #fff; border-bottom: 1px solid #eee; padding: 15px; display: flex; justify-content: space-between; align-items: center; border-radius: 8px; margin-bottom: 8px; transition: 0.2s; }
-        .driver-item:hover { background: #f8f9fa; cursor: pointer; }
+        .driver-item { background: #fff; border: 1px solid #eee; padding: 15px; display: flex; justify-content: space-between; align-items: center; border-radius: 8px; margin-bottom: 8px; transition: 0.2s; }
+        .driver-item:hover { background: #f8f9fa; cursor: pointer; border-color: #ddd; }
         .driver-info span { display: block; font-size: 14px; color: #666; margin-top: 4px; }
         .driver-info b { font-size: 18px; color: #333; }
-        .avatar-preview { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid #ddd; margin-right: 12px; }
+        .avatar-preview { width: 45px; height: 45px; border-radius: 50%; object-fit: cover; border: 2px solid #ddd; margin-right: 15px; }
         .driver-flex { display: flex; align-items: center; }
+
+        /* 🚀 v3.0 排行榜與列印專屬樣式 */
+        .btn-print { background: #34495e; color: white; border: none; padding: 10px 15px; border-radius: 8px; font-size: 14px; font-weight: bold; cursor: pointer; }
+        .btn-print:hover { background: #2c3e50; }
+        
+        .leaderboard-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        .leaderboard-table th, .leaderboard-table td { border: 1px solid #ddd; padding: 12px; text-align: center; }
+        .leaderboard-table th { background: #f8f9fa; font-weight: bold; color: #555; }
+        .leaderboard-table tr:nth-child(even) { background-color: #fcfcfc; }
+        .medal { font-size: 22px; }
+        
+        .print-only-header { display: none; text-align: center; margin-bottom: 30px; }
+        .print-only-header h1 { margin: 0; font-size: 28px; color: #000; }
+        .print-only-header h2 { margin: 10px 0 0 0; font-size: 20px; color: #555; justify-content: center; }
+
+        /* 🖨️ 列印模式：隱藏雜物，只印報表 */
+        @media print {
+            body { background: white; padding: 0; }
+            .no-print { display: none !important; } /* 隱藏表單、名單、按鈕 */
+            .card { box-shadow: none; border: none; margin: 0; padding: 0; }
+            .print-only-header { display: block; } /* 顯示正式報表表頭 */
+            .leaderboard-table th, .leaderboard-table td { border: 1px solid #000; color: #000; } /* 加深表格格線 */
+            .leaderboard-table th { background: #eee; }
+        }
     </style>
 </head>
 <body>
 
-    <div class="card">
+    <div class="card" id="report-section">
+        <div class="print-only-header">
+            <h1>花蓮敬老愛心車隊</h1>
+            <h2><span id="report-month-title"></span> 營運結算排行榜</h2>
+        </div>
+        
+        <h2 class="no-print">
+            <span>🏆 本月營運排行榜</span>
+            <button class="btn-print" onclick="window.print()"><i class="fa-solid fa-print"></i> 列印 A4 報表</button>
+        </h2>
+        
+        <div id="leaderboard-content">
+            <div style="text-align:center; padding: 30px; color:#888;">
+                <i class="fa-solid fa-spinner fa-spin fa-2x"></i><br><br>數據結算中...
+            </div>
+        </div>
+    </div>
+
+    <div class="card no-print">
         <h2>👮‍♂️ 新增/修改司機</h2>
         <div class="form-group">
             <label>LINE ID (系統唯一識別碼)</label>
@@ -51,36 +99,40 @@
             <label>個人圓形大頭照 (圖片網址)</label>
             <input type="url" id="photo" placeholder="https://... (選填)">
         </div>
-        <button onclick="saveDriver()">💾 儲存 / 更新資料</button>
+        <button class="btn-save" onclick="saveDriver()">💾 儲存 / 更新資料</button>
     </div>
 
-    <div class="card">
+    <div class="card no-print">
         <h2>📋 現有司機名單 (<span id="count">0</span>)</h2>
         <div id="driver-list">載入中...</div>
     </div>
 
 <script>
     // Config
-    const firebaseConfig = { databaseURL: "https://hualientaxi-bb32f-default-rtdb.asia-southeast1.firebasedatabase.app/" };
+    const firebaseConfig = { projectId: "hualientaxi-bb32f", databaseURL: "https://hualientaxi-bb32f-default-rtdb.asia-southeast1.firebasedatabase.app/" };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
+    const firestoreDb = firebase.firestore();
 
-    // 讀取列表
+    let driverMap = {}; // 存放所有司機資料供排行榜查詢名字
+
+    // 1. 讀取現有司機名單
     db.ref('drivers').on('value', snapshot => {
         const list = document.getElementById('driver-list');
         list.innerHTML = '';
         let count = 0;
         const data = snapshot.val();
+        driverMap = {}; 
         
         if(data) {
             Object.keys(data).forEach(key => {
                 const d = data[key];
                 if(d.role === 'driver') {
                     count++;
+                    driverMap[key] = d; // 儲存到記憶體
+                    
                     const item = document.createElement('div');
                     item.className = 'driver-item';
-                    
-                    // 若無照片給予預設圖示
                     const avatarUrl = d.photo || 'https://cdn-icons-png.flaticon.com/512/3237/3237472.png';
 
                     item.innerHTML = `
@@ -92,43 +144,135 @@
                                 <span style="font-size:10px;color:#aaa;">ID: ${key}</span>
                             </div>
                         </div>
-                        <button class="del-btn" style="width:auto;" onclick="deleteDriver('${key}', '${d.name}')">刪除</button>
+                        <button class="del-btn" onclick="deleteDriver('${key}', '${d.name}')">刪除</button>
                     `;
                     
-                    // 點擊項目可帶入編輯 (避開刪除按鈕)
-                    item.onclick = (e) => { 
-                        if(e.target.tagName !== 'BUTTON') fillForm(key, d); 
-                    };
+                    item.onclick = (e) => { if(e.target.tagName !== 'BUTTON') fillForm(key, d); };
                     list.appendChild(item);
                 }
             });
         }
         document.getElementById('count').innerText = count;
+        
+        // 司機名單載入後，開始結算排行榜
+        generateLeaderboard(); 
     });
 
+    // 🚀 v3.0 核心：生成本月排行榜
+    async function generateLeaderboard() {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = now.getMonth(); 
+        
+        // 設定本月 1 號 00:00:00 到 本月底 23:59:59
+        const startOfMonth = new Date(year, month, 1, 0, 0, 0);
+        const endOfMonth = new Date(year, month + 1, 0, 23, 59, 59);
+
+        document.getElementById('report-month-title').innerText = `${year}年${month + 1}月份`;
+
+        try {
+            // 從 Firestore 撈取本月所有趟次
+            const snapshot = await firestoreDb.collection('trips')
+                .where('timestamp', '>=', firebase.firestore.Timestamp.fromDate(startOfMonth))
+                .where('timestamp', '<=', firebase.firestore.Timestamp.fromDate(endOfMonth))
+                .get();
+
+            let stats = {};
+
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                const dId = data.driverId;
+                if(!dId) return;
+
+                if(!stats[dId]) stats[dId] = { total: 0, completed: 0, failed: 0 };
+                
+                stats[dId].total++;
+                
+                // 判斷是否為成功結帳
+                let isBlacklist = data.isBlacklist || false;
+                let status = data.status || '';
+                
+                if (status === 'completed' && !isBlacklist) {
+                    stats[dId].completed++;
+                } else {
+                    stats[dId].failed++; // 取消或黑名單都算失敗/無效趟次
+                }
+            });
+
+            // 轉換為陣列並按「完成趟數」降序排列
+            let ranked = Object.keys(stats).map(id => ({
+                id: id,
+                name: driverMap[id] ? driverMap[id].name : '未知司機 (已刪除)',
+                car: driverMap[id] ? driverMap[id].car : '未知車號',
+                completed: stats[id].completed,
+                failed: stats[id].failed
+            })).sort((a, b) => b.completed - a.completed);
+
+            let html = `
+                <table class="leaderboard-table">
+                    <tr>
+                        <th width="15%">排名</th>
+                        <th width="30%">司機姓名</th>
+                        <th width="25%">車牌號碼</th>
+                        <th width="15%">✅ 完成趟數</th>
+                        <th width="15%">❌ 取消/封鎖</th>
+                    </tr>
+            `;
+
+            if (ranked.length === 0) {
+                html += `<tr><td colspan="5" style="color:#999; padding:20px;">本月份目前尚無任何乘車紀錄</td></tr>`;
+            } else {
+                ranked.forEach((r, index) => {
+                    let medal = index + 1;
+                    if(index === 0) medal = '🥇';
+                    else if(index === 1) medal = '🥈';
+                    else if(index === 2) medal = '🥉';
+
+                    html += `
+                        <tr>
+                            <td class="medal">${medal}</td>
+                            <td><b style="font-size:16px;">${r.name}</b></td>
+                            <td style="color:#555;">${r.car}</td>
+                            <td style="color:#2ecc71; font-weight:900; font-size:18px;">${r.completed}</td>
+                            <td style="color:#e74c3c; font-weight:bold;">${r.failed}</td>
+                        </tr>
+                    `;
+                });
+            }
+            html += `</table>`;
+            
+            document.getElementById('leaderboard-content').innerHTML = html;
+
+        } catch (error) {
+            console.error("結算排行榜失敗:", error);
+            // 💡 如果出現索引錯誤，在 Console 點連結建立即可
+            document.getElementById('leaderboard-content').innerHTML = `
+                <div style="text-align:center; padding: 20px; color:#e74c3c;">
+                    <i class="fa-solid fa-triangle-exclamation fa-2x"></i><br><br>
+                    資料庫讀取失敗。若伺服器正在建立索引，請等待 3 分鐘後重新整理網頁。
+                </div>
+            `;
+        }
+    }
+
+    // 2. 儲存/更新司機
     function saveDriver() {
         const uid = document.getElementById('uid').value.trim();
         const name = document.getElementById('name').value.trim();
         const car = document.getElementById('car').value.trim();
         const phone = document.getElementById('phone').value.trim();
-        const photo = document.getElementById('photo').value.trim(); // 🚀 獲取照片網址
+        const photo = document.getElementById('photo').value.trim();
 
         if(!uid || !name || !car || !phone) { 
             Swal.fire({ icon: 'warning', title: '資料不完整', text: '除照片外，所有欄位皆為必填！' });
             return; 
         }
 
-        // 顯示儲存中
         Swal.fire({ title: '儲存中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
 
         db.ref('drivers/' + uid).update({
-            name: name,
-            car: car,
-            phone: phone,
-            photo: photo, // 🚀 寫入照片網址
-            role: 'driver',
-            staticDataSynced: true,
-            lastUpdate: Date.now()
+            name: name, car: car, phone: phone, photo: photo,
+            role: 'driver', staticDataSynced: true, lastUpdate: Date.now()
         }).then(() => {
             Swal.fire({ icon: 'success', title: '✅ 儲存成功！', timer: 1500, showConfirmButton: false });
             clearForm();
@@ -137,48 +281,42 @@
         });
     }
 
+    // 3. 刪除司機
     function deleteDriver(uid, name) {
-        // 🚀 使用 SweetAlert 進行刪除確認
         Swal.fire({
             title: `確定要刪除「${name}」的權限嗎？`,
             text: "刪除後他將無法登入司機端 APP！",
             icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#d33',
-            cancelButtonColor: '#3085d6',
-            confirmButtonText: '是的，我要刪除',
-            cancelButtonText: '取消'
+            showCancelButton: true, confirmButtonColor: '#d33', cancelButtonColor: '#3085d6',
+            confirmButtonText: '是的，我要刪除', cancelButtonText: '取消'
         }).then((result) => {
             if (result.isConfirmed) {
                 db.ref('drivers/' + uid).remove()
                 .then(() => {
                     Swal.fire({ icon: 'success', title: '已刪除', text: `「${name}」已被移除`, timer: 1500, showConfirmButton: false });
-                    clearForm(); // 如果正在編輯該人，順便清空表單
+                    clearForm(); 
                 });
             }
         });
     }
 
+    // 4. 帶入編輯
     function fillForm(uid, d) {
         document.getElementById('uid').value = uid;
         document.getElementById('name').value = d.name;
         document.getElementById('car').value = d.car;
         document.getElementById('phone').value = d.phone;
-        document.getElementById('photo').value = d.photo || ''; // 🚀 載入照片網址
-        
+        document.getElementById('photo').value = d.photo || ''; 
         window.scrollTo({ top: 0, behavior: 'smooth' });
-        
-        // 提醒已載入資料
         const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, timerProgressBar: true });
         Toast.fire({ icon: 'info', title: `已帶入 ${d.name} 的資料` });
     }
 
+    // 5. 清空表單
     function clearForm() {
-        document.getElementById('uid').value = '';
-        document.getElementById('name').value = '';
-        document.getElementById('car').value = '';
-        document.getElementById('phone').value = '';
-        document.getElementById('photo').value = ''; // 🚀 清空照片欄位
+        document.getElementById('uid').value = ''; document.getElementById('name').value = '';
+        document.getElementById('car').value = ''; document.getElementById('phone').value = '';
+        document.getElementById('photo').value = '';
     }
 </script>
 </body>
