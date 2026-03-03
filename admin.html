@@ -1,366 +1,409 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>花蓮車隊 - 人事管理後台</title> <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script> 
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <style>
-        body { font-family: -apple-system, 'PingFang TC', 'Microsoft JhengHei', sans-serif; background: #f0f2f5; padding: 20px; max-width: 800px; margin: 0 auto; color: #333; }
-        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin-bottom: 25px; }
-        h2 { margin-top: 0; color: #333; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 20px; }
-        
-        /* 表單與司機清單樣式 */
-        .form-group { margin-bottom: 15px; }
-        label { display: block; margin-bottom: 5px; font-weight: bold; color: #555; }
-        input { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
-        button.btn-save { width: 100%; padding: 15px; background: #2ecc71; color: white; border: none; border-radius: 8px; font-size: 18px; font-weight: bold; cursor: pointer; transition: 0.2s; }
-        button.btn-save:hover { background: #27ae60; }
-        
-        .del-btn { background: #e74c3c; color: white; padding: 8px 15px; font-size: 14px; border-radius: 6px; border: none; cursor: pointer; }
-        .del-btn:hover { background: #c0392b; }
-        
-        #driver-list { list-style: none; padding: 0; }
-        .driver-item { background: #fff; border: 1px solid #eee; padding: 15px; display: flex; justify-content: space-between; align-items: center; border-radius: 8px; margin-bottom: 8px; transition: 0.2s; }
-        .driver-item:hover { background: #f8f9fa; cursor: pointer; border-color: #ddd; }
-        .driver-info span { display: block; font-size: 14px; color: #666; margin-top: 4px; }
-        .driver-info b { font-size: 18px; color: #333; }
-        .avatar-preview { width: 45px; height: 45px; border-radius: 50%; object-fit: cover; border: 2px solid #ddd; margin-right: 15px; }
-        .driver-flex { display: flex; align-items: center; }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>花蓮車隊 - 人事管理後台 // v7.0</title>
+  
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+  
+  <!-- UI 套件 -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
-        /* 排行榜專屬樣式 */
-        .leaderboard-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        .leaderboard-table th, .leaderboard-table td { border: 1px solid #ddd; padding: 12px; text-align: center; }
-        .leaderboard-table th { background: #f8f9fa; font-weight: bold; color: #555; }
-        .leaderboard-table tr:nth-child(even) { background-color: #fcfcfc; }
-        .medal { font-size: 22px; }
-        
-        /* 🚀 v4.0 黑名單專屬樣式 */
-        .blacklist-item { background: #fffaf0; border: 1px solid #ffcdd2; padding: 15px; display: flex; justify-content: space-between; align-items: center; border-radius: 8px; margin-bottom: 10px; }
-        .blacklist-info b { font-size: 16px; color: #c0392b; font-family: monospace; display: block; margin-bottom: 4px; }
-        .blacklist-info span { font-size: 13px; color: #555; display: block; }
-        .btn-unlock { background: #3498db; color: white; border: none; padding: 10px 15px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 14px; transition: 0.2s; display: flex; align-items: center; gap: 6px; }
-        .btn-unlock:hover { background: #2980b9; transform: scale(0.98); }
-    </style>
+  <style>
+    body { background-color: #f3f4f6; font-family: -apple-system, Roboto, sans-serif; padding-bottom: 50px; }
+    .card-shadow { box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+    /* 隱藏捲軸但保持可滑動 */
+    ::-webkit-scrollbar { width: 0px; background: transparent; }
+  </style>
 </head>
-<body>
+<body class="p-4">
 
-    <div class="card">
-        <h2><span>🏆 <span id="report-month-title"></span> 營運排行榜</span></h2>
-        <div id="leaderboard-content">
-            <div style="text-align:center; padding: 30px; color:#888;">
-                <i class="fa-solid fa-spinner fa-spin fa-2x"></i><br><br>數據結算中...
-            </div>
-        </div>
+  <div class="max-w-md mx-auto space-y-6">
+    
+    <!-- 🏆 區塊一：營運排行榜 (含封鎖數) -->
+    <div class="bg-white rounded-2xl p-5 card-shadow">
+      <h2 class="text-xl font-black text-gray-800 mb-4 border-b pb-2">
+        <i class="fa-solid fa-trophy text-amber-500 mr-2"></i>本月營運排行榜
+      </h2>
+      <div class="overflow-hidden rounded-xl border border-gray-200">
+        <table class="w-full text-center text-sm">
+          <thead class="bg-gray-50 text-gray-600 font-bold border-b">
+            <tr>
+              <th class="py-3 px-2">排名</th>
+              <th class="py-3 px-2">司機</th>
+              <th class="py-3 px-2"><i class="fa-solid fa-check-square text-green-500 text-lg"></i><br>成功</th>
+              <th class="py-3 px-2"><i class="fa-solid fa-xmark-square text-red-500 text-lg"></i><br>取消</th>
+              <!-- 🚀 v7.0 新增封鎖數量統計 -->
+              <th class="py-3 px-2"><i class="fa-solid fa-ban text-gray-500 text-lg"></i><br>封鎖</th>
+            </tr>
+          </thead>
+          <tbody id="leaderboard-body" class="divide-y divide-gray-100 bg-white">
+            <tr><td colspan="5" class="py-4 text-gray-400"><i class="fa-solid fa-spinner fa-spin"></i> 數據載入中...</td></tr>
+          </tbody>
+        </table>
+      </div>
     </div>
 
-    <div class="card" style="border-top: 5px solid #e74c3c;">
-        <h2><span style="color: #e74c3c;">🚫 黑名單解鎖中心</span></h2>
-        <div id="blacklist-container">
-            <div style="text-align:center; padding: 20px; color:#888;">載入中...</div>
-        </div>
+    <!-- 🚫 區塊二：黑名單解鎖中心 -->
+    <div class="bg-white rounded-2xl p-5 card-shadow border-t-4 border-red-500">
+      <h2 class="text-xl font-black text-red-600 mb-4 border-b pb-2">
+        <i class="fa-solid fa-ban mr-2"></i>黑名單解鎖中心
+      </h2>
+      <div id="blacklist-container" class="space-y-3">
+        <div class="text-center text-green-600 font-bold py-4"><i class="fa-solid fa-face-smile text-xl mb-2"></i><br>目前沒有任何黑名單乘客</div>
+      </div>
     </div>
 
-    <div class="card">
-        <h2>👮‍♂️ 新增/修改司機</h2>
-        <div class="form-group">
-            <label>LINE ID (系統唯一識別碼)</label>
-            <input type="text" id="uid" placeholder="Uxxxxxxxx...">
+    <!-- 👮‍♂️ 區塊三：新增/修改司機 -->
+    <div class="bg-white rounded-2xl p-5 card-shadow border-t-4 border-blue-500">
+      <h2 class="text-xl font-black text-gray-800 mb-4 border-b pb-2">
+        <i class="fa-solid fa-user-plus text-blue-500 mr-2"></i>新增/修改司機
+      </h2>
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm font-bold text-gray-700 mb-1">LINE ID (系統唯一識別碼)</label>
+          <input type="text" id="input-id" class="w-full bg-gray-50 border border-gray-300 rounded-xl px-4 py-3 font-bold focus:ring-2 focus:ring-blue-500 outline-none" placeholder="例如: U1234567890abcdef...">
         </div>
-        <div class="form-group">
-            <label>姓名 (暱稱)</label>
-            <input type="text" id="name" placeholder="例如：學銘">
+        <div>
+          <label class="block text-sm font-bold text-gray-700 mb-1">姓名 (暱稱)</label>
+          <input type="text" id="input-name" class="w-full bg-gray-50 border border-gray-300 rounded-xl px-4 py-3 font-bold focus:ring-2 focus:ring-blue-500 outline-none" placeholder="例如: 學銘">
         </div>
-        <div class="form-group">
-            <label>車牌號碼</label>
-            <input type="text" id="car" placeholder="例如：TDP-1123">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-sm font-bold text-gray-700 mb-1">車牌號碼</label>
+            <input type="text" id="input-car" class="w-full bg-gray-50 border border-gray-300 rounded-xl px-4 py-3 font-bold focus:ring-2 focus:ring-blue-500 outline-none" placeholder="TDP-1123">
+          </div>
+          <div>
+            <label class="block text-sm font-bold text-gray-700 mb-1">手機號碼</label>
+            <input type="tel" id="input-phone" class="w-full bg-gray-50 border border-gray-300 rounded-xl px-4 py-3 font-bold focus:ring-2 focus:ring-blue-500 outline-none" placeholder="09XX-XXX-XXX">
+          </div>
         </div>
-        <div class="form-group">
-            <label>聯絡電話</label>
-            <input type="tel" id="phone" placeholder="例如：0912345678">
+        <div>
+          <label class="block text-sm font-bold text-gray-700 mb-1">大頭照網址 (URL)</label>
+          <input type="text" id="input-photo" class="w-full bg-gray-50 border border-gray-300 rounded-xl px-4 py-3 font-bold focus:ring-2 focus:ring-blue-500 outline-none" placeholder="https://...">
         </div>
-        <div class="form-group">
-            <label>個人圓形大頭照 (圖片網址)</label>
-            <input type="url" id="photo" placeholder="https://... (選填)">
-        </div>
-        <button class="btn-save" onclick="saveDriver()">💾 儲存 / 更新資料</button>
+        <button onclick="saveDriver()" class="w-full bg-blue-600 text-white font-black text-lg py-4 rounded-xl shadow-lg active:scale-95 transition-transform mt-2">
+          <i class="fa-solid fa-save mr-2"></i>儲存司機資料
+        </button>
+      </div>
     </div>
 
-    <div class="card">
-        <h2>📋 現有司機名單 (<span id="count">0</span>)</h2>
-        <div id="driver-list">載入中...</div>
+    <!-- 📋 區塊四：現有司機名單 (含停權機制) -->
+    <div class="bg-white rounded-2xl p-5 card-shadow">
+      <h2 class="text-xl font-black text-gray-800 mb-4 border-b pb-2 flex justify-between items-center">
+        <span><i class="fa-solid fa-clipboard-list text-amber-600 mr-2"></i>現有司機名單</span>
+        <span id="driver-count-badge" class="bg-amber-100 text-amber-800 text-sm py-1 px-3 rounded-full">載入中</span>
+      </h2>
+      <div id="driver-list-container" class="space-y-3">
+        <!-- 司機卡片動態載入區 -->
+      </div>
     </div>
 
-<script>
-    // Config
-    const firebaseConfig = { projectId: "hualientaxi-bb32f", databaseURL: "https://hualientaxi-bb32f-default-rtdb.asia-southeast1.firebasedatabase.app/" };
-    firebase.initializeApp(firebaseConfig);
+  </div>
+
+  <script>
+    const VERSION = "v7.0"; // 停權機制與封鎖排行版
+    
+    // 🔥 Firebase 設定 (請直接使用你的設定，此處已對應你的 hualientaxi-bb32f)
+    const firebaseConfig = { 
+        databaseURL: "https://hualientaxi-bb32f-default-rtdb.asia-southeast1.firebasedatabase.app/",
+        projectId: "hualientaxi-bb32f" 
+    };
+    if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
     const db = firebase.database();
     const firestoreDb = firebase.firestore();
 
-    let driverMap = {}; 
+    window.onload = () => {
+      fetchLeaderboard();
+      listenToBlacklist();
+      listenToDrivers();
+    };
 
-    // 1. 讀取司機名單
-    db.ref('drivers').on('value', snapshot => {
-        const list = document.getElementById('driver-list');
-        list.innerHTML = '';
-        let count = 0;
-        const data = snapshot.val();
-        driverMap = {}; 
+    // ==========================================
+    // 1. 🏆 營運排行榜邏輯 (新增封鎖數統計)
+    // ==========================================
+    async function fetchLeaderboard() {
+      const now = new Date();
+      // 設定為當月 1 號
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const startTimestamp = firebase.firestore.Timestamp.fromDate(startOfMonth);
+
+      try {
+        const snapshot = await firestoreDb.collection('trips')
+            .where('timestamp', '>=', startTimestamp)
+            .get();
+
+        const stats = {};
         
-        if(data) {
-            Object.keys(data).forEach(key => {
-                const d = data[key];
-                if(d.role === 'driver') {
-                    count++;
-                    driverMap[key] = d; 
-                    
-                    const item = document.createElement('div');
-                    item.className = 'driver-item';
-                    const avatarUrl = d.photo || 'https://cdn-icons-png.flaticon.com/512/3237/3237472.png';
-
-                    item.innerHTML = `
-                        <div class="driver-flex">
-                            <img src="${avatarUrl}" class="avatar-preview" onerror="this.src='https://cdn-icons-png.flaticon.com/512/3237/3237472.png'">
-                            <div class="driver-info">
-                                <b>${d.name}</b>
-                                <span>${d.car} | ${d.phone}</span>
-                                <span style="font-size:10px;color:#aaa;">ID: ${key}</span>
-                            </div>
-                        </div>
-                        <button class="del-btn" onclick="deleteDriver('${key}', '${d.name}')">刪除</button>
-                    `;
-                    item.onclick = (e) => { if(e.target.tagName !== 'BUTTON') fillForm(key, d); };
-                    list.appendChild(item);
-                }
-            });
-        }
-        document.getElementById('count').innerText = count;
-        
-        generateLeaderboard(); 
-        loadBlacklist(); // 🚀 載入黑名單
-    });
-
-    // 2. 結算排行榜 (移除了印表機樣式與複雜點擊，回歸最純粹的數據呈現)
-    async function generateLeaderboard() {
-        const now = new Date();
-        const year = now.getFullYear();
-        const month = now.getMonth(); 
-        
-        const startOfMonth = new Date(year, month, 1, 0, 0, 0);
-        const endOfMonth = new Date(year, month + 1, 0, 23, 59, 59);
-
-        document.getElementById('report-month-title').innerText = `${year}年${month + 1}月份`;
-
-        try {
-            const snapshot = await firestoreDb.collection('trips')
-                .where('timestamp', '>=', firebase.firestore.Timestamp.fromDate(startOfMonth))
-                .where('timestamp', '<=', firebase.firestore.Timestamp.fromDate(endOfMonth))
-                .get();
-
-            let stats = {};
-
-            snapshot.forEach(doc => {
-                const data = doc.data();
-                const dId = data.driverId;
-                if(!dId) return;
-
-                if(!stats[dId]) stats[dId] = { completed: 0, failed: 0 };
-                
-                let isBlacklist = data.isBlacklist || false;
-                let status = data.status || '';
-                
-                if (status === 'completed' && !isBlacklist) {
-                    stats[dId].completed++;
-                } else {
-                    stats[dId].failed++; 
-                }
-            });
-
-            let ranked = Object.keys(stats).map(id => ({
-                name: driverMap[id] ? driverMap[id].name : '未知司機',
-                car: driverMap[id] ? driverMap[id].car : '未知車號',
-                completed: stats[id].completed,
-                failed: stats[id].failed
-            })).sort((a, b) => b.completed - a.completed);
-
-            let html = `
-                <table class="leaderboard-table">
-                    <tr>
-                        <th width="15%">排名</th>
-                        <th width="35%">司機姓名</th>
-                        <th width="25%">車牌號碼</th>
-                        <th width="15%">✅ 成功</th>
-                        <th width="10%">❌ 取消</th>
-                    </tr>
-            `;
-
-            if (ranked.length === 0) {
-                html += `<tr><td colspan="5" style="color:#999; padding:20px;">本月份目前尚無紀錄</td></tr>`;
-            } else {
-                ranked.forEach((r, index) => {
-                    let medal = index + 1;
-                    if(index === 0) medal = '🥇';
-                    else if(index === 1) medal = '🥈';
-                    else if(index === 2) medal = '🥉';
-
-                    html += `
-                        <tr>
-                            <td class="medal">${medal}</td>
-                            <td style="font-weight:bold; font-size:16px;">${r.name}</td>
-                            <td style="color:#555;">${r.car}</td>
-                            <td style="color:#2ecc71; font-weight:900; font-size:18px;">${r.completed}</td>
-                            <td style="color:#e74c3c; font-weight:bold;">${r.failed}</td>
-                        </tr>
-                    `;
-                });
-            }
-            html += `</table>`;
-            document.getElementById('leaderboard-content').innerHTML = html;
-
-        } catch (error) {
-            console.error("排行榜讀取失敗:", error);
-            document.getElementById('leaderboard-content').innerHTML = `<div style="text-align:center; padding: 20px; color:#e74c3c;">資料庫讀取失敗或索引建立中</div>`;
-        }
-    }
-
-    // 🚀 3. v4.0 核心：即時監聽與載入黑名單
-    function loadBlacklist() {
-        firestoreDb.collection('blacklists').orderBy('timestamp', 'desc').onSnapshot(snapshot => {
-            const container = document.getElementById('blacklist-container');
-            
-            if (snapshot.empty) {
-                container.innerHTML = `<div style="text-align:center; padding: 20px; color:#2ecc71; font-weight:bold;"><i class="fa-solid fa-face-smile"></i> 目前沒有任何黑名單乘客</div>`;
-                return;
-            }
-
-            let html = '';
-            snapshot.forEach(doc => {
-                const data = doc.data();
-                const passengerId = doc.id; // 客人的 LINE ID
-                const driverId = data.driverId;
-                
-                // 反查是哪個司機封鎖的
-                let driverName = driverMap[driverId] ? driverMap[driverId].name : "未知司機";
-                
-                let timeStr = "未知時間";
-                if (data.timestamp) {
-                    let dt = data.timestamp.toDate();
-                    timeStr = `${dt.getFullYear()}/${(dt.getMonth()+1).toString().padStart(2,'0')}/${dt.getDate().toString().padStart(2,'0')} ${dt.getHours().toString().padStart(2,'0')}:${dt.getMinutes().toString().padStart(2,'0')}`;
-                }
-
-                html += `
-                    <div class="blacklist-item">
-                        <div class="blacklist-info">
-                            <b>ID: ${passengerId}</b>
-                            <span><i class="fa-solid fa-clock"></i> 封鎖時間：${timeStr}</span>
-                            <span><i class="fa-solid fa-user-shield"></i> 執行司機：${driverName}</span>
-                        </div>
-                        <button class="btn-unlock" onclick="unlockPassenger('${passengerId}')">
-                            <i class="fa-solid fa-key"></i> 解除封鎖
-                        </button>
-                    </div>
-                `;
-            });
-            container.innerHTML = html;
-        }, error => {
-            console.error("讀取黑名單失敗:", error);
+        snapshot.forEach(doc => {
+          const data = doc.data();
+          const dId = data.driverId;
+          if(!dId) return;
+          
+          if(!stats[dId]) {
+            stats[dId] = { id: dId, name: data.driverName || '未知司機', car: '', success: 0, cancel: 0, block: 0 };
+          }
+          
+          // 🚀 v7.0 判斷邏輯：成功、取消、封鎖
+          if (data.isBlacklist === true || data.status === 'blacklisted') {
+            stats[dId].block += 1;
+          } else if (data.status === 'completed') {
+            stats[dId].success += 1;
+          } else if (data.status === 'cancelled') {
+            stats[dId].cancel += 1;
+          }
         });
-    }
 
-    // 🚀 4. 解除封鎖 (特赦機制)
-    function unlockPassenger(passengerId) {
-        Swal.fire({
-            title: '確定要解除封鎖嗎？',
-            text: "解除後，該名乘客將可以重新使用一鍵叫車系統！",
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#3498db',
-            cancelButtonColor: '#95a5a6',
-            confirmButtonText: '是的，解除封鎖',
-            cancelButtonText: '取消'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                // 將該乘客從 Firestore 的 blacklists 集合中刪除
-                firestoreDb.collection('blacklists').doc(passengerId).delete().then(() => {
-                    Swal.fire({
-                        icon: 'success',
-                        title: '已解除封鎖',
-                        text: '該名乘客已恢復叫車權限',
-                        timer: 1500,
-                        showConfirmButton: false
-                    });
-                }).catch((error) => {
-                    Swal.fire({ icon: 'error', title: '操作失敗', text: error.message });
-                });
-            }
+        // 嘗試去 RTDB 抓車牌跟最新名字
+        const dbSnap = await db.ref('drivers').once('value');
+        const rtdbData = dbSnap.val() || {};
+        
+        let sortedDrivers = Object.values(stats).map(s => {
+          if (rtdbData[s.id]) {
+            s.name = rtdbData[s.id].name;
+            s.car = rtdbData[s.id].carNo || '';
+          }
+          return s;
         });
+
+        // 依成功數排序
+        sortedDrivers.sort((a, b) => b.success - a.success);
+        renderLeaderboard(sortedDrivers);
+
+      } catch (e) {
+        console.error("抓取排行榜失敗", e);
+        document.getElementById('leaderboard-body').innerHTML = `<tr><td colspan="5" class="py-4 text-red-500">權限錯誤或尚未建立索引</td></tr>`;
+      }
     }
 
-    // --- 以下為原本的司機管理功能 ---
+    function renderLeaderboard(drivers) {
+      const tbody = document.getElementById('leaderboard-body');
+      if(drivers.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="py-6 text-gray-500 font-bold">本月尚無任何訂單紀錄</td></tr>`;
+        return;
+      }
+
+      let html = '';
+      const medals = ['🥇', '🥈', '🥉'];
+      
+      drivers.forEach((d, index) => {
+        const rankStr = index < 3 ? `<span class="text-2xl">${medals[index]}</span>` : `<span class="font-bold text-gray-500">${index + 1}</span>`;
+        html += `
+          <tr class="hover:bg-gray-50 transition-colors">
+            <td class="py-3">${rankStr}</td>
+            <td class="py-3 font-black text-gray-800">${d.name}</td>
+            <td class="py-3 font-bold text-green-600 text-lg">${d.success}</td>
+            <td class="py-3 font-bold text-red-500">${d.cancel}</td>
+            <td class="py-3 font-bold text-gray-500">${d.block}</td>
+          </tr>
+        `;
+      });
+      tbody.innerHTML = html;
+    }
+
+    // ==========================================
+    // 2. 🚫 黑名單中心邏輯
+    // ==========================================
+    function listenToBlacklist() {
+      firestoreDb.collection('blacklists').orderBy('timestamp', 'desc').onSnapshot(snapshot => {
+        const container = document.getElementById('blacklist-container');
+        if (snapshot.empty) {
+          container.innerHTML = `<div class="text-center text-green-600 font-bold py-4 bg-green-50 rounded-xl border border-green-200"><i class="fa-solid fa-face-smile text-2xl mb-2"></i><br>目前沒有任何黑名單乘客</div>`;
+          return;
+        }
+
+        let html = '';
+        snapshot.forEach(doc => {
+          const id = doc.id;
+          const data = doc.data();
+          const dateStr = data.timestamp ? data.timestamp.toDate().toLocaleString('zh-TW', {month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit'}) : '未知時間';
+          
+          html += `
+            <div class="flex justify-between items-center bg-red-50 p-3 rounded-xl border border-red-100">
+              <div class="overflow-hidden">
+                <div class="font-bold text-red-800 text-sm truncate">ID: ${id}</div>
+                <div class="text-xs text-red-500 mt-1"><i class="fa-regular fa-clock"></i> 封鎖時間: ${dateStr}</div>
+              </div>
+              <button onclick="unlockBlacklist('${id}')" class="ml-2 bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg shadow-sm whitespace-nowrap active:scale-95 transition-transform">
+                特赦解鎖
+              </button>
+            </div>
+          `;
+        });
+        container.innerHTML = html;
+      });
+    }
+
+    function unlockBlacklist(userId) {
+      Swal.fire({
+        title: '確定要特赦此乘客？',
+        text: "解鎖後，該乘客將可以再次使用車隊叫車系統。",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#10B981',
+        cancelButtonColor: '#6B7280',
+        confirmButtonText: '是的，解除封鎖',
+        cancelButtonText: '取消'
+      }).then((result) => {
+        if (result.isConfirmed) {
+          firestoreDb.collection('blacklists').doc(userId).delete().then(() => {
+            Swal.fire({icon: 'success', title: '已特赦', text: '該乘客已從黑名單移除', timer: 1500, showConfirmButton: false});
+          });
+        }
+      });
+    }
+
+    // ==========================================
+    // 3. 👮‍♂️ 司機資料管理 (含停權機制)
+    // ==========================================
     function saveDriver() {
-        const uid = document.getElementById('uid').value.trim();
-        const name = document.getElementById('name').value.trim();
-        const car = document.getElementById('car').value.trim();
-        const phone = document.getElementById('phone').value.trim();
-        const photo = document.getElementById('photo').value.trim();
+      const id = document.getElementById('input-id').value.trim();
+      const name = document.getElementById('input-name').value.trim();
+      const car = document.getElementById('input-car').value.trim();
+      const phone = document.getElementById('input-phone').value.trim();
+      const photo = document.getElementById('input-photo').value.trim();
 
-        if(!uid || !name || !car || !phone) { 
-            Swal.fire({ icon: 'warning', title: '資料不完整', text: '除照片外，所有欄位皆為必填！' });
-            return; 
+      if(!id || !name) {
+        Swal.fire({ icon: 'error', title: '資料不完整', text: '請至少輸入 LINE ID 與姓名' });
+        return;
+      }
+
+      // 儲存司機資料，預設 isSuspended 為 false
+      db.ref('drivers/' + id).update({
+        name: name,
+        carNo: car,
+        phone: phone,
+        photo: photo || 'https://cdn-icons-png.flaticon.com/512/3237/3237472.png',
+        // 如果是新司機，確保他一開始沒被停權
+        isSuspended: firebase.database.ServerValue.increment(0) // 佔位用，這招可以避免覆蓋舊的 boolean 值
+      }).then(() => {
+        // 如果該節點沒有 isSuspended，補上 false
+        db.ref('drivers/' + id + '/isSuspended').transaction(current => {
+          return current === null ? false : current;
+        });
+
+        Swal.fire({ icon: 'success', title: '儲存成功', text: '司機資料已同步至資料庫', timer: 1500, showConfirmButton: false });
+        // 清空表單
+        document.getElementById('input-id').value = '';
+        document.getElementById('input-name').value = '';
+        document.getElementById('input-car').value = '';
+        document.getElementById('input-phone').value = '';
+        document.getElementById('input-photo').value = '';
+      });
+    }
+
+    function listenToDrivers() {
+      db.ref('drivers').on('value', snapshot => {
+        const container = document.getElementById('driver-list-container');
+        const badge = document.getElementById('driver-count-badge');
+        
+        if (!snapshot.exists()) {
+          container.innerHTML = `<div class="text-center text-gray-500 font-bold py-4">目前沒有建立任何司機資料</div>`;
+          badge.innerText = `0 人`;
+          return;
         }
 
-        Swal.fire({ title: '儲存中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
+        const data = snapshot.val();
+        let html = '';
+        let count = 0;
 
-        db.ref('drivers/' + uid).update({
-            name: name, car: car, phone: phone, photo: photo,
-            role: 'driver', staticDataSynced: true, lastUpdate: Date.now()
-        }).then(() => {
-            Swal.fire({ icon: 'success', title: '✅ 儲存成功！', timer: 1500, showConfirmButton: false });
-            clearForm();
-        }).catch(err => {
-            Swal.fire({ icon: 'error', title: '儲存失敗', text: err.message });
+        // 將物件轉陣列並排序 (依名稱長度或自訂)
+        Object.keys(data).forEach(id => {
+          const d = data[id];
+          if(!d.name) return; // 忽略不完整資料
+          count++;
+          
+          const photoUrl = d.photo || 'https://cdn-icons-png.flaticon.com/512/3237/3237472.png';
+          const isSuspended = d.isSuspended === true;
+          
+          // 🚀 v7.0 停權狀態視覺化
+          const cardClass = isSuspended ? 'bg-gray-100 border-2 border-orange-400 opacity-80' : 'bg-white border border-gray-100';
+          const nameTag = isSuspended ? `<span class="text-orange-600 bg-orange-100 text-xs px-2 py-1 rounded ml-2">已停權</span>` : '';
+
+          html += `
+            <div class="flex items-center p-3 rounded-xl shadow-sm ${cardClass}">
+              <img src="${photoUrl}" class="w-14 h-14 rounded-full border-2 border-gray-200 object-cover flex-shrink-0" onerror="this.src='https://cdn-icons-png.flaticon.com/512/3237/3237472.png'">
+              <div class="ml-3 flex-1 overflow-hidden">
+                <div class="font-black text-lg text-gray-800 flex items-center">${d.name} ${nameTag}</div>
+                <div class="text-sm font-bold text-gray-600">${d.carNo || '無車牌'} | ${d.phone || '無電話'}</div>
+                <div class="text-xs text-gray-400 truncate mt-1">ID: ${id}</div>
+              </div>
+              
+              <div class="flex flex-col gap-2 ml-2">
+                <!-- 🚀 v7.0 停權/復權 切換按鈕 -->
+                ${isSuspended 
+                  ? `<button onclick="toggleSuspend('${id}', false, '${d.name}')" class="bg-green-500 text-white text-xs font-bold py-2 px-3 rounded-lg shadow active:scale-95"><i class="fa-solid fa-unlock mr-1"></i>復權</button>`
+                  : `<button onclick="toggleSuspend('${id}', true, '${d.name}')" class="bg-orange-500 text-white text-xs font-bold py-2 px-3 rounded-lg shadow active:scale-95"><i class="fa-solid fa-lock mr-1"></i>停權</button>`
+                }
+                <!-- 藏起來的刪除按鈕 -->
+                <button onclick="confirmDelete('${id}', '${d.name}')" class="bg-red-100 text-red-600 hover:bg-red-500 hover:text-white text-xs font-bold py-1 px-3 rounded-lg transition-colors"><i class="fa-solid fa-trash"></i> 刪除</button>
+              </div>
+            </div>
+          `;
         });
+        
+        badge.innerText = `共 ${count} 人`;
+        container.innerHTML = html;
+      });
     }
 
-    function deleteDriver(uid, name) {
-        Swal.fire({
-            title: `確定要刪除「${name}」的權限嗎？`,
-            text: "刪除後他將無法登入司機端 APP！",
-            icon: 'warning',
-            showCancelButton: true, confirmButtonColor: '#d33', cancelButtonColor: '#3085d6',
-            confirmButtonText: '是的，我要刪除', cancelButtonText: '取消'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                db.ref('drivers/' + uid).remove()
-                .then(() => {
-                    Swal.fire({ icon: 'success', title: '已刪除', text: `「${name}」已被移除`, timer: 1500, showConfirmButton: false });
-                    clearForm(); 
-                });
-            }
-        });
+    // 🚀 v7.0 停權核心邏輯
+    function toggleSuspend(driverId, toSuspend, driverName) {
+      const actionText = toSuspend ? "停權" : "復權";
+      const iconType = toSuspend ? "warning" : "info";
+      
+      Swal.fire({
+        title: `確定要將 [${driverName}] ${actionText}？`,
+        text: toSuspend ? "停權後，該司機將立即被強制下線且無法接單。" : "復權後，該司機可重新登入 APP 上線接單。",
+        icon: iconType,
+        showCancelButton: true,
+        confirmButtonColor: toSuspend ? '#F97316' : '#10B981', // Orange or Green
+        cancelButtonColor: '#6B7280',
+        confirmButtonText: `是的，執行${actionText}`,
+        cancelButtonText: '取消'
+      }).then((result) => {
+        if (result.isConfirmed) {
+          const updates = { isSuspended: toSuspend };
+          // 如果是停權，順便把他強制切換成下線跟空車，拔除接單能力
+          if (toSuspend) {
+            updates.status = 'offline';
+            updates.workStatus = 'empty';
+          }
+          
+          db.ref('drivers/' + driverId).update(updates).then(() => {
+            Swal.fire({icon: 'success', title: `已成功${actionText}`, timer: 1500, showConfirmButton: false});
+          });
+        }
+      });
     }
 
-    function fillForm(uid, d) {
-        document.getElementById('uid').value = uid;
-        document.getElementById('name').value = d.name;
-        document.getElementById('car').value = d.car;
-        document.getElementById('phone').value = d.phone;
-        document.getElementById('photo').value = d.photo || ''; 
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-        const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, timerProgressBar: true });
-        Toast.fire({ icon: 'info', title: `已帶入 ${d.name} 的資料` });
+    // 隱藏在底下的真正刪除 (離職)
+    function confirmDelete(driverId, driverName) {
+      Swal.fire({
+        title: `真的要徹底刪除 [${driverName}] 嗎？`,
+        text: "這通常用於司機離職。這將刪除他所有基本資料，且動作不可復原！建議優先使用「停權」功能。",
+        icon: 'error',
+        showCancelButton: true,
+        confirmButtonColor: '#EF4444',
+        cancelButtonColor: '#9CA3AF',
+        confirmButtonText: '確定離職刪除',
+        cancelButtonText: '取消保留'
+      }).then((result) => {
+        if (result.isConfirmed) {
+          db.ref('drivers/' + driverId).remove().then(() => {
+            Swal.fire({icon: 'success', title: '已刪除', timer: 1500, showConfirmButton: false});
+          });
+        }
+      });
     }
 
-    function clearForm() {
-        document.getElementById('uid').value = ''; document.getElementById('name').value = '';
-        document.getElementById('car').value = ''; document.getElementById('phone').value = '';
-        document.getElementById('photo').value = '';
-    }
-</script>
+  </script>
 </body>
 </html>
+
