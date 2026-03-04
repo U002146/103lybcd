@@ -4,7 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   
-  <title>花蓮敬老愛心車隊：雙向定位系統</title> <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>花蓮敬老愛心車隊：雙向定位系統 // v9.14 拒單接收與防呆釋放版</title> 
+  <meta name="apple-mobile-web-app-capable" content="yes">
   
   <meta property="og:title" content="通話叫車：雙向定位系統">
   <meta property="og:description" content="全花蓮唯一！按下通話自動傳送位置，免報路名。司機位置即時看，長輩安心，子女放心。">
@@ -91,7 +92,7 @@
 
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script>
-    const VERSION = "v9.13"; 
+    const VERSION = "v9.14"; 
     const LIFF_ID = "2008907691-CzDqd7mm"; 
     const GAS_URL = "https://script.google.com/macros/s/AKfycbzjWZ8j394jfKoMVbPWGvHJHqwF7RBCQxnxyju1ifWKoKdM7RE512F7qrhUsQqQGoWg/exec"; 
     
@@ -112,7 +113,6 @@
     let passengerName = "未授權乘客";
     let myTrackedDriverId = localStorage.getItem('trackedDriverId') || null;
     
-    // 🚀 v9.13 新增：網頁專屬狀態機 (記憶晶片)
     let currentTrackStep = localStorage.getItem('trackStep') || '1';
 
     const getPinIcon = (type, isTracked, workStatus, trackStep) => {
@@ -220,6 +220,25 @@
         }, err => console.error("即時監聽失敗", err));
     }
 
+    // 🚀 v9.14 處理司機拒單的防呆解鎖程序
+    function handleOrderRejected() {
+        myTrackedDriverId = null;
+        localStorage.removeItem('trackedDriverId');
+        localStorage.removeItem('wasBusy');
+        localStorage.removeItem('trackStep');
+        currentTrackStep = '1';
+        
+        Swal.fire({
+            icon: 'warning',
+            title: '⚠️ 司機無法承接',
+            text: '該司機目前距離較遠或行程滿檔，請重新選擇其他附近空車。',
+            confirmButtonColor: '#F97316', 
+            confirmButtonText: '重新叫車'
+        });
+        
+        if (lastDriversData) processDriversData(lastDriversData); 
+    }
+
     function processDriversData(data) {
         if (!data) return;
         const activeDrivers = [];
@@ -227,21 +246,38 @@
 
         if (myTrackedDriverId) {
             const trackedData = data[myTrackedDriverId];
+            
             if (!trackedData || trackedData.status !== 'online') {
                 exitTrackingMode(true); 
-            } else if (trackedData.workStatus === 'empty') {
-                if (localStorage.getItem('wasBusy') === 'true') {
-                    localStorage.removeItem('wasBusy');
-                    exitTrackingMode(true);
-                }
             } else {
-                // 🚀 v9.13 狀態機核心運算：分辨前往中與行程中
+                const req = trackedData.request;
+                const wasBusy = localStorage.getItem('wasBusy') === 'true';
+
+                // 🚀 v9.14 核心邏輯一：抓到司機明確的拒絕標記
+                if (req && req.status === 'rejected') {
+                    handleOrderRejected();
+                    return;
+                }
+
+                // 🚀 v9.14 核心邏輯二：如果訂單節點消失了
+                if (!req || req.userId !== passengerId) {
+                    if (wasBusy) {
+                        // 如果曾經載客過，代表是正常抵達結束
+                        localStorage.removeItem('wasBusy');
+                        exitTrackingMode(true);
+                    } else {
+                        // 如果根本還沒載到客就不見了，代表被司機刪除/拒接
+                        handleOrderRejected();
+                    }
+                    return; 
+                }
+
+                // 狀態機運算：追蹤司機進度
                 if (trackedData.workStatus === 'arrived') {
                     currentTrackStep = '1.5';
                     localStorage.setItem('trackStep', '1.5');
                 } else if (trackedData.workStatus === 'busy') {
                     localStorage.setItem('wasBusy', 'true');
-                    // 如果原本是 1.5 (已抵達)，現在變成 busy，才升級成 2 (載客行程中)
                     if (currentTrackStep === '1.5') {
                         currentTrackStep = '2';
                         localStorage.setItem('trackStep', '2');
@@ -267,7 +303,6 @@
             const iconType = d.workStatus === 'queue' ? 'queue' : 'empty';
             let labelText = isTracked ? '專車' : (d.workStatus === 'queue' ? '排' : '空');
             
-            // 🚀 v9.13 配合狀態機顯示大頭針文字
             if (isTracked) {
                 if (currentTrackStep === '1.5' || d.workStatus === 'arrived') labelText = '抵達';
                 else if (currentTrackStep === '2') labelText = '載客';
@@ -319,7 +354,6 @@
             let statusTag = d.workStatus === 'queue' ? '<span class="tag tag-queue">排班中</span>' : '<span class="tag tag-empty">🟢 空車</span>';
             let cardClass = "driver-card";
             
-            // 🚀 v9.13 核心：讀取記憶晶片，正確顯示各階段面板
             if (d.isTracked) {
                 if (currentTrackStep === '1.5' || d.workStatus === 'arrived') {
                     statusTag = '<span class="tag tag-arrived"><i class="fa-solid fa-location-dot"></i> 司機已在門口等候</span>';
@@ -413,7 +447,6 @@
             localStorage.setItem('trackedDriverId', driverId);
             localStorage.setItem('wasBusy', 'false'); 
             
-            // 🚀 v9.13 啟動記憶晶片：進度設為 1 (前往中)
             localStorage.setItem('trackStep', '1');
             currentTrackStep = '1';
             
@@ -484,7 +517,6 @@
         localStorage.removeItem('trackedDriverId');
         localStorage.removeItem('wasBusy'); 
         
-        // 🚀 v9.13 結束時清除記憶晶片
         localStorage.removeItem('trackStep');
         currentTrackStep = '1';
         
