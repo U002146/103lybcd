@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>花蓮車隊 - 人事管理後台 // v7.0</title>
+  <title>敬老愛心計程車 - 人事管理後台 // v7.1 品牌統整與快照對接版</title>
   
   <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
@@ -26,21 +26,20 @@
 
   <div class="max-w-md mx-auto space-y-6">
     
-    <!-- 🏆 區塊一：營運排行榜 (含封鎖數) -->
+    <!-- 🏆 區塊一：營運排行榜 (含封鎖數與歷史快照車號) -->
     <div class="bg-white rounded-2xl p-5 card-shadow">
-      <h2 class="text-xl font-black text-gray-800 mb-4 border-b pb-2">
+      <h2 class="text-xl font-black text-gray-800 mb-4 border-b pb-2 flex items-center">
         <i class="fa-solid fa-trophy text-amber-500 mr-2"></i>本月營運排行榜
       </h2>
       <div class="overflow-hidden rounded-xl border border-gray-200">
         <table class="w-full text-center text-sm">
           <thead class="bg-gray-50 text-gray-600 font-bold border-b">
             <tr>
-              <th class="py-3 px-2">排名</th>
-              <th class="py-3 px-2">司機</th>
-              <th class="py-3 px-2"><i class="fa-solid fa-check-square text-green-500 text-lg"></i><br>成功</th>
-              <th class="py-3 px-2"><i class="fa-solid fa-xmark-square text-red-500 text-lg"></i><br>取消</th>
-              <!-- 🚀 v7.0 新增封鎖數量統計 -->
-              <th class="py-3 px-2"><i class="fa-solid fa-ban text-gray-500 text-lg"></i><br>封鎖</th>
+              <th class="py-3 px-2 w-12">排名</th>
+              <th class="py-3 px-2 text-left">司機資訊</th>
+              <th class="py-3 px-1"><i class="fa-solid fa-check-square text-green-500 text-lg"></i><br>成功</th>
+              <th class="py-3 px-1"><i class="fa-solid fa-xmark-square text-red-500 text-lg"></i><br>取消</th>
+              <th class="py-3 px-1"><i class="fa-solid fa-ban text-gray-500 text-lg"></i><br>封鎖</th>
             </tr>
           </thead>
           <tbody id="leaderboard-body" class="divide-y divide-gray-100 bg-white">
@@ -98,7 +97,7 @@
     <div class="bg-white rounded-2xl p-5 card-shadow">
       <h2 class="text-xl font-black text-gray-800 mb-4 border-b pb-2 flex justify-between items-center">
         <span><i class="fa-solid fa-clipboard-list text-amber-600 mr-2"></i>現有司機名單</span>
-        <span id="driver-count-badge" class="bg-amber-100 text-amber-800 text-sm py-1 px-3 rounded-full">載入中</span>
+        <span id="driver-count-badge" class="bg-amber-100 text-amber-800 text-sm py-1 px-3 rounded-full font-bold">載入中</span>
       </h2>
       <div id="driver-list-container" class="space-y-3">
         <!-- 司機卡片動態載入區 -->
@@ -108,7 +107,7 @@
   </div>
 
   <script>
-    const VERSION = "v7.0"; // 停權機制與封鎖排行版
+    const VERSION = "v7.1"; // 品牌統整與歷史快照對接版
     
     // 🔥 Firebase 設定 (請直接使用你的設定，此處已對應你的 hualientaxi-bb32f)
     const firebaseConfig = { 
@@ -126,11 +125,10 @@
     };
 
     // ==========================================
-    // 1. 🏆 營運排行榜邏輯 (新增封鎖數統計)
+    // 1. 🏆 營運排行榜邏輯 (v7.1 快照對接版)
     // ==========================================
     async function fetchLeaderboard() {
       const now = new Date();
-      // 設定為當月 1 號
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
       const startTimestamp = firebase.firestore.Timestamp.fromDate(startOfMonth);
 
@@ -146,28 +144,40 @@
           const dId = data.driverId;
           if(!dId) return;
           
+          // 🚀 v7.1 優先使用訂單自帶的歷史快照 (driverName, carNo)
           if(!stats[dId]) {
-            stats[dId] = { id: dId, name: data.driverName || '未知司機', car: '', success: 0, cancel: 0, block: 0 };
+            stats[dId] = { 
+                id: dId, 
+                name: data.driverName || '未知司機', 
+                car: data.carNo || '', 
+                success: 0, 
+                cancel: 0, 
+                block: 0 
+            };
+          } else {
+             // 補齊可能缺漏的快照
+             if (!stats[dId].name || stats[dId].name === '未知司機') stats[dId].name = data.driverName || stats[dId].name;
+             if (!stats[dId].car) stats[dId].car = data.carNo || '';
           }
           
-          // 🚀 v7.0 判斷邏輯：成功、取消、封鎖
           if (data.isBlacklist === true || data.status === 'blacklisted') {
             stats[dId].block += 1;
           } else if (data.status === 'completed') {
             stats[dId].success += 1;
-          } else if (data.status === 'cancelled') {
+          } else if (data.status === 'cancelled' || data.status === 'rejected') {
             stats[dId].cancel += 1;
           }
         });
 
-        // 嘗試去 RTDB 抓車牌跟最新名字
+        // 向下相容：去 RTDB 抓最新的名字與車牌 (如果司機還沒離職的話)
         const dbSnap = await db.ref('drivers').once('value');
         const rtdbData = dbSnap.val() || {};
         
         let sortedDrivers = Object.values(stats).map(s => {
+          // 如果 RTDB 還有資料，用最新的覆蓋；如果沒有(已離職)，就保留歷史快照！
           if (rtdbData[s.id]) {
-            s.name = rtdbData[s.id].name;
-            s.car = rtdbData[s.id].carNo || '';
+            s.name = rtdbData[s.id].name || s.name;
+            s.car = rtdbData[s.id].carNo || rtdbData[s.id].car || s.car;
           }
           return s;
         });
@@ -178,7 +188,7 @@
 
       } catch (e) {
         console.error("抓取排行榜失敗", e);
-        document.getElementById('leaderboard-body').innerHTML = `<tr><td colspan="5" class="py-4 text-red-500">權限錯誤或尚未建立索引</td></tr>`;
+        document.getElementById('leaderboard-body').innerHTML = `<tr><td colspan="5" class="py-4 text-red-500 font-bold">權限錯誤或尚未建立索引</td></tr>`;
       }
     }
 
@@ -193,14 +203,20 @@
       const medals = ['🥇', '🥈', '🥉'];
       
       drivers.forEach((d, index) => {
-        const rankStr = index < 3 ? `<span class="text-2xl">${medals[index]}</span>` : `<span class="font-bold text-gray-500">${index + 1}</span>`;
+        const rankStr = index < 3 ? `<span class="text-2xl">${medals[index]}</span>` : `<span class="font-bold text-gray-500 text-lg">${index + 1}</span>`;
+        // 🚀 v7.1 排行榜加入車牌顯示
+        const carStr = d.car ? `<div class="text-xs text-gray-500 font-bold mt-1 bg-gray-100 rounded px-1 inline-block">${d.car}</div>` : `<div class="text-xs text-gray-400 mt-1">無車號紀錄</div>`;
+        
         html += `
-          <tr class="hover:bg-gray-50 transition-colors">
+          <tr class="hover:bg-amber-50 transition-colors border-b border-gray-100">
             <td class="py-3">${rankStr}</td>
-            <td class="py-3 font-black text-gray-800">${d.name}</td>
-            <td class="py-3 font-bold text-green-600 text-lg">${d.success}</td>
-            <td class="py-3 font-bold text-red-500">${d.cancel}</td>
-            <td class="py-3 font-bold text-gray-500">${d.block}</td>
+            <td class="py-3 text-left pl-2">
+                <div class="font-black text-gray-800 text-base">${d.name}</div>
+                ${carStr}
+            </td>
+            <td class="py-3 font-black text-green-600 text-lg">${d.success}</td>
+            <td class="py-3 font-bold text-red-400">${d.cancel}</td>
+            <td class="py-3 font-bold text-gray-400">${d.block}</td>
           </tr>
         `;
       });
@@ -243,7 +259,7 @@
     function unlockBlacklist(userId) {
       Swal.fire({
         title: '確定要特赦此乘客？',
-        text: "解鎖後，該乘客將可以再次使用車隊叫車系統。",
+        text: "解鎖後，該乘客將可以再次使用敬老愛心計程車系統。",
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#10B981',
@@ -274,22 +290,19 @@
         return;
       }
 
-      // 儲存司機資料，預設 isSuspended 為 false
       db.ref('drivers/' + id).update({
         name: name,
         carNo: car,
         phone: phone,
         photo: photo || 'https://cdn-icons-png.flaticon.com/512/3237/3237472.png',
-        // 如果是新司機，確保他一開始沒被停權
-        isSuspended: firebase.database.ServerValue.increment(0) // 佔位用，這招可以避免覆蓋舊的 boolean 值
+        isSuspended: firebase.database.ServerValue.increment(0)
       }).then(() => {
-        // 如果該節點沒有 isSuspended，補上 false
         db.ref('drivers/' + id + '/isSuspended').transaction(current => {
           return current === null ? false : current;
         });
 
         Swal.fire({ icon: 'success', title: '儲存成功', text: '司機資料已同步至資料庫', timer: 1500, showConfirmButton: false });
-        // 清空表單
+        
         document.getElementById('input-id').value = '';
         document.getElementById('input-name').value = '';
         document.getElementById('input-car').value = '';
@@ -313,16 +326,14 @@
         let html = '';
         let count = 0;
 
-        // 將物件轉陣列並排序 (依名稱長度或自訂)
         Object.keys(data).forEach(id => {
           const d = data[id];
-          if(!d.name) return; // 忽略不完整資料
+          if(!d.name) return; 
           count++;
           
           const photoUrl = d.photo || 'https://cdn-icons-png.flaticon.com/512/3237/3237472.png';
           const isSuspended = d.isSuspended === true;
           
-          // 🚀 v7.0 停權狀態視覺化
           const cardClass = isSuspended ? 'bg-gray-100 border-2 border-orange-400 opacity-80' : 'bg-white border border-gray-100';
           const nameTag = isSuspended ? `<span class="text-orange-600 bg-orange-100 text-xs px-2 py-1 rounded ml-2">已停權</span>` : '';
 
@@ -336,12 +347,10 @@
               </div>
               
               <div class="flex flex-col gap-2 ml-2">
-                <!-- 🚀 v7.0 停權/復權 切換按鈕 -->
                 ${isSuspended 
                   ? `<button onclick="toggleSuspend('${id}', false, '${d.name}')" class="bg-green-500 text-white text-xs font-bold py-2 px-3 rounded-lg shadow active:scale-95"><i class="fa-solid fa-unlock mr-1"></i>復權</button>`
                   : `<button onclick="toggleSuspend('${id}', true, '${d.name}')" class="bg-orange-500 text-white text-xs font-bold py-2 px-3 rounded-lg shadow active:scale-95"><i class="fa-solid fa-lock mr-1"></i>停權</button>`
                 }
-                <!-- 藏起來的刪除按鈕 -->
                 <button onclick="confirmDelete('${id}', '${d.name}')" class="bg-red-100 text-red-600 hover:bg-red-500 hover:text-white text-xs font-bold py-1 px-3 rounded-lg transition-colors"><i class="fa-solid fa-trash"></i> 刪除</button>
               </div>
             </div>
@@ -353,7 +362,6 @@
       });
     }
 
-    // 🚀 v7.0 停權核心邏輯
     function toggleSuspend(driverId, toSuspend, driverName) {
       const actionText = toSuspend ? "停權" : "復權";
       const iconType = toSuspend ? "warning" : "info";
@@ -363,14 +371,13 @@
         text: toSuspend ? "停權後，該司機將立即被強制下線且無法接單。" : "復權後，該司機可重新登入 APP 上線接單。",
         icon: iconType,
         showCancelButton: true,
-        confirmButtonColor: toSuspend ? '#F97316' : '#10B981', // Orange or Green
+        confirmButtonColor: toSuspend ? '#F97316' : '#10B981',
         cancelButtonColor: '#6B7280',
         confirmButtonText: `是的，執行${actionText}`,
         cancelButtonText: '取消'
       }).then((result) => {
         if (result.isConfirmed) {
           const updates = { isSuspended: toSuspend };
-          // 如果是停權，順便把他強制切換成下線跟空車，拔除接單能力
           if (toSuspend) {
             updates.status = 'offline';
             updates.workStatus = 'empty';
@@ -383,7 +390,6 @@
       });
     }
 
-    // 隱藏在底下的真正刪除 (離職)
     function confirmDelete(driverId, driverName) {
       Swal.fire({
         title: `真的要徹底刪除 [${driverName}] 嗎？`,
@@ -402,8 +408,6 @@
         }
       });
     }
-
   </script>
 </body>
 </html>
-
