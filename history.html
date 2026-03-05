@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   
-  <title>我的乘車紀錄 - 花蓮車隊</title> <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>我的乘車紀錄 - 敬老愛心計程車</title> <meta name="apple-mobile-web-app-capable" content="yes">
   
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
@@ -97,11 +97,11 @@
 
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script>
-    const VERSION = "v10.1"; 
-    // ⚠️ 請務必替換為這支網頁專屬的 LIFF ID
+    const VERSION = "v10.2"; 
+    // ⚠️ 確保此 LIFF ID 是正確的歷史紀錄專用 ID
     const LIFF_ID = "2008907691-fVLGsJtK"; 
     
-    // 官方客服電話 (用於遺失物協尋)
+    // 官方客服電話 (當新快照機制找不到司機電話時的備用保命方案)
     const OFFICIAL_PHONE = "0976981123"; 
 
     const firebaseConfig = { 
@@ -142,7 +142,6 @@
 
     async function fetchHistory() {
         try {
-            // 🚀 v10.1 核心防禦：強制時間倒序，且最多只抓取 10 筆！
             const snapshot = await firestoreDb.collection('trips')
                                               .where('passengerId', '==', passengerId)
                                               .orderBy('timestamp', 'desc')
@@ -170,19 +169,22 @@
                 // 如果是黑名單紀錄，對乘客隱藏
                 if(trip.isBlacklist === true) continue; 
 
-                let driverName = "花蓮車隊司機";
-                let driverCar = "專屬座車";
+                // 🚀 v10.2 核心改動：優先讀取 Firestore 裡的歷史快照 (Snapshot)
+                let driverName = trip.driverName || "敬老計程車司機";
+                let driverCar = trip.carNo || "專屬座車";
+                let contactPhone = trip.driverPhone || OFFICIAL_PHONE;
                 
-                // 拿著 driverId 去 RTDB 查真實名字跟車號 (此為 RTDB 流量，極便宜)
-                if (trip.driverId) {
+                // 🛡️ 向下相容防呆：如果是以前舊版本產生的紀錄 (沒有快照)，才去 RTDB 查詢補救
+                if (!trip.driverName && trip.driverId) {
                     try {
                         let dSnap = await db.ref('drivers/' + trip.driverId).once('value');
                         if (dSnap.exists()) {
                             let dData = dSnap.val();
                             if (dData.name) driverName = dData.name;
-                            if (dData.car) driverCar = dData.car;
+                            if (dData.carNo || dData.car) driverCar = dData.carNo || dData.car;
+                            if (dData.phone) contactPhone = dData.phone;
                         }
-                    } catch (err) { console.error("無法取得司機資料", err); }
+                    } catch (err) { console.error("無法取得司機舊資料", err); }
                 }
 
                 // 格式化時間 (MM/DD HH:mm)
@@ -210,8 +212,9 @@
                             </div>
                         </div>
                         <div class="trip-bottom">
-                            <span style="font-size: 13px; color: #999;">由 花蓮車隊 服務</span>
-                            <a href="tel:${OFFICIAL_PHONE}" class="btn-lost">
+                            <span style="font-size: 13px; color: #999;">由 敬老愛心計程車 服務</span>
+                            <!-- 🚀 v10.2 尋找遺失物直接撥打該司機電話 -->
+                            <a href="tel:${contactPhone}" class="btn-lost">
                                 <i class="fa-solid fa-phone"></i> 尋找遺失物
                             </a>
                         </div>
@@ -228,7 +231,6 @@
 
         } catch (error) {
             console.error("讀取歷史紀錄失敗:", error);
-            // 💡 如果 Firestore 顯示沒有建立索引 (Index) 的錯誤，在 console 會給一條連結，點進去建立即可。
             document.getElementById('history-list').innerHTML = `
                 <div class="empty-state">
                     <i class="fa-solid fa-triangle-exclamation" style="color: #FF9800;"></i>
