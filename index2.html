@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   
-  <title>花蓮敬老愛心車隊：雙向定位系統 // v9.14 拒單接收與防呆釋放版</title> 
+  <title>花蓮敬老愛心車隊：雙向定位系統 // v9.15 車牌修復版</title> 
   <meta name="apple-mobile-web-app-capable" content="yes">
   
   <meta property="og:title" content="通話叫車：雙向定位系統">
@@ -92,7 +92,7 @@
 
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script>
-    const VERSION = "v9.14"; 
+    const VERSION = "v9.15"; // 🚀 車牌修復版：修正舊版 d.car 變數，改為 d.carNo
     const LIFF_ID = "2008907691-CzDqd7mm"; 
     const GAS_URL = "https://script.google.com/macros/s/AKfycbzjWZ8j394jfKoMVbPWGvHJHqwF7RBCQxnxyju1ifWKoKdM7RE512F7qrhUsQqQGoWg/exec"; 
     
@@ -220,7 +220,6 @@
         }, err => console.error("即時監聽失敗", err));
     }
 
-    // 🚀 v9.14 處理司機拒單的防呆解鎖程序
     function handleOrderRejected() {
         myTrackedDriverId = null;
         localStorage.removeItem('trackedDriverId');
@@ -253,26 +252,21 @@
                 const req = trackedData.request;
                 const wasBusy = localStorage.getItem('wasBusy') === 'true';
 
-                // 🚀 v9.14 核心邏輯一：抓到司機明確的拒絕標記
                 if (req && req.status === 'rejected') {
                     handleOrderRejected();
                     return;
                 }
 
-                // 🚀 v9.14 核心邏輯二：如果訂單節點消失了
                 if (!req || req.userId !== passengerId) {
                     if (wasBusy) {
-                        // 如果曾經載客過，代表是正常抵達結束
                         localStorage.removeItem('wasBusy');
                         exitTrackingMode(true);
                     } else {
-                        // 如果根本還沒載到客就不見了，代表被司機刪除/拒接
                         handleOrderRejected();
                     }
                     return; 
                 }
 
-                // 狀態機運算：追蹤司機進度
                 if (trackedData.workStatus === 'arrived') {
                     currentTrackStep = '1.5';
                     localStorage.setItem('trackStep', '1.5');
@@ -382,6 +376,9 @@
                 btnCallHtml = `<button class="btn-call" onclick="callDriver('${d.id}', '${d.phone}', this); event.stopPropagation();"><i class="fa-solid fa-phone-volume"></i> 一鍵叫車</button>`;
             }
 
+            // 🚀 v9.15 核心修復：d.car 變更為 d.carNo，優先讀取新版車牌變數，向下相容舊版 d.car
+            const displayCarNo = d.carNo || d.car || '花蓮計程車';
+
             newHTML += `
                 <div class="${cardClass}" id="card-${d.id}" onclick="map.panTo({lat:${d.lat}, lng:${d.lng}})">
                     <div class="d-top-section">
@@ -390,7 +387,7 @@
                             <div class="d-name">${d.name}</div>
                             <div style="margin-bottom: 8px;">${statusTag}</div>
                             <div class="d-meta">
-                                <span><i class="fa-solid fa-taxi"></i> ${d.car || '花蓮計程車'}</span>
+                                <span><i class="fa-solid fa-taxi"></i> ${displayCarNo}</span>
                                 <span><i class="fa-solid fa-location-arrow"></i> 距離 ${distText}</span>
                             </div>
                         </div>
