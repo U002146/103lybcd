@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>花蓮車隊 - 排班區</title> <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <title>敬老愛心計程車 - 排班區 // v6.2 車牌修復版</title> 
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
   <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAIxc6PEhHgUs_A9lyRUg8dNbmwOpSamY8&libraries=geometry"></script>
   
@@ -63,7 +64,7 @@
   </div>
 
   <script>
-    const VERSION = "v6.1"; // 移除背景斷線，確保排班常駐
+    const VERSION = "v6.2"; // 🚀 車牌修復版：修正舊版 d.car 變數，改為 d.carNo
     const firebaseConfig = { databaseURL: "https://hualientaxi-bb32f-default-rtdb.asia-southeast1.firebasedatabase.app/" };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
@@ -132,7 +133,7 @@
     window.onload = function() {
         initMap();
         processGeoData(); 
-        startRealtimeRadar(); // 啟動即時監聽，且不再受 visibilitychange 影響
+        startRealtimeRadar(); 
         setInterval(() => document.getElementById('clock').innerText = new Date().toLocaleString(), 1000);
     };
 
@@ -205,11 +206,14 @@
                         ? `<a href="tel:${d.phone}" class="btn-dial ${isBusy ? 'disabled' : ''}"><i class="fa-solid fa-phone"></i></a>` 
                         : `<div style="width:40px;"></div>`;
 
+                    // 🚀 v6.2 核心修復：d.car 變更為 d.carNo，優先讀取新版車牌變數，向下相容舊版 d.car
+                    const displayCarNo = d.carNo || d.car || '計程車';
+
                     list.innerHTML += `
                         <div class="driver-card ${statusClass}">
                             <div class="d-left">
                                 <div class="d-avatar"><img src="${avatar}"></div>
-                                <div class="d-info"><h3>${d.name}</h3><p>${d.car || '計程車'}</p></div>
+                                <div class="d-info"><h3>${d.name}</h3><p>${displayCarNo}</p></div>
                             </div>
                             ${phoneBtn}
                         </div>
