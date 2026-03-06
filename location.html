@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     
-    <title>我的數位看板 (Pro) // v8.9 車隊共用版</title> 
+    <title>我的數位看板 (Pro) // v8.10 動態通話車隊共用版</title> 
     <meta name="apple-mobile-web-app-capable" content="yes">
     
     <script src="https://cdn.tailwindcss.com"></script>
@@ -20,13 +20,6 @@
         .gmnoprint, .gm-control-active { display: none !important; }
         body { overflow: hidden; font-family: 'Noto Sans TC', -apple-system, sans-serif; background: #f0f2f5; } 
 
-        @keyframes pulse-green { 
-            0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); } 
-            70% { box-shadow: 0 0 0 15px rgba(16, 185, 129, 0); } 
-            100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); } 
-        }
-        .btn-pulse { animation: pulse-green 2s infinite; }
-
         .status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; }
         .dot-online { background-color: #10B981; animation: pulse-opacity 1.5s infinite; }
         .dot-offline { background-color: #F59E0B; }
@@ -34,19 +27,41 @@
 
         .swal2-container { z-index: 99999 !important; }
 
-        #btn-call-official {
+        /* 動態通話按鈕基礎設定 */
+        #btn-contact-fab {
             position: absolute; bottom: 30px; right: 20px;
             width: 85px; height: 85px; border-radius: 50%;
-            background: linear-gradient(135deg, #00C853, #1B5E20);
             color: white; display: flex; flex-direction: column;
             justify-content: center; align-items: center;
-            box-shadow: 0 8px 25px rgba(0, 200, 83, 0.4);
-            border: 3px solid #00E676; z-index: 40;
-            text-decoration: none; transition: transform 0.1s;
+            z-index: 40; text-decoration: none; transition: transform 0.1s, background 0.3s;
         }
-        #btn-call-official:active { transform: scale(0.92); }
-        #btn-call-official i { font-size: 32px; margin-bottom: 2px; }
-        #btn-call-official span { font-size: 13px; font-weight: 900; letter-spacing: 0.5px; }
+        #btn-contact-fab:active { transform: scale(0.92); }
+        #btn-contact-fab i { font-size: 32px; margin-bottom: 2px; }
+        #btn-contact-fab span { font-size: 13px; font-weight: 900; letter-spacing: 0.5px; }
+
+        /* 🚀 v8.10 綠色官方樣式 */
+        @keyframes pulse-official { 
+            0% { box-shadow: 0 0 0 0 rgba(0, 200, 83, 0.7); } 
+            70% { box-shadow: 0 0 0 15px rgba(0, 200, 83, 0); } 
+            100% { box-shadow: 0 0 0 0 rgba(0, 200, 83, 0); } 
+        }
+        .official-style {
+            background: linear-gradient(135deg, #00C853, #1B5E20);
+            border: 3px solid #00E676;
+            animation: pulse-official 2s infinite;
+        }
+
+        /* 🚀 v8.10 藍色司機專線樣式 */
+        @keyframes pulse-driver { 
+            0% { box-shadow: 0 0 0 0 rgba(33, 150, 243, 0.7); } 
+            70% { box-shadow: 0 0 0 15px rgba(33, 150, 243, 0); } 
+            100% { box-shadow: 0 0 0 0 rgba(33, 150, 243, 0); } 
+        }
+        .driver-style {
+            background: linear-gradient(135deg, #2196F3, #0D47A1);
+            border: 3px solid #64B5F6;
+            animation: pulse-driver 2s infinite;
+        }
 
         #btn-share {
             position: absolute; bottom: 30px; left: 20px;
@@ -106,21 +121,24 @@
         <span>分享給好友</span>
     </div>
 
-    <a href="https://lin.ee/9Davl6e" target="_blank" id="btn-call-official" class="btn-pulse">
-        <i class="fa-solid fa-phone-volume"></i>
-        <span>官方通話</span>
+    <!-- 🚀 v8.10 動態變身的聯絡按鈕 -->
+    <a href="https://lin.ee/9Davl6e" target="_blank" id="btn-contact-fab" class="official-style">
+        <i id="contact-icon" class="fa-solid fa-headset"></i>
+        <span id="contact-text">官方客服</span>
     </a>
 
     <script>
         // ========= CONFIG 設定區 =========
-        const VERSION = "v8.9"; 
+        const VERSION = "v8.10"; 
         const LIFF_ID = '2008907691-1mAjwojZ'; 
         
-        // 🚀 v8.9 核心：動態讀取網址參數。如果沒有參數，預設使用老闆的 ID 作為防呆保護。
-        const urlParams = new URLSearchParams(window.location.search);
-        const DRIVER_USER_ID = urlParams.get('did') || 'U467348846c6b1fa433990d7b75c935b5'; 
+        // 老闆(總台)的 ID，用於判斷是否要切換成官方客服按鈕
+        const BOSS_ID = 'U467348846c6b1fa433990d7b75c935b5';
+        const OFFICIAL_LINE_URL = 'https://lin.ee/9Davl6e';
         
-        // 確保分享出去的連結，也會帶有這位司機的專屬 ID
+        const urlParams = new URLSearchParams(window.location.search);
+        const DRIVER_USER_ID = urlParams.get('did') || BOSS_ID; 
+        
         const MY_LIFF_URL = `https://liff.line.me/${LIFF_ID}?did=${DRIVER_USER_ID}`;
         // ====================================================
 
@@ -129,11 +147,11 @@
         let currentStatus = 'init';
         let isFirstFocus = true; 
 
-        // 🚀 v8.9 動態儲存司機資訊的容器，供分享卡片使用
         let dynamicDriverInfo = {
             name: "專屬司機",
             carNo: "花蓮計程車",
-            photo: "https://cdn-icons-png.flaticon.com/512/3237/3237472.png"
+            photo: "https://cdn-icons-png.flaticon.com/512/3237/3237472.png",
+            phone: ""
         };
 
         const firebaseConfig = { databaseURL: "https://hualientaxi-bb32f-default-rtdb.asia-southeast1.firebasedatabase.app/" };
@@ -242,10 +260,31 @@
         function updateDriverUI(data) {
             let status = 'offline'; 
             if (data) {
-                // 🚀 v8.9 動態更新司機資料，供分享卡片使用
                 dynamicDriverInfo.name = data.name || "專屬司機";
                 dynamicDriverInfo.carNo = data.carNo || data.car || "花蓮計程車";
+                dynamicDriverInfo.phone = data.phone || "";
                 if(data.photo) dynamicDriverInfo.photo = data.photo;
+
+                // 🚀 v8.10 動態渲染通話按鈕：老闆用官方綠色，其他司機用電話藍色
+                const contactBtn = document.getElementById('btn-contact-fab');
+                const contactIcon = document.getElementById('contact-icon');
+                const contactText = document.getElementById('contact-text');
+
+                if (DRIVER_USER_ID === BOSS_ID || !dynamicDriverInfo.phone) {
+                    // 老闆或沒填電話的司機，引導至官方客服
+                    contactBtn.href = OFFICIAL_LINE_URL;
+                    contactBtn.target = "_blank"; // 開新視窗加 LINE
+                    contactBtn.className = "official-style";
+                    contactIcon.className = "fa-solid fa-headset";
+                    contactText.innerText = "官方客服";
+                } else {
+                    // 其他有填電話的司機，直接撥打手機
+                    contactBtn.href = `tel:${dynamicDriverInfo.phone}`;
+                    contactBtn.target = "_self"; // 原視窗撥號
+                    contactBtn.className = "driver-style";
+                    contactIcon.className = "fa-solid fa-phone-volume";
+                    contactText.innerText = "聯絡司機";
+                }
 
                 if (data.status === 'online') { 
                     if (data.workStatus === 'busy') status = 'busy';
@@ -340,7 +379,6 @@
                 return;
             }
 
-            // 🚀 v8.9 動態組裝超級名片 Flex Message
             const flexMsg = {
                 type: "flex",
                 altText: `🚕 推薦我的專屬司機給你：${dynamicDriverInfo.name}`,
