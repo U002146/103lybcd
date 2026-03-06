@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     
-    <title>我的數位看板 (Pro)</title> <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>我的數位看板 (Pro) // v8.9 車隊共用版</title> 
+    <meta name="apple-mobile-web-app-capable" content="yes">
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
@@ -112,10 +113,15 @@
 
     <script>
         // ========= CONFIG 設定區 =========
-        const VERSION = "v8.8"; 
-        const DRIVER_USER_ID = 'U467348846c6b1fa433990d7b75c935b5'; 
+        const VERSION = "v8.9"; 
         const LIFF_ID = '2008907691-1mAjwojZ'; 
-        const MY_LIFF_URL = `https://liff.line.me/${LIFF_ID}`;
+        
+        // 🚀 v8.9 核心：動態讀取網址參數。如果沒有參數，預設使用老闆的 ID 作為防呆保護。
+        const urlParams = new URLSearchParams(window.location.search);
+        const DRIVER_USER_ID = urlParams.get('did') || 'U467348846c6b1fa433990d7b75c935b5'; 
+        
+        // 確保分享出去的連結，也會帶有這位司機的專屬 ID
+        const MY_LIFF_URL = `https://liff.line.me/${LIFF_ID}?did=${DRIVER_USER_ID}`;
         // ====================================================
 
         let map, carMarker;
@@ -123,16 +129,22 @@
         let currentStatus = 'init';
         let isFirstFocus = true; 
 
+        // 🚀 v8.9 動態儲存司機資訊的容器，供分享卡片使用
+        let dynamicDriverInfo = {
+            name: "專屬司機",
+            carNo: "花蓮計程車",
+            photo: "https://cdn-icons-png.flaticon.com/512/3237/3237472.png"
+        };
+
         const firebaseConfig = { databaseURL: "https://hualientaxi-bb32f-default-rtdb.asia-southeast1.firebasedatabase.app/" };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
-        // 🚀 v8.8 加入 arrived 的顏色支援
         const getPinIcon = (status) => {
             let color = '#7f8c8d'; 
             if (status === 'available') color = '#00C853'; 
             else if (status === 'queue') color = '#00B0FF'; 
-            else if (status === 'arrived') color = '#E65100'; // 橘色
+            else if (status === 'arrived') color = '#E65100'; 
             else if (status === 'busy') color = '#FF9800'; 
             return {
                 path: "M0-48c-9.8 0-17.7 7.8-17.7 17.4 0 15.5 17.7 30.6 17.7 30.6s17.7-15.4 17.7-30.6c0-9.6-7.9-17.4-17.7-17.4z",
@@ -141,7 +153,6 @@
             };
         };
 
-        // 🚀 v8.8 加入 arrived 的文字支援
         const getPinLabel = (status) => {
             if (status === 'available') return { text: "空", color: "white", fontSize: "14px", fontWeight: "bold" };
             if (status === 'queue') return { text: "排", color: "white", fontSize: "14px", fontWeight: "bold" };
@@ -230,20 +241,26 @@
 
         function updateDriverUI(data) {
             let status = 'offline'; 
-            if (data && data.status === 'online') { 
-                // 🚀 v8.8 正確辨識 arrived 狀態，避免跳回 available
-                if (data.workStatus === 'busy') status = 'busy';
-                else if (data.workStatus === 'arrived') status = 'arrived';
-                else if (data.workStatus === 'queue') status = 'queue';
-                else status = 'available'; 
-                
-                const newPos = { lat: parseFloat(data.lat), lng: parseFloat(data.lng) };
-                carMarker.setPosition(newPos);
+            if (data) {
+                // 🚀 v8.9 動態更新司機資料，供分享卡片使用
+                dynamicDriverInfo.name = data.name || "專屬司機";
+                dynamicDriverInfo.carNo = data.carNo || data.car || "花蓮計程車";
+                if(data.photo) dynamicDriverInfo.photo = data.photo;
 
-                if (isFirstFocus) {
-                    map.panTo(newPos);
-                    isFirstFocus = false;
-                    Swal.close(); 
+                if (data.status === 'online') { 
+                    if (data.workStatus === 'busy') status = 'busy';
+                    else if (data.workStatus === 'arrived') status = 'arrived';
+                    else if (data.workStatus === 'queue') status = 'queue';
+                    else status = 'available'; 
+                    
+                    const newPos = { lat: parseFloat(data.lat), lng: parseFloat(data.lng) };
+                    carMarker.setPosition(newPos);
+
+                    if (isFirstFocus) {
+                        map.panTo(newPos);
+                        isFirstFocus = false;
+                        Swal.close(); 
+                    }
                 }
             }
 
@@ -281,7 +298,6 @@
                 bar.className = "bg-blue-600 text-white p-4 shadow-md z-50 flex items-center justify-between transition-colors duration-500";
                 sub.innerHTML = "🚕 排班中，歡迎預約！";
             } else if (status === 'arrived') {
-                // 🚀 v8.8 加入閃爍橘色提醒
                 bar.className = "bg-orange-600 text-white p-4 shadow-md z-50 flex items-center justify-between transition-colors duration-500";
                 sub.innerHTML = "📍 <span class='animate-pulse text-yellow-200 font-bold'>司機已抵達，請準備上車！</span>";
             } else if (status === 'busy') {
@@ -324,9 +340,10 @@
                 return;
             }
 
+            // 🚀 v8.9 動態組裝超級名片 Flex Message
             const flexMsg = {
                 type: "flex",
-                altText: "🚕 推薦我的專屬司機給你",
+                altText: `🚕 推薦我的專屬司機給你：${dynamicDriverInfo.name}`,
                 contents: {
                     type: "bubble",
                     hero: {
@@ -342,7 +359,10 @@
                             { type: "text", text: "花蓮專屬司機推薦", weight: "bold", size: "xl", color: "#1B5E20" },
                             {
                                 type: "box", layout: "baseline", margin: "md",
-                                contents: [ { type: "icon", size: "sm", url: "https://cdn-icons-png.flaticon.com/512/3237/3237472.png" }, { type: "text", text: "劉學銘 TDP-1123", weight: "bold", size: "md", margin: "sm", color: "#333333" } ]
+                                contents: [ 
+                                    { type: "icon", size: "sm", url: dynamicDriverInfo.photo }, 
+                                    { type: "text", text: `${dynamicDriverInfo.name} ${dynamicDriverInfo.carNo}`, weight: "bold", size: "md", margin: "sm", color: "#333333" } 
+                                ]
                             },
                             { type: "text", text: "服務好、準時！點擊下方按鈕，看看他現在的即時位置，或是直接與他聯繫喔！", size: "sm", color: "#666666", wrap: true, margin: "md" }
                         ]
