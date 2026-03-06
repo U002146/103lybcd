@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     
-    <title>專屬動態名片 | 花蓮敬老愛心車隊</title> 
+    <title>專屬動態名片 | 花蓮敬老愛心車隊 // v8.12 動態海報修復版</title> 
     <meta name="apple-mobile-web-app-capable" content="yes">
     
     <script src="https://cdn.tailwindcss.com"></script>
@@ -129,7 +129,7 @@
 
     <script>
         // ========= CONFIG 設定區 =========
-        const VERSION = "v8.11"; 
+        const VERSION = "v8.12"; 
         const LIFF_ID = '2008907691-1mAjwojZ'; 
         
         // 老闆(總台)的 ID，用於判斷是否要切換成官方客服按鈕
@@ -150,7 +150,7 @@
         let dynamicDriverInfo = {
             name: "專屬司機",
             carNo: "花蓮計程車",
-            photo: "https://cdn-icons-png.flaticon.com/512/3237/3237472.png",
+            photo: "https://cdn-icons-png.flaticon.com/512/3237/3237472.png", // 預設圖片
             phone: ""
         };
 
@@ -263,7 +263,9 @@
                 dynamicDriverInfo.name = data.name || "專屬司機";
                 dynamicDriverInfo.carNo = data.carNo || data.car || "花蓮計程車";
                 dynamicDriverInfo.phone = data.phone || "";
-                if(data.photo) dynamicDriverInfo.photo = data.photo;
+                if(data.photo && data.photo.trim() !== "") {
+                    dynamicDriverInfo.photo = data.photo;
+                }
 
                 // 動態渲染通話按鈕：老闆用官方綠色，其他司機用電話藍色
                 const contactBtn = document.getElementById('btn-contact-fab');
@@ -377,7 +379,6 @@
                 return;
             }
 
-            // 🚀 v8.11 專屬名片定調版文案升級
             const flexMsg = {
                 type: "flex",
                 altText: `🚕 推薦我的【專屬動態名片】給你：${dynamicDriverInfo.name}`,
@@ -385,9 +386,10 @@
                     type: "bubble",
                     hero: {
                         type: "image",
-                        url: "https://u002146.github.io/103lybcd/preview.jpg", 
+                        // 🚀 v8.12 核心修復：使用司機本人的大頭照/愛車照作為分享海報大圖
+                        url: dynamicDriverInfo.photo, 
                         size: "full",
-                        aspectRatio: "20:13",
+                        aspectRatio: "20:13", // 系統自動置中裁切
                         aspectMode: "cover"
                     },
                     body: {
@@ -429,3 +431,5 @@
     </script>
 </body>
 </html>
+
+
