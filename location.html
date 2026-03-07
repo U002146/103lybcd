@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     
-    <title>專屬動態名片 | 花蓮敬老愛心車隊 // v8.12 動態海報修復版</title> 
+    <title>專屬動態名片 | 花蓮敬老愛心車隊 // v8.13 主客問候升級版</title> 
     <meta name="apple-mobile-web-app-capable" content="yes">
     
     <script src="https://cdn.tailwindcss.com"></script>
@@ -77,8 +77,9 @@
         #btn-share i { font-size: 32px; margin-bottom: 2px; }
         #btn-share span { font-size: 13px; font-weight: 900; letter-spacing: 0.5px; }
 
+        /* 🚀 v8.13 胖手指防呆：向上拉提至 160px，並與大按鈕完美置中對齊 (right: 35px) */
         #btn-my-loc {
-            position: absolute; bottom: 135px; right: 32px;
+            position: absolute; bottom: 160px; right: 35px;
             width: 55px; height: 55px; border-radius: 50%;
             background: white; color: #333; display: flex;
             justify-content: center; align-items: center;
@@ -92,8 +93,13 @@
 
     <div id="status-bar" class="bg-gray-800 text-white p-4 shadow-md z-50 flex items-center justify-between transition-all duration-500">
         <div class="flex items-center flex-grow" id="status-info-area">
-            <img id="user-avatar" src="https://via.placeholder.com/40" class="w-12 h-12 rounded-full border-2 border-white mr-3 hidden">
+            <!-- 🚀 v8.13 加上 object-cover 確保大頭照不變形 -->
+            <img id="user-avatar" src="https://via.placeholder.com/40" class="w-12 h-12 rounded-full border-2 border-white mr-3 hidden object-cover">
             <div>
+                <!-- 🚀 v8.13 新增司機身分銘牌 -->
+                <div id="driver-identity" class="text-xs font-bold text-yellow-300 mb-0.5 hidden">
+                    <i class="fa-solid fa-id-badge mr-1"></i><span id="driver-name-plate"></span>
+                </div>
                 <h2 id="welcome-text" class="text-lg font-bold leading-tight">資料載入中...</h2>
                 <div class="flex items-center mt-1">
                     <p id="status-text" class="text-sm font-medium opacity-90">正在連線至車輛系統</p>
@@ -129,7 +135,7 @@
 
     <script>
         // ========= CONFIG 設定區 =========
-        const VERSION = "v8.12"; 
+        const VERSION = "v8.13"; 
         const LIFF_ID = '2008907691-1mAjwojZ'; 
         
         // 老闆(總台)的 ID，用於判斷是否要切換成官方客服按鈕
@@ -267,6 +273,12 @@
                     dynamicDriverInfo.photo = data.photo;
                 }
 
+                // 🚀 v8.13 將畫面左上角的頭像替換為「司機的照片」，並顯示司機身分銘牌
+                document.getElementById('user-avatar').src = dynamicDriverInfo.photo;
+                document.getElementById('user-avatar').style.display = 'block';
+                document.getElementById('driver-identity').style.display = 'block';
+                document.getElementById('driver-name-plate').innerText = `${dynamicDriverInfo.name} (${dynamicDriverInfo.carNo})`;
+
                 // 動態渲染通話按鈕：老闆用官方綠色，其他司機用電話藍色
                 const contactBtn = document.getElementById('btn-contact-fab');
                 const contactIcon = document.getElementById('contact-icon');
@@ -353,8 +365,7 @@
                 await liff.init({ liffId: LIFF_ID });
                 if (liff.isLoggedIn()) {
                     const profile = await liff.getProfile();
-                    document.getElementById('user-avatar').src = profile.pictureUrl;
-                    document.getElementById('user-avatar').style.display = 'block';
+                    // 🚀 v8.13 移除覆寫大頭照的邏輯（改由司機資料負責），僅保留客人的名字作為親切問候
                     document.getElementById('welcome-text').innerText = `你好，${profile.displayName}`;
                 } else {
                     liff.login();
@@ -386,10 +397,9 @@
                     type: "bubble",
                     hero: {
                         type: "image",
-                        // 🚀 v8.12 核心修復：使用司機本人的大頭照/愛車照作為分享海報大圖
                         url: dynamicDriverInfo.photo, 
                         size: "full",
-                        aspectRatio: "20:13", // 系統自動置中裁切
+                        aspectRatio: "20:13", 
                         aspectMode: "cover"
                     },
                     body: {
@@ -431,5 +441,3 @@
     </script>
 </body>
 </html>
-
-
