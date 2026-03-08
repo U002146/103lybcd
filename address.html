@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>常用地址預約 // v4.2 純文字防吃零與時區修復版</title>
+    <title>常用地址預約 // v4.3 幽靈訂單防護鎖版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
@@ -146,6 +146,7 @@
         </div>
     </div>
 
+    <!-- 滿版時間選擇器 Modal -->
     <div id="time-selector-modal" onclick="closeModernTimeSelector(event)">
         <div id="time-selector-content" onclick="event.stopPropagation()">
             <div class="flex justify-between items-center mb-5 flex-shrink-0">
@@ -190,7 +191,7 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script>
-        const VERSION = "v4.2"; // 🚀 純文字防吃零與時區修復版
+        const VERSION = "v4.3"; // 🚀 幽靈訂單防護鎖版
         const LIFF_ID = '2008907691-3P676tTN'; 
         const PROJECT_B_URL = 'https://liff.line.me/2008907691-1mAjwojZ'; 
         
@@ -254,15 +255,33 @@
                     .then(data => {
                         if (data.status === 'success' && data.data) {
                             const d = data.data;
+                            
+                            // 🚀 v4.3 終極防護：死者甦醒防護鎖
+                            if (d.orderStatus === '❌ 已取消' || d.orderStatus === 'cancelled') {
+                                Swal.fire({
+                                    icon: 'warning',
+                                    title: '⚠️ 此預約已取消',
+                                    text: '這筆預約先前已經取消囉！如有需要請回到聊天室重新建立新的預約。',
+                                    confirmButtonColor: '#94a3b8',
+                                    confirmButtonText: '我知道了',
+                                    allowOutsideClick: false
+                                }).then(() => {
+                                    if (liff.isInClient()) {
+                                        liff.closeWindow();
+                                    } else {
+                                        document.body.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;height:100vh;color:#94a3b8;font-weight:bold;background:#f8fafc;">此訂單已失效，請關閉視窗。</div>';
+                                    }
+                                });
+                                return; // ⛔ 終止後續載入，不顯示輸入框
+                            }
+
                             document.getElementById('pickup').value = d.pickup;
                             document.getElementById('dropoff').value = d.dropoff === "上車告知 / 未指定" ? "" : d.dropoff;
                             
-                            // 🚀 v4.2 雙重防護：如果舊資料被吃掉 0，前端強制補上
                             let loadedPhone = String(d.phone);
                             if (loadedPhone.length === 9 && loadedPhone.startsWith('9')) loadedPhone = '0' + loadedPhone;
                             document.getElementById('phone').value = loadedPhone;
                             
-                            // 🚀 v4.2 雙重防護：如果舊資料被轉成 ISO 時間，前端自動解碼為當地時間
                             let loadedTime = String(d.bookingTime);
                             if (loadedTime.includes('T') && loadedTime.endsWith('Z')) {
                                 const localDate = new Date(loadedTime);
