@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>定期接送預約 // v5.0 訂閱制自動生單版</title>
+    <title>定期接送預約 // v5.1 獨立明細與編輯支援版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
@@ -32,7 +32,6 @@
         .swal2-popup { border-radius: 24px !important; font-family: 'Noto Sans TC', sans-serif !important; padding-bottom: 20px !important;}
         .location-grid { max-height: 50vh; overflow-y: auto; padding: 4px; }
 
-        /* 星期選擇按鈕 */
         .dow-btn { flex: 1; aspect-ratio: 1; border-radius: 12px; border: 1px solid #e2e8f0; background: #ffffff; color: #64748b; font-weight: bold; display: flex; align-items: center; justify-content: center; transition: all 0.2s; cursor: pointer; user-select: none; }
         .dow-btn.active { background: #3b82f6; border-color: #2563eb; color: #ffffff; box-shadow: 0 4px 10px rgba(59,130,246,0.3); transform: scale(1.05); }
         
@@ -54,7 +53,6 @@
         </div>
 
         <div class="main-container !pt-2">
-            <!-- 📍 行程設定 (與一般版相同) -->
             <div class="booking-card">
                 <div class="flex items-center justify-between mb-4">
                     <h2 class="text-sm font-bold text-slate-500 uppercase tracking-widest flex items-center">📍 固定路線</h2>
@@ -82,13 +80,11 @@
                 </div>
             </div>
 
-            <!-- 📅 週期設定 (全新 UI) -->
             <div class="booking-card !bg-blue-50/30 !border-blue-100">
                 <div class="flex items-center justify-between mb-4">
                     <h2 class="text-sm font-bold text-blue-600 uppercase tracking-widest flex items-center">📅 頻率與時間</h2>
                 </div>
 
-                <!-- 星期多選 -->
                 <div class="mb-5">
                     <label class="block text-[10px] text-slate-400 font-bold uppercase mb-2">每週固定出發日 (可多選)</label>
                     <div class="flex justify-between gap-2" id="dow-container">
@@ -103,7 +99,6 @@
                 </div>
 
                 <div class="flex gap-3 mb-2">
-                    <!-- 出發時間 -->
                     <div class="input-group flex-1 !mb-0 relative">
                         <i class="fa-solid fa-clock input-icon text-blue-500"></i>
                         <div class="flex-1">
@@ -111,7 +106,6 @@
                             <input type="time" id="sub-time" class="w-full bg-transparent font-bold text-slate-800 outline-none text-lg mt-1" onchange="calculateTrips()">
                         </div>
                     </div>
-                    <!-- 預約週數 -->
                     <div class="input-group flex-1 !mb-0">
                         <i class="fa-solid fa-calendar-week input-icon text-indigo-500"></i>
                         <div class="flex-1">
@@ -120,15 +114,14 @@
                                 <option value="1">未來 1 週</option>
                                 <option value="2">未來 2 週</option>
                                 <option value="3">未來 3 週</option>
-                                <option value="4" selected>未來 4 週 (約一個月)</option>
-                                <option value="8">未來 8 週 (約兩個月)</option>
+                                <option value="4" selected>未來 4 週</option>
+                                <option value="8">未來 8 週</option>
                             </select>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- 聯絡與付款 -->
             <div class="booking-card">
                 <div class="input-group cursor-pointer relative !mb-4" onclick="openPaymentPicker()">
                     <i id="payment-icon" class="fa-solid fa-coins input-icon text-slate-600"></i>
@@ -152,7 +145,7 @@
             </div>
             
             <div class="text-center text-xs text-slate-400 font-bold px-4 mb-4">
-                💡 系統會自動為您生成所選期間的所有獨立訂單，您日後可於聊天室針對單日進行修改或取消，不影響其他天數。
+                💡 送出後，您將在聊天室收到包含「每日修改按鈕」的橫向滑動明細卡片，隨時可針對單日取消，不影響其他天數。
             </div>
         </div>
 
@@ -167,11 +160,16 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script>
-        const VERSION = "v5.0"; // 🚀 訂閱制自動生單版
-        const LIFF_ID = '2008907691-e4V07Yfr'; // ⚠️ 請確保你有在 LINE Developers 後台新增一個 LIFF 綁定這支 HTML 網頁
+        const VERSION = "v5.1"; // 🚀 獨立明細與編輯支援版 (Carousel 實作)
+        
+        // ⚠️ 這裡填入你為這支 sub_booking.html 新申請的 LIFF ID
+        const LIFF_ID = '2008907691-e4V07Yfr'; 
+        
+        // 🚀 核心：讓「微型卡片」的修改按鈕，指向你原本的「單次預約版」LIFF 網址！
+        const BOOKING_LIFF_URL = 'https://liff.line.me/2008907691-3P676tTN'; 
         const PROJECT_B_URL = 'https://liff.line.me/2008907691-1mAjwojZ'; 
         
-        // 🚀 共用同一個 GAS 後端大腦
+        // 🚀 共用最新的 GAS 後端大腦
         const BOOKING_GAS_URL = 'https://script.google.com/macros/s/AKfycbzVTtBzYxPy9g-WnaJPS_Q_8GnzmWDf4Kaw7nA8VeDfe6ykM5rV3C2MmMddMh3AG6c9/exec'; 
 
         const PRESET_LOCATIONS = [
@@ -180,7 +178,6 @@
             {name:'門諾醫院', icon:'🏥'}, {name:'遠東百貨', icon:'🛍️'}, {name:'東大門夜市', icon:'🌭'}
         ];
 
-        // 💡 依照要求，完全沿用原版付款方式
         const PAYMENT_METHODS = [
             {id:'現金',label:'現金',icon:'fa-coins',color:'text-slate-600'}, {id:'敬老卡',label:'敬老卡',icon:'fa-person-cane',color:'text-orange-500'},
             {id:'愛心卡',label:'愛心卡',icon:'fa-heart',color:'text-rose-500'}, {id:'悠遊卡',label:'悠遊卡',icon:'fa-id-card',color:'text-blue-400'},
@@ -190,8 +187,8 @@
 
         let userName = "乘客"; 
         let passengerId = "unknown";
-        let selectedDows = new Set(); // 存放選取的星期幾 (0-6)
-        let generatedTrips = []; // 算出的所有日期
+        let selectedDows = new Set(); 
+        let generatedTrips = []; 
 
         window.onload = function() {
             const savedPhone = localStorage.getItem('taxi_user_phone');
@@ -202,7 +199,6 @@
                 if(method) updatePaymentUI(method.label, method.icon, method.color); 
             }
 
-            // 綁定星期按鈕點擊事件
             document.querySelectorAll('.dow-btn').forEach(btn => {
                 btn.addEventListener('click', function() {
                     this.classList.toggle('active');
@@ -227,7 +223,7 @@
             document.getElementById('loading-overlay').style.display = 'none';
             document.getElementById('app').classList.remove('hidden');
             document.getElementById('app').classList.add('flex');
-            calculateTrips(); // 初始計算
+            calculateTrips(); 
         }
 
         function swapLocations() {
@@ -238,7 +234,6 @@
             inputs.forEach(el => { el.style.transform = 'scale(0.98)'; setTimeout(() => el.style.transform = 'scale(1)', 150); });
         }
 
-        // 預設地點與付款方式 (同原版)
         function openPresetLocations(target) { 
             currentTargetInput = target; 
             const targetName = target === 'pickup' ? '上車點' : '下車點';
@@ -273,7 +268,6 @@
             if(label !== '現金') iconElem.classList.add(colorClass.split(' ')[0]); 
         }
 
-        // 🚀 v5.0 核心引擎：自動推算未來日期
         function calculateTrips() {
             generatedTrips = [];
             const btn = document.getElementById('submitBtn');
@@ -292,9 +286,8 @@
                 return;
             }
 
-            // 從明天開始推算 (避免當天時間已過的爭議)
             let currentDate = new Date();
-            currentDate.setDate(currentDate.getDate() + 1);
+            currentDate.setDate(currentDate.getDate() + 1); 
             
             let endLimit = new Date();
             endLimit.setDate(endLimit.getDate() + (weeks * 7));
@@ -311,7 +304,6 @@
             btn.disabled = false;
             btnText.innerText = `確認送出 (共產生 ${generatedTrips.length} 趟)`;
             
-            // 讓按鈕跳動一下提示更新
             btn.classList.add('scale-[1.02]', 'bg-indigo-600');
             setTimeout(() => btn.classList.remove('scale-[1.02]', 'bg-indigo-600'), 200);
         }
@@ -320,10 +312,9 @@
             const now = new Date();
             const md = String(now.getMonth()+1).padStart(2,'0') + String(now.getDate()).padStart(2,'0');
             const rnd = Math.floor(1000 + Math.random() * 9000);
-            return `SUB-${md}-${rnd}`; // SUB 代表 Subscription 定期單
+            return `SUB-${md}-${rnd}`; 
         }
 
-        // 🚀 v5.0 遞交陣列給後端
         async function submitSubscription() {
             if (!liff.isLoggedIn() && !liff.isInClient()) return Swal.fire('尚未連線', '請在 LINE 內部開啟', 'error');
 
@@ -345,15 +336,13 @@
 
             const baseOrderId = generateBaseOrderId();
             
-            // 轉換星期數字為文字 (為了顯示在卡片上)
             const dowNames = ['日','一','二','三','四','五','六'];
             const sortedDows = Array.from(selectedDows).sort();
             const dowString = sortedDows.map(d => dowNames[d]).join('、');
             const timeStr = document.getElementById('sub-time').value;
 
-            // 1. 準備發送給 GAS 的特殊陣列 Payload
             const orderPayload = {
-                type: 'subscription', // 告訴 GAS 這是定期單
+                type: 'subscription', 
                 baseOrderId: baseOrderId,
                 userId: passengerId,
                 userName: userName,
@@ -361,12 +350,12 @@
                 pickup: pickup,
                 dropoff: dropoff,
                 payment: payment,
-                bookingTimes: generatedTrips, // 包含 12 個日期的陣列
+                bookingTimes: generatedTrips, 
                 timestamp: new Date().toISOString()
             };
 
-            // 2. 準備給客人的摘要卡片 (只發一張總表，不洗版)
-            const flexMsg = {
+            // 1. 準備總表摘要卡片
+            const summaryMsg = {
                 type: "flex",
                 altText: `📅 定期接送成立 (共 ${generatedTrips.length} 趟)`,
                 contents: {
@@ -396,18 +385,66 @@
                             {
                                 type: "box", layout: "horizontal", margin: "md",
                                 contents: [ { type: "text", text: "📍 路線", flex: 2, color: "#888888", size: "sm" }, { type: "text", text: `${pickup} ➔ ${dropoff}`, flex: 5, color: "#111111", size: "sm", wrap: true } ]
-                            },
-                            {
-                                type: "box", layout: "horizontal", margin: "lg",
-                                contents: [ { type: "text", text: `預約總編號: ${baseOrderId}`, color: "#bbbbbb", size: "xs", align: "center" } ]
                             }
                         ]
                     }
                 }
             };
 
+            // 🚀 v5.1 核心：產生橫向捲軸微型卡片 (Carousels)
+            let messagesToSend = [summaryMsg];
+            let carouselBubbles = [];
+            
+            generatedTrips.forEach((timeStr, index) => {
+                const subOrderId = baseOrderId + "-" + (index + 1);
+                
+                carouselBubbles.push({
+                    type: "bubble",
+                    size: "micro", 
+                    header: {
+                        type: "box", layout: "vertical", backgroundColor: "#e0f2fe", paddingAll: "10px",
+                        contents: [
+                            { type: "text", text: `第 ${index + 1} 趟`, size: "xs", color: "#0369a1", weight: "bold" },
+                            { type: "text", text: timeStr, size: "sm", color: "#1e293b", weight: "bold", margin: "xs" }
+                        ]
+                    },
+                    body: {
+                        type: "box", layout: "vertical", paddingAll: "10px", spacing: "sm",
+                        contents: [
+                            {
+                                type: "button", style: "primary", height: "sm", color: "#10B981",
+                                action: { type: "uri", label: "📍 司機位置", uri: PROJECT_B_URL }
+                            },
+                            {
+                                type: "button", style: "secondary", height: "sm", color: "#f1f5f9",
+                                action: { type: "uri", label: "⚙️ 修改/取消", uri: `${BOOKING_LIFF_URL}?orderId=${subOrderId}` }
+                            }
+                        ]
+                    }
+                });
+            });
+
+            // LINE Carousel 最多容納 12 個 Bubble，我們切成多個 Carousel 訊息 (每 10 個一組)
+            const CHUNK_SIZE = 10;
+            for (let i = 0; i < carouselBubbles.length; i += CHUNK_SIZE) {
+                const chunk = carouselBubbles.slice(i, i + CHUNK_SIZE);
+                messagesToSend.push({
+                    type: "flex",
+                    altText: "定期接送單趟明細 (請左右滑動查看)",
+                    contents: {
+                        type: "carousel",
+                        contents: chunk
+                    }
+                });
+            }
+
+            // liff.sendMessages 最多一次發送 5 個 Flex Message 區塊
+            // (1 個總表 + 4 個捲軸) = 最多可顯示前 40 趟的明細卡片
+            if (messagesToSend.length > 5) {
+                messagesToSend = messagesToSend.slice(0, 5); 
+            }
+
             try {
-                // 呼叫 GAS 進行影分身寫入
                 fetch(BOOKING_GAS_URL, {
                     method: 'POST', mode: 'no-cors',
                     headers: { 'Content-Type': 'application/json' },
@@ -415,10 +452,10 @@
                 });
 
                 if (liff.isInClient()) {
-                    await liff.sendMessages([flexMsg]);
+                    await liff.sendMessages(messagesToSend);
                     liff.closeWindow(); 
                 } else {
-                    Swal.fire('測試成功', `已模擬送出 ${generatedTrips.length} 筆訂單！`, 'success');
+                    Swal.fire('測試成功', `已模擬送出 ${generatedTrips.length} 筆訂單！\n請回 LINE 聊天室查看明細。`, 'success');
                     btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-layer-group"></i>確認送出';
                 }
             } catch (e) {
