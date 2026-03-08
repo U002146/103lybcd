@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>地圖定位叫車 // v4.5 齒輪回填與雲端整合版</title> 
+    <title>地圖定位叫車</title> 
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -13,7 +13,6 @@
         body { font-family: 'Noto Sans TC', sans-serif; background-color: #f8fafc; overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
         input, select, textarea { font-size: 17px !important; }
         
-        /* 🚀 v4.5 頂部編輯模式提示條 */
         #edit-mode-banner { display: none; background: #FEF3C7; color: #D97706; text-align: center; padding: 8px; font-size: 13px; font-weight: bold; border-bottom: 1px solid #FDE68A; z-index: 40; position: relative; }
 
         #map-container { height: 45%; width: 100%; position: relative; z-index: 10; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
@@ -60,7 +59,6 @@
         <button onclick="forceRemoveLoading()" class="mt-8 text-sm text-gray-300 underline">若卡住請點此</button>
     </div>
 
-    <!-- 🚀 v4.5 編輯模式提示條 -->
     <div id="edit-mode-banner"><i class="fa-solid fa-pen-to-square"></i> 訂單修改模式 <span id="order-id-display" class="font-mono text-[10px] opacity-50 ml-2 hidden"></span></div>
 
     <div id="map-container">
@@ -131,7 +129,6 @@
             </div>
         </div>
 
-        <!-- 🚀 v4.5 UI 重構：底部按鈕區支援雙按鈕 (取消 & 送出) -->
         <div class="absolute bottom-0 left-0 right-0 p-5 bg-white/90 backdrop-blur-sm border-t border-gray-100 flex gap-3">
             <button id="cancelOrderBtn" onclick="cancelOrder()" class="hidden w-[80px] bg-rose-50 text-rose-600 font-bold py-4 rounded-2xl active:scale-[0.95] transition-all text-lg border border-rose-100 flex-shrink-0 flex items-center justify-center">
                 <i class="fa-solid fa-trash-can"></i>
@@ -151,7 +148,6 @@
                 <button type="button" onclick="closeModernTimeSelector()" class="w-8 h-8 rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
             </div>
             
-            <!-- 編輯模式下，隱藏「現在出發」按鈕 -->
             <button type="button" onclick="selectNowAndClose()" id="btn-quick-now" class="w-full bg-slate-800 text-white py-3 rounded-xl font-bold mb-4 flex items-center justify-center shadow-md active:scale-[0.98] transition-transform"><i class="fa-solid fa-bolt mr-2 text-yellow-400"></i> 現在出發 (即時)</button>
             
             <div class="text-xs text-gray-400 font-bold mb-2 uppercase tracking-wide">Or Schedule For Later</div>
@@ -161,12 +157,10 @@
     </div>
 
     <script>
-        const VERSION = "v4.5"; // 🚀 地圖版：齒輪回填與雲端整合升級
+        const VERSION = "v4.6"; // 🚀 地圖版：載入卡死修復版
         const API_KEY = 'AIzaSyAIxc6PEhHgUs_A9lyRUg8dNbmwOpSamY8'; 
-        const LIFF_ID = '2008907691-MAdAtfyf'; // 注意：這是地圖版的 LIFF ID
+        const LIFF_ID = '2008907691-MAdAtfyf'; 
         const PROJECT_B_URL = 'https://liff.line.me/2008907691-1mAjwojZ'; 
-        
-        // 🚀 共用最新的 GAS 後端大腦
         const BOOKING_GAS_URL = 'https://script.google.com/macros/s/AKfycbzVTtBzYxPy9g-WnaJPS_Q_8GnzmWDf4Kaw7nA8VeDfe6ykM5rV3C2MmMddMh3AG6c9/exec'; 
 
         const PRESET_LOCATIONS = [{name:'常用地址 A',icon:'⭐',value:'FAV_ADDR_A'},{name:'常用地址 B',icon:'⭐',value:'FAV_ADDR_B'},{name:'花蓮前站',icon:'🚉'},{name:'花蓮後站',icon:'🚉'},{name:'慈濟醫院',icon:'🏥'},{name:'門諾醫院',icon:'🏥'},{name:'花蓮縣政府',icon:'🏢'},{name:'遠東百貨',icon:'🛍️'}];
@@ -180,12 +174,12 @@
         let userName = "乘客"; 
         let passengerId = "unknown";
 
-        // 解析網址參數判斷是否為修改模式
         const urlParams = new URLSearchParams(window.location.search);
         const editOrderId = urlParams.get('orderId');
 
         window.onload = function() {
-            // setTimeout(forceRemoveLoading, 5000); // 編輯模式需要等待拉資料，這裡先關掉硬超時
+            // 🚀 v4.6 重啟防呆機制：確保不管發生什麼事，5 秒後必定掀開白布
+            setTimeout(forceRemoveLoading, 5000); 
             
             if (navigator.geolocation && !editOrderId) {
                 navigator.geolocation.getCurrentPosition(
@@ -208,7 +202,7 @@
 
         function forceRemoveLoading() { 
             const overlay = document.getElementById('loading-overlay'); 
-            if (overlay) {
+            if (overlay && overlay.style.display !== 'none') {
                 overlay.style.opacity = '0'; 
                 setTimeout(() => { if(overlay) overlay.style.display = 'none'; }, 500); 
             }
@@ -271,7 +265,6 @@
                     return;
                 }
                 
-                // LIFF 登入後，判斷是否要拉取舊資料
                 checkEditModeAndLoad();
                 
             } catch (e) { 
@@ -280,13 +273,12 @@
             }
         }
 
-        // 🚀 v4.5 資料回填與防護閘門 (共用邏輯)
         function checkEditModeAndLoad() {
             if (editOrderId) {
                 document.getElementById('edit-mode-banner').style.display = 'block';
                 document.getElementById('submit-btn-text').innerText = '儲存修改';
                 document.getElementById('cancelOrderBtn').classList.remove('hidden');
-                document.getElementById('btn-quick-now').style.display = 'none'; // 編輯模式不給選即時
+                document.getElementById('btn-quick-now').style.display = 'none'; 
                 document.getElementById('loading-text').innerText = '載入訂單資料中...';
 
                 fetch(BOOKING_GAS_URL + "?orderId=" + editOrderId)
@@ -295,7 +287,6 @@
                         if (data.status === 'success' && data.data) {
                             const d = data.data;
                             
-                            // ⛔ 死者甦醒防護鎖
                             if (d.orderStatus === '❌ 已取消' || d.orderStatus === 'cancelled') {
                                 forceRemoveLoading();
                                 Swal.fire({
@@ -305,16 +296,13 @@
                                 return; 
                             }
 
-                            // 填入地址 (地圖版特殊處理：我們直接把地址顯示在畫面上，不移動地圖標針以防複雜)
                             document.getElementById('address-text').innerText = d.pickup;
                             document.getElementById('dropoff').value = d.dropoff === "上車告知 / 未指定" ? "" : d.dropoff;
                             
-                            // 電話自癒
                             let loadedPhone = String(d.phone);
                             if (loadedPhone.length === 9 && loadedPhone.startsWith('9')) loadedPhone = '0' + loadedPhone;
                             document.getElementById('phone').value = loadedPhone;
                             
-                            // 時間自癒
                             let loadedTime = String(d.bookingTime);
                             if (loadedTime.includes('T') && loadedTime.endsWith('Z')) {
                                 const localDate = new Date(loadedTime);
@@ -329,7 +317,6 @@
                             display.classList.add('text-blue-600');
                             document.getElementById('time-icon').className = "fa-solid fa-calendar-check input-icon text-blue-600";
                             
-                            // 付款方式
                             const method = PAYMENT_METHODS.find(m => m.label === d.payment) || PAYMENT_METHODS[0];
                             updatePaymentUI(method.label, method.icon, method.color);
 
@@ -344,7 +331,8 @@
                         Swal.fire('連線錯誤', '無法讀取訂單資料', 'error').then(() => { if(liff.isInClient()) liff.closeWindow(); });
                     });
             } else {
-                if(!navigator.geolocation) forceRemoveLoading(); // 如果沒有 GPS，也強迫關閉載入
+                // 🚀 v4.6 終極修復：如果不是編輯模式 (即一般叫車)，立刻強制掀開白布！
+                forceRemoveLoading();
             }
         }
 
@@ -389,7 +377,6 @@
             document.getElementById('submit-btn-text').innerText = "確認預約"; 
         }
 
-        // 🚀 v4.5 取消預約與聊天室對帳功能
         function cancelOrder() {
             const oldTime = document.getElementById('booking-time-val').value;
             Swal.fire({
@@ -423,7 +410,6 @@
             return `TDP-${md}-${rnd}`;
         }
 
-        // --- 送出訂單 (v4.5: 整合雲端大腦與齒輪卡片) ---
         async function submitOrder() {
             if (!liff.isLoggedIn() && !liff.isInClient()) {
                 return Swal.fire('尚未連線', '請重新整理頁面或在 LINE 內部開啟', 'error');
@@ -458,18 +444,15 @@
             let displayTime = "";
             let orderPayload = null;
 
-            // 🚀 v4.5 即時單與預約單的分流邏輯
             if (bookingMode === 'NOW') {
                 displayTime = `即時單 ${nowTimeStr}`;
                 headerTitle = `🚕 尋找附近車輛中`;
                 headerColor = "#000000";
-                // 即時單：不需要傳送給預約試算表，直接發卡片即可
             } else {
                 displayTime = `${bookingTime}`;
                 headerTitle = editOrderId ? "🔄 預約已更新" : "📅 預約確認";
                 headerColor = editOrderId ? "#EA580C" : "#1d4ed8";
                 
-                // 預約單：需要將資料打包準備傳送給 GAS 試算表
                 orderPayload = {
                     orderId: currentOrderId, userId: passengerId, userName: userName, phone: phone,
                     pickup: pickup, dropoff: dropoff, payment: payment, bookingTime: bookingTime,
@@ -477,7 +460,6 @@
                 };
             }
 
-            // 組合 Flex Message 卡片 Header
             let flexHeaderContents = [
                 {
                     type: "box", layout: "vertical", flex: 1, spacing: "xs",
@@ -488,7 +470,6 @@
                 }
             ];
 
-            // 💡 如果是預約單，才在右上角加上「⚙️ 修改」齒輪按鈕
             if (bookingMode === 'RESERVE') {
                 flexHeaderContents.push({
                     type: "box", layout: "vertical", flex: 0, paddingAll: "8px", cornerRadius: "8px", backgroundColor: "#f1f5f9",
@@ -549,7 +530,6 @@
             };
 
             try {
-                // 如果是預約單，背景寫入 GAS 試算表
                 if (bookingMode === 'RESERVE' && orderPayload) {
                     fetch(BOOKING_GAS_URL, {
                         method: 'POST', mode: 'no-cors',
