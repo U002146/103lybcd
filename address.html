@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>常用地址預約 // v4.0 雲端資料庫與修改取消支援版</title>
+    <title>常用地址預約 // v4.1 頂級無痕預約版 (資料回填+齒輪排版)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
@@ -53,7 +53,6 @@
         .time-btn.selected { background: #e0f2fe; border-color: #3b82f6; color: #1d4ed8; box-shadow: 0 2px 8px rgba(59,130,246,0.2); }
         .time-btn.disabled { opacity: 0.35; background: #f8fafc; pointer-events: none; color: #94a3b8; border-color: #e2e8f0; }
         
-        /* 🚀 v4.0 新增：頂部編輯模式提示條 */
         #edit-mode-banner { display: none; background: #FEF3C7; color: #D97706; text-align: center; padding: 8px; font-size: 13px; font-weight: bold; border-bottom: 1px solid #FDE68A; }
     </style>
 </head>
@@ -61,7 +60,7 @@
 
     <div id="loading-overlay" class="fixed inset-0 bg-white z-[9999] flex flex-col items-center justify-center">
         <div class="loader mb-4 w-12 h-12 border-4 text-emerald-500"></div>
-        <p class="text-slate-600 font-bold text-lg tracking-widest animate-pulse">系統連線中...</p>
+        <p id="loading-text" class="text-slate-600 font-bold text-lg tracking-widest animate-pulse">系統連線中...</p>
     </div>
 
     <div id="edit-mode-banner"><i class="fa-solid fa-pen-to-square"></i> 訂單修改模式</div>
@@ -74,6 +73,7 @@
                         📍 行程設定
                         <div id="liff-status-dot" class="ml-2 w-2 h-2 rounded-full bg-red-500 transition-colors duration-300"></div>
                     </h2>
+                    <!-- 🚀 v4.1 隱藏單號顯示，但仍保留結構以防未來需要 -->
                     <span id="order-id-display" class="text-xs text-slate-400 font-mono hidden"></span>
                 </div>
                 
@@ -136,9 +136,8 @@
             </div>
         </div>
 
-        <!-- 🚀 v4.0 UI 重構：底部按鈕區支援雙按鈕 (取消 & 送出) -->
         <div class="fixed bottom-0 left-0 right-0 p-5 bg-white/95 backdrop-blur-md border-t border-gray-100 z-30 max-w-[600px] mx-auto flex gap-3">
-            <button id="cancelOrderBtn" onclick="cancelOrder()" class="hidden w-[100px] bg-rose-50 text-rose-600 font-bold py-4 rounded-2xl active:scale-[0.95] transition-all text-lg border border-rose-100 flex-shrink-0">
+            <button id="cancelOrderBtn" onclick="cancelOrder()" class="hidden w-[80px] bg-rose-50 text-rose-600 font-bold py-4 rounded-2xl active:scale-[0.95] transition-all text-lg border border-rose-100 flex-shrink-0 flex items-center justify-center">
                 <i class="fa-solid fa-trash-can"></i>
             </button>
             <button id="submitBtn" onclick="submitOrder()" class="flex-1 bg-slate-900 text-white font-bold py-4 rounded-2xl shadow-xl shadow-slate-300 active:scale-[0.98] transition-all text-xl flex items-center justify-center space-x-3">
@@ -193,11 +192,11 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script>
-        const VERSION = "v4.0"; // 🚀 雲端資料庫與修改取消支援版
+        const VERSION = "v4.1"; // 🚀 資料回填與齒輪排版升級
         const LIFF_ID = '2008907691-3P676tTN'; 
         const PROJECT_B_URL = 'https://liff.line.me/2008907691-1mAjwojZ'; 
         
-        // 🚀 v4.0 新增：Google Apps Script (GAS) 寫入端點 (請替換為你實際綁定 Google 試算表的 GAS 網址)
+        // ⚠️ 請確保這是你最新的 GAS Web App 網址 (包含 doGet 與 doPost)
         const BOOKING_GAS_URL = 'https://script.google.com/macros/s/AKfycbzVTtBzYxPy9g-WnaJPS_Q_8GnzmWDf4Kaw7nA8VeDfe6ykM5rV3C2MmMddMh3AG6c9/exec'; 
 
         const PRESET_LOCATIONS = [
@@ -218,7 +217,6 @@
         let userName = "乘客"; 
         let passengerId = "unknown";
 
-        // 🚀 v4.0 新增：解析網址參數，判斷是否為修改模式
         const urlParams = new URLSearchParams(window.location.search);
         const editOrderId = urlParams.get('orderId');
 
@@ -231,16 +229,6 @@
                 if(method) updatePaymentUI(method.label, method.icon, method.color); 
             }
 
-            // 啟動編輯模式 UI
-            if (editOrderId) {
-                document.getElementById('edit-mode-banner').style.display = 'block';
-                document.getElementById('submit-btn-text').innerText = '儲存修改預約';
-                document.getElementById('cancelOrderBtn').classList.remove('hidden');
-                document.getElementById('order-id-display').innerText = '#' + editOrderId;
-                document.getElementById('order-id-display').classList.remove('hidden');
-                // 註：未來可在此加入 fetch() 讀取試算表舊資料並自動填入表單的邏輯
-            }
-
             liff.init({ liffId: LIFF_ID }).then(() => {
                 if (!liff.isLoggedIn()) {
                     liff.login({ redirectUri: window.location.href });
@@ -249,12 +237,54 @@
                 liff.getProfile().then(profile => {
                     userName = profile.displayName;
                     passengerId = profile.userId;
-                    unlockUI(); 
-                }).catch(err => { unlockUI(); });
+                    checkEditModeAndLoad(); // 🚀 執行資料回填邏輯
+                }).catch(err => { checkEditModeAndLoad(); });
             }).catch(err => {
                 Swal.fire({ icon: 'error', title: '連線失敗', text: '無法連結 LINE 伺服器，請重新開啟。' });
             });
         };
+
+        // 🚀 v4.1 核心升級：向 GAS 索取舊資料並回填至表單
+        function checkEditModeAndLoad() {
+            if (editOrderId) {
+                document.getElementById('edit-mode-banner').style.display = 'block';
+                document.getElementById('submit-btn-text').innerText = '儲存修改預約';
+                document.getElementById('cancelOrderBtn').classList.remove('hidden');
+                document.getElementById('loading-text').innerText = '載入訂單資料中...';
+
+                fetch(BOOKING_GAS_URL + "?orderId=" + editOrderId)
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.status === 'success' && data.data) {
+                            const d = data.data;
+                            document.getElementById('pickup').value = d.pickup;
+                            document.getElementById('dropoff').value = d.dropoff === "上車告知 / 未指定" ? "" : d.dropoff;
+                            document.getElementById('phone').value = d.phone;
+                            
+                            // 回填時間
+                            document.getElementById('booking-time-val').value = d.bookingTime;
+                            const display = document.getElementById('time-display');
+                            display.innerText = d.bookingTime;
+                            display.classList.remove('text-slate-400');
+                            display.classList.add('text-blue-700');
+                            document.getElementById('time-icon').className = "fa-solid fa-calendar-check input-icon text-blue-600 text-xl";
+                            
+                            // 回填付款方式
+                            const method = PAYMENT_METHODS.find(m => m.label === d.payment) || PAYMENT_METHODS[0];
+                            updatePaymentUI(method.label, method.icon, method.color);
+
+                            unlockUI();
+                        } else {
+                            Swal.fire('讀取失敗', '找不到該筆訂單或已被刪除', 'error').then(() => unlockUI());
+                        }
+                    })
+                    .catch(err => {
+                        Swal.fire('連線錯誤', '無法讀取訂單資料', 'error').then(() => unlockUI());
+                    });
+            } else {
+                unlockUI();
+            }
+        }
 
         function unlockUI() {
             document.getElementById('loading-overlay').style.display = 'none';
@@ -328,7 +358,6 @@
             if(label !== '現金') iconElem.classList.add(colorClass.split(' ')[0]); 
         }
 
-        /* --- 時間選擇器邏輯 --- */
         function generateDates() { 
             const dates = []; const today = new Date(); const weekDays = ['日','一','二','三','四','五','六']; 
             for(let i=0; i<7; i++) { 
@@ -419,7 +448,6 @@
             document.getElementById('time-icon').className = "fa-solid fa-calendar-check input-icon text-blue-600 text-xl"; 
         }
 
-        // 🚀 v4.0 新增：產生訂單編號
         function generateOrderId() {
             const now = new Date();
             const md = String(now.getMonth()+1).padStart(2,'0') + String(now.getDate()).padStart(2,'0');
@@ -427,8 +455,9 @@
             return `TDP-${md}-${rnd}`;
         }
 
-        // 🚀 v4.0 新增：取消預約邏輯
+        // 🚀 v4.1 取消預約與聊天室對帳功能
         function cancelOrder() {
+            const oldTime = document.getElementById('booking-time-val').value;
             Swal.fire({
                 title: '確定取消預約？', text: '取消後將同步通知司機。', icon: 'warning',
                 showCancelButton: true, confirmButtonColor: '#e3242b', cancelButtonColor: '#94a3b8',
@@ -436,23 +465,29 @@
             }).then((res) => {
                 if(res.isConfirmed) {
                     Swal.fire({title: '處理中', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
-                    // 傳送取消狀態至 GAS
                     fetch(BOOKING_GAS_URL, {
                         method: 'POST', mode: 'no-cors',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ orderId: editOrderId, status: 'cancelled', timestamp: new Date().toISOString() })
                     }).then(() => {
-                        Swal.fire('已取消', '預約已成功取消。', 'success').then(() => {
-                            if(liff.isInClient()) liff.closeWindow();
-                        });
+                        // 🚀 取消成功，傳送文字通知至聊天室
+                        if(liff.isInClient()) {
+                            liff.sendMessages([{
+                                type: 'text',
+                                text: `❌ 已取消預約\n(原定時間：${oldTime})`
+                            }]).then(() => {
+                                Swal.fire('已取消', '預約已成功取消。', 'success').then(() => liff.closeWindow());
+                            });
+                        } else {
+                            Swal.fire('已取消', '預約已成功取消。', 'success');
+                        }
                     }).catch(e => {
-                        Swal.fire('發生錯誤', '取消失敗，請稍後再試或聯繫客服。', 'error');
+                        Swal.fire('發生錯誤', '取消失敗，請稍後再試。', 'error');
                     });
                 }
             });
         }
 
-        // 🚀 v4.0 核心升級：送出並寫入資料庫，附帶雙按鈕 Flex Message
         async function submitOrder() {
             if (!liff.isLoggedIn() && !liff.isInClient()) {
                 return Swal.fire('尚未連線', '請重新整理頁面或在 LINE 內部開啟', 'error');
@@ -475,31 +510,22 @@
             btn.disabled = true;
             btn.innerHTML = '<div class="loader mr-3 w-5 h-5 border-2 border-white border-t-transparent"></div> 處理中...';
 
-            // 判斷是新訂單還是修改舊單，並產生/沿用 Order ID
             const currentOrderId = editOrderId || generateOrderId();
             const orderStatus = editOrderId ? "updated" : "new";
             const headerText = editOrderId ? "🔄 預約已更新" : "📅 預約確認";
-            const headerColor = editOrderId ? "#EA580C" : "#1d4ed8"; // 修改為橘色，新單為藍色
+            const headerColor = editOrderId ? "#EA580C" : "#1d4ed8";
 
-            // 1. 準備寫入資料庫的 Payload
             const orderPayload = {
-                orderId: currentOrderId,
-                userId: passengerId,
-                userName: userName,
-                phone: phone,
-                pickup: pickup,
-                dropoff: dropoff,
-                payment: payment,
-                bookingTime: bookingTime,
-                status: orderStatus,
-                timestamp: new Date().toISOString()
+                orderId: currentOrderId, userId: passengerId, userName: userName, phone: phone,
+                pickup: pickup, dropoff: dropoff, payment: payment, bookingTime: bookingTime,
+                status: orderStatus, timestamp: new Date().toISOString()
             };
 
-            // 2. 準備傳送給客人的 Flex Message 卡片
             const mapBaseUrl = "https://www.google.com/maps/search/?api=1&query=";
             const googleMapUrl = mapBaseUrl + encodeURIComponent(pickup);
             const dropoffMapUrl = mapBaseUrl + encodeURIComponent(dropoff);
             
+            // 🚀 v4.1 UI 重構：齒輪按鈕上移至 Header 側邊，移除下方笨重按鈕
             const flexMsg = {
                 type: "flex",
                 altText: `預約通知：${bookingTime}`,
@@ -507,12 +533,24 @@
                     type: "bubble",
                     styles: { header: { backgroundColor: "#FFFFFF" }, body: { backgroundColor: "#FFFFFF" }, footer: { backgroundColor: "#F8F8F8" } },
                     header: {
-                        type: "box", layout: "vertical", spacing: "sm",
+                        type: "box", layout: "horizontal", spacing: "sm", alignItems: "center",
                         contents: [ 
-                            { type: "text", text: headerText, weight: "bold", size: "sm", color: headerColor, align: "center" },
-                            { type: "text", text: `${bookingTime}`, weight: "bold", size: "xl", color: "#111111", align: "center", adjustMode: "shrink-to-fit" } 
+                            {
+                                type: "box", layout: "vertical", flex: 1, spacing: "xs",
+                                contents: [
+                                    { type: "text", text: headerText, weight: "bold", size: "sm", color: headerColor },
+                                    { type: "text", text: `${bookingTime}`, weight: "bold", size: "xl", color: "#111111", adjustMode: "shrink-to-fit" }
+                                ]
+                            },
+                            {
+                                type: "box", layout: "vertical", flex: 0, paddingAll: "8px", cornerRadius: "8px", backgroundColor: "#f1f5f9",
+                                action: { type: "uri", label: "修改", uri: `https://liff.line.me/${LIFF_ID}?orderId=${currentOrderId}` },
+                                contents: [
+                                    { type: "text", text: "⚙️ 修改", size: "xs", color: "#64748b", weight: "bold", align: "center" }
+                                ]
+                            }
                         ],
-                        paddingAll: "10px"
+                        paddingAll: "15px"
                     },
                     body: {
                         type: "box", layout: "vertical",
@@ -540,23 +578,14 @@
                             {
                                 type: "box", layout: "horizontal", margin: "lg",
                                 contents: [ { type: "text", text: "💰 付款", flex: 2, color: "#888888", size: "md" }, { type: "text", text: payment, flex: 5, color: "#111111", size: "md", weight: "bold" } ]
-                            },
-                            {
-                                type: "box", layout: "horizontal", margin: "xl",
-                                contents: [ { type: "text", text: `單號: ${currentOrderId}`, color: "#bbbbbb", size: "xs", align: "center" } ]
                             }
                         ]
                     },
-                    // 🚀 v4.0 核心：雙按鈕 Footer，第二顆按鈕帶入 orderId 參數
                     footer: {
                         type: "box", layout: "vertical", spacing: "sm", contents: [
                             {
                                 type: "button", style: "primary", color: "#10B981", height: "sm",
                                 action: { type: "uri", label: "👀 查看司機位置", uri: PROJECT_B_URL }
-                            },
-                            {
-                                type: "button", style: "secondary", height: "sm",
-                                action: { type: "uri", label: "✏️ 修改 / 取消預約", uri: `https://liff.line.me/${LIFF_ID}?orderId=${currentOrderId}` }
                             }
                         ]
                     }
@@ -564,19 +593,17 @@
             };
 
             try {
-                // 步驟 A：背景寫入 Google Apps Script 試算表資料庫
                 fetch(BOOKING_GAS_URL, {
                     method: 'POST', mode: 'no-cors',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(orderPayload)
                 }).catch(e => console.error("GAS 寫入失敗", e));
 
-                // 步驟 B：發送 LINE Flex Message 給客人
                 if (liff.isInClient()) {
                     await liff.sendMessages([flexMsg]);
                     liff.closeWindow(); 
                 } else {
-                    Swal.fire({ icon: 'info', title: '外部測試模式', text: `訂單 ${currentOrderId} 已模擬送出！請在 LINE 內開啟以傳送卡片。` });
+                    Swal.fire({ icon: 'info', title: '外部測試模式', text: `訂單已送出，請在 LINE 內開啟。` });
                     btn.disabled = false;
                     btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i><span id="submit-btn-text">確認送出預約</span>';
                 }
