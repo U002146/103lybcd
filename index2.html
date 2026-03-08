@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   
-  <title>花蓮敬老愛心車隊：雙向定位系統 // v9.16 UI 重構與防呆進化版</title> 
+  <title>花蓮敬老愛心車隊</title> 
   <meta name="apple-mobile-web-app-capable" content="yes">
   
   <meta property="og:title" content="通話叫車：雙向定位系統">
@@ -26,49 +26,72 @@
     .status-pill { background: white; padding: 10px 15px; border-radius: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); font-weight: bold; color: #333; pointer-events: auto; display: flex; align-items: center; font-size: 14px; }
     .btn-customer { background: linear-gradient(135deg, #00C853, #64DD17); color: white; width: 50px; height: 50px; border-radius: 50%; display: flex; flex-direction: column; justify-content: center; align-items: center; box-shadow: 0 4px 15px rgba(0,0,0,0.2); text-decoration: none; pointer-events: auto; font-size: 12px; font-weight: bold; border: 2px solid white; }
     .btn-customer i { font-size: 20px; margin-bottom: 2px; }
+    
     #driver-carousel { position: absolute; bottom: 20px; left: 0; width: 100%; display: flex; gap: 15px; padding: 10px 20px; box-sizing: border-box; overflow-x: auto; scroll-snap-type: x mandatory; z-index: 20; scrollbar-width: none; }
     #driver-carousel::-webkit-scrollbar { display: none; }
     
-    .driver-card { flex: 0 0 92%; max-width: 380px; background: white; border-radius: 24px; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.25); scroll-snap-align: center; display: flex; flex-direction: column; gap: 15px; transition: transform 0.2s; border: 2px solid #ddd; position: relative; }
+    /* 🚀 v9.17 UI 重構：卡片改為橫向排列 (Row)，大幅釋放高度 */
+    .driver-card { 
+        flex: 0 0 92%; max-width: 380px; background: white; border-radius: 24px; padding: 16px 20px; 
+        box-shadow: 0 10px 30px rgba(0,0,0,0.25); scroll-snap-align: center; 
+        display: flex; flex-direction: row; align-items: center; gap: 12px; 
+        transition: transform 0.2s; border: 2px solid #ddd; position: relative; 
+    }
     
-    .driver-card.tracking-mode { flex: 1; border-color: #00B0FF; box-shadow: 0 10px 35px rgba(0, 176, 255, 0.3); } 
-    .driver-card.arrived-mode { flex: 1; border-color: #FF9800; box-shadow: 0 10px 35px rgba(255, 152, 0, 0.4); animation: card-pulse 2s infinite; } 
-    .driver-card.busy-mode { flex: 1; border-color: #00C853; box-shadow: 0 10px 35px rgba(0, 200, 83, 0.3); } 
-    /* 🚀 v9.16 新增：排班卡片藍色邊框 */
+    .driver-card.tracking-mode { border-color: #00B0FF; box-shadow: 0 10px 35px rgba(0, 176, 255, 0.3); } 
+    .driver-card.arrived-mode { border-color: #FF9800; box-shadow: 0 10px 35px rgba(255, 152, 0, 0.4); animation: card-pulse 2s infinite; } 
+    .driver-card.busy-mode { border-color: #00C853; box-shadow: 0 10px 35px rgba(0, 200, 83, 0.3); } 
     .driver-card.queue-mode { border-color: #00B0FF; }
     
-    .d-top-section { display: flex; align-items: center; width: 100%; }
-    .d-avatar { width: 85px; height: 85px; background: #eee; border-radius: 50%; overflow: hidden; margin-right: 18px; border: 3px solid #00C853; box-shadow: 0 4px 12px rgba(0,0,0,0.15); flex-shrink: 0; }
-    
+    /* 🚀 v9.17 頭像縮小並靠左 */
+    .d-avatar { width: 70px; height: 70px; background: #eee; border-radius: 50%; overflow: hidden; border: 3px solid #00C853; box-shadow: 0 4px 12px rgba(0,0,0,0.15); flex-shrink: 0; }
     .driver-card.tracking-mode .d-avatar { border-color: #00B0FF; }
     .driver-card.arrived-mode .d-avatar { border-color: #FF9800; } 
     .driver-card.busy-mode .d-avatar { border-color: #00C853; }
-    /* 🚀 v9.16 新增：排班狀態下，大頭照邊框同步變成科技藍 */
     .driver-card.queue-mode .d-avatar { border-color: #00B0FF; }
-    
     .d-avatar img { width: 100%; height: 100%; object-fit: cover; }
-    .d-info { flex: 1; }
     
-    /* 🚀 v9.16 UI 重構：名字與標籤並排顯示，節省空間 */
-    .d-name { font-size: 24px; font-weight: 900; color: #000; display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 6px; }
+    /* 🚀 v9.17 中間資訊區塊 */
+    .d-info { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 4px; }
+    .d-name { font-size: 20px; font-weight: 900; color: #000; display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin: 0; line-height: 1.2; }
     
-    .tag { font-size: 13px; padding: 3px 8px; border-radius: 6px; font-weight: bold; display: inline-flex; align-items: center; }
+    .tag { font-size: 12px; padding: 2px 6px; border-radius: 6px; font-weight: bold; display: inline-flex; align-items: center; }
     .tag-empty { background: #e8f5e9; color: #1B5E20; border: 1px solid #4CAF50; }
     .tag-queue { background: #e3f2fd; color: #0D47A1; border: 1px solid #2196F3; }
     .tag-tracking { background: #E1F5FE; color: #0277BD; border: 1px solid #03A9F4; animation: pulse-radar 2s infinite; }
-    .tag-arrived { background: #FFF3E0; color: #E65100; border: 1px solid #FF9800; animation: pulse-radar 1.5s infinite; font-size: 14px; }
-    .tag-busy { background: #E8F5E9; color: #2E7D32; border: 1px solid #4CAF50; font-size: 14px; } 
+    .tag-arrived { background: #FFF3E0; color: #E65100; border: 1px solid #FF9800; animation: pulse-radar 1.5s infinite; }
+    .tag-busy { background: #E8F5E9; color: #2E7D32; border: 1px solid #4CAF50; } 
 
-    /* 🚀 v9.16 UI 重構：次要資訊降噪 (字體變小、顏色變淺、間距變緊) */
-    .d-meta { font-size: 15px; font-weight: 600; color: #666; display: flex; flex-direction: column; gap: 4px; }
-    .d-meta span { display: flex; align-items: center; gap: 8px; }
-    .d-meta i { width: 20px; text-align: center; color: #888; }
+    .d-meta { font-size: 14px; font-weight: 600; color: #666; display: flex; flex-direction: column; gap: 2px; }
+    .d-meta span { display: flex; align-items: center; gap: 6px; }
+    .d-meta i { width: 16px; text-align: center; color: #888; }
     
-    .btn-call { width: 100%; height: 65px; border-radius: 16px; background: linear-gradient(135deg, #00C853, #1B5E20); color: white; display: flex; justify-content: center; align-items: center; gap: 12px; text-decoration: none; font-size: 24px; font-weight: 900; box-shadow: 0 6px 15px rgba(76, 175, 80, 0.4); transition: transform 0.1s, background 0.2s; cursor: pointer; border: 2px solid #00E676; }
-    .btn-call:active { transform: scale(0.96); background: #1B5E20; }
-    .btn-call:disabled { background: #9E9E9E; border-color: #757575; cursor: not-allowed; transform: none; box-shadow: none; }
-    .btn-cancel-track { width: 100%; height: 45px; border-radius: 12px; background: #f5f5f5; color: #757575; display: flex; justify-content: center; align-items: center; gap: 8px; font-size: 16px; font-weight: bold; border: 1px solid #ddd; margin-top: -5px; cursor: pointer; }
-    #btn-loc { position: absolute; bottom: 300px; right: 20px; width: 55px; height: 55px; background: white; border-radius: 50%; box-shadow: 0 4px 15px rgba(0,0,0,0.25); display: flex; justify-content: center; align-items: center; font-size: 24px; color: #333; cursor: pointer; z-index: 15; border: 2px solid #eee; }
+    /* 🚀 v9.17 右側圓形一鍵叫車按鈕 (Trailing Action Button) */
+    .btn-call-circle {
+        width: 60px; height: 60px; border-radius: 50%;
+        background: linear-gradient(135deg, #00C853, #1B5E20); color: white;
+        display: flex; justify-content: center; align-items: center;
+        font-size: 26px; box-shadow: 0 6px 15px rgba(76, 175, 80, 0.4);
+        border: 2px solid #00E676; flex-shrink: 0; cursor: pointer; transition: transform 0.1s;
+    }
+    .btn-call-circle:active { transform: scale(0.92); background: #1B5E20; }
+    .btn-call-circle:disabled { background: #9E9E9E; border-color: #757575; box-shadow: none; cursor: not-allowed; transform: none; }
+    
+    /* 🚀 v9.17 迷你取消按鈕 (懸浮於卡片右上角) */
+    .btn-cancel-mini {
+        position: absolute; top: -10px; right: -10px;
+        width: 32px; height: 32px; border-radius: 50%;
+        background: white; color: #d32f2f;
+        display: flex; justify-content: center; align-items: center;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.2); border: 2px solid #ffebee;
+        font-size: 16px; cursor: pointer; z-index: 10; transition: transform 0.1s;
+    }
+    .btn-cancel-mini:active { transform: scale(0.9); }
+
+    /* 總台按鈕(無車時顯示) */
+    .btn-call-full { width: 100%; height: 50px; border-radius: 16px; background: linear-gradient(135deg, #F57F17, #E65100); color: white; display: flex; justify-content: center; align-items: center; gap: 12px; text-decoration: none; font-size: 18px; font-weight: 900; box-shadow: 0 6px 15px rgba(245, 127, 23, 0.4); border: 2px solid #FFB300; cursor: pointer; }
+
+    #btn-loc { position: absolute; bottom: 150px; right: 20px; width: 55px; height: 55px; background: white; border-radius: 50%; box-shadow: 0 4px 15px rgba(0,0,0,0.25); display: flex; justify-content: center; align-items: center; font-size: 24px; color: #333; cursor: pointer; z-index: 15; border: 2px solid #eee; transition: bottom 0.3s; }
     
     @keyframes pulse-radar { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
     @keyframes card-pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 152, 0, 0.4); } 70% { box-shadow: 0 0 0 15px rgba(255, 152, 0, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 152, 0, 0); } }
@@ -83,7 +106,6 @@
             <i class="fa-solid fa-location-dot" style="color:#e74c3c;margin-right:5px;"></i> 
             <span id="loc-text">定位中...</span>
         </div>
-        <!-- 🚀 v9.16 極簡化：移除綠色「雷達 即時」標籤，確保小手機不會跑版 -->
       </div>
       <a href="https://lin.ee/9Davl6e" target="_blank" class="btn-customer"><i class="fa-solid fa-headset"></i>客服</a>
     </div>
@@ -95,7 +117,7 @@
 
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script>
-    const VERSION = "v9.16"; // 🚀 UI 重構與防呆進化版
+    const VERSION = "v9.17"; // 🚀 空間釋放與圓形按鈕版
     const LIFF_ID = "2008907691-CzDqd7mm"; 
     const GAS_URL = "https://script.google.com/macros/s/AKfycbzjWZ8j394jfKoMVbPWGvHJHqwF7RBCQxnxyju1ifWKoKdM7RE512F7qrhUsQqQGoWg/exec"; 
     
@@ -115,7 +137,6 @@
     let passengerId = "unknown";
     let passengerName = "未授權乘客";
     let myTrackedDriverId = localStorage.getItem('trackedDriverId') || null;
-    
     let currentTrackStep = localStorage.getItem('trackStep') || '1';
 
     const getPinIcon = (type, isTracked, workStatus, trackStep) => {
@@ -170,7 +191,6 @@
     }
 
     function setupConnectionManager() {
-        // 🚀 v9.16 移除 UI 綁定，單純處理 Firebase 背景連線
         document.addEventListener("visibilitychange", () => {
             if (document.visibilityState === "visible") {
                 firebase.database().goOnline(); 
@@ -338,12 +358,11 @@
         const container = document.getElementById('driver-carousel');
         const currentScroll = container.scrollLeft;
         
-        // 🚀 v9.16 商業絕殺：無車時顯示官方調車按鈕
         if (drivers.length === 0) {
             container.innerHTML = `
                 <div style="width:100%; text-align:center; padding:20px; background:white; border-radius:24px; box-shadow:0 10px 30px rgba(0,0,0,0.15); border:2px solid #ddd;">
                     <div style="color:#666; font-size:18px; font-weight:bold; margin-bottom:15px;">目前附近暫無空車</div>
-                    <button class="btn-call" style="background: linear-gradient(135deg, #F57F17, #E65100); border-color: #FFB300;" onclick="window.location.href='https://lin.ee/9Davl6e'">
+                    <button class="btn-call-full" onclick="window.location.href='https://lin.ee/9Davl6e'">
                         <i class="fa-solid fa-headset"></i> 總台人工調車
                     </button>
                 </div>`;
@@ -355,45 +374,46 @@
             let statusTag = d.workStatus === 'queue' ? '<span class="tag tag-queue">排班中</span>' : '<span class="tag tag-empty">🟢 空車</span>';
             let cardClass = "driver-card";
             
-            // 🚀 v9.16 UI 修復：排班模式加入專屬 class 以控制藍色邊框
             if (!d.isTracked && d.workStatus === 'queue') {
                 cardClass += " queue-mode";
             }
 
             if (d.isTracked) {
                 if (currentTrackStep === '1.5' || d.workStatus === 'arrived') {
-                    statusTag = '<span class="tag tag-arrived"><i class="fa-solid fa-location-dot"></i> 司機已在門口等候</span>';
+                    statusTag = '<span class="tag tag-arrived">已抵達</span>';
                     cardClass = "driver-card arrived-mode"; 
                 } else if (currentTrackStep === '2') {
-                    statusTag = '<span class="tag tag-busy"><i class="fa-solid fa-car-side"></i> 載客行程中</span>';
+                    statusTag = '';
                     cardClass = "driver-card busy-mode"; 
                 } else {
-                    statusTag = '<span class="tag tag-tracking">🚕 專屬司機前往中</span>';
+                    statusTag = '<span class="tag tag-tracking">前往中</span>';
                     cardClass = "driver-card tracking-mode"; 
                 }
             }
 
             const distText = d.distUser < 1 ? (d.distUser*1000).toFixed(0)+' 公尺' : d.distUser.toFixed(1)+' 公里';
             const avatar = d.photo || 'https://cdn-icons-png.flaticon.com/512/3237/3237472.png';
-            
-            let btnCallHtml = '';
-            if (d.isTracked) {
-                if (currentTrackStep === '2') {
-                    btnCallHtml = `<div style="text-align: center; color: #2E7D32; font-weight: bold; padding: 12px; background: #e8f5e9; border-radius: 12px; border: 2px dashed #4CAF50; line-height: 1.5;">✅ 您已在車上，祝您旅途愉快！<br><span style="font-size: 13px; color: #555;"><i class="fa-solid fa-flag-checkered"></i> 行程結束將由司機為您結帳</span></div>`;
-                } else {
-                    btnCallHtml = `<button class="btn-call" onclick="window.location.href='tel:${d.phone}'"><i class="fa-solid fa-phone-volume"></i> 聯絡專屬司機</button>
-                                   <button class="btn-cancel-track" onclick="exitTrackingMode(false)"><i class="fa-solid fa-xmark"></i> 取消叫車</button>`;
-                }
-            } else {
-                btnCallHtml = `<button class="btn-call" onclick="callDriver('${d.id}', '${d.phone}', this); event.stopPropagation();"><i class="fa-solid fa-phone-volume"></i> 一鍵叫車</button>`;
-            }
-
             const displayCarNo = d.carNo || d.car || '花蓮計程車';
-
-            // 🚀 v9.16 UI 重構：名字與標籤合併同行，次要資訊降級處理
-            newHTML += `
-                <div class="${cardClass}" id="card-${d.id}" onclick="map.panTo({lat:${d.lat}, lng:${d.lng}})">
-                    <div class="d-top-section">
+            
+            // 🚀 v9.17 依據狀態動態組裝右側圓形按鈕與右上角取消按鈕
+            if (d.isTracked && currentTrackStep === '2') {
+                // 已上車狀態：移除右側按鈕，直接顯示搭乘祝賀語
+                newHTML += `
+                    <div class="${cardClass}" id="card-${d.id}">
+                        <div class="d-avatar"><img src="${avatar}"></div>
+                        <div class="d-info" style="justify-content: center; text-align: center;">
+                            <div style="color: #2E7D32; font-weight: 900; font-size: 18px; margin-bottom: 2px;">✅ 您已在車上</div>
+                            <div style="font-size: 13px; color: #555; font-weight: bold;"><i class="fa-solid fa-flag-checkered"></i> 祝您旅途愉快</div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                let callAction = d.isTracked ? `window.location.href='tel:${d.phone}'` : `callDriver('${d.id}', '${d.phone}', this); event.stopPropagation();`;
+                let cancelBtn = d.isTracked ? `<div class="btn-cancel-mini" onclick="exitTrackingMode(false); event.stopPropagation();"><i class="fa-solid fa-xmark"></i></div>` : '';
+                
+                newHTML += `
+                    <div class="${cardClass}" id="card-${d.id}" onclick="map.panTo({lat:${d.lat}, lng:${d.lng}})">
+                        ${cancelBtn}
                         <div class="d-avatar"><img src="${avatar}"></div>
                         <div class="d-info">
                             <div class="d-name">${d.name} ${statusTag}</div>
@@ -402,10 +422,12 @@
                                 <span><i class="fa-solid fa-location-arrow"></i> 距離 ${distText}</span>
                             </div>
                         </div>
+                        <button class="btn-call-circle" onclick="${callAction}">
+                            <i class="fa-solid fa-phone-volume"></i>
+                        </button>
                     </div>
-                    ${btnCallHtml}
-                </div>
-            `;
+                `;
+            }
         });
         
         container.innerHTML = newHTML;
@@ -426,7 +448,6 @@
                 allowOutsideClick: false,
                 preConfirm: () => {
                     const phoneInput = document.getElementById('swal-input-phone').value;
-                    // 🚀 v9.16 防呆升級：自動剔除空白與符號，只保留數字
                     const cleanPhone = phoneInput.replace(/\D/g, ''); 
                     if (!/^09\d{8}$/.test(cleanPhone)) {
                         Swal.showValidationMessage('請輸入正確的 10 碼手機號碼 (09開頭)');
@@ -449,7 +470,7 @@
         }
 
         const originalContent = btn.innerHTML;
-        btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> 處理中...';
+        btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin" style="font-size:20px;"></i>';
         btn.disabled = true;
 
         const makeCallAndTrack = () => {
@@ -551,11 +572,17 @@
         } 
     }
     
+    // 🚀 v9.17 地址反查升級：同時抓取 Route(路名) + Street Number(門牌號)
     function getAddress(lat, lng) {
         const geocoder = new google.maps.Geocoder();
         geocoder.geocode({ location: { lat: lat, lng: lng } }, (results, status) => {
             if (status === "OK" && results[0]) {
-                let addr = results[0].address_components.find(c => c.types.includes('route'))?.short_name || "您的位置";
+                const route = results[0].address_components.find(c => c.types.includes('route'))?.short_name || "";
+                const streetNum = results[0].address_components.find(c => c.types.includes('street_number'))?.short_name || "";
+                
+                let addr = (route + " " + streetNum).trim();
+                if (!addr) addr = results[0].address_components.find(c => c.types.includes('neighborhood'))?.short_name || "您的位置";
+                
                 document.getElementById('loc-text').innerText = addr;
             }
         });
