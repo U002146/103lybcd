@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>常用地址預約 // v4.3 幽靈訂單防護鎖版</title>
+    <title>常用地址預約</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
@@ -191,11 +191,11 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script>
-        const VERSION = "v4.3"; // 🚀 幽靈訂單防護鎖版
+        const VERSION = "v4.4"; // 🚀 幽靈防護鎖視覺修復版
         const LIFF_ID = '2008907691-3P676tTN'; 
         const PROJECT_B_URL = 'https://liff.line.me/2008907691-1mAjwojZ'; 
         
-        // ⚠️ 請確保這是你最新的 GAS Web App 網址
+        // 🚀 v4.4 對接最新的 GAS 後端大腦
         const BOOKING_GAS_URL = 'https://script.google.com/macros/s/AKfycbzVTtBzYxPy9g-WnaJPS_Q_8GnzmWDf4Kaw7nA8VeDfe6ykM5rV3C2MmMddMh3AG6c9/exec'; 
 
         const PRESET_LOCATIONS = [
@@ -256,8 +256,10 @@
                         if (data.status === 'success' && data.data) {
                             const d = data.data;
                             
-                            // 🚀 v4.3 終極防護：死者甦醒防護鎖
+                            // 🚀 v4.4 終極修復：降下防護閘門前，先掀開全螢幕的白布！
                             if (d.orderStatus === '❌ 已取消' || d.orderStatus === 'cancelled') {
+                                document.getElementById('loading-overlay').style.display = 'none'; // <-- 關鍵修復
+                                
                                 Swal.fire({
                                     icon: 'warning',
                                     title: '⚠️ 此預約已取消',
@@ -272,7 +274,7 @@
                                         document.body.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;height:100vh;color:#94a3b8;font-weight:bold;background:#f8fafc;">此訂單已失效，請關閉視窗。</div>';
                                     }
                                 });
-                                return; // ⛔ 終止後續載入，不顯示輸入框
+                                return; // ⛔ 終止後續載入
                             }
 
                             document.getElementById('pickup').value = d.pickup;
@@ -300,11 +302,18 @@
 
                             unlockUI();
                         } else {
-                            Swal.fire('讀取失敗', '找不到該筆訂單或已被刪除', 'error').then(() => unlockUI());
+                            // 找不到訂單時也要掀開白布
+                            document.getElementById('loading-overlay').style.display = 'none';
+                            Swal.fire('讀取失敗', '找不到該筆訂單或已被刪除', 'error').then(() => {
+                                if(liff.isInClient()) liff.closeWindow();
+                            });
                         }
                     })
                     .catch(err => {
-                        Swal.fire('連線錯誤', '無法讀取訂單資料', 'error').then(() => unlockUI());
+                        document.getElementById('loading-overlay').style.display = 'none';
+                        Swal.fire('連線錯誤', '無法讀取訂單資料', 'error').then(() => {
+                            if(liff.isInClient()) liff.closeWindow();
+                        });
                     });
             } else {
                 unlockUI();
