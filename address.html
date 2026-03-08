@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>常用地址預約 // v4.1 頂級無痕預約版 (資料回填+齒輪排版)</title>
+    <title>常用地址預約 // v4.2 純文字防吃零與時區修復版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
@@ -73,7 +73,6 @@
                         📍 行程設定
                         <div id="liff-status-dot" class="ml-2 w-2 h-2 rounded-full bg-red-500 transition-colors duration-300"></div>
                     </h2>
-                    <!-- 🚀 v4.1 隱藏單號顯示，但仍保留結構以防未來需要 -->
                     <span id="order-id-display" class="text-xs text-slate-400 font-mono hidden"></span>
                 </div>
                 
@@ -147,7 +146,6 @@
         </div>
     </div>
 
-    <!-- 滿版時間選擇器 Modal -->
     <div id="time-selector-modal" onclick="closeModernTimeSelector(event)">
         <div id="time-selector-content" onclick="event.stopPropagation()">
             <div class="flex justify-between items-center mb-5 flex-shrink-0">
@@ -192,11 +190,11 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script>
-        const VERSION = "v4.1"; // 🚀 資料回填與齒輪排版升級
+        const VERSION = "v4.2"; // 🚀 純文字防吃零與時區修復版
         const LIFF_ID = '2008907691-3P676tTN'; 
         const PROJECT_B_URL = 'https://liff.line.me/2008907691-1mAjwojZ'; 
         
-        // ⚠️ 請確保這是你最新的 GAS Web App 網址 (包含 doGet 與 doPost)
+        // ⚠️ 請確保這是你最新的 GAS Web App 網址
         const BOOKING_GAS_URL = 'https://script.google.com/macros/s/AKfycbzVTtBzYxPy9g-WnaJPS_Q_8GnzmWDf4Kaw7nA8VeDfe6ykM5rV3C2MmMddMh3AG6c9/exec'; 
 
         const PRESET_LOCATIONS = [
@@ -237,14 +235,13 @@
                 liff.getProfile().then(profile => {
                     userName = profile.displayName;
                     passengerId = profile.userId;
-                    checkEditModeAndLoad(); // 🚀 執行資料回填邏輯
+                    checkEditModeAndLoad();
                 }).catch(err => { checkEditModeAndLoad(); });
             }).catch(err => {
                 Swal.fire({ icon: 'error', title: '連線失敗', text: '無法連結 LINE 伺服器，請重新開啟。' });
             });
         };
 
-        // 🚀 v4.1 核心升級：向 GAS 索取舊資料並回填至表單
         function checkEditModeAndLoad() {
             if (editOrderId) {
                 document.getElementById('edit-mode-banner').style.display = 'block';
@@ -259,17 +256,26 @@
                             const d = data.data;
                             document.getElementById('pickup').value = d.pickup;
                             document.getElementById('dropoff').value = d.dropoff === "上車告知 / 未指定" ? "" : d.dropoff;
-                            document.getElementById('phone').value = d.phone;
                             
-                            // 回填時間
-                            document.getElementById('booking-time-val').value = d.bookingTime;
+                            // 🚀 v4.2 雙重防護：如果舊資料被吃掉 0，前端強制補上
+                            let loadedPhone = String(d.phone);
+                            if (loadedPhone.length === 9 && loadedPhone.startsWith('9')) loadedPhone = '0' + loadedPhone;
+                            document.getElementById('phone').value = loadedPhone;
+                            
+                            // 🚀 v4.2 雙重防護：如果舊資料被轉成 ISO 時間，前端自動解碼為當地時間
+                            let loadedTime = String(d.bookingTime);
+                            if (loadedTime.includes('T') && loadedTime.endsWith('Z')) {
+                                const localDate = new Date(loadedTime);
+                                loadedTime = `${localDate.getMonth()+1}月${localDate.getDate()}日 ${String(localDate.getHours()).padStart(2,'0')}:${String(localDate.getMinutes()).padStart(2,'0')}`;
+                            }
+                            
+                            document.getElementById('booking-time-val').value = loadedTime;
                             const display = document.getElementById('time-display');
-                            display.innerText = d.bookingTime;
+                            display.innerText = loadedTime;
                             display.classList.remove('text-slate-400');
                             display.classList.add('text-blue-700');
                             document.getElementById('time-icon').className = "fa-solid fa-calendar-check input-icon text-blue-600 text-xl";
                             
-                            // 回填付款方式
                             const method = PAYMENT_METHODS.find(m => m.label === d.payment) || PAYMENT_METHODS[0];
                             updatePaymentUI(method.label, method.icon, method.color);
 
@@ -455,7 +461,6 @@
             return `TDP-${md}-${rnd}`;
         }
 
-        // 🚀 v4.1 取消預約與聊天室對帳功能
         function cancelOrder() {
             const oldTime = document.getElementById('booking-time-val').value;
             Swal.fire({
@@ -470,7 +475,6 @@
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ orderId: editOrderId, status: 'cancelled', timestamp: new Date().toISOString() })
                     }).then(() => {
-                        // 🚀 取消成功，傳送文字通知至聊天室
                         if(liff.isInClient()) {
                             liff.sendMessages([{
                                 type: 'text',
@@ -525,7 +529,6 @@
             const googleMapUrl = mapBaseUrl + encodeURIComponent(pickup);
             const dropoffMapUrl = mapBaseUrl + encodeURIComponent(dropoff);
             
-            // 🚀 v4.1 UI 重構：齒輪按鈕上移至 Header 側邊，移除下方笨重按鈕
             const flexMsg = {
                 type: "flex",
                 altText: `預約通知：${bookingTime}`,
