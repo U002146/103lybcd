@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>定期接送預約 // v5.2 極簡微型卡片版</title>
+    <title>定期接送預約</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
@@ -160,15 +160,15 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script>
-        const VERSION = "v5.2"; // 🚀 極簡微型卡片版 (移除司機位置)
+        const VERSION = "v5.3"; // 🚀 總表資訊補完版 (加入電話與付款方式)
         
         // ⚠️ 這裡填入你為這支 sub_booking.html 新申請的 LIFF ID
-        const LIFF_ID = '2008907691-e4V07Yfr'; // 替換為定期接送的專屬 LIFF ID (如果是共用同一個也可)
+        const LIFF_ID = '2008907691-e4V07Yfr'; 
         
-        // 🚀 核心：指向你原本的「單次預約版」LIFF 網址，用來當作修改面板
+        // 🚀 修改面板的網址
         const BOOKING_LIFF_URL = 'https://liff.line.me/2008907691-3P676tTN'; 
         
-        // 🚀 共用最新的 GAS 後端大腦
+        // 🚀 GAS 後端大腦
         const BOOKING_GAS_URL = 'https://script.google.com/macros/s/AKfycbzVTtBzYxPy9g-WnaJPS_Q_8GnzmWDf4Kaw7nA8VeDfe6ykM5rV3C2MmMddMh3AG6c9/exec'; 
 
         const PRESET_LOCATIONS = [
@@ -353,7 +353,7 @@
                 timestamp: new Date().toISOString()
             };
 
-            // 1. 準備總表摘要卡片
+            // 🚀 v5.3 核心：在總表大卡片中補齊「電話」與「付款方式」
             const summaryMsg = {
                 type: "flex",
                 altText: `📅 定期接送成立 (共 ${generatedTrips.length} 趟)`,
@@ -384,13 +384,22 @@
                             {
                                 type: "box", layout: "horizontal", margin: "md",
                                 contents: [ { type: "text", text: "📍 路線", flex: 2, color: "#888888", size: "sm" }, { type: "text", text: `${pickup} ➔ ${dropoff}`, flex: 5, color: "#111111", size: "sm", wrap: true } ]
+                            },
+                            { type: "separator", margin: "md", color: "#EEEEEE" },
+                            {
+                                type: "box", layout: "horizontal", margin: "md",
+                                contents: [ { type: "text", text: "📞 電話", flex: 2, color: "#888888", size: "sm" }, { type: "text", text: phone, flex: 5, color: "#111111", size: "sm", weight: "bold", action: { type: "uri", label: "撥號", uri: `tel:${phone}` } } ]
+                            },
+                            { type: "separator", margin: "md", color: "#EEEEEE" },
+                            {
+                                type: "box", layout: "horizontal", margin: "md",
+                                contents: [ { type: "text", text: "💰 付款", flex: 2, color: "#888888", size: "sm" }, { type: "text", text: payment, flex: 5, color: "#111111", size: "sm", weight: "bold" } ]
                             }
                         ]
                     }
                 }
             };
 
-            // 🚀 v5.2 核心：極簡化微型卡片 (移除司機位置)
             let messagesToSend = [summaryMsg];
             let carouselBubbles = [];
             
@@ -411,7 +420,6 @@
                         type: "box", layout: "vertical", paddingAll: "10px",
                         contents: [
                             {
-                                // 💡 移除了司機位置，現在只有一顆滿版的修改按鈕
                                 type: "button", style: "secondary", height: "sm", color: "#f1f5f9",
                                 action: { type: "uri", label: "⚙️ 修改 / 取消", uri: `${BOOKING_LIFF_URL}?orderId=${subOrderId}` }
                             }
@@ -420,7 +428,6 @@
                 });
             });
 
-            // LINE Carousel 最多容納 12 個 Bubble，切成多個 Carousel 訊息 (每 10 個一組)
             const CHUNK_SIZE = 10;
             for (let i = 0; i < carouselBubbles.length; i += CHUNK_SIZE) {
                 const chunk = carouselBubbles.slice(i, i + CHUNK_SIZE);
@@ -434,8 +441,6 @@
                 });
             }
 
-            // liff.sendMessages 最多一次發送 5 個 Flex Message 區塊
-            // (1 個總表 + 4 個捲軸) = 最多可顯示前 40 趟的明細卡片
             if (messagesToSend.length > 5) {
                 messagesToSend = messagesToSend.slice(0, 5); 
             }
