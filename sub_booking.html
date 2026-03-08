@@ -80,7 +80,7 @@
                 </div>
             </div>
 
-            <div class="booking-card !bg-blue-50/30 !border-blue-100">
+            <div class="booking-card !bg-blue-50/30 !border-blue-100 !mb-2">
                 <div class="flex items-center justify-between mb-4">
                     <h2 class="text-sm font-bold text-blue-600 uppercase tracking-widest flex items-center">📅 頻率與時間</h2>
                 </div>
@@ -122,7 +122,21 @@
                 </div>
             </div>
 
-            <div class="booking-card">
+            <!-- 🚀 v5.4 預先微調剔除區塊 -->
+            <div id="preview-card" class="booking-card !bg-indigo-50/50 !border-indigo-100 hidden">
+                <div class="flex items-center justify-between mb-3">
+                    <h2 class="text-sm font-bold text-indigo-600 uppercase tracking-widest flex items-center">
+                        <i class="fa-solid fa-list-check mr-2"></i>預覽與微調班表
+                    </h2>
+                    <span id="preview-count" class="text-xs font-bold bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full">0 趟</span>
+                </div>
+                <div id="trip-tags-container" class="flex flex-wrap gap-2 mb-2">
+                    <!-- 標籤動態產生於此 -->
+                </div>
+                <div class="text-[11px] text-slate-500 font-bold mt-3"><i class="fa-solid fa-circle-info text-indigo-400"></i> 點擊標籤上的 ❌ 可預先刪除不需要的日期</div>
+            </div>
+
+            <div class="booking-card mt-5">
                 <div class="input-group cursor-pointer relative !mb-4" onclick="openPaymentPicker()">
                     <i id="payment-icon" class="fa-solid fa-coins input-icon text-slate-600"></i>
                     <div class="flex-1">
@@ -160,10 +174,10 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script>
-        const VERSION = "v5.3"; // 🚀 總表資訊補完版 (加入電話與付款方式)
+        const VERSION = "v5.4"; // 🚀 預先微調剔除版 (加入班表預覽與刪除)
         
         // ⚠️ 這裡填入你為這支 sub_booking.html 新申請的 LIFF ID
-        const LIFF_ID = '2008907691-e4V07Yfr'; 
+        const LIFF_ID = '2008907691-3P676tTN'; 
         
         // 🚀 修改面板的網址
         const BOOKING_LIFF_URL = 'https://liff.line.me/2008907691-3P676tTN'; 
@@ -267,21 +281,14 @@
             if(label !== '現金') iconElem.classList.add(colorClass.split(' ')[0]); 
         }
 
+        // 🚀 v5.4 核心：初次計算所有符合的班表
         function calculateTrips() {
             generatedTrips = [];
-            const btn = document.getElementById('submitBtn');
-            const btnText = document.getElementById('submit-btn-text');
             const timeVal = document.getElementById('sub-time').value;
             const weeks = parseInt(document.getElementById('sub-weeks').value);
 
-            if (selectedDows.size === 0) {
-                btn.disabled = true;
-                btnText.innerText = "確認送出 (請先選擇星期)";
-                return;
-            }
-            if (!timeVal) {
-                btn.disabled = true;
-                btnText.innerText = "確認送出 (請設定時間)";
+            if (selectedDows.size === 0 || !timeVal) {
+                renderTripTags(); // 觸發清空與隱藏邏輯
                 return;
             }
 
@@ -300,11 +307,66 @@
                 currentDate.setDate(currentDate.getDate() + 1);
             }
 
+            renderTripTags();
+        }
+
+        // 🚀 v5.4 核心：渲染預覽標籤，根據陣列狀態更新 UI
+        function renderTripTags() {
+            const container = document.getElementById('trip-tags-container');
+            const previewCard = document.getElementById('preview-card');
+            const previewCount = document.getElementById('preview-count');
+            const btn = document.getElementById('submitBtn');
+            const btnText = document.getElementById('submit-btn-text');
+
+            if (selectedDows.size === 0) {
+                previewCard.classList.add('hidden');
+                btn.disabled = true;
+                btnText.innerText = "確認送出 (請先選擇星期)";
+                return;
+            }
+            if (!document.getElementById('sub-time').value) {
+                previewCard.classList.add('hidden');
+                btn.disabled = true;
+                btnText.innerText = "確認送出 (請設定時間)";
+                return;
+            }
+
+            previewCard.classList.remove('hidden');
+
+            if (generatedTrips.length === 0) {
+                container.innerHTML = '<div class="text-sm text-rose-500 font-bold py-2 w-full text-center bg-rose-50 rounded-lg border border-rose-100">已無任何有效趟次，請重新選擇。</div>';
+                previewCount.innerText = '0 趟';
+                btn.disabled = true;
+                btnText.innerText = "確認送出 (無有效趟次)";
+                return;
+            }
+
+            let html = '';
+            generatedTrips.forEach((trip, index) => {
+                html += `
+                    <div class="bg-white border border-indigo-200 text-indigo-700 pl-3 pr-1 py-1.5 rounded-xl flex items-center gap-2 text-sm font-bold shadow-sm transition-all active:scale-95">
+                        ${trip}
+                        <button type="button" onclick="removeTrip(${index})" class="text-indigo-300 hover:text-rose-500 bg-indigo-50 hover:bg-rose-100 rounded-full w-6 h-6 flex items-center justify-center transition-colors">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+            previewCount.innerText = `共 ${generatedTrips.length} 趟`;
+
             btn.disabled = false;
             btnText.innerText = `確認送出 (共產生 ${generatedTrips.length} 趟)`;
             
             btn.classList.add('scale-[1.02]', 'bg-indigo-600');
             setTimeout(() => btn.classList.remove('scale-[1.02]', 'bg-indigo-600'), 200);
+        }
+
+        // 🚀 v5.4 核心：刪除特定日期，並重新渲染
+        window.removeTrip = function(index) {
+            generatedTrips.splice(index, 1); // 將該筆資料從陣列中精準剔除
+            renderTripTags(); 
         }
 
         function generateBaseOrderId() {
@@ -325,7 +387,7 @@
 
             if(!pickup || !dropoff) return Swal.fire('請填寫完整地址', '起訖點為必填', 'warning');
             if(!phone || phone.length < 8) return Swal.fire('請輸入電話', '請留下聯絡方式', 'warning');
-            if(generatedTrips.length === 0) return Swal.fire('資料不全', '請確保有勾選出發日與時間', 'error');
+            if(generatedTrips.length === 0) return Swal.fire('資料不全', '請確保有有效趟次', 'error');
 
             localStorage.setItem('taxi_user_phone', phone);
             
@@ -340,6 +402,7 @@
             const dowString = sortedDows.map(d => dowNames[d]).join('、');
             const timeStr = document.getElementById('sub-time').value;
 
+            // 🚀 送出的陣列，已經是使用者剔除過後的純淨版本了！
             const orderPayload = {
                 type: 'subscription', 
                 baseOrderId: baseOrderId,
@@ -353,7 +416,6 @@
                 timestamp: new Date().toISOString()
             };
 
-            // 🚀 v5.3 核心：在總表大卡片中補齊「電話」與「付款方式」
             const summaryMsg = {
                 type: "flex",
                 altText: `📅 定期接送成立 (共 ${generatedTrips.length} 趟)`,
