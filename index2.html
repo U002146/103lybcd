@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   
-  <title>花蓮敬老愛心車隊：雙向定位系統 // v9.15 車牌修復版</title> 
+  <title>花蓮敬老愛心車隊：雙向定位系統 // v9.16 UI 重構與防呆進化版</title> 
   <meta name="apple-mobile-web-app-capable" content="yes">
   
   <meta property="og:title" content="通話叫車：雙向定位系統">
@@ -34,6 +34,8 @@
     .driver-card.tracking-mode { flex: 1; border-color: #00B0FF; box-shadow: 0 10px 35px rgba(0, 176, 255, 0.3); } 
     .driver-card.arrived-mode { flex: 1; border-color: #FF9800; box-shadow: 0 10px 35px rgba(255, 152, 0, 0.4); animation: card-pulse 2s infinite; } 
     .driver-card.busy-mode { flex: 1; border-color: #00C853; box-shadow: 0 10px 35px rgba(0, 200, 83, 0.3); } 
+    /* 🚀 v9.16 新增：排班卡片藍色邊框 */
+    .driver-card.queue-mode { border-color: #00B0FF; }
     
     .d-top-section { display: flex; align-items: center; width: 100%; }
     .d-avatar { width: 85px; height: 85px; background: #eee; border-radius: 50%; overflow: hidden; margin-right: 18px; border: 3px solid #00C853; box-shadow: 0 4px 12px rgba(0,0,0,0.15); flex-shrink: 0; }
@@ -41,21 +43,26 @@
     .driver-card.tracking-mode .d-avatar { border-color: #00B0FF; }
     .driver-card.arrived-mode .d-avatar { border-color: #FF9800; } 
     .driver-card.busy-mode .d-avatar { border-color: #00C853; }
+    /* 🚀 v9.16 新增：排班狀態下，大頭照邊框同步變成科技藍 */
+    .driver-card.queue-mode .d-avatar { border-color: #00B0FF; }
     
     .d-avatar img { width: 100%; height: 100%; object-fit: cover; }
     .d-info { flex: 1; }
-    .d-name { font-size: 26px; font-weight: 900; color: #000; margin-bottom: 8px; display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
     
-    .tag { font-size: 14px; padding: 4px 10px; border-radius: 6px; font-weight: bold; }
+    /* 🚀 v9.16 UI 重構：名字與標籤並排顯示，節省空間 */
+    .d-name { font-size: 24px; font-weight: 900; color: #000; display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 6px; }
+    
+    .tag { font-size: 13px; padding: 3px 8px; border-radius: 6px; font-weight: bold; display: inline-flex; align-items: center; }
     .tag-empty { background: #e8f5e9; color: #1B5E20; border: 1px solid #4CAF50; }
     .tag-queue { background: #e3f2fd; color: #0D47A1; border: 1px solid #2196F3; }
     .tag-tracking { background: #E1F5FE; color: #0277BD; border: 1px solid #03A9F4; animation: pulse-radar 2s infinite; }
-    .tag-arrived { background: #FFF3E0; color: #E65100; border: 1px solid #FF9800; animation: pulse-radar 1.5s infinite; font-size: 15px; }
-    .tag-busy { background: #E8F5E9; color: #2E7D32; border: 1px solid #4CAF50; font-size: 15px; } 
+    .tag-arrived { background: #FFF3E0; color: #E65100; border: 1px solid #FF9800; animation: pulse-radar 1.5s infinite; font-size: 14px; }
+    .tag-busy { background: #E8F5E9; color: #2E7D32; border: 1px solid #4CAF50; font-size: 14px; } 
 
-    .d-meta { font-size: 18px; font-weight: 700; color: #222; display: flex; flex-direction: column; gap: 6px; }
+    /* 🚀 v9.16 UI 重構：次要資訊降噪 (字體變小、顏色變淺、間距變緊) */
+    .d-meta { font-size: 15px; font-weight: 600; color: #666; display: flex; flex-direction: column; gap: 4px; }
     .d-meta span { display: flex; align-items: center; gap: 8px; }
-    .d-meta i { width: 24px; text-align: center; color: #555; }
+    .d-meta i { width: 20px; text-align: center; color: #888; }
     
     .btn-call { width: 100%; height: 65px; border-radius: 16px; background: linear-gradient(135deg, #00C853, #1B5E20); color: white; display: flex; justify-content: center; align-items: center; gap: 12px; text-decoration: none; font-size: 24px; font-weight: 900; box-shadow: 0 6px 15px rgba(76, 175, 80, 0.4); transition: transform 0.1s, background 0.2s; cursor: pointer; border: 2px solid #00E676; }
     .btn-call:active { transform: scale(0.96); background: #1B5E20; }
@@ -65,7 +72,6 @@
     
     @keyframes pulse-radar { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
     @keyframes card-pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 152, 0, 0.4); } 70% { box-shadow: 0 0 0 15px rgba(255, 152, 0, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 152, 0, 0); } }
-    .radar-active { animation: pulse-radar 2s infinite; color: #00C853; font-weight: 900; }
   </style>
 </head>
 <body>
@@ -77,10 +83,7 @@
             <i class="fa-solid fa-location-dot" style="color:#e74c3c;margin-right:5px;"></i> 
             <span id="loc-text">定位中...</span>
         </div>
-        <div class="status-pill" style="color:#00C853; border: 1px solid #00C853;">
-            <i class="fa-solid fa-satellite-dish" style="margin-right:5px;"></i> 雷達 
-            <span id="radar-status" class="radar-active" style="margin-left:5px;">即時</span>
-        </div>
+        <!-- 🚀 v9.16 極簡化：移除綠色「雷達 即時」標籤，確保小手機不會跑版 -->
       </div>
       <a href="https://lin.ee/9Davl6e" target="_blank" class="btn-customer"><i class="fa-solid fa-headset"></i>客服</a>
     </div>
@@ -92,7 +95,7 @@
 
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script>
-    const VERSION = "v9.15"; // 🚀 車牌修復版：修正舊版 d.car 變數，改為 d.carNo
+    const VERSION = "v9.16"; // 🚀 UI 重構與防呆進化版
     const LIFF_ID = "2008907691-CzDqd7mm"; 
     const GAS_URL = "https://script.google.com/macros/s/AKfycbzjWZ8j394jfKoMVbPWGvHJHqwF7RBCQxnxyju1ifWKoKdM7RE512F7qrhUsQqQGoWg/exec"; 
     
@@ -167,15 +170,12 @@
     }
 
     function setupConnectionManager() {
+        // 🚀 v9.16 移除 UI 綁定，單純處理 Firebase 背景連線
         document.addEventListener("visibilitychange", () => {
             if (document.visibilityState === "visible") {
                 firebase.database().goOnline(); 
-                document.getElementById('radar-status').innerText = "即時";
-                document.getElementById('radar-status').classList.add('radar-active');
             } else {
                 firebase.database().goOffline(); 
-                document.getElementById('radar-status').innerText = "暫停";
-                document.getElementById('radar-status').classList.remove('radar-active');
             }
         });
     }
@@ -338,8 +338,15 @@
         const container = document.getElementById('driver-carousel');
         const currentScroll = container.scrollLeft;
         
+        // 🚀 v9.16 商業絕殺：無車時顯示官方調車按鈕
         if (drivers.length === 0) {
-            container.innerHTML = '<div style="width:100%;text-align:center;color:#666;font-size:18px;font-weight:bold;padding:30px;background:white;border-radius:24px;box-shadow:0 10px 30px rgba(0,0,0,0.15);border:2px solid #ddd;">附近暫無空車</div>';
+            container.innerHTML = `
+                <div style="width:100%; text-align:center; padding:20px; background:white; border-radius:24px; box-shadow:0 10px 30px rgba(0,0,0,0.15); border:2px solid #ddd;">
+                    <div style="color:#666; font-size:18px; font-weight:bold; margin-bottom:15px;">目前附近暫無空車</div>
+                    <button class="btn-call" style="background: linear-gradient(135deg, #F57F17, #E65100); border-color: #FFB300;" onclick="window.location.href='https://lin.ee/9Davl6e'">
+                        <i class="fa-solid fa-headset"></i> 總台人工調車
+                    </button>
+                </div>`;
             return;
         }
 
@@ -348,6 +355,11 @@
             let statusTag = d.workStatus === 'queue' ? '<span class="tag tag-queue">排班中</span>' : '<span class="tag tag-empty">🟢 空車</span>';
             let cardClass = "driver-card";
             
+            // 🚀 v9.16 UI 修復：排班模式加入專屬 class 以控制藍色邊框
+            if (!d.isTracked && d.workStatus === 'queue') {
+                cardClass += " queue-mode";
+            }
+
             if (d.isTracked) {
                 if (currentTrackStep === '1.5' || d.workStatus === 'arrived') {
                     statusTag = '<span class="tag tag-arrived"><i class="fa-solid fa-location-dot"></i> 司機已在門口等候</span>';
@@ -376,16 +388,15 @@
                 btnCallHtml = `<button class="btn-call" onclick="callDriver('${d.id}', '${d.phone}', this); event.stopPropagation();"><i class="fa-solid fa-phone-volume"></i> 一鍵叫車</button>`;
             }
 
-            // 🚀 v9.15 核心修復：d.car 變更為 d.carNo，優先讀取新版車牌變數，向下相容舊版 d.car
             const displayCarNo = d.carNo || d.car || '花蓮計程車';
 
+            // 🚀 v9.16 UI 重構：名字與標籤合併同行，次要資訊降級處理
             newHTML += `
                 <div class="${cardClass}" id="card-${d.id}" onclick="map.panTo({lat:${d.lat}, lng:${d.lng}})">
                     <div class="d-top-section">
                         <div class="d-avatar"><img src="${avatar}"></div>
                         <div class="d-info">
-                            <div class="d-name">${d.name}</div>
-                            <div style="margin-bottom: 8px;">${statusTag}</div>
+                            <div class="d-name">${d.name} ${statusTag}</div>
                             <div class="d-meta">
                                 <span><i class="fa-solid fa-taxi"></i> ${displayCarNo}</span>
                                 <span><i class="fa-solid fa-location-arrow"></i> 距離 ${distText}</span>
@@ -408,17 +419,19 @@
             const { value: formValues } = await Swal.fire({
                 title: '📱 首次叫車綁定',
                 html: '<p style="color:#555;font-size:14px;margin-bottom:15px;text-align:left;">為了讓司機在找不到人時能主動聯繫您，請輸入您的手機號碼。<br><strong style="color:#d32f2f;">(僅需輸入一次，未來叫車免重填)</strong></p>' +
-                      '<input id="swal-input-phone" class="swal2-input" placeholder="例如：0912345678" type="tel" maxlength="10">',
+                      '<input id="swal-input-phone" class="swal2-input" placeholder="例如：0912345678" type="tel">',
                 focusConfirm: false,
                 confirmButtonText: '確定綁定',
                 confirmButtonColor: '#00C853',
                 allowOutsideClick: false,
                 preConfirm: () => {
                     const phoneInput = document.getElementById('swal-input-phone').value;
-                    if (!/^09\d{8}$/.test(phoneInput)) {
+                    // 🚀 v9.16 防呆升級：自動剔除空白與符號，只保留數字
+                    const cleanPhone = phoneInput.replace(/\D/g, ''); 
+                    if (!/^09\d{8}$/.test(cleanPhone)) {
                         Swal.showValidationMessage('請輸入正確的 10 碼手機號碼 (09開頭)');
                     }
-                    return phoneInput;
+                    return cleanPhone;
                 }
             });
 
