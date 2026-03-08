@@ -55,14 +55,14 @@
         <div class="main-container !pt-2">
             <div class="booking-card">
                 <div class="flex items-center justify-between mb-4">
-                    <h2 class="text-sm font-bold text-slate-500 uppercase tracking-widest flex items-center">📍 固定路線</h2>
+                    <h2 class="text-sm font-bold text-slate-500 uppercase tracking-widest flex items-center">📍 去程固定路線</h2>
                 </div>
                 
                 <div class="location-inputs">
                     <div class="loc-row relative">
                         <i class="fa-solid fa-circle-dot text-emerald-500 text-lg mr-4 w-5 text-center"></i>
                         <div class="flex-1 mr-12">
-                            <label class="block text-[10px] text-slate-400 font-bold uppercase mb-1">Pickup (上車點)</label>
+                            <label class="block text-[10px] text-slate-400 font-bold uppercase mb-1">Pickup (去程上車點)</label>
                             <input type="text" id="pickup" placeholder="輸入固定上車地址" class="w-full bg-transparent font-bold text-slate-800 outline-none text-lg">
                         </div>
                         <button onclick="openPresetLocations('pickup')" class="absolute right-4 p-3 -mr-3 text-yellow-400 active:scale-90 transition-transform"><i class="fa-solid fa-star text-xl drop-shadow-sm"></i></button>
@@ -72,7 +72,7 @@
                     <div class="loc-row relative">
                         <i class="fa-solid fa-location-dot text-rose-500 text-xl mr-4 w-5 text-center"></i>
                         <div class="flex-1 mr-12">
-                            <label class="block text-[10px] text-slate-400 font-bold uppercase mb-1">Drop-off (下車點)</label>
+                            <label class="block text-[10px] text-slate-400 font-bold uppercase mb-1">Drop-off (去程下車點)</label>
                             <input type="text" id="dropoff" placeholder="輸入固定下車地址" class="w-full bg-transparent font-bold text-slate-800 outline-none text-lg">
                         </div>
                         <button onclick="openPresetLocations('dropoff')" class="absolute right-4 p-3 -mr-3 text-yellow-400 active:scale-90 transition-transform"><i class="fa-solid fa-star text-xl drop-shadow-sm"></i></button>
@@ -98,11 +98,11 @@
                     </div>
                 </div>
 
-                <div class="flex gap-3 mb-2">
+                <div class="flex gap-3 mb-3">
                     <div class="input-group flex-1 !mb-0 relative">
                         <i class="fa-solid fa-clock input-icon text-blue-500"></i>
                         <div class="flex-1">
-                            <label class="block text-[10px] text-slate-400 font-bold uppercase">固定時間</label>
+                            <label class="block text-[10px] text-slate-400 font-bold uppercase">去程時間</label>
                             <input type="time" id="sub-time" class="w-full bg-transparent font-bold text-slate-800 outline-none text-lg mt-1" onchange="calculateTrips()">
                         </div>
                     </div>
@@ -120,9 +120,30 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- 🚀 v5.5 增加返程時間切換按鈕 -->
+                <div class="flex items-center justify-between mb-3 bg-indigo-50 p-3 rounded-xl border border-indigo-100 cursor-pointer active:scale-95 transition-transform" onclick="toggleReturnTime()">
+                    <div class="flex items-center text-indigo-700 font-bold text-sm">
+                        <i class="fa-solid fa-repeat mr-2"></i> 增加返程時間 (來回趟)
+                    </div>
+                    <div class="relative inline-block w-10 h-6">
+                        <input type="checkbox" id="return-toggle" class="opacity-0 w-0 h-0" onchange="calculateTrips()">
+                        <span class="absolute cursor-pointer top-0 left-0 right-0 bottom-0 bg-gray-300 rounded-full transition-colors duration-300" id="return-toggle-bg"></span>
+                        <span class="absolute left-1 bottom-1 bg-white w-4 h-4 rounded-full transition-transform duration-300" id="return-toggle-dot"></span>
+                    </div>
+                </div>
+
+                <!-- 返程時間輸入框 (預設隱藏) -->
+                <div id="return-time-container" class="hidden input-group !mb-0 relative border-indigo-200 bg-white">
+                    <i class="fa-solid fa-clock-rotate-left input-icon text-indigo-500"></i>
+                    <div class="flex-1">
+                        <label class="block text-[10px] text-slate-400 font-bold uppercase">返程時間 (系統將自動對調上下車點)</label>
+                        <input type="time" id="return-time" class="w-full bg-transparent font-bold text-slate-800 outline-none text-lg mt-1" onchange="calculateTrips()">
+                    </div>
+                </div>
             </div>
 
-            <!-- 🚀 v5.4 預先微調剔除區塊 -->
+            <!-- 預先微調剔除區塊 -->
             <div id="preview-card" class="booking-card !bg-indigo-50/50 !border-indigo-100 hidden">
                 <div class="flex items-center justify-between mb-3">
                     <h2 class="text-sm font-bold text-indigo-600 uppercase tracking-widest flex items-center">
@@ -130,10 +151,10 @@
                     </h2>
                     <span id="preview-count" class="text-xs font-bold bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full">0 趟</span>
                 </div>
-                <div id="trip-tags-container" class="flex flex-wrap gap-2 mb-2">
+                <div id="trip-tags-container" class="flex flex-col gap-2 mb-2">
                     <!-- 標籤動態產生於此 -->
                 </div>
-                <div class="text-[11px] text-slate-500 font-bold mt-3"><i class="fa-solid fa-circle-info text-indigo-400"></i> 點擊標籤上的 ❌ 可預先刪除不需要的日期</div>
+                <div class="text-[11px] text-slate-500 font-bold mt-3"><i class="fa-solid fa-circle-info text-indigo-400"></i> 點擊標籤上的 ❌ 可預先刪除不需要的日期或趟次</div>
             </div>
 
             <div class="booking-card mt-5">
@@ -159,7 +180,7 @@
             </div>
             
             <div class="text-center text-xs text-slate-400 font-bold px-4 mb-4">
-                💡 送出後，您將在聊天室收到包含「每日修改按鈕」的橫向滑動明細卡片，隨時可針對單日取消，不影響其他天數。
+                💡 系統會自動為您生成來回獨立訂單，您日後可於聊天室針對單日單趟取消，不影響其他天數。
             </div>
         </div>
 
@@ -174,15 +195,12 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script>
-        const VERSION = "v5.4"; // 🚀 預先微調剔除版 (加入班表預覽與刪除)
+        const VERSION = "v5.5"; // 🚀 來回趟自動反轉版
         
         // ⚠️ 這裡填入你為這支 sub_booking.html 新申請的 LIFF ID
-        const LIFF_ID = '2008907691-3P676tTN'; 
+        const LIFF_ID = '2008907691-e4V07Yfr'; 
         
-        // 🚀 修改面板的網址
         const BOOKING_LIFF_URL = 'https://liff.line.me/2008907691-3P676tTN'; 
-        
-        // 🚀 GAS 後端大腦
         const BOOKING_GAS_URL = 'https://script.google.com/macros/s/AKfycbzVTtBzYxPy9g-WnaJPS_Q_8GnzmWDf4Kaw7nA8VeDfe6ykM5rV3C2MmMddMh3AG6c9/exec'; 
 
         const PRESET_LOCATIONS = [
@@ -201,7 +219,10 @@
         let userName = "乘客"; 
         let passengerId = "unknown";
         let selectedDows = new Set(); 
+        
+        // 陣列改為存物件： { type: 'go'|'back', dateStr: '3月12日', timeStr: '08:00' }
         let generatedTrips = []; 
+        let isRoundTrip = false; // 來回趟開關狀態
 
         window.onload = function() {
             const savedPhone = localStorage.getItem('taxi_user_phone');
@@ -247,6 +268,7 @@
             inputs.forEach(el => { el.style.transform = 'scale(0.98)'; setTimeout(() => el.style.transform = 'scale(1)', 150); });
         }
 
+        // UI 元件功能 (與舊版相同)
         function openPresetLocations(target) { 
             currentTargetInput = target; 
             const targetName = target === 'pickup' ? '上車點' : '下車點';
@@ -281,20 +303,38 @@
             if(label !== '現金') iconElem.classList.add(colorClass.split(' ')[0]); 
         }
 
-        // 🚀 v5.4 核心：初次計算所有符合的班表
+        // 🚀 v5.5 切換來回趟
+        window.toggleReturnTime = function() {
+            isRoundTrip = !isRoundTrip;
+            document.getElementById('return-toggle').checked = isRoundTrip;
+            document.getElementById('return-toggle-bg').classList.toggle('bg-indigo-500', isRoundTrip);
+            document.getElementById('return-toggle-dot').classList.toggle('translate-x-4', isRoundTrip);
+            
+            const rtc = document.getElementById('return-time-container');
+            if(isRoundTrip) {
+                rtc.classList.remove('hidden');
+                rtc.classList.add('flex');
+            } else {
+                rtc.classList.add('hidden');
+                rtc.classList.remove('flex');
+            }
+            calculateTrips();
+        }
+
+        // 🚀 v5.5 同時推算去程與回程
         function calculateTrips() {
             generatedTrips = [];
             const timeVal = document.getElementById('sub-time').value;
+            const returnTimeVal = document.getElementById('return-time').value;
             const weeks = parseInt(document.getElementById('sub-weeks').value);
 
-            if (selectedDows.size === 0 || !timeVal) {
-                renderTripTags(); // 觸發清空與隱藏邏輯
+            if (selectedDows.size === 0 || !timeVal || (isRoundTrip && !returnTimeVal)) {
+                renderTripTags(); 
                 return;
             }
 
             let currentDate = new Date();
             currentDate.setDate(currentDate.getDate() + 1); 
-            
             let endLimit = new Date();
             endLimit.setDate(endLimit.getDate() + (weeks * 7));
 
@@ -302,7 +342,14 @@
                 if (selectedDows.has(currentDate.getDay())) {
                     const m = currentDate.getMonth() + 1;
                     const d = currentDate.getDate();
-                    generatedTrips.push(`${m}月${d}日 ${timeVal}`);
+                    
+                    // 塞入去程
+                    generatedTrips.push({ type: 'go', dateStr: `${m}月${d}日`, timeStr: timeVal });
+                    
+                    // 如果開啟來回，塞入回程
+                    if (isRoundTrip && returnTimeVal) {
+                        generatedTrips.push({ type: 'back', dateStr: `${m}月${d}日`, timeStr: returnTimeVal });
+                    }
                 }
                 currentDate.setDate(currentDate.getDate() + 1);
             }
@@ -310,7 +357,7 @@
             renderTripTags();
         }
 
-        // 🚀 v5.4 核心：渲染預覽標籤，根據陣列狀態更新 UI
+        // 🚀 v5.5 渲染雙色標籤
         function renderTripTags() {
             const container = document.getElementById('trip-tags-container');
             const previewCard = document.getElementById('preview-card');
@@ -318,16 +365,10 @@
             const btn = document.getElementById('submitBtn');
             const btnText = document.getElementById('submit-btn-text');
 
-            if (selectedDows.size === 0) {
+            if (selectedDows.size === 0 || !document.getElementById('sub-time').value || (isRoundTrip && !document.getElementById('return-time').value)) {
                 previewCard.classList.add('hidden');
                 btn.disabled = true;
-                btnText.innerText = "確認送出 (請先選擇星期)";
-                return;
-            }
-            if (!document.getElementById('sub-time').value) {
-                previewCard.classList.add('hidden');
-                btn.disabled = true;
-                btnText.innerText = "確認送出 (請設定時間)";
+                btnText.innerText = "確認送出 (資料未填齊)";
                 return;
             }
 
@@ -343,10 +384,17 @@
 
             let html = '';
             generatedTrips.forEach((trip, index) => {
+                const isGo = trip.type === 'go';
+                const tagColor = isGo ? 'text-blue-700 border-blue-200' : 'text-indigo-700 border-indigo-200';
+                const tagBadge = isGo ? '<span class="bg-blue-100 text-blue-600 text-[10px] px-1.5 py-0.5 rounded">去程</span>' : '<span class="bg-indigo-100 text-indigo-600 text-[10px] px-1.5 py-0.5 rounded">回程</span>';
+                
                 html += `
-                    <div class="bg-white border border-indigo-200 text-indigo-700 pl-3 pr-1 py-1.5 rounded-xl flex items-center gap-2 text-sm font-bold shadow-sm transition-all active:scale-95">
-                        ${trip}
-                        <button type="button" onclick="removeTrip(${index})" class="text-indigo-300 hover:text-rose-500 bg-indigo-50 hover:bg-rose-100 rounded-full w-6 h-6 flex items-center justify-center transition-colors">
+                    <div class="bg-white border ${tagColor} pl-2 pr-1 py-1.5 rounded-xl flex items-center justify-between text-sm font-bold shadow-sm transition-all active:scale-95">
+                        <div class="flex items-center gap-2">
+                            ${tagBadge}
+                            <span>${trip.dateStr} ${trip.timeStr}</span>
+                        </div>
+                        <button type="button" onclick="removeTrip(${index})" class="text-slate-300 hover:text-rose-500 bg-slate-50 hover:bg-rose-100 rounded-full w-7 h-7 flex items-center justify-center transition-colors">
                             <i class="fa-solid fa-xmark"></i>
                         </button>
                     </div>
@@ -363,9 +411,8 @@
             setTimeout(() => btn.classList.remove('scale-[1.02]', 'bg-indigo-600'), 200);
         }
 
-        // 🚀 v5.4 核心：刪除特定日期，並重新渲染
         window.removeTrip = function(index) {
-            generatedTrips.splice(index, 1); // 將該筆資料從陣列中精準剔除
+            generatedTrips.splice(index, 1); 
             renderTripTags(); 
         }
 
@@ -396,26 +443,23 @@
             btn.innerHTML = '<div class="loader mr-3 w-5 h-5 border-2 border-white border-t-transparent"></div> 處理中...';
 
             const baseOrderId = generateBaseOrderId();
+            const baseGo = baseOrderId + '-G';
+            const baseBack = baseOrderId + '-B';
             
             const dowNames = ['日','一','二','三','四','五','六'];
             const sortedDows = Array.from(selectedDows).sort();
             const dowString = sortedDows.map(d => dowNames[d]).join('、');
-            const timeStr = document.getElementById('sub-time').value;
+            
+            // 將過濾後的資料分別整理出字串陣列
+            const outTrips = generatedTrips.filter(t => t.type === 'go').map(t => `${t.dateStr} ${t.timeStr}`);
+            const backTrips = generatedTrips.filter(t => t.type === 'back').map(t => `${t.dateStr} ${t.timeStr}`);
 
-            // 🚀 送出的陣列，已經是使用者剔除過後的純淨版本了！
-            const orderPayload = {
-                type: 'subscription', 
-                baseOrderId: baseOrderId,
-                userId: passengerId,
-                userName: userName,
-                phone: phone,
-                pickup: pickup,
-                dropoff: dropoff,
-                payment: payment,
-                bookingTimes: generatedTrips, 
-                timestamp: new Date().toISOString()
-            };
+            // 卡片顯示文案判斷
+            const hasMix = outTrips.length > 0 && backTrips.length > 0;
+            const freqText = hasMix ? `每週${dowString} (去回)` : (outTrips.length > 0 ? `每週${dowString} (單程)` : `每週${dowString} (反向)`);
+            const routeText = hasMix ? `${pickup} ⇄ ${dropoff}` : `${pickup} ➔ ${dropoff}`;
 
+            // 1. 準備總表摘要卡片
             const summaryMsg = {
                 type: "flex",
                 altText: `📅 定期接送成立 (共 ${generatedTrips.length} 趟)`,
@@ -425,7 +469,7 @@
                     header: {
                         type: "box", layout: "vertical", spacing: "sm",
                         contents: [ 
-                            { type: "text", text: "📅 定期接送已成立", weight: "bold", size: "md", color: "#38bdf8", align: "center" },
+                            { type: "text", text: "📅 定期接送合約確認", weight: "bold", size: "md", color: "#38bdf8", align: "center" },
                             { type: "text", text: `為期 ${weeks} 週 / 共 ${generatedTrips.length} 趟`, weight: "bold", size: "xl", color: "#ffffff", align: "center" } 
                         ],
                         paddingAll: "15px"
@@ -440,12 +484,12 @@
                             { type: "separator", margin: "md", color: "#EEEEEE" },
                             {
                                 type: "box", layout: "horizontal", margin: "md",
-                                contents: [ { type: "text", text: "🔄 頻率", flex: 2, color: "#888888", size: "sm" }, { type: "text", text: `每週${dowString} ${timeStr}`, flex: 5, color: "#2563eb", size: "sm", weight: "bold" } ]
+                                contents: [ { type: "text", text: "🔄 頻率", flex: 2, color: "#888888", size: "sm" }, { type: "text", text: freqText, flex: 5, color: "#2563eb", size: "sm", weight: "bold" } ]
                             },
                             { type: "separator", margin: "md", color: "#EEEEEE" },
                             {
                                 type: "box", layout: "horizontal", margin: "md",
-                                contents: [ { type: "text", text: "📍 路線", flex: 2, color: "#888888", size: "sm" }, { type: "text", text: `${pickup} ➔ ${dropoff}`, flex: 5, color: "#111111", size: "sm", wrap: true } ]
+                                contents: [ { type: "text", text: "📍 路線", flex: 2, color: "#888888", size: "sm" }, { type: "text", text: routeText, flex: 5, color: "#111111", size: "sm", wrap: true } ]
                             },
                             { type: "separator", margin: "md", color: "#EEEEEE" },
                             {
@@ -462,28 +506,54 @@
                 }
             };
 
+            // 2. 準備小卡片與送給 GAS 的雙重請求
             let messagesToSend = [summaryMsg];
             let carouselBubbles = [];
+            let goIndex = 1;
+            let backIndex = 1;
             
-            generatedTrips.forEach((timeStr, index) => {
-                const subOrderId = baseOrderId + "-" + (index + 1);
+            generatedTrips.forEach((trip) => {
+                let subId, title, rStr, headColor, bText;
                 
+                if (trip.type === 'go') {
+                    subId = `${baseGo}-${goIndex}`;
+                    title = `第 ${goIndex} 趟`;
+                    rStr = `${pickup} ➔ ${dropoff}`;
+                    headColor = "#e0f2fe"; // 藍色去程
+                    bText = "去程";
+                    goIndex++;
+                } else {
+                    subId = `${baseBack}-${backIndex}`;
+                    title = `第 ${backIndex} 趟`;
+                    rStr = `${dropoff} ➔ ${pickup}`; // 顯示反轉
+                    headColor = "#e0e7ff"; // 紫色回程
+                    bText = "回程";
+                    backIndex++;
+                }
+
                 carouselBubbles.push({
                     type: "bubble",
                     size: "micro", 
                     header: {
-                        type: "box", layout: "vertical", backgroundColor: "#e0f2fe", paddingAll: "10px",
+                        type: "box", layout: "vertical", backgroundColor: headColor, paddingAll: "10px",
                         contents: [
-                            { type: "text", text: `第 ${index + 1} 趟`, size: "xs", color: "#0369a1", weight: "bold" },
-                            { type: "text", text: timeStr, size: "sm", color: "#1e293b", weight: "bold", margin: "xs" }
+                            { 
+                                type: "box", layout: "horizontal", justifyContent: "space-between",
+                                contents: [
+                                    { type: "text", text: title, size: "xs", color: "#475569", weight: "bold" },
+                                    { type: "text", text: bText, size: "xs", color: trip.type === 'go' ? "#0284c7" : "#4f46e5", weight: "bold" }
+                                ]
+                            },
+                            { type: "text", text: `${trip.dateStr} ${trip.timeStr}`, size: "sm", color: "#0f172a", weight: "bold", margin: "xs" }
                         ]
                     },
                     body: {
                         type: "box", layout: "vertical", paddingAll: "10px",
                         contents: [
+                            { type: "text", text: rStr, size: "xxs", color: "#64748b", wrap: true, margin: "none", weight: "bold" },
                             {
-                                type: "button", style: "secondary", height: "sm", color: "#f1f5f9",
-                                action: { type: "uri", label: "⚙️ 修改 / 取消", uri: `${BOOKING_LIFF_URL}?orderId=${subOrderId}` }
+                                type: "button", style: "secondary", height: "sm", color: "#f1f5f9", margin: "md",
+                                action: { type: "uri", label: "⚙️ 修改 / 取消", uri: `${BOOKING_LIFF_URL}?orderId=${subId}` }
                             }
                         ]
                     }
@@ -508,11 +578,34 @@
             }
 
             try {
-                fetch(BOOKING_GAS_URL, {
-                    method: 'POST', mode: 'no-cors',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(orderPayload)
-                });
+                // 🚀 v5.5 終極分流魔法：直接對 GAS 發起兩次請求！完全不用改後端程式碼！
+                const nowTimestamp = new Date().toISOString();
+                
+                if (outTrips.length > 0) {
+                    fetch(BOOKING_GAS_URL, {
+                        method: 'POST', mode: 'no-cors',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            type: 'subscription', baseOrderId: baseGo,
+                            userId: passengerId, userName: userName, phone: phone,
+                            pickup: pickup, dropoff: dropoff, payment: payment,
+                            bookingTimes: outTrips, timestamp: nowTimestamp
+                        })
+                    }).catch(e => console.error(e));
+                }
+
+                if (backTrips.length > 0) {
+                    fetch(BOOKING_GAS_URL, {
+                        method: 'POST', mode: 'no-cors',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            type: 'subscription', baseOrderId: baseBack,
+                            userId: passengerId, userName: userName, phone: phone,
+                            pickup: dropoff, dropoff: pickup, payment: payment, // 🚀 完美反轉上下車點
+                            bookingTimes: backTrips, timestamp: nowTimestamp
+                        })
+                    }).catch(e => console.error(e));
+                }
 
                 if (liff.isInClient()) {
                     await liff.sendMessages(messagesToSend);
