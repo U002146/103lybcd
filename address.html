@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>常用地址預約</title>
+    <title>常用地址預約 // v4.0 雲端資料庫與修改取消支援版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
@@ -11,7 +11,6 @@
         body { font-family: 'Noto Sans TC', sans-serif; background-color: #f8fafc; overflow-x: hidden; min-height: 100vh; display: flex; flex-direction: column; }
         input, select, textarea { font-size: 17px !important; }
         
-        /* 調整容器上方間距，讓行程設定完美置頂 */
         .main-container { flex: 1; padding: 16px 20px 120px 20px; max-width: 600px; margin: 0 auto; width: 100%; }
         
         .booking-card { background: white; border-radius: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.04); padding: 20px; margin-bottom: 20px; border: 1px solid #f1f5f9; }
@@ -34,21 +33,13 @@
         .swal2-popup { border-radius: 24px !important; font-family: 'Noto Sans TC', sans-serif !important; padding-bottom: 20px !important;}
         .location-grid { max-height: 50vh; overflow-y: auto; padding: 4px; }
 
-        /* 滿版時間選擇器 UI 設計 */
         #time-selector-modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 100; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: flex-end; opacity: 0; transition: opacity 0.3s; }
         
         #time-selector-content { 
-            background: white; 
-            width: 100%; 
-            max-width: 600px; 
-            height: 100dvh; 
-            padding: 20px; 
-            padding-top: max(20px, env(safe-area-inset-top)); 
-            padding-bottom: max(20px, env(safe-area-inset-bottom)); 
-            transform: translateY(100%); 
-            transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1); 
-            display: flex; 
-            flex-direction: column; 
+            background: white; width: 100%; max-width: 600px; height: 100dvh; 
+            padding: 20px; padding-top: max(20px, env(safe-area-inset-top)); padding-bottom: max(20px, env(safe-area-inset-bottom)); 
+            transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1); 
+            display: flex; flex-direction: column; 
         }
 
         .date-tabs-container { display: flex; overflow-x: auto; gap: 10px; padding-bottom: 5px; scrollbar-width: none; }
@@ -61,6 +52,9 @@
         .time-btn:active { transform: scale(0.95); background: #f8fafc; border-color: #94a3b8; }
         .time-btn.selected { background: #e0f2fe; border-color: #3b82f6; color: #1d4ed8; box-shadow: 0 2px 8px rgba(59,130,246,0.2); }
         .time-btn.disabled { opacity: 0.35; background: #f8fafc; pointer-events: none; color: #94a3b8; border-color: #e2e8f0; }
+        
+        /* 🚀 v4.0 新增：頂部編輯模式提示條 */
+        #edit-mode-banner { display: none; background: #FEF3C7; color: #D97706; text-align: center; padding: 8px; font-size: 13px; font-weight: bold; border-bottom: 1px solid #FDE68A; }
     </style>
 </head>
 <body>
@@ -70,6 +64,8 @@
         <p class="text-slate-600 font-bold text-lg tracking-widest animate-pulse">系統連線中...</p>
     </div>
 
+    <div id="edit-mode-banner"><i class="fa-solid fa-pen-to-square"></i> 訂單修改模式</div>
+
     <div id="app" class="hidden flex-col min-h-screen">
         <div class="main-container">
             <div class="booking-card !mt-2">
@@ -78,6 +74,7 @@
                         📍 行程設定
                         <div id="liff-status-dot" class="ml-2 w-2 h-2 rounded-full bg-red-500 transition-colors duration-300"></div>
                     </h2>
+                    <span id="order-id-display" class="text-xs text-slate-400 font-mono hidden"></span>
                 </div>
                 
                 <div class="location-inputs">
@@ -108,7 +105,6 @@
             </div>
 
             <div class="booking-card">
-                
                 <div class="input-group cursor-pointer relative !bg-blue-50/50 !border-blue-100" onclick="openModernTimeSelector()">
                     <i id="time-icon" class="fa-solid fa-calendar-check input-icon text-blue-600 text-xl"></i>
                     <div class="flex-1">
@@ -137,21 +133,24 @@
                         <input type="tel" id="phone" placeholder="09xx-xxx-xxx" class="w-full bg-transparent font-bold text-slate-800 outline-none text-lg">
                     </div>
                 </div>
-                
             </div>
         </div>
 
-        <div class="fixed bottom-0 left-0 right-0 p-5 bg-white/95 backdrop-blur-md border-t border-gray-100 z-30 max-w-[600px] mx-auto">
-            <button id="submitBtn" onclick="submitOrder()" class="w-full bg-slate-900 text-white font-bold py-4 rounded-2xl shadow-xl shadow-slate-300 active:scale-[0.98] transition-all text-xl flex items-center justify-center space-x-3">
+        <!-- 🚀 v4.0 UI 重構：底部按鈕區支援雙按鈕 (取消 & 送出) -->
+        <div class="fixed bottom-0 left-0 right-0 p-5 bg-white/95 backdrop-blur-md border-t border-gray-100 z-30 max-w-[600px] mx-auto flex gap-3">
+            <button id="cancelOrderBtn" onclick="cancelOrder()" class="hidden w-[100px] bg-rose-50 text-rose-600 font-bold py-4 rounded-2xl active:scale-[0.95] transition-all text-lg border border-rose-100 flex-shrink-0">
+                <i class="fa-solid fa-trash-can"></i>
+            </button>
+            <button id="submitBtn" onclick="submitOrder()" class="flex-1 bg-slate-900 text-white font-bold py-4 rounded-2xl shadow-xl shadow-slate-300 active:scale-[0.98] transition-all text-xl flex items-center justify-center space-x-3">
                 <i class="fa-solid fa-paper-plane"></i>
                 <span id="submit-btn-text">確認送出預約</span>
             </button>
         </div>
     </div>
 
+    <!-- 滿版時間選擇器 Modal -->
     <div id="time-selector-modal" onclick="closeModernTimeSelector(event)">
         <div id="time-selector-content" onclick="event.stopPropagation()">
-            
             <div class="flex justify-between items-center mb-5 flex-shrink-0">
                 <h3 class="text-2xl font-black text-slate-800 tracking-wide">選擇用車時間</h3>
                 <button type="button" onclick="closeModernTimeSelector()" class="w-10 h-10 rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 flex items-center justify-center text-lg"><i class="fa-solid fa-xmark"></i></button>
@@ -170,7 +169,6 @@
             </div>
 
             <div id="minute-selection-view" class="hidden flex-1 flex-col min-h-0 overflow-y-auto pr-1">
-                
                 <div class="flex items-center mb-6 flex-shrink-0 border-b border-gray-100 pb-4">
                     <button type="button" onclick="backToHourView()" class="mr-4 w-12 h-12 rounded-full border border-gray-200 flex items-center justify-center text-gray-600 active:bg-gray-100 transition-colors shadow-sm">
                         <i class="fa-solid fa-arrow-left text-xl"></i>
@@ -189,42 +187,40 @@
                     <div class="time-grid pb-10" id="minute-grid-container"></div>
                 </div>
             </div>
-
         </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script>
-        const VERSION = "v3.3"; // 雙層選時防截斷版
+        const VERSION = "v4.0"; // 🚀 雲端資料庫與修改取消支援版
         const LIFF_ID = '2008907691-3P676tTN'; 
         const PROJECT_B_URL = 'https://liff.line.me/2008907691-1mAjwojZ'; 
+        
+        // 🚀 v4.0 新增：Google Apps Script (GAS) 寫入端點 (請替換為你實際綁定 Google 試算表的 GAS 網址)
+        const BOOKING_GAS_URL = 'https://script.google.com/macros/s/AKfycbzjWZ8j394jfKoMVbPWGvHJHqwF7RBCQxnxyju1ifWKoKdM7RE512F7qrhUsQqQGoWg/exec'; 
 
         const PRESET_LOCATIONS = [
-            {name:'我的最愛 A', icon:'⭐', value:'FAV_ADDR_A'},
-            {name:'我的最愛 B', icon:'⭐', value:'FAV_ADDR_B'},
-            {name:'花蓮前站', icon:'🚉'},
-            {name:'花蓮後站', icon:'🚉'},
-            {name:'慈濟醫院', icon:'🏥'},
-            {name:'門諾醫院', icon:'🏥'},
-            {name:'遠東百貨', icon:'🛍️'},
-            {name:'東大門夜市', icon:'🌭'}
+            {name:'我的最愛 A', icon:'⭐', value:'FAV_ADDR_A'}, {name:'我的最愛 B', icon:'⭐', value:'FAV_ADDR_B'},
+            {name:'花蓮前站', icon:'🚉'}, {name:'花蓮後站', icon:'🚉'}, {name:'慈濟醫院', icon:'🏥'},
+            {name:'門諾醫院', icon:'🏥'}, {name:'遠東百貨', icon:'🛍️'}, {name:'東大門夜市', icon:'🌭'}
         ];
 
         const PAYMENT_METHODS = [
-            {id:'現金',label:'現金',icon:'fa-coins',color:'text-slate-600'},
-            {id:'敬老卡',label:'敬老卡',icon:'fa-person-cane',color:'text-orange-500'},
-            {id:'愛心卡',label:'愛心卡',icon:'fa-heart',color:'text-rose-500'},
-            {id:'悠遊卡',label:'悠遊卡',icon:'fa-id-card',color:'text-blue-400'},
-            {id:'信用卡',label:'信用卡',icon:'fa-credit-card',color:'text-indigo-500'},
-            {id:'LINE PAY',label:'LINE PAY',icon:'fa-brands fa-line',color:'text-green-500'},
-            {id:'APPLE PAY',label:'APPLE PAY',icon:'fa-brands fa-apple',color:'text-black'},
-            {id:'TWQR',label:'TWQR',icon:'fa-qrcode',color:'text-purple-500'}
+            {id:'現金',label:'現金',icon:'fa-coins',color:'text-slate-600'}, {id:'敬老卡',label:'敬老卡',icon:'fa-person-cane',color:'text-orange-500'},
+            {id:'愛心卡',label:'愛心卡',icon:'fa-heart',color:'text-rose-500'}, {id:'悠遊卡',label:'悠遊卡',icon:'fa-id-card',color:'text-blue-400'},
+            {id:'信用卡',label:'信用卡',icon:'fa-credit-card',color:'text-indigo-500'}, {id:'LINE PAY',label:'LINE PAY',icon:'fa-brands fa-line',color:'text-green-500'},
+            {id:'APPLE PAY',label:'APPLE PAY',icon:'fa-brands fa-apple',color:'text-black'}, {id:'TWQR',label:'TWQR',icon:'fa-qrcode',color:'text-purple-500'}
         ];
 
         let pickerState = { dateIndex: 0, hour: null, minute: null, dates: [] };
         let currentTargetInput = 'pickup';
         let userName = "乘客"; 
+        let passengerId = "unknown";
+
+        // 🚀 v4.0 新增：解析網址參數，判斷是否為修改模式
+        const urlParams = new URLSearchParams(window.location.search);
+        const editOrderId = urlParams.get('orderId');
 
         window.onload = function() {
             const savedPhone = localStorage.getItem('taxi_user_phone');
@@ -235,26 +231,28 @@
                 if(method) updatePaymentUI(method.label, method.icon, method.color); 
             }
 
+            // 啟動編輯模式 UI
+            if (editOrderId) {
+                document.getElementById('edit-mode-banner').style.display = 'block';
+                document.getElementById('submit-btn-text').innerText = '儲存修改預約';
+                document.getElementById('cancelOrderBtn').classList.remove('hidden');
+                document.getElementById('order-id-display').innerText = '#' + editOrderId;
+                document.getElementById('order-id-display').classList.remove('hidden');
+                // 註：未來可在此加入 fetch() 讀取試算表舊資料並自動填入表單的邏輯
+            }
+
             liff.init({ liffId: LIFF_ID }).then(() => {
                 if (!liff.isLoggedIn()) {
                     liff.login({ redirectUri: window.location.href });
                     return; 
                 }
-                
                 liff.getProfile().then(profile => {
                     userName = profile.displayName;
+                    passengerId = profile.userId;
                     unlockUI(); 
-                }).catch(err => {
-                    unlockUI(); 
-                });
-
+                }).catch(err => { unlockUI(); });
             }).catch(err => {
-                Swal.fire({
-                    icon: 'error',
-                    title: '連線失敗',
-                    text: '無法連結 LINE 伺服器，請重新開啟。',
-                    confirmButtonText: '確定'
-                });
+                Swal.fire({ icon: 'error', title: '連線失敗', text: '無法連結 LINE 伺服器，請重新開啟。' });
             });
         };
 
@@ -268,9 +266,7 @@
         function swapLocations() {
             const pickupEl = document.getElementById('pickup');
             const dropoffEl = document.getElementById('dropoff');
-            const temp = pickupEl.value;
-            pickupEl.value = dropoffEl.value;
-            dropoffEl.value = temp;
+            const temp = pickupEl.value; pickupEl.value = dropoffEl.value; dropoffEl.value = temp;
             const inputs = document.querySelectorAll('.loc-row');
             inputs.forEach(el => { el.style.transform = 'scale(0.98)'; setTimeout(() => el.style.transform = 'scale(1)', 150); });
         }
@@ -332,43 +328,30 @@
             if(label !== '現金') iconElem.classList.add(colorClass.split(' ')[0]); 
         }
 
-        // --- 核心邏輯：雙層視圖選單與 30 分鐘防呆 ---
+        /* --- 時間選擇器邏輯 --- */
         function generateDates() { 
-            const dates = []; const today = new Date(); 
-            const weekDays = ['日','一','二','三','四','五','六']; 
+            const dates = []; const today = new Date(); const weekDays = ['日','一','二','三','四','五','六']; 
             for(let i=0; i<7; i++) { 
                 const d = new Date(today); d.setDate(today.getDate() + i); d.setHours(0,0,0,0);
                 const m = (d.getMonth()+1).toString(); const day = d.getDate().toString(); const w = weekDays[d.getDay()]; 
                 const label = i === 0 ? '今天' : (i === 1 ? '明天' : `${m}/${day}`); 
                 dates.push({ val: i, label: label, sub: i > 1 ? `週${w}` : '', fullDate: `${m}月${day}日`, rawDate: d }); 
-            } 
-            return dates; 
+            } return dates; 
         }
         
         function openModernTimeSelector() { 
             const modal = document.getElementById('time-selector-modal'); 
             const content = document.getElementById('time-selector-content'); 
-            pickerState.dates = generateDates(); 
-            pickerState.hour = null; 
-            pickerState.minute = null;
-            
-            // 初始化時，顯示視圖A(小時)，隱藏視圖B(分鐘)
-            document.getElementById('hour-selection-view').classList.remove('hidden');
-            document.getElementById('hour-selection-view').classList.add('flex');
-            document.getElementById('minute-selection-view').classList.add('hidden');
-            document.getElementById('minute-selection-view').classList.remove('flex');
-            
-            renderDateTabs(); 
-            renderHourGrid(); 
-            
-            modal.style.display = 'flex'; 
-            setTimeout(() => { modal.style.opacity = '1'; content.style.transform = 'translateY(0)'; }, 10); 
+            pickerState.dates = generateDates(); pickerState.hour = null; pickerState.minute = null;
+            document.getElementById('hour-selection-view').classList.remove('hidden'); document.getElementById('hour-selection-view').classList.add('flex');
+            document.getElementById('minute-selection-view').classList.add('hidden'); document.getElementById('minute-selection-view').classList.remove('flex');
+            renderDateTabs(); renderHourGrid(); 
+            modal.style.display = 'flex'; setTimeout(() => { modal.style.opacity = '1'; content.style.transform = 'translateY(0)'; }, 10); 
         }
 
         function closeModernTimeSelector(e) { 
             if(e && e.target.id !== 'time-selector-modal' && !e.target.closest('button')) return; 
-            const modal = document.getElementById('time-selector-modal'); 
-            const content = document.getElementById('time-selector-content'); 
+            const modal = document.getElementById('time-selector-modal'); const content = document.getElementById('time-selector-content'); 
             modal.style.opacity = '0'; content.style.transform = 'translateY(100%)'; 
             setTimeout(() => { modal.style.display = 'none'; }, 300); 
         }
@@ -378,104 +361,98 @@
             container.innerHTML = pickerState.dates.map((d, idx) => ` 
                 <div onclick="selectPickerDate(${idx})" class="date-tab ${idx === pickerState.dateIndex ? 'active' : ''}"> 
                     <div class="text-center leading-tight"> 
-                        <div>${d.label}</div> 
-                        ${d.sub ? `<div class="text-[10px] opacity-80 mt-1">${d.sub}</div>` : ''} 
+                        <div>${d.label}</div> ${d.sub ? `<div class="text-[10px] opacity-80 mt-1">${d.sub}</div>` : ''} 
                     </div> 
                 </div> `).join(''); 
         }
 
-        window.selectPickerDate = function(idx) { 
-            pickerState.dateIndex = idx; 
-            pickerState.hour = null; 
-            renderDateTabs(); 
-            renderHourGrid(); 
-        }
+        window.selectPickerDate = function(idx) { pickerState.dateIndex = idx; pickerState.hour = null; renderDateTabs(); renderHourGrid(); }
 
         function renderHourGrid() { 
             const container = document.getElementById('hour-grid'); 
             const minTime = new Date(new Date().getTime() + 30 * 60000); 
             const selectedDateObj = pickerState.dates[pickerState.dateIndex];
-            
             let html = ''; 
             for(let h=0; h<24; h++) { 
-                let disabled = '';
-                const testTime = new Date(selectedDateObj.rawDate);
-                testTime.setHours(h, 59, 59); 
-
+                let disabled = ''; const testTime = new Date(selectedDateObj.rawDate); testTime.setHours(h, 59, 59); 
                 if (testTime < minTime) { disabled = 'disabled'; }
                 const selected = (pickerState.hour === h) ? 'selected' : ''; 
                 html += `<button type="button" onclick="selectPickerHour(${h})" class="time-btn ${disabled} ${selected}">${h.toString().padStart(2, '0')}:00</button>`; 
-            } 
-            container.innerHTML = html; 
+            } container.innerHTML = html; 
         }
 
-        // 🌟 神操作：點完小時，直接切換到分鐘視圖
         window.selectPickerHour = function(h) { 
             pickerState.hour = h; 
-            
-            // 隱藏視圖 A
-            document.getElementById('hour-selection-view').classList.add('hidden');
-            document.getElementById('hour-selection-view').classList.remove('flex');
-            
-            // 顯示視圖 B
-            document.getElementById('minute-selection-view').classList.remove('hidden');
-            document.getElementById('minute-selection-view').classList.add('flex');
-            
-            // 更新視圖 B 頂部的文字
+            document.getElementById('hour-selection-view').classList.add('hidden'); document.getElementById('hour-selection-view').classList.remove('flex');
+            document.getElementById('minute-selection-view').classList.remove('hidden'); document.getElementById('minute-selection-view').classList.add('flex');
             const dateObj = pickerState.dates[pickerState.dateIndex];
             document.getElementById('selected-date-display').innerText = dateObj.fullDate;
             document.getElementById('selected-hour-display').innerText = h.toString().padStart(2, '0');
-            
-            renderMinuteGrid(); 
-            
-            // 自動滾動到頂部
-            document.getElementById('minute-selection-view').scrollTop = 0;
+            renderMinuteGrid(); document.getElementById('minute-selection-view').scrollTop = 0;
         }
 
-        // 🌟 返回修改按鈕邏輯
         window.backToHourView = function() {
-            document.getElementById('minute-selection-view').classList.add('hidden');
-            document.getElementById('minute-selection-view').classList.remove('flex');
-            document.getElementById('hour-selection-view').classList.remove('hidden');
-            document.getElementById('hour-selection-view').classList.add('flex');
+            document.getElementById('minute-selection-view').classList.add('hidden'); document.getElementById('minute-selection-view').classList.remove('flex');
+            document.getElementById('hour-selection-view').classList.remove('hidden'); document.getElementById('hour-selection-view').classList.add('flex');
         }
 
         function renderMinuteGrid() { 
             const container = document.getElementById('minute-grid-container'); 
             const minTime = new Date(new Date().getTime() + 30 * 60000);
             const selectedDateObj = pickerState.dates[pickerState.dateIndex];
-
             let html = ''; 
             for(let m=0; m<60; m+=5) { 
-                let disabled = '';
-                const testTime = new Date(selectedDateObj.rawDate);
-                testTime.setHours(pickerState.hour, m, 0);
-
+                let disabled = ''; const testTime = new Date(selectedDateObj.rawDate); testTime.setHours(pickerState.hour, m, 0);
                 if (testTime < minTime) { disabled = 'disabled'; }
                 html += `<button type="button" onclick="selectMinute('${m.toString().padStart(2, '0')}')" class="time-btn text-lg ${disabled}">${m.toString().padStart(2, '0')} 分</button>`; 
-            } 
-            container.innerHTML = html; 
+            } container.innerHTML = html; 
         }
 
-        window.selectMinute = function(m) { 
-            pickerState.minute = m; 
-            applyBookingTime(); 
-            closeModernTimeSelector(); 
-        }
+        window.selectMinute = function(m) { pickerState.minute = m; applyBookingTime(); closeModernTimeSelector(); }
         
         function applyBookingTime() { 
-            const dateObj = pickerState.dates[pickerState.dateIndex]; 
-            const hStr = pickerState.hour.toString().padStart(2, '0'); 
+            const dateObj = pickerState.dates[pickerState.dateIndex]; const hStr = pickerState.hour.toString().padStart(2, '0'); 
             const timeStr = `${dateObj.fullDate} ${hStr}:${pickerState.minute}`; 
             document.getElementById('booking-time-val').value = timeStr; 
-            
             const display = document.getElementById('time-display'); 
-            display.innerText = timeStr; 
-            display.classList.remove('text-slate-400'); 
-            display.classList.add('text-blue-700'); 
+            display.innerText = timeStr; display.classList.remove('text-slate-400'); display.classList.add('text-blue-700'); 
             document.getElementById('time-icon').className = "fa-solid fa-calendar-check input-icon text-blue-600 text-xl"; 
         }
 
+        // 🚀 v4.0 新增：產生訂單編號
+        function generateOrderId() {
+            const now = new Date();
+            const md = String(now.getMonth()+1).padStart(2,'0') + String(now.getDate()).padStart(2,'0');
+            const rnd = Math.floor(1000 + Math.random() * 9000);
+            return `TDP-${md}-${rnd}`;
+        }
+
+        // 🚀 v4.0 新增：取消預約邏輯
+        function cancelOrder() {
+            Swal.fire({
+                title: '確定取消預約？', text: '取消後將同步通知司機。', icon: 'warning',
+                showCancelButton: true, confirmButtonColor: '#e3242b', cancelButtonColor: '#94a3b8',
+                confirmButtonText: '確定取消', cancelButtonText: '保留預約'
+            }).then((res) => {
+                if(res.isConfirmed) {
+                    Swal.fire({title: '處理中', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
+                    // 傳送取消狀態至 GAS
+                    fetch(BOOKING_GAS_URL, {
+                        method: 'POST', mode: 'no-cors',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ orderId: editOrderId, status: 'cancelled', timestamp: new Date().toISOString() })
+                    }).then(() => {
+                        Swal.fire('已取消', '預約已成功取消。', 'success').then(() => {
+                            if(liff.isInClient()) liff.closeWindow();
+                        });
+                    }).catch(e => {
+                        Swal.fire('發生錯誤', '取消失敗，請稍後再試或聯繫客服。', 'error');
+                    });
+                }
+            });
+        }
+
+        // 🚀 v4.0 核心升級：送出並寫入資料庫，附帶雙按鈕 Flex Message
         async function submitOrder() {
             if (!liff.isLoggedIn() && !liff.isInClient()) {
                 return Swal.fire('尚未連線', '請重新整理頁面或在 LINE 內部開啟', 'error');
@@ -484,7 +461,6 @@
             const phone = document.getElementById('phone').value;
             const pickup = document.getElementById('pickup').value.trim();
             let dropoff = document.getElementById('dropoff').value.trim();
-            
             if (!dropoff) dropoff = "上車告知 / 未指定";
             const payment = document.getElementById('payment-value').value;
             const bookingTime = document.getElementById('booking-time-val').value;
@@ -499,30 +475,44 @@
             btn.disabled = true;
             btn.innerHTML = '<div class="loader mr-3 w-5 h-5 border-2 border-white border-t-transparent"></div> 處理中...';
 
+            // 判斷是新訂單還是修改舊單，並產生/沿用 Order ID
+            const currentOrderId = editOrderId || generateOrderId();
+            const orderStatus = editOrderId ? "updated" : "new";
+            const headerText = editOrderId ? "🔄 預約已更新" : "📅 預約確認";
+            const headerColor = editOrderId ? "#EA580C" : "#1d4ed8"; // 修改為橘色，新單為藍色
+
+            // 1. 準備寫入資料庫的 Payload
+            const orderPayload = {
+                orderId: currentOrderId,
+                userId: passengerId,
+                userName: userName,
+                phone: phone,
+                pickup: pickup,
+                dropoff: dropoff,
+                payment: payment,
+                bookingTime: bookingTime,
+                status: orderStatus,
+                timestamp: new Date().toISOString()
+            };
+
+            // 2. 準備傳送給客人的 Flex Message 卡片
             const mapBaseUrl = "https://www.google.com/maps/search/?api=1&query=";
             const googleMapUrl = mapBaseUrl + encodeURIComponent(pickup);
             const dropoffMapUrl = mapBaseUrl + encodeURIComponent(dropoff);
             
             const flexMsg = {
                 type: "flex",
-                altText: `預約：${bookingTime}`,
+                altText: `預約通知：${bookingTime}`,
                 contents: {
                     type: "bubble",
                     styles: { header: { backgroundColor: "#FFFFFF" }, body: { backgroundColor: "#FFFFFF" }, footer: { backgroundColor: "#F8F8F8" } },
                     header: {
-                        type: "box", layout: "vertical",
+                        type: "box", layout: "vertical", spacing: "sm",
                         contents: [ 
-                            { 
-                                type: "text", 
-                                text: `${bookingTime}`, 
-                                weight: "bold", 
-                                size: "xxl", 
-                                color: "#1d4ed8", 
-                                align: "center",
-                                adjustMode: "shrink-to-fit" 
-                            } 
+                            { type: "text", text: headerText, weight: "bold", size: "sm", color: headerColor, align: "center" },
+                            { type: "text", text: `${bookingTime}`, weight: "bold", size: "xl", color: "#111111", align: "center", adjustMode: "shrink-to-fit" } 
                         ],
-                        paddingAll: "5px"
+                        paddingAll: "10px"
                     },
                     body: {
                         type: "box", layout: "vertical",
@@ -550,14 +540,23 @@
                             {
                                 type: "box", layout: "horizontal", margin: "lg",
                                 contents: [ { type: "text", text: "💰 付款", flex: 2, color: "#888888", size: "md" }, { type: "text", text: payment, flex: 5, color: "#111111", size: "md", weight: "bold" } ]
+                            },
+                            {
+                                type: "box", layout: "horizontal", margin: "xl",
+                                contents: [ { type: "text", text: `單號: ${currentOrderId}`, color: "#bbbbbb", size: "xs", align: "center" } ]
                             }
                         ]
                     },
+                    // 🚀 v4.0 核心：雙按鈕 Footer，第二顆按鈕帶入 orderId 參數
                     footer: {
                         type: "box", layout: "vertical", spacing: "sm", contents: [
                             {
                                 type: "button", style: "primary", color: "#10B981", height: "sm",
                                 action: { type: "uri", label: "👀 查看司機位置", uri: PROJECT_B_URL }
+                            },
+                            {
+                                type: "button", style: "secondary", height: "sm",
+                                action: { type: "uri", label: "✏️ 修改 / 取消預約", uri: `https://liff.line.me/${LIFF_ID}?orderId=${currentOrderId}` }
                             }
                         ]
                     }
@@ -565,11 +564,19 @@
             };
 
             try {
+                // 步驟 A：背景寫入 Google Apps Script 試算表資料庫
+                fetch(BOOKING_GAS_URL, {
+                    method: 'POST', mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(orderPayload)
+                }).catch(e => console.error("GAS 寫入失敗", e));
+
+                // 步驟 B：發送 LINE Flex Message 給客人
                 if (liff.isInClient()) {
                     await liff.sendMessages([flexMsg]);
                     liff.closeWindow(); 
                 } else {
-                    Swal.fire({ icon: 'info', title: '外部測試模式', text: '請在 LINE 聊天室內開啟此連結，卡片才能直接傳送出去喔！' });
+                    Swal.fire({ icon: 'info', title: '外部測試模式', text: `訂單 ${currentOrderId} 已模擬送出！請在 LINE 內開啟以傳送卡片。` });
                     btn.disabled = false;
                     btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i><span id="submit-btn-text">確認送出預約</span>';
                 }
