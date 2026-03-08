@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>定期接送預約 // v5.1 獨立明細與編輯支援版</title>
+    <title>定期接送預約 // v5.2 極簡微型卡片版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
@@ -160,14 +160,13 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script>
-        const VERSION = "v5.1"; // 🚀 獨立明細與編輯支援版 (Carousel 實作)
+        const VERSION = "v5.2"; // 🚀 極簡微型卡片版 (移除司機位置)
         
         // ⚠️ 這裡填入你為這支 sub_booking.html 新申請的 LIFF ID
-        const LIFF_ID = '2008907691-e4V07Yfr'; 
+        const LIFF_ID = '2008907691-e4V07Yfr'; // 替換為定期接送的專屬 LIFF ID (如果是共用同一個也可)
         
-        // 🚀 核心：讓「微型卡片」的修改按鈕，指向你原本的「單次預約版」LIFF 網址！
+        // 🚀 核心：指向你原本的「單次預約版」LIFF 網址，用來當作修改面板
         const BOOKING_LIFF_URL = 'https://liff.line.me/2008907691-3P676tTN'; 
-        const PROJECT_B_URL = 'https://liff.line.me/2008907691-1mAjwojZ'; 
         
         // 🚀 共用最新的 GAS 後端大腦
         const BOOKING_GAS_URL = 'https://script.google.com/macros/s/AKfycbzVTtBzYxPy9g-WnaJPS_Q_8GnzmWDf4Kaw7nA8VeDfe6ykM5rV3C2MmMddMh3AG6c9/exec'; 
@@ -391,7 +390,7 @@
                 }
             };
 
-            // 🚀 v5.1 核心：產生橫向捲軸微型卡片 (Carousels)
+            // 🚀 v5.2 核心：極簡化微型卡片 (移除司機位置)
             let messagesToSend = [summaryMsg];
             let carouselBubbles = [];
             
@@ -409,22 +408,19 @@
                         ]
                     },
                     body: {
-                        type: "box", layout: "vertical", paddingAll: "10px", spacing: "sm",
+                        type: "box", layout: "vertical", paddingAll: "10px",
                         contents: [
                             {
-                                type: "button", style: "primary", height: "sm", color: "#10B981",
-                                action: { type: "uri", label: "📍 司機位置", uri: PROJECT_B_URL }
-                            },
-                            {
+                                // 💡 移除了司機位置，現在只有一顆滿版的修改按鈕
                                 type: "button", style: "secondary", height: "sm", color: "#f1f5f9",
-                                action: { type: "uri", label: "⚙️ 修改/取消", uri: `${BOOKING_LIFF_URL}?orderId=${subOrderId}` }
+                                action: { type: "uri", label: "⚙️ 修改 / 取消", uri: `${BOOKING_LIFF_URL}?orderId=${subOrderId}` }
                             }
                         ]
                     }
                 });
             });
 
-            // LINE Carousel 最多容納 12 個 Bubble，我們切成多個 Carousel 訊息 (每 10 個一組)
+            // LINE Carousel 最多容納 12 個 Bubble，切成多個 Carousel 訊息 (每 10 個一組)
             const CHUNK_SIZE = 10;
             for (let i = 0; i < carouselBubbles.length; i += CHUNK_SIZE) {
                 const chunk = carouselBubbles.slice(i, i + CHUNK_SIZE);
