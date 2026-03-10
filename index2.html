@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   
-  <title>花蓮敬老愛心車隊</title> 
+  <title>花蓮敬老愛心車隊v9.20</title> 
   <meta name="apple-mobile-web-app-capable" content="yes">
   
   <meta property="og:title" content="通話叫車：雙向定位系統">
@@ -25,14 +25,12 @@
     #top-bar { position: absolute; top: 15px; left: 15px; right: 15px; z-index: 10; display: flex; justify-content: space-between; pointer-events: none; align-items: flex-start;}
     .status-pill { background: white; padding: 10px 15px; border-radius: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); font-weight: bold; color: #333; pointer-events: auto; display: flex; align-items: center; font-size: 14px; height: fit-content; transition: all 0.3s;}
     
-    /* 右上角按鈕群組 */
     .action-buttons-container { display: flex; flex-direction: column; gap: 12px; pointer-events: auto; }
     
     .btn-customer { background: linear-gradient(135deg, #00C853, #64DD17); color: white; width: 50px; height: 50px; border-radius: 50%; display: flex; flex-direction: column; justify-content: center; align-items: center; box-shadow: 0 4px 15px rgba(0,0,0,0.2); text-decoration: none; font-size: 11px; font-weight: bold; border: 2px solid white; transition: transform 0.1s;}
     .btn-customer:active { transform: scale(0.92); }
     .btn-customer i { font-size: 18px; margin-bottom: 2px; }
 
-    /* 裂變分享按鈕 */
     .btn-share { background: linear-gradient(135deg, #FF9800, #FF5722); color: white; width: 50px; height: 50px; border-radius: 50%; display: flex; flex-direction: column; justify-content: center; align-items: center; box-shadow: 0 4px 15px rgba(255,152,0,0.4); cursor: pointer; font-size: 11px; font-weight: bold; border: 2px solid white; transition: transform 0.1s;}
     .btn-share:active { transform: scale(0.92); background: #E65100; }
     .btn-share i { font-size: 18px; margin-bottom: 2px; }
@@ -73,15 +71,16 @@
     .d-meta span { display: flex; align-items: center; gap: 6px; }
     .d-meta i { width: 16px; text-align: center; color: #888; }
     
-    .btn-call-circle {
-        width: 60px; height: 60px; border-radius: 50%;
+    /* 🚀 v9.20 按鈕改版：從圓形電話改為「一鍵叫車」膠囊按鈕 */
+    .btn-call-action {
+        height: 44px; padding: 0 16px; border-radius: 22px;
         background: linear-gradient(135deg, #00C853, #1B5E20); color: white;
-        display: flex; justify-content: center; align-items: center;
-        font-size: 26px; box-shadow: 0 6px 15px rgba(76, 175, 80, 0.4);
-        border: 2px solid #00E676; flex-shrink: 0; cursor: pointer; transition: transform 0.1s;
+        display: flex; justify-content: center; align-items: center; gap: 8px;
+        font-size: 15px; font-weight: 900; box-shadow: 0 4px 12px rgba(76, 175, 80, 0.4);
+        border: 2px solid #00E676; flex-shrink: 0; cursor: pointer; transition: transform 0.1s; white-space: nowrap;
     }
-    .btn-call-circle:active { transform: scale(0.92); background: #1B5E20; }
-    .btn-call-circle:disabled { background: #9E9E9E; border-color: #757575; box-shadow: none; cursor: not-allowed; transform: none; }
+    .btn-call-action:active { transform: scale(0.95); background: #1B5E20; }
+    .btn-call-action:disabled { background: #9E9E9E; border-color: #757575; box-shadow: none; cursor: not-allowed; transform: none; }
     
     .btn-cancel-mini {
         position: absolute; top: -10px; right: -10px;
@@ -126,7 +125,7 @@
 
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script>
-    const VERSION = "v9.19"; // 🚀 導航鎖定優化版 (節省 API 成本與優化搭車狀態顯示)
+    const VERSION = "v9.20"; // 🚀 狀態機修復與一鍵叫車版
     const LIFF_ID = "2008907691-CzDqd7mm"; 
     const GAS_URL = "https://script.google.com/macros/s/AKfycbzjWZ8j394jfKoMVbPWGvHJHqwF7RBCQxnxyju1ifWKoKdM7RE512F7qrhUsQqQGoWg/exec"; 
     
@@ -270,13 +269,11 @@
         });
     }
 
-    // 🚀 v9.19 更新 UI 狀態函數
     function updateStatusUI() {
         const locTextEl = document.getElementById('loc-text');
         const locIconEl = document.getElementById('loc-icon');
         
         if (myTrackedDriverId) {
-            // 已叫車：根據狀態顯示不同文字與圖示
             if (currentTrackStep === '2') {
                 locTextEl.innerText = "🚕 快樂旅程中";
                 locTextEl.style.color = "#2E7D32";
@@ -294,7 +291,6 @@
                 locIconEl.style.color = "#03A9F4";
             }
         } else {
-            // 回復預設定位圖示
             locTextEl.style.color = "#333";
             locIconEl.className = "fa-solid fa-location-dot";
             locIconEl.style.color = "#e74c3c";
@@ -320,9 +316,8 @@
                     userMarker.setPosition(p);
                 }
                 
-                // 🚀 v9.19 核心煞車機制：只有在「未叫車狀態」才呼叫地址反查 API
                 if (myTrackedDriverId) {
-                    updateStatusUI(); // 鎖定狀態
+                    updateStatusUI(); 
                 } else {
                     const currentGooglePos = new google.maps.LatLng(myLat, myLng);
                     if (!lastGeocodePos || google.maps.geometry.spherical.computeDistanceBetween(lastGeocodePos, currentGooglePos) > 100) {
@@ -354,7 +349,6 @@
         localStorage.removeItem('trackStep');
         currentTrackStep = '1';
         
-        // 🚀 v9.19 被拒絕時，重置定位並立即刷新地址
         lastGeocodePos = null;
         if (myLat && myLng) getAddress(myLat, myLng);
         updateStatusUI();
@@ -399,7 +393,7 @@
                     return; 
                 }
 
-                // 🚀 v9.19 即時更新左上角狀態 UI
+                // 🚀 v9.20 BUG修復：嚴格把關狀態機，必須先經過 1.5 (已抵達) 才能跳 2 (載客中)
                 if (trackedData.workStatus === 'arrived') {
                     if (currentTrackStep !== '1.5') {
                         currentTrackStep = '1.5';
@@ -408,7 +402,7 @@
                     }
                 } else if (trackedData.workStatus === 'busy') {
                     localStorage.setItem('wasBusy', 'true');
-                    if (currentTrackStep !== '2') {
+                    if (currentTrackStep === '1.5') { // 修復點：防幽靈跳車
                         currentTrackStep = '2';
                         localStorage.setItem('trackStep', '2');
                         updateStatusUI();
@@ -523,7 +517,9 @@
                     </div>
                 `;
             } else {
+                // 🚀 v9.20 智慧按鈕判斷：已追蹤顯示「聯絡司機」，未追蹤顯示「一鍵叫車」
                 let callAction = d.isTracked ? `window.location.href='tel:${d.phone}'` : `callDriver('${d.id}', '${d.phone}', this); event.stopPropagation();`;
+                let btnContent = d.isTracked ? `<i class="fa-solid fa-phone"></i> 聯絡司機` : `<i class="fa-solid fa-bolt"></i> 一鍵叫車`;
                 let cancelBtn = d.isTracked ? `<div class="btn-cancel-mini" onclick="exitTrackingMode(false); event.stopPropagation();"><i class="fa-solid fa-xmark"></i></div>` : '';
                 
                 newHTML += `
@@ -537,8 +533,8 @@
                                 <span><i class="fa-solid fa-location-arrow"></i> 距離 ${distText}</span>
                             </div>
                         </div>
-                        <button class="btn-call-circle" onclick="${callAction}">
-                            <i class="fa-solid fa-phone-volume"></i>
+                        <button class="btn-call-action" onclick="${callAction}">
+                            ${btnContent}
                         </button>
                     </div>
                 `;
@@ -596,7 +592,6 @@
             localStorage.setItem('trackStep', '1');
             currentTrackStep = '1';
             
-            // 🚀 v9.19 叫車成功後，立刻鎖定 UI 狀態
             updateStatusUI();
             
             if (lastDriversData) processDriversData(lastDriversData); 
@@ -669,7 +664,6 @@
         localStorage.removeItem('trackStep');
         currentTrackStep = '1';
         
-        // 🚀 v9.19 行程結束或取消後，重置定位並立即刷新地址
         lastGeocodePos = null;
         if (myLat && myLng) getAddress(myLat, myLng);
         updateStatusUI();
@@ -696,12 +690,10 @@
     }
     
     function getAddress(lat, lng) {
-        // 更新時加上 UI 提示
         document.getElementById('loc-text').innerText = "定位中...";
         
         const geocoder = new google.maps.Geocoder();
         geocoder.geocode({ location: { lat: lat, lng: lng } }, (results, status) => {
-            // 如果在等待期間突然變成已叫車狀態，則捨棄回傳結果
             if (myTrackedDriverId) return;
             
             if (status === "OK" && results[0]) {
