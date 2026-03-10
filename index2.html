@@ -23,7 +23,7 @@
     body { margin: 0; padding: 0; font-family: -apple-system, Roboto, sans-serif; overflow: hidden; background: #f0f2f5; }
     #map { width: 100vw; height: 100vh; }
     #top-bar { position: absolute; top: 15px; left: 15px; right: 15px; z-index: 10; display: flex; justify-content: space-between; pointer-events: none; align-items: flex-start;}
-    .status-pill { background: white; padding: 10px 15px; border-radius: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); font-weight: bold; color: #333; pointer-events: auto; display: flex; align-items: center; font-size: 14px; height: fit-content;}
+    .status-pill { background: white; padding: 10px 15px; border-radius: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); font-weight: bold; color: #333; pointer-events: auto; display: flex; align-items: center; font-size: 14px; height: fit-content; transition: all 0.3s;}
     
     /* 右上角按鈕群組 */
     .action-buttons-container { display: flex; flex-direction: column; gap: 12px; pointer-events: auto; }
@@ -32,7 +32,7 @@
     .btn-customer:active { transform: scale(0.92); }
     .btn-customer i { font-size: 18px; margin-bottom: 2px; }
 
-    /* 🚀 v9.18 新增：裂變分享按鈕 */
+    /* 裂變分享按鈕 */
     .btn-share { background: linear-gradient(135deg, #FF9800, #FF5722); color: white; width: 50px; height: 50px; border-radius: 50%; display: flex; flex-direction: column; justify-content: center; align-items: center; box-shadow: 0 4px 15px rgba(255,152,0,0.4); cursor: pointer; font-size: 11px; font-weight: bold; border: 2px solid white; transition: transform 0.1s;}
     .btn-share:active { transform: scale(0.92); background: #E65100; }
     .btn-share i { font-size: 18px; margin-bottom: 2px; }
@@ -109,11 +109,10 @@
     <div id="top-bar">
       <div style="display: flex; gap: 8px; flex-wrap: wrap;">
         <div class="status-pill" id="location-pill">
-            <i class="fa-solid fa-location-dot" style="color:#e74c3c;margin-right:5px;"></i> 
+            <i class="fa-solid fa-location-dot" id="loc-icon" style="color:#e74c3c;margin-right:5px;"></i> 
             <span id="loc-text">定位中...</span>
         </div>
       </div>
-      <!-- 🚀 v9.18 右上角按鈕群組 -->
       <div class="action-buttons-container">
         <a href="https://lin.ee/9Davl6e" target="_blank" class="btn-customer"><i class="fa-solid fa-headset"></i>客服</a>
         <div class="btn-share" onclick="shareToFriends()"><i class="fa-solid fa-gift"></i>分享</div>
@@ -127,7 +126,7 @@
 
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script>
-    const VERSION = "v9.18"; // 🚀 車隊大廳裂變引擎版 (加入右上角分享按鈕與 FlexMessage)
+    const VERSION = "v9.19"; // 🚀 導航鎖定優化版 (節省 API 成本與優化搭車狀態顯示)
     const LIFF_ID = "2008907691-CzDqd7mm"; 
     const GAS_URL = "https://script.google.com/macros/s/AKfycbzjWZ8j394jfKoMVbPWGvHJHqwF7RBCQxnxyju1ifWKoKdM7RE512F7qrhUsQqQGoWg/exec"; 
     
@@ -200,15 +199,13 @@
         } 
     }
 
-    // 🚀 v9.18 核心：分享給好友功能 (裂變引擎)
     async function shareToFriends() {
         if (!liff.isApiAvailable('shareTargetPicker')) {
             Swal.fire('無法分享', '您的 LINE 版本不支援分享功能，請更新後再試。', 'warning');
             return;
         }
 
-        // ⚠️ 等你做好海報後，把這裡換成你的圖片網址 (必須是 https 開頭)
-        const HERO_IMAGE_URL = "https://i.imgur.com/gK98hUf.png"; // 暫時的預設佔位圖
+        const HERO_IMAGE_URL = "https://i.imgur.com/gK98hUf.png"; 
 
         const flexMessage = {
             "type": "flex",
@@ -273,6 +270,37 @@
         });
     }
 
+    // 🚀 v9.19 更新 UI 狀態函數
+    function updateStatusUI() {
+        const locTextEl = document.getElementById('loc-text');
+        const locIconEl = document.getElementById('loc-icon');
+        
+        if (myTrackedDriverId) {
+            // 已叫車：根據狀態顯示不同文字與圖示
+            if (currentTrackStep === '2') {
+                locTextEl.innerText = "🚕 快樂旅程中";
+                locTextEl.style.color = "#2E7D32";
+                locIconEl.className = "fa-solid fa-flag-checkered";
+                locIconEl.style.color = "#2E7D32";
+            } else if (currentTrackStep === '1.5') {
+                locTextEl.innerText = "📍 司機已抵達";
+                locTextEl.style.color = "#E65100";
+                locIconEl.className = "fa-solid fa-location-dot";
+                locIconEl.style.color = "#FF9800";
+            } else {
+                locTextEl.innerText = "✅ 專車前往中";
+                locTextEl.style.color = "#0277BD";
+                locIconEl.className = "fa-solid fa-car-side";
+                locIconEl.style.color = "#03A9F4";
+            }
+        } else {
+            // 回復預設定位圖示
+            locTextEl.style.color = "#333";
+            locIconEl.className = "fa-solid fa-location-dot";
+            locIconEl.style.color = "#e74c3c";
+        }
+    }
+
     function initMap() {
         map = new google.maps.Map(document.getElementById("map"), {
             center: { lat: 23.991, lng: 121.601 }, zoom: 15,
@@ -292,11 +320,17 @@
                     userMarker.setPosition(p);
                 }
                 
-                const currentGooglePos = new google.maps.LatLng(myLat, myLng);
-                if (!lastGeocodePos || google.maps.geometry.spherical.computeDistanceBetween(lastGeocodePos, currentGooglePos) > 100) {
-                    getAddress(myLat, myLng);
-                    lastGeocodePos = currentGooglePos;
+                // 🚀 v9.19 核心煞車機制：只有在「未叫車狀態」才呼叫地址反查 API
+                if (myTrackedDriverId) {
+                    updateStatusUI(); // 鎖定狀態
+                } else {
+                    const currentGooglePos = new google.maps.LatLng(myLat, myLng);
+                    if (!lastGeocodePos || google.maps.geometry.spherical.computeDistanceBetween(lastGeocodePos, currentGooglePos) > 100) {
+                        getAddress(myLat, myLng);
+                        lastGeocodePos = currentGooglePos;
+                    }
                 }
+                
                 if (Object.keys(markers).length > 0) processDriversData(lastDriversData);
             }, (err) => console.log(err), { enableHighAccuracy: true });
         }
@@ -319,6 +353,11 @@
         localStorage.removeItem('wasBusy');
         localStorage.removeItem('trackStep');
         currentTrackStep = '1';
+        
+        // 🚀 v9.19 被拒絕時，重置定位並立即刷新地址
+        lastGeocodePos = null;
+        if (myLat && myLng) getAddress(myLat, myLng);
+        updateStatusUI();
         
         Swal.fire({
             icon: 'warning',
@@ -360,14 +399,19 @@
                     return; 
                 }
 
+                // 🚀 v9.19 即時更新左上角狀態 UI
                 if (trackedData.workStatus === 'arrived') {
-                    currentTrackStep = '1.5';
-                    localStorage.setItem('trackStep', '1.5');
+                    if (currentTrackStep !== '1.5') {
+                        currentTrackStep = '1.5';
+                        localStorage.setItem('trackStep', '1.5');
+                        updateStatusUI();
+                    }
                 } else if (trackedData.workStatus === 'busy') {
                     localStorage.setItem('wasBusy', 'true');
-                    if (currentTrackStep === '1.5') {
+                    if (currentTrackStep !== '2') {
                         currentTrackStep = '2';
                         localStorage.setItem('trackStep', '2');
+                        updateStatusUI();
                     }
                 }
             }
@@ -552,6 +596,9 @@
             localStorage.setItem('trackStep', '1');
             currentTrackStep = '1';
             
+            // 🚀 v9.19 叫車成功後，立刻鎖定 UI 狀態
+            updateStatusUI();
+            
             if (lastDriversData) processDriversData(lastDriversData); 
 
             btn.innerHTML = originalContent;
@@ -622,6 +669,11 @@
         localStorage.removeItem('trackStep');
         currentTrackStep = '1';
         
+        // 🚀 v9.19 行程結束或取消後，重置定位並立即刷新地址
+        lastGeocodePos = null;
+        if (myLat && myLng) getAddress(myLat, myLng);
+        updateStatusUI();
+        
         if (isAuto) {
             Swal.fire({
                 icon: 'success', title: '行程已結束', text: '感謝您搭乘花蓮車隊，期待下次為您服務！',
@@ -644,8 +696,14 @@
     }
     
     function getAddress(lat, lng) {
+        // 更新時加上 UI 提示
+        document.getElementById('loc-text').innerText = "定位中...";
+        
         const geocoder = new google.maps.Geocoder();
         geocoder.geocode({ location: { lat: lat, lng: lng } }, (results, status) => {
+            // 如果在等待期間突然變成已叫車狀態，則捨棄回傳結果
+            if (myTrackedDriverId) return;
+            
             if (status === "OK" && results[0]) {
                 const route = results[0].address_components.find(c => c.types.includes('route'))?.short_name || "";
                 const streetNum = results[0].address_components.find(c => c.types.includes('street_number'))?.short_name || "";
@@ -654,6 +712,8 @@
                 if (!addr) addr = results[0].address_components.find(c => c.types.includes('neighborhood'))?.short_name || "您的位置";
                 
                 document.getElementById('loc-text').innerText = addr;
+            } else {
+                document.getElementById('loc-text').innerText = "請稍候...";
             }
         });
     }
