@@ -22,15 +22,24 @@
   <style>
     body { margin: 0; padding: 0; font-family: -apple-system, Roboto, sans-serif; overflow: hidden; background: #f0f2f5; }
     #map { width: 100vw; height: 100vh; }
-    #top-bar { position: absolute; top: 15px; left: 15px; right: 15px; z-index: 10; display: flex; justify-content: space-between; pointer-events: none; }
-    .status-pill { background: white; padding: 10px 15px; border-radius: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); font-weight: bold; color: #333; pointer-events: auto; display: flex; align-items: center; font-size: 14px; }
-    .btn-customer { background: linear-gradient(135deg, #00C853, #64DD17); color: white; width: 50px; height: 50px; border-radius: 50%; display: flex; flex-direction: column; justify-content: center; align-items: center; box-shadow: 0 4px 15px rgba(0,0,0,0.2); text-decoration: none; pointer-events: auto; font-size: 12px; font-weight: bold; border: 2px solid white; }
-    .btn-customer i { font-size: 20px; margin-bottom: 2px; }
+    #top-bar { position: absolute; top: 15px; left: 15px; right: 15px; z-index: 10; display: flex; justify-content: space-between; pointer-events: none; align-items: flex-start;}
+    .status-pill { background: white; padding: 10px 15px; border-radius: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); font-weight: bold; color: #333; pointer-events: auto; display: flex; align-items: center; font-size: 14px; height: fit-content;}
+    
+    /* 右上角按鈕群組 */
+    .action-buttons-container { display: flex; flex-direction: column; gap: 12px; pointer-events: auto; }
+    
+    .btn-customer { background: linear-gradient(135deg, #00C853, #64DD17); color: white; width: 50px; height: 50px; border-radius: 50%; display: flex; flex-direction: column; justify-content: center; align-items: center; box-shadow: 0 4px 15px rgba(0,0,0,0.2); text-decoration: none; font-size: 11px; font-weight: bold; border: 2px solid white; transition: transform 0.1s;}
+    .btn-customer:active { transform: scale(0.92); }
+    .btn-customer i { font-size: 18px; margin-bottom: 2px; }
+
+    /* 🚀 v9.18 新增：裂變分享按鈕 */
+    .btn-share { background: linear-gradient(135deg, #FF9800, #FF5722); color: white; width: 50px; height: 50px; border-radius: 50%; display: flex; flex-direction: column; justify-content: center; align-items: center; box-shadow: 0 4px 15px rgba(255,152,0,0.4); cursor: pointer; font-size: 11px; font-weight: bold; border: 2px solid white; transition: transform 0.1s;}
+    .btn-share:active { transform: scale(0.92); background: #E65100; }
+    .btn-share i { font-size: 18px; margin-bottom: 2px; }
     
     #driver-carousel { position: absolute; bottom: 20px; left: 0; width: 100%; display: flex; gap: 15px; padding: 10px 20px; box-sizing: border-box; overflow-x: auto; scroll-snap-type: x mandatory; z-index: 20; scrollbar-width: none; }
     #driver-carousel::-webkit-scrollbar { display: none; }
     
-    /* 🚀 v9.17 UI 重構：卡片改為橫向排列 (Row)，大幅釋放高度 */
     .driver-card { 
         flex: 0 0 92%; max-width: 380px; background: white; border-radius: 24px; padding: 16px 20px; 
         box-shadow: 0 10px 30px rgba(0,0,0,0.25); scroll-snap-align: center; 
@@ -43,7 +52,6 @@
     .driver-card.busy-mode { border-color: #00C853; box-shadow: 0 10px 35px rgba(0, 200, 83, 0.3); } 
     .driver-card.queue-mode { border-color: #00B0FF; }
     
-    /* 🚀 v9.17 頭像縮小並靠左 */
     .d-avatar { width: 70px; height: 70px; background: #eee; border-radius: 50%; overflow: hidden; border: 3px solid #00C853; box-shadow: 0 4px 12px rgba(0,0,0,0.15); flex-shrink: 0; }
     .driver-card.tracking-mode .d-avatar { border-color: #00B0FF; }
     .driver-card.arrived-mode .d-avatar { border-color: #FF9800; } 
@@ -51,7 +59,6 @@
     .driver-card.queue-mode .d-avatar { border-color: #00B0FF; }
     .d-avatar img { width: 100%; height: 100%; object-fit: cover; }
     
-    /* 🚀 v9.17 中間資訊區塊 */
     .d-info { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 4px; }
     .d-name { font-size: 20px; font-weight: 900; color: #000; display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin: 0; line-height: 1.2; }
     
@@ -66,7 +73,6 @@
     .d-meta span { display: flex; align-items: center; gap: 6px; }
     .d-meta i { width: 16px; text-align: center; color: #888; }
     
-    /* 🚀 v9.17 右側圓形一鍵叫車按鈕 (Trailing Action Button) */
     .btn-call-circle {
         width: 60px; height: 60px; border-radius: 50%;
         background: linear-gradient(135deg, #00C853, #1B5E20); color: white;
@@ -77,7 +83,6 @@
     .btn-call-circle:active { transform: scale(0.92); background: #1B5E20; }
     .btn-call-circle:disabled { background: #9E9E9E; border-color: #757575; box-shadow: none; cursor: not-allowed; transform: none; }
     
-    /* 🚀 v9.17 迷你取消按鈕 (懸浮於卡片右上角) */
     .btn-cancel-mini {
         position: absolute; top: -10px; right: -10px;
         width: 32px; height: 32px; border-radius: 50%;
@@ -88,13 +93,14 @@
     }
     .btn-cancel-mini:active { transform: scale(0.9); }
 
-    /* 總台按鈕(無車時顯示) */
     .btn-call-full { width: 100%; height: 50px; border-radius: 16px; background: linear-gradient(135deg, #F57F17, #E65100); color: white; display: flex; justify-content: center; align-items: center; gap: 12px; text-decoration: none; font-size: 18px; font-weight: 900; box-shadow: 0 6px 15px rgba(245, 127, 23, 0.4); border: 2px solid #FFB300; cursor: pointer; }
 
     #btn-loc { position: absolute; bottom: 150px; right: 20px; width: 55px; height: 55px; background: white; border-radius: 50%; box-shadow: 0 4px 15px rgba(0,0,0,0.25); display: flex; justify-content: center; align-items: center; font-size: 24px; color: #333; cursor: pointer; z-index: 15; border: 2px solid #eee; transition: bottom 0.3s; }
     
     @keyframes pulse-radar { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
     @keyframes card-pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 152, 0, 0.4); } 70% { box-shadow: 0 0 0 15px rgba(255, 152, 0, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 152, 0, 0); } }
+    
+    .swal2-popup { border-radius: 24px !important; font-family: 'Noto Sans TC', sans-serif !important; }
   </style>
 </head>
 <body>
@@ -107,7 +113,11 @@
             <span id="loc-text">定位中...</span>
         </div>
       </div>
-      <a href="https://lin.ee/9Davl6e" target="_blank" class="btn-customer"><i class="fa-solid fa-headset"></i>客服</a>
+      <!-- 🚀 v9.18 右上角按鈕群組 -->
+      <div class="action-buttons-container">
+        <a href="https://lin.ee/9Davl6e" target="_blank" class="btn-customer"><i class="fa-solid fa-headset"></i>客服</a>
+        <div class="btn-share" onclick="shareToFriends()"><i class="fa-solid fa-gift"></i>分享</div>
+      </div>
     </div>
 
     <div id="map"></div>
@@ -117,7 +127,7 @@
 
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script>
-    const VERSION = "v9.17"; // 🚀 空間釋放與圓形按鈕版
+    const VERSION = "v9.18"; // 🚀 車隊大廳裂變引擎版 (加入右上角分享按鈕與 FlexMessage)
     const LIFF_ID = "2008907691-CzDqd7mm"; 
     const GAS_URL = "https://script.google.com/macros/s/AKfycbzjWZ8j394jfKoMVbPWGvHJHqwF7RBCQxnxyju1ifWKoKdM7RE512F7qrhUsQqQGoWg/exec"; 
     
@@ -188,6 +198,69 @@
             console.error("初始化或黑名單驗證錯誤:", e);
             Swal.fire({ icon: 'error', title: '系統錯誤', text: '請重新開啟網頁' });
         } 
+    }
+
+    // 🚀 v9.18 核心：分享給好友功能 (裂變引擎)
+    async function shareToFriends() {
+        if (!liff.isApiAvailable('shareTargetPicker')) {
+            Swal.fire('無法分享', '您的 LINE 版本不支援分享功能，請更新後再試。', 'warning');
+            return;
+        }
+
+        // ⚠️ 等你做好海報後，把這裡換成你的圖片網址 (必須是 https 開頭)
+        const HERO_IMAGE_URL = "https://i.imgur.com/gK98hUf.png"; // 暫時的預設佔位圖
+
+        const flexMessage = {
+            "type": "flex",
+            "altText": "🚕 您的好友推薦了優質車隊！",
+            "contents": {
+                "type": "bubble",
+                "hero": {
+                    "type": "image",
+                    "url": HERO_IMAGE_URL, 
+                    "size": "full",
+                    "aspectRatio": "20:13",
+                    "aspectMode": "cover"
+                },
+                "body": {
+                    "type": "box",
+                    "layout": "vertical",
+                    "contents": [
+                        { "type": "text", "text": "花蓮敬老愛心車隊", "weight": "bold", "size": "xl", "color": "#111111" },
+                        { "type": "text", "text": "免報路名 ‧ 一鍵雙向定位", "size": "sm", "color": "#FF9800", "weight": "bold", "margin": "sm" },
+                        { "type": "text", "text": "在地長輩最安心的叫車神器！點擊下方按鈕，立即開啟叫車雷達，附近空車一目了然。", "size": "xs", "color": "#666666", "wrap": true, "margin": "md" }
+                    ]
+                },
+                "footer": {
+                    "type": "box",
+                    "layout": "vertical",
+                    "spacing": "sm",
+                    "contents": [
+                        {
+                            "type": "button",
+                            "style": "primary",
+                            "height": "sm",
+                            "color": "#00C853",
+                            "action": {
+                                "type": "uri",
+                                "label": "📍 點我開啟叫車雷達",
+                                "uri": "https://liff.line.me/2008907691-CzDqd7mm"
+                            }
+                        }
+                    ],
+                    "flex": 0
+                }
+            }
+        };
+
+        try {
+            const result = await liff.shareTargetPicker([flexMessage]);
+            if (result) {
+                Swal.fire({ icon: 'success', title: '分享成功！', text: '感謝您推薦花蓮敬老愛心車隊！', timer: 2000, showConfirmButton: false, customClass: {popup: 'rounded-[24px]'} });
+            }
+        } catch (error) {
+            console.error('分享失敗', error);
+        }
     }
 
     function setupConnectionManager() {
@@ -395,9 +468,7 @@
             const avatar = d.photo || 'https://cdn-icons-png.flaticon.com/512/3237/3237472.png';
             const displayCarNo = d.carNo || d.car || '花蓮計程車';
             
-            // 🚀 v9.17 依據狀態動態組裝右側圓形按鈕與右上角取消按鈕
             if (d.isTracked && currentTrackStep === '2') {
-                // 已上車狀態：移除右側按鈕，直接顯示搭乘祝賀語
                 newHTML += `
                     <div class="${cardClass}" id="card-${d.id}">
                         <div class="d-avatar"><img src="${avatar}"></div>
@@ -572,7 +643,6 @@
         } 
     }
     
-    // 🚀 v9.17 地址反查升級：同時抓取 Route(路名) + Street Number(門牌號)
     function getAddress(lat, lng) {
         const geocoder = new google.maps.Geocoder();
         geocoder.geocode({ location: { lat: lat, lng: lng } }, (results, status) => {
