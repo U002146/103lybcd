@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>花蓮敬老車隊 // v10.1 搶單大廳 (滾動修復版)</title>
+    <title>花蓮敬老車隊 // v10.3 搶單大廳 (視覺修復版)</title>
     
     <!-- Tailwind & FontAwesome & SweetAlert2 -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -36,65 +36,34 @@
     </script>
 
     <style>
-        /* 🚀 v10.1 滾動修復：讓 body 自然滾動，並鎖定滑動邊界，防止拉動 Flutter 底板 */
-        body { 
-            background-color: #121212; 
-            color: #ffffff; 
-            font-family: -apple-system, Roboto, sans-serif; 
-            margin: 0; 
-            overflow-y: auto; 
-            -webkit-overflow-scrolling: touch;
-            overscroll-behavior-y: contain; /* 關鍵：防止滑動穿透到 APP */
+        /* 🚀 終極滾動修復：鎖死 Body，只允許列表滾動 */
+        html, body { 
+            width: 100%; height: 100%; background-color: #121212; color: #ffffff; 
+            font-family: -apple-system, Roboto, sans-serif; margin: 0; padding: 0;
+            overflow: hidden; touch-action: none; 
         }
         
-        #app-container { 
-            max-width: 480px; 
-            margin: 0 auto; 
-            min-height: 100dvh; /* 使用動態視口高度 */
-            display: flex; 
-            flex-direction: column; 
-        }
+        #app-container { max-width: 480px; margin: 0 auto; height: 100%; display: flex; flex-direction: column; }
         
-        .app-header { background: #1A1A1A; padding: 15px 20px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 50; box-shadow: 0 4px 15px rgba(0,0,0,0.5);}
+        .app-header { background: #1A1A1A; padding: 15px 20px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; z-index: 50; flex-shrink: 0; }
         .radar-ping { width: 12px; height: 12px; background-color: #00C853; border-radius: 50%; box-shadow: 0 0 10px #00C853; animation: ping 2s infinite; }
         
-        /* 🚀 v10.1 底部大留白：保證最後一張卡片絕對不會被擋住 */
-        #order-list { 
-            flex: 1; 
-            padding: 15px; 
-            padding-bottom: 150px; 
-            display: flex; 
-            flex-direction: column; 
-            gap: 15px; 
-        }
+        #order-list { flex: 1; padding: 15px; padding-bottom: 100px; display: flex; flex-direction: column; gap: 15px; overflow-y: auto; -webkit-overflow-scrolling: touch; touch-action: pan-y; }
         
-        .order-card { 
-            background: #1A1A1A; border-radius: 20px; padding: 20px; 
-            border: 2px solid #00B0FF; box-shadow: 0 10px 30px rgba(0, 176, 255, 0.15);
-            animation: slideIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            transition: all 0.3s ease; position: relative; overflow: hidden;
-        }
+        .order-card { background: #1A1A1A; border-radius: 20px; padding: 20px; border: 2px solid #00B0FF; box-shadow: 0 10px 30px rgba(0, 176, 255, 0.15); animation: slideIn 0.3s ease-out; position: relative; overflow: hidden; flex-shrink: 0; }
         .order-card.taken { border-color: #555; opacity: 0.5; filter: grayscale(100%); pointer-events: none; }
-        .order-card.success { border-color: #00C853; box-shadow: 0 10px 30px rgba(0, 200, 83, 0.2); }
         
-        .new-badge { position: absolute; top: -15px; right: -25px; background: #FF3D00; color: white; padding: 20px 25px 5px; transform: rotate(45deg); font-size: 12px; font-weight: 900; box-shadow: 0 5px 15px rgba(255,61,0,0.4); }
-        .address-big { color: #00B0FF; font-size: 24px; font-weight: 900; letter-spacing: 1px; margin: 10px 0; line-height: 1.2; word-break: break-all;}
-        .order-card.success .address-big { color: #00C853; }
+        .address-big { color: #00B0FF; font-size: 24px; font-weight: 900; letter-spacing: 1px; margin: 10px 0; line-height: 1.3; word-break: break-all;}
 
-        .btn-snatch { 
-            background: linear-gradient(135deg, #00C853, #1B5E20); color: white; 
-            width: 100%; padding: 16px; border-radius: 15px; font-size: 20px; font-weight: 900; 
-            border: 2px solid #00E676; box-shadow: 0 6px 20px rgba(0, 200, 83, 0.4);
-            display: flex; justify-content: center; align-items: center; gap: 10px; cursor: pointer; margin-top: 15px;
-        }
+        .btn-snatch { background: linear-gradient(135deg, #00C853, #1B5E20); color: white; width: 100%; padding: 16px; border-radius: 15px; font-size: 20px; font-weight: 900; border: 2px solid #00E676; box-shadow: 0 6px 20px rgba(0, 200, 83, 0.4); display: flex; justify-content: center; align-items: center; gap: 10px; cursor: pointer; margin-top: 15px; }
         .btn-snatch:active { transform: scale(0.95); }
         .btn-snatch.disabled { background: #333; border-color: #555; box-shadow: none; cursor: not-allowed; color: #888; }
 
         @keyframes ping { 0% { transform: scale(1); opacity: 1; } 75%, 100% { transform: scale(2.5); opacity: 0; } }
-        @keyframes slideIn { from { transform: translateY(-50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        @keyframes slideIn { from { transform: translateY(-30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         
-        .swal2-popup { background-color: #1E1E1E !important; color: white !important; border-radius: 20px !important; }
-        .swal2-title { color: white !important; }
+        .swal2-popup { background-color: #1E1E1E !important; color: white !important; border-radius: 24px !important; }
+        .swal2-title { color: white !important; font-weight: 900 !important; }
         .swal2-html-container { color: #aaa !important; }
     </style>
 </head>
@@ -106,9 +75,9 @@
             <i class="fa-solid fa-bolt text-purple-400 text-xl"></i>
             <span class="text-lg font-black tracking-wider text-white" id="header-title">📋 搶單大廳</span>
         </div>
-        <div class="flex items-center gap-2 bg-gray-800 px-3 py-1 rounded-full border border-gray-700">
+        <div class="flex items-center gap-2 bg-gray-800 px-3 py-1.5 rounded-full border border-gray-700">
             <div class="radar-ping"></div>
-            <span class="text-sm font-bold text-green-400">總台連線中</span>
+            <span class="text-xs font-bold text-green-400">總台連線中</span>
         </div>
     </div>
 
@@ -116,7 +85,7 @@
         <div id="empty-state" class="flex flex-col items-center justify-center h-full opacity-50 mt-20">
             <i class="fa-solid fa-radar text-6xl mb-4 text-gray-600"></i>
             <p class="text-lg font-bold text-gray-400">目前大廳無任務</p>
-            <p class="text-sm text-gray-500 mt-2">請等待總台發送即時單</p>
+            <p class="text-sm text-gray-500 mt-2">所有訂單皆已被承接</p>
         </div>
     </div>
 </div>
@@ -130,7 +99,6 @@
     const orderList = document.getElementById('order-list');
     const emptyState = document.getElementById('empty-state');
 
-    // 🚀 v10.1 網頁內部音效產生器 (解決開啟大廳時無聲的問題)
     let audioCtx = null;
     let knownOrderIds = new Set();
 
@@ -149,15 +117,14 @@
             
             osc1.connect(gain); osc2.connect(gain); gain.connect(audioCtx.destination);
             
-            osc1.frequency.setValueAtTime(880, audioCtx.currentTime); // A5
-            osc2.frequency.setValueAtTime(659.25, audioContext.currentTime + 0.3); // E5
+            osc1.frequency.setValueAtTime(880, audioCtx.currentTime); 
+            osc2.frequency.setValueAtTime(659.25, audioCtx.currentTime + 0.3); 
             
             osc1.start(audioCtx.currentTime); osc1.stop(audioCtx.currentTime + 0.3);
             osc2.start(audioCtx.currentTime + 0.3); osc2.stop(audioCtx.currentTime + 1);
-        } catch (e) { console.log("音效播放受阻:", e); }
+        } catch (e) { console.log("音效受阻:", e); }
     }
 
-    // 點擊畫面任意處解鎖音效權限 (瀏覽器政策)
     document.body.addEventListener('click', () => {
         if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -181,18 +148,16 @@
         Object.keys(orders).reverse().forEach(orderId => {
             const order = orders[orderId];
             
-            // 🚀 觸發音效邏輯：發現新的待處理訂單
-            if (order.status === 'pending' && !knownOrderIds.has(orderId)) {
-                knownOrderIds.add(orderId);
-                playDingDong(); // 播放音效
-            }
-
+            // 🚀 v10.3 大廳過濾器：搶走的一律不顯示
             if (order.status === 'pending') {
                 hasPendingOrders = true;
+                
+                if (!knownOrderIds.has(orderId)) {
+                    knownOrderIds.add(orderId);
+                    playDingDong(); 
+                }
+                
                 renderOrderCard(orderId, order);
-            } else if (order.status === 'taken' && order.takenBy === myDriverId) {
-                hasPendingOrders = true;
-                renderOrderCard(orderId, order, true); 
             }
         });
 
@@ -204,47 +169,41 @@
         }
     });
 
-    function renderOrderCard(orderId, data, isMySuccess = false) {
+    function renderOrderCard(orderId, data) {
         const card = document.createElement('div');
-        card.className = `order-card ${isMySuccess ? 'success' : ''}`;
+        card.className = `order-card`;
         card.id = `card-${orderId}`;
-        
-        let buttonHtml = '';
-        if (isMySuccess) {
-            buttonHtml = `<div class="text-center text-green-400 font-black text-lg mt-3 bg-green-900/30 p-2 rounded-lg"><i class="fa-solid fa-check-circle"></i> 搶單成功！請回 APP 點擊「我已抵達」</div>`;
-        } else {
-            buttonHtml = `<button class="btn-snatch" id="btn-${orderId}" onclick="snatchOrder('${orderId}', this)">
-                            <i class="fa-solid fa-bolt"></i> ⚡ 立即搶單
-                          </button>`;
-        }
 
-        // 簡化地址顯示，若有備註才顯示
-        const noteHtml = data.note ? `<span class="text-xs bg-gray-700 px-2 py-1 rounded text-white ml-2">${data.note}</span>` : '';
+        const noteHtml = data.note ? `<span class="text-xs bg-gray-700 px-2 py-1 rounded text-white ml-2 border border-gray-600">${data.note}</span>` : '';
 
+        // 🚀 v10.3 視覺修復：時間與新標籤不再重疊，排版更洗鍊
         card.innerHTML = `
-            ${!isMySuccess ? '<div class="new-badge">總台派單</div>' : ''}
-            
-            <div class="flex justify-between items-start mb-2">
-                <span class="text-gray-400 text-sm font-bold"><i class="fa-solid fa-hashtag"></i> ${orderId.substring(0, 10)}</span>
-                <span class="text-yellow-400 text-sm font-bold"><i class="fa-solid fa-clock"></i> ${data.time || '即時單'}</span>
+            <div class="flex justify-between items-center mb-3">
+                <div class="flex items-center gap-2">
+                    <span class="bg-red-600 text-white text-[11px] px-2 py-1 rounded shadow-sm border border-red-500 animate-pulse font-black"><i class="fa-solid fa-fire mr-1"></i>總台派單</span>
+                    <span class="text-gray-400 text-xs font-bold font-mono">#${orderId.substring(0, 8)}</span>
+                </div>
+                <span class="text-yellow-400 text-sm font-bold bg-yellow-400/10 px-2.5 py-1 rounded-lg border border-yellow-400/20"><i class="fa-solid fa-clock mr-1"></i>${data.time || '即時單'}</span>
             </div>
 
             <div class="address-big">
                 🚕 ${data.pickup || '上車點未提供'}
             </div>
 
-            <div class="flex flex-col gap-2 mt-4 text-gray-300 font-bold text-sm">
-                <div class="flex items-center gap-2">
-                    <div class="w-6 text-center"><i class="fa-solid fa-flag-checkered text-red-400"></i></div>
-                    <span>下車：${data.dropoff || '依乘客指示'}</span>
+            <div class="flex flex-col gap-3 mt-4 text-gray-300 font-bold text-sm bg-gray-800/50 p-3 rounded-xl border border-gray-700/50">
+                <div class="flex items-start gap-2">
+                    <div class="w-6 text-center mt-0.5"><i class="fa-solid fa-flag-checkered text-red-400"></i></div>
+                    <span class="leading-tight">下車：<span class="text-white">${data.dropoff || '依乘客指示'}</span></span>
                 </div>
-                <div class="flex items-center gap-2">
-                    <div class="w-6 text-center"><i class="fa-solid fa-user text-blue-400"></i></div>
-                    <span>乘客：${data.passengerName || '總台派發'} ${noteHtml}</span>
+                <div class="flex items-start gap-2">
+                    <div class="w-6 text-center mt-0.5"><i class="fa-solid fa-user text-blue-400"></i></div>
+                    <span class="leading-tight">乘客：<span class="text-white">${data.passengerName || '總台派發'}</span> ${noteHtml}</span>
                 </div>
             </div>
 
-            ${buttonHtml}
+            <button class="btn-snatch" id="btn-${orderId}" onclick="snatchOrder('${orderId}', this)">
+                <i class="fa-solid fa-bolt"></i> ⚡ 立即搶單
+            </button>
         `;
 
         orderList.appendChild(card);
@@ -279,23 +238,24 @@
                 }
                 showErrorSwal("手速太慢！", "該訂單剛好被其他司機搶先一步接走了！");
             } else {
+                // 🚀 v10.3 修改 Swal：明確告知需要滑動，為下次自動關閉做準備
                 Swal.fire({
                     icon: 'success',
-                    title: '搶單成功！',
-                    text: '請向下滑動關閉此大廳，回到地圖繼續任務！',
-                    confirmButtonText: '確定',
+                    title: '⚡ 搶單成功！',
+                    html: '<div style="font-size:18px; font-weight:bold; color:#00C853; margin-bottom:10px;">任務已同步至主機！</div><div style="color:#aaa;">請<b style="color:white;">向下滑動</b>關閉此大廳面板，<br>回到地圖繼續任務！</div>',
+                    confirmButtonText: '⬇️ 往下滑動關閉',
                     confirmButtonColor: '#00C853',
                     allowOutsideClick: false
                 });
                 
                 const orderData = snapshot.val();
                 
-                // 🚀 v10.1 偽造花蓮車站 GPS，避免距離計算爆衝到 13000 公里
+                // 寫入乘客請求，喚醒 Flutter APP 狀態機
                 database.ref(`drivers/${myDriverId}/request`).set({
                     userId: "fleet_order",
                     userName: orderData.passengerName || "總台派單",
                     userPhone: orderData.phone || "",
-                    lat: 23.9933, // 花蓮車站經緯度代替 Null Island (0,0)
+                    lat: 23.9933, 
                     lng: 121.6011,
                     timestamp: firebase.database.ServerValue.TIMESTAMP,
                     note: "總台派發大廳單",
