@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>花蓮敬老車隊 // v10.0 搶單大廳 (Firebase 版)</title>
+    
+    <!-- Tailwind & FontAwesome & SweetAlert2 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <!-- Firebase Web SDK (v8 相容模式，最穩定) -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+    <script>
+        // ==========================================
+        // 🔥 1. 請在這裡替換成你專屬的 Firebase 設定 🔥
+        // ==========================================
+        const firebaseConfig = {
+          apiKey: "AIzaSyB2MRjJ50mEZ7McwcHPKqq1IQU-mlJKczk",
+          authDomain: "hualientaxi-bb32f.firebaseapp.com",
+          databaseURL: "https://hualientaxi-bb32f-default-rtdb.asia-southeast1.firebasedatabase.app",
+          projectId: "hualientaxi-bb32f",
+          storageBucket: "hualientaxi-bb32f.firebasestorage.app",
+          messagingSenderId: "553275317473",
+          appId: "1:553275317473:web:ae33f273c97c5c309ceba0"
+        };
+        // ==========================================
+
+        // 初始化 Firebase
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        const database = firebase.database();
+    </script>
+
+    <style>
+        /* 繼承司機端 APP 科技暗黑風 */
+        body { background-color: #121212; color: #ffffff; font-family: -apple-system, Roboto, sans-serif; overflow: hidden; margin: 0; }
+        #app-container { max-width: 480px; margin: 0 auto; height: 100vh; background-color: #121212; display: flex; flex-direction: column; }
+        
+        .app-header { background: #1A1A1A; padding: 15px 20px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; z-index: 10;}
+        .radar-ping { width: 12px; height: 12px; background-color: #00C853; border-radius: 50%; box-shadow: 0 0 10px #00C853; animation: ping 2s infinite; }
+        
+        #order-list { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 15px; scroll-behavior: smooth; }
+        
+        .order-card { 
+            background: #1A1A1A; border-radius: 20px; padding: 20px; 
+            border: 2px solid #00B0FF; box-shadow: 0 10px 30px rgba(0, 176, 255, 0.15);
+            animation: slideIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transition: all 0.3s ease; position: relative; overflow: hidden;
+        }
+        .order-card.taken { border-color: #555; opacity: 0.5; filter: grayscale(100%); pointer-events: none; }
+        .order-card.success { border-color: #00C853; box-shadow: 0 10px 30px rgba(0, 200, 83, 0.2); }
+        
+        .new-badge { position: absolute; top: -15px; right: -25px; background: #FF3D00; color: white; padding: 20px 25px 5px; transform: rotate(45deg); font-size: 12px; font-weight: 900; box-shadow: 0 5px 15px rgba(255,61,0,0.4); }
+        .address-big { color: #00B0FF; font-size: 24px; font-weight: 900; letter-spacing: 1px; margin: 10px 0; line-height: 1.2; word-break: break-all;}
+        .order-card.success .address-big { color: #00C853; }
+
+        .btn-snatch { 
+            background: linear-gradient(135deg, #00C853, #1B5E20); color: white; 
+            width: 100%; padding: 16px; border-radius: 15px; font-size: 20px; font-weight: 900; 
+            border: 2px solid #00E676; box-shadow: 0 6px 20px rgba(0, 200, 83, 0.4);
+            display: flex; justify-content: center; align-items: center; gap: 10px; cursor: pointer; margin-top: 15px;
+        }
+        .btn-snatch:active { transform: scale(0.95); }
+        .btn-snatch.disabled { background: #333; border-color: #555; box-shadow: none; cursor: not-allowed; color: #888; }
+
+        @keyframes ping { 0% { transform: scale(1); opacity: 1; } 75%, 100% { transform: scale(2.5); opacity: 0; } }
+        @keyframes slideIn { from { transform: translateY(-50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        
+        .swal2-popup { background-color: #1E1E1E !important; color: white !important; border-radius: 20px !important; }
+        .swal2-title { color: white !important; }
+        .swal2-html-container { color: #aaa !important; }
+    </style>
+</head>
+<body>
+
+<div id="app-container">
+    <div class="app-header">
+        <div class="flex items-center gap-3">
+            <i class="fa-solid fa-bolt text-purple-400 text-xl"></i>
+            <span class="text-lg font-black tracking-wider text-white" id="header-title">📋 搶單大廳</span>
+        </div>
+        <div class="flex items-center gap-2 bg-gray-800 px-3 py-1 rounded-full border border-gray-700">
+            <div class="radar-ping"></div>
+            <span class="text-sm font-bold text-green-400">總台連線中</span>
+        </div>
+    </div>
+
+    <div id="order-list">
+        <div id="empty-state" class="flex flex-col items-center justify-center h-full opacity-50 mt-20">
+            <i class="fa-solid fa-radar text-6xl mb-4 text-gray-600"></i>
+            <p class="text-lg font-bold text-gray-400">目前大廳無任務</p>
+            <p class="text-sm text-gray-500 mt-2">請等待總台發送即時單</p>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 取得當前開啟此網頁的司機 ID (由 Flutter 傳入，若無則用測試 ID)
+    const urlParams = new URLSearchParams(window.location.search);
+    const myDriverId = urlParams.get('driverId') || 'TDP-TESTER';
+    
+    document.getElementById('header-title').innerHTML = `📋 搶單大廳 <span class="text-xs text-gray-500 ml-1">(${myDriverId})</span>`;
+
+    const orderList = document.getElementById('order-list');
+    const emptyState = document.getElementById('empty-state');
+
+    // 🚀 核心邏輯：即時監聽 Firebase fleet_orders 節點
+    const ordersRef = database.ref('fleet_orders');
+    
+    // 當有訂單新增或變動時觸發
+    ordersRef.on('value', (snapshot) => {
+        if (!snapshot.exists()) {
+            orderList.innerHTML = '';
+            orderList.appendChild(emptyState);
+            emptyState.style.display = 'flex';
+            return;
+        }
+
+        const orders = snapshot.val();
+        let hasPendingOrders = false;
+        orderList.innerHTML = ''; // 清空列表重繪
+
+        // 倒序排列 (新的在最上面)
+        Object.keys(orders).reverse().forEach(orderId => {
+            const order = orders[orderId];
+            
+            // 只顯示狀態為 pending 的訂單，或者是我剛搶到的訂單
+            if (order.status === 'pending') {
+                hasPendingOrders = true;
+                renderOrderCard(orderId, order);
+            } else if (order.status === 'taken' && order.takenBy === myDriverId) {
+                hasPendingOrders = true;
+                renderOrderCard(orderId, order, true); // 渲染為已搶到狀態
+            }
+        });
+
+        if (hasPendingOrders) {
+            emptyState.style.display = 'none';
+        } else {
+            orderList.appendChild(emptyState);
+            emptyState.style.display = 'flex';
+        }
+    });
+
+    // 渲染單筆訂單卡片 HTML
+    function renderOrderCard(orderId, data, isMySuccess = false) {
+        const card = document.createElement('div');
+        card.className = `order-card ${isMySuccess ? 'success' : ''}`;
+        card.id = `card-${orderId}`;
+        
+        let buttonHtml = '';
+        if (isMySuccess) {
+            buttonHtml = `<div class="text-center text-green-400 font-black text-lg mt-3 bg-green-900/30 p-2 rounded-lg"><i class="fa-solid fa-check-circle"></i> 搶單成功！請回 APP 確認</div>`;
+        } else {
+            buttonHtml = `<button class="btn-snatch" id="btn-${orderId}" onclick="snatchOrder('${orderId}', this)">
+                            <i class="fa-solid fa-bolt"></i> ⚡ 立即搶單
+                          </button>`;
+        }
+
+        card.innerHTML = `
+            ${!isMySuccess ? '<div class="new-badge">新任務</div>' : ''}
+            
+            <div class="flex justify-between items-start mb-2">
+                <span class="text-gray-400 text-sm font-bold"><i class="fa-solid fa-hashtag"></i> ${orderId.substring(0, 8)}...</span>
+                <span class="text-yellow-400 text-sm font-bold"><i class="fa-solid fa-clock"></i> ${data.time || '即時單'}</span>
+            </div>
+
+            <div class="address-big">
+                🚕 ${data.pickup || '未提供上車點'}
+            </div>
+
+            <div class="flex flex-col gap-2 mt-4 text-gray-300 font-bold text-sm">
+                <div class="flex items-center gap-2">
+                    <div class="w-6 text-center"><i class="fa-solid fa-flag-checkered text-red-400"></i></div>
+                    <span>下車：${data.dropoff || '依乘客指示'}</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="w-6 text-center"><i class="fa-solid fa-user text-blue-400"></i></div>
+                    <span>乘客：${data.passengerName || '未提供'} <span class="text-xs bg-gray-700 px-2 py-1 rounded text-white ml-2">${data.note || '無備註'}</span></span>
+                </div>
+            </div>
+
+            ${buttonHtml}
+        `;
+
+        orderList.appendChild(card);
+    }
+
+    // ⚡ 核心防呆邏輯：使用 Transaction 進行搶單 (避免多人同時按)
+    function snatchOrder(orderId, btn) {
+        // 視覺回饋
+        btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> 系統判定中...';
+        btn.classList.add('disabled');
+        btn.disabled = true;
+
+        const orderRef = database.ref(`fleet_orders/${orderId}`);
+
+        // Firebase Transaction：保證只有第一個人能把 status 改成 taken
+        orderRef.transaction((currentData) => {
+            if (currentData === null) {
+                return currentData; // 資料不存在
+            }
+            if (currentData.status === 'pending') {
+                // 如果還是 pending，恭喜搶到！把狀態改掉，並押上司機 ID
+                currentData.status = 'taken';
+                currentData.takenBy = myDriverId;
+                currentData.takenAt = firebase.database.ServerValue.TIMESTAMP;
+                return currentData; // 寫入資料庫
+            } else {
+                // 如果已經不是 pending，表示被別人搶走了，放棄修改 (return undefined 會中斷 transaction)
+                return; 
+            }
+        }, (error, committed, snapshot) => {
+            if (error) {
+                showErrorSwal("網路異常", "系統連線錯誤，請重試！");
+            } else if (!committed) {
+                // committed 為 false 代表 transaction 被中斷 (狀態已非 pending)
+                const card = document.getElementById(`card-${orderId}`);
+                if(card) {
+                    card.classList.add('taken');
+                    btn.innerHTML = '<i class="fa-solid fa-ban"></i> 已被其他司機搶走';
+                    setTimeout(() => card.remove(), 2000); // 2秒後從畫面移除
+                }
+                showErrorSwal("手速太慢！", "該訂單剛好被其他司機搶先一步接走了！");
+            } else {
+                // 搶單成功！
+                Swal.fire({
+                    icon: 'success',
+                    title: '搶單成功！',
+                    text: '請回到主畫面查看任務詳情！',
+                    confirmButtonText: '確定',
+                    confirmButtonColor: '#00C853',
+                    allowOutsideClick: false
+                });
+                
+                // 這裡可以加入：將訂單資料寫入該司機自己的 /drivers/{driverId}/request 節點
+                // 讓 Flutter APP 把這張單當作客人的派車單來處理
+                const orderData = snapshot.val();
+                database.ref(`drivers/${myDriverId}/request`).set({
+                    userId: "fleet_order",
+                    userName: orderData.passengerName,
+                    userPhone: orderData.phone || "",
+                    lat: orderData.lat || 0, // 如果 GAS 有傳經緯度就用，沒有就給 0
+                    lng: orderData.lng || 0,
+                    timestamp: firebase.database.ServerValue.TIMESTAMP,
+                    note: orderData.note || "",
+                    fleetOrderId: orderId
+                });
+                
+                // 改變自己 APP 的狀態為 busy
+                database.ref(`drivers/${myDriverId}`).update({
+                    workStatus: 'busy'
+                });
+            }
+        });
+    }
+
+    function showErrorSwal(title, text) {
+        Swal.fire({
+            icon: 'error',
+            title: title,
+            text: text,
+            confirmButtonText: '確定',
+            confirmButtonColor: '#555'
+        });
+    }
+</script>
+
+</body>
+</html>
