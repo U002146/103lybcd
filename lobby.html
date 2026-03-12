@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>花蓮敬老車隊 // v10.6 搶單大廳 (個資保護姓名版)</title>
+    <title>花蓮敬老車隊 // v10.7 搶單大廳 (通訊回傳版)</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -83,10 +83,10 @@
 <script>
     const urlParams = new URLSearchParams(window.location.search);
     const myDriverId = urlParams.get('driverId') || 'TDP-TESTER';
-    // 🚀 v10.6 讀取 APP 傳來的真實姓名與車號
     const myDriverName = urlParams.get('driverName') || myDriverId; 
+    // 🚀 v10.7：讀取司機電話
+    const myDriverPhone = urlParams.get('driverPhone') || ''; 
     
-    // 標題顯示真實姓名，不再顯示密碼般的 LINE ID
     document.getElementById('header-title').innerHTML = `📋 搶單大廳 <span class="text-xs text-gray-500 ml-1">(${myDriverName})</span>`;
 
     const orderList = document.getElementById('order-list');
@@ -208,7 +208,7 @@
                 
                 const orderData = snapshot.val();
                 
-                // 🚀 回傳給試算表：加上 myDriverName，完美保護隱私
+                // 🚀 v10.7 回傳給試算表：一併加上 driverPhone
                 if (GAS_WEB_APP_URL && GAS_WEB_APP_URL.includes('script.google.com')) {
                     fetch(GAS_WEB_APP_URL, {
                         method: 'POST',
@@ -218,7 +218,8 @@
                             action: 'orderTaken',
                             orderId: orderId,
                             driverId: myDriverId,
-                            driverName: myDriverName // <-- 這裡把劉學銘 TDP-1123 傳回總台！
+                            driverName: myDriverName,
+                            driverPhone: myDriverPhone // <-- 傳回司機電話
                         })
                     }).catch(e => console.log("回報試算表失敗", e));
                 }
