@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>花蓮敬老車隊 // v10.5 搶單大廳 (自動回報試算表版)</title>
+    <title>花蓮敬老車隊 // v10.6 搶單大廳 (個資保護姓名版)</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -12,9 +12,6 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
     <script>
-        // ==========================================
-        // 🔥 1. 請填寫你的 Firebase 設定 
-        // ==========================================
         const firebaseConfig = {
             apiKey: "AIzaSyB2MRjJ50mEZ7McwcHPKqq1IQU-mlJKczk",
             authDomain: "hualientaxi-bb32f.firebaseapp.com",
@@ -25,11 +22,8 @@
             appId: "1:553275317473:web:ae33f273c97c5c309ceba0"
         };
         
-        // ==========================================
-        // 🔥 2. 請貼上你的 GAS Web App 網址 (用來回報試算表)
-        // ==========================================
+        // 🔥 請確認這是你最新部署的 GAS 網址！
         const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzVTtBzYxPy9g-WnaJPS_Q_8GnzmWDf4Kaw7nA8VeDfe6ykM5rV3C2MmMddMh3AG6c9/exec"; 
-        // ==========================================
 
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
@@ -89,8 +83,11 @@
 <script>
     const urlParams = new URLSearchParams(window.location.search);
     const myDriverId = urlParams.get('driverId') || 'TDP-TESTER';
+    // 🚀 v10.6 讀取 APP 傳來的真實姓名與車號
+    const myDriverName = urlParams.get('driverName') || myDriverId; 
     
-    document.getElementById('header-title').innerHTML = `📋 搶單大廳 <span class="text-xs text-gray-500 ml-1">(${myDriverId})</span>`;
+    // 標題顯示真實姓名，不再顯示密碼般的 LINE ID
+    document.getElementById('header-title').innerHTML = `📋 搶單大廳 <span class="text-xs text-gray-500 ml-1">(${myDriverName})</span>`;
 
     const orderList = document.getElementById('order-list');
     const emptyState = document.getElementById('empty-state');
@@ -211,28 +208,28 @@
                 
                 const orderData = snapshot.val();
                 
-                // 🚀 v10.5 終極連動：發送 Webhook 告訴 Google 試算表是誰搶走這單的
+                // 🚀 回傳給試算表：加上 myDriverName，完美保護隱私
                 if (GAS_WEB_APP_URL && GAS_WEB_APP_URL.includes('script.google.com')) {
                     fetch(GAS_WEB_APP_URL, {
                         method: 'POST',
-                        mode: 'no-cors', // 避免瀏覽器跨域擋攔
+                        mode: 'no-cors', 
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             action: 'orderTaken',
                             orderId: orderId,
-                            driverId: myDriverId
+                            driverId: myDriverId,
+                            driverName: myDriverName // <-- 這裡把劉學銘 TDP-1123 傳回總台！
                         })
                     }).catch(e => console.log("回報試算表失敗", e));
                 }
 
-                // 寫入 fleet_order 標記給 APP 辨識
                 database.ref(`drivers/${myDriverId}/request`).set({
                     userId: "fleet_order", 
                     userName: orderData.passengerName || "總台派單",
                     userPhone: orderData.phone || "",
                     lat: 0, lng: 0,
                     timestamp: firebase.database.ServerValue.TIMESTAMP,
-                    note: (orderData.pickup || "指定地點") + "｜總台單", // 把上車點塞進備註，讓APP抓取
+                    note: (orderData.pickup || "指定地點") + "｜總台單", 
                     fleetOrderId: orderId
                 });
                 database.ref(`drivers/${myDriverId}`).update({ workStatus: 'busy' });
