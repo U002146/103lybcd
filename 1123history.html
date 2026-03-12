@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>乘車紀錄 // v6.1 動態司機狀態版</title>
+    <title>乘車紀錄</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -20,9 +20,7 @@
         .status-badge { display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 99px; font-size: 11px; font-weight: bold; letter-spacing: 0.5px; }
         .status-active { background-color: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
         .status-cancelled { background-color: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; text-decoration: line-through; }
-        /* 🚀 新增：司機已接單專屬顏色 */
         .status-taken { background-color: #dbeafe; color: #1d4ed8; border: 1px solid #bfdbfe; }
-        /* 🚀 新增：大廳派發中專屬顏色 */
         .status-dispatch { background-color: #ffedd5; color: #c2410c; border: 1px solid #fed7aa; }
         
         .loader-container { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 0; }
@@ -76,7 +74,7 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script>
-        const VERSION = "v6.1"; // 🚀 動態司機狀態版
+        const VERSION = "v6.2"; // 🚀 極簡無按鈕版
         
         const LIFF_ID = '2008907691-WHXiIAeb'; 
         const BOOKING_LIFF_URL = 'https://liff.line.me/2008907691-3P676tTN'; 
@@ -137,10 +135,9 @@
             countBadge.classList.add('flex');
 
             data.forEach(item => {
-                // 🚀 v6.1 智慧狀態判定引擎
                 let badgeClass = 'status-active';
                 let statusIcon = '<i class="fa-solid fa-check mr-1"></i>';
-                let displayText = item.status.replace(/✅|❌|📡|🔄/g, '').trim(); // 清除 Emoji 留純文字
+                let displayText = item.status.replace(/✅|❌|📡|🔄/g, '').trim(); 
 
                 const isCancelled = item.status.includes('取消');
                 const isTaken = item.status.includes('已接');
@@ -150,10 +147,10 @@
                     badgeClass = 'status-cancelled';
                     statusIcon = '<i class="fa-solid fa-xmark mr-1"></i>';
                 } else if (isTaken) {
-                    badgeClass = 'status-taken'; // 藍色
+                    badgeClass = 'status-taken'; 
                     statusIcon = '<i class="fa-solid fa-taxi mr-1"></i>';
                 } else if (isDispatched) {
-                    badgeClass = 'status-dispatch'; // 橘色
+                    badgeClass = 'status-dispatch'; 
                     statusIcon = '<i class="fa-solid fa-satellite-dish mr-1"></i>';
                     displayText = '尋找車輛中';
                 } else if (item.status.includes('新預約')) {
@@ -162,6 +159,7 @@
 
                 const cardOpacity = isCancelled ? 'opacity-60' : 'opacity-100';
                 
+                // 🚀 v6.2 移除了卡片底部的「再次預約此路線」按鈕，並稍微縮小了間距
                 const cardHtml = `
                     <div class="history-card ${cardOpacity}">
                         <div class="flex justify-between items-start mb-3 border-b border-slate-100 pb-3">
@@ -179,14 +177,10 @@
                             <i class="fa-solid fa-location-dot text-rose-500 w-5 text-center mr-2"></i> ${item.dropoff}
                         </div>
                         
-                        <div class="flex justify-between items-center bg-slate-50 p-2 rounded-lg text-xs font-bold text-slate-500 mb-3">
+                        <div class="flex justify-between items-center bg-slate-50 p-2 rounded-lg text-xs font-bold text-slate-500 mb-1">
                             <div><i class="fa-solid fa-phone mr-1"></i> ${item.phone}</div>
                             <div><i class="fa-solid fa-wallet mr-1"></i> ${item.payment}</div>
                         </div>
-                        
-                        <button onclick="goToBooking()" class="w-full bg-blue-50 hover:bg-blue-100 text-blue-600 font-bold py-2.5 rounded-xl transition-colors text-sm flex items-center justify-center">
-                            <i class="fa-solid fa-rotate-right mr-2"></i> 再次預約此路線
-                        </button>
                     </div>
                 `;
                 listContainer.innerHTML += cardHtml;
@@ -196,6 +190,7 @@
             listContainer.classList.add('flex');
         }
 
+        // 這個函數保留給 empty-state (空白狀態) 裡的「立刻預約叫車」大按鈕使用
         function goToBooking() {
             window.location.href = BOOKING_LIFF_URL;
         }
