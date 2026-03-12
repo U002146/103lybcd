@@ -4,13 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   
-  <title>花蓮敬老愛心車隊v9.20</title> 
+  <title>花蓮敬老愛心車隊 // v9.21 地址傳遞版</title> 
   <meta name="apple-mobile-web-app-capable" content="yes">
   
-  <meta property="og:title" content="通話叫車：雙向定位系統">
-  <meta property="og:description" content="全花蓮唯一！按下通話自動傳送位置，免報路名。司機位置即時看，長輩安心，子女放心。">
-  <meta property="og:image" content="preview.jpg"> 
-
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script> 
@@ -71,7 +67,6 @@
     .d-meta span { display: flex; align-items: center; gap: 6px; }
     .d-meta i { width: 16px; text-align: center; color: #888; }
     
-    /* 🚀 v9.20 按鈕改版：從圓形電話改為「一鍵叫車」膠囊按鈕 */
     .btn-call-action {
         height: 44px; padding: 0 16px; border-radius: 22px;
         background: linear-gradient(135deg, #00C853, #1B5E20); color: white;
@@ -125,7 +120,7 @@
 
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script>
-    const VERSION = "v9.20"; // 🚀 狀態機修復與一鍵叫車版
+    const VERSION = "v9.21"; 
     const LIFF_ID = "2008907691-CzDqd7mm"; 
     const GAS_URL = "https://script.google.com/macros/s/AKfycbzjWZ8j394jfKoMVbPWGvHJHqwF7RBCQxnxyju1ifWKoKdM7RE512F7qrhUsQqQGoWg/exec"; 
     
@@ -393,7 +388,6 @@
                     return; 
                 }
 
-                // 🚀 v9.20 BUG修復：嚴格把關狀態機，必須先經過 1.5 (已抵達) 才能跳 2 (載客中)
                 if (trackedData.workStatus === 'arrived') {
                     if (currentTrackStep !== '1.5') {
                         currentTrackStep = '1.5';
@@ -402,7 +396,7 @@
                     }
                 } else if (trackedData.workStatus === 'busy') {
                     localStorage.setItem('wasBusy', 'true');
-                    if (currentTrackStep === '1.5') { // 修復點：防幽靈跳車
+                    if (currentTrackStep === '1.5') { 
                         currentTrackStep = '2';
                         localStorage.setItem('trackStep', '2');
                         updateStatusUI();
@@ -517,7 +511,6 @@
                     </div>
                 `;
             } else {
-                // 🚀 v9.20 智慧按鈕判斷：已追蹤顯示「聯絡司機」，未追蹤顯示「一鍵叫車」
                 let callAction = d.isTracked ? `window.location.href='tel:${d.phone}'` : `callDriver('${d.id}', '${d.phone}', this); event.stopPropagation();`;
                 let btnContent = d.isTracked ? `<i class="fa-solid fa-phone"></i> 聯絡司機` : `<i class="fa-solid fa-bolt"></i> 一鍵叫車`;
                 let cancelBtn = d.isTracked ? `<div class="btn-cancel-mini" onclick="exitTrackingMode(false); event.stopPropagation();"><i class="fa-solid fa-xmark"></i></div>` : '';
@@ -611,12 +604,17 @@
         if (!myLat || !myLng) { makeCallAndTrack(); return; }
 
         try {
+            // 🚀 v9.21 將畫面上的「地址」直接傳給司機端！
+            const currentAddress = document.getElementById('loc-text').innerText;
+            
             const writePromise = db.ref('drivers/' + driverId + '/request').set({
                 lat: myLat, 
                 lng: myLng, 
                 userId: passengerId, 
                 userName: passengerName,
                 userPhone: passengerPhone, 
+                pickup: currentAddress,    // 🔥 寫入上車地址
+                dropoff: "依乘客指示",      // 🔥 寫入預設下車地址
                 timestamp: firebase.database.ServerValue.TIMESTAMP
             });
 
