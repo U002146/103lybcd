@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>乘車紀錄 // v6.3 司機聯絡按鈕版</title>
+    <!-- 🚀 更名為：我的行程 -->
+    <title>我的行程</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -33,14 +34,15 @@
 <body>
 
     <div id="app-header" class="header-bg">
-        <i class="fa-solid fa-clock-rotate-left header-icon"></i>
+        <i class="fa-solid fa-calendar-check header-icon"></i> <!-- 圖示改為行事曆 -->
         <div class="flex items-center justify-between relative z-10">
             <div>
                 <h1 class="text-2xl font-black tracking-wide flex items-center">
                     <img id="user-avatar" src="https://via.placeholder.com/50" class="w-10 h-10 rounded-full border-2 border-white mr-3 hidden shadow-md">
                     <span id="user-name-display">載入中...</span>
                 </h1>
-                <p class="text-slate-300 text-sm mt-1 font-bold">專屬乘車手帳與歷史紀錄</p>
+                <!-- 🚀 副標題改為專屬行程手帳 -->
+                <p class="text-slate-300 text-sm mt-1 font-bold">專屬行程手帳</p> 
             </div>
             <div id="total-count-badge" class="hidden flex-col items-center bg-white/10 px-3 py-1.5 rounded-xl backdrop-blur-sm border border-white/20">
                 <span class="text-[10px] text-blue-200 font-bold uppercase">Total</span>
@@ -52,15 +54,16 @@
     <div class="main-container">
         <div id="loading-state" class="loader-container bg-white rounded-3xl shadow-sm border border-gray-100 mt-2">
             <div class="loader mb-4"></div>
-            <p class="text-slate-500 font-bold text-sm tracking-widest animate-pulse">撈取歷史資料中...</p>
+            <p class="text-slate-500 font-bold text-sm tracking-widest animate-pulse">撈取行程資料中...</p>
         </div>
 
         <div id="empty-state" class="hidden flex-col items-center justify-center bg-white rounded-3xl shadow-sm border border-gray-100 p-8 mt-2 text-center">
             <div class="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center mb-4 text-blue-300 text-4xl">
                 <i class="fa-solid fa-car-side"></i>
             </div>
-            <h3 class="text-lg font-bold text-slate-700 mb-1">尚無乘車紀錄</h3>
-            <p class="text-sm text-slate-400 mb-6">您的專屬手帳目前還是空白的喔！</p>
+            <!-- 🚀 空白狀態文字更新 -->
+            <h3 class="text-lg font-bold text-slate-700 mb-1">尚無行程紀錄</h3>
+            <p class="text-sm text-slate-400 mb-6">您的專屬行程手帳目前還是空白的喔！</p>
             <button onclick="goToBooking()" class="bg-blue-600 text-white font-bold py-3 px-6 rounded-xl shadow-lg active:scale-95 transition-transform flex items-center">
                 <i class="fa-solid fa-taxi mr-2"></i> 立刻預約叫車
             </button>
@@ -74,7 +77,7 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script>
-        const VERSION = "v6.3"; // 🚀 司機聯絡按鈕版
+        const VERSION = "v6.4"; // 🚀 完美更名版
         
         const LIFF_ID = '2008907691-WHXiIAeb'; 
         const BOOKING_LIFF_URL = 'https://liff.line.me/2008907691-3P676tTN'; 
@@ -88,7 +91,8 @@
                 liff.getProfile().then(profile => {
                     userId = profile.userId;
                     
-                    document.getElementById('user-name-display').innerText = profile.displayName + " 的紀錄";
+                    // 🚀 標題改為「XXX 的行程」
+                    document.getElementById('user-name-display').innerText = profile.displayName + " 的行程";
                     if(profile.pictureUrl) {
                         const avatar = document.getElementById('user-avatar');
                         avatar.src = profile.pictureUrl;
@@ -137,13 +141,12 @@
                 let badgeClass = 'status-active';
                 let statusIcon = '<i class="fa-solid fa-check mr-1"></i>';
                 
-                // 🚀 v6.3：偵測並提取司機電話號碼 📞0912345678
                 let rawStatus = item.status;
                 let driverPhone = "";
                 const phoneMatch = rawStatus.match(/📞([\d\-]+)/);
                 if (phoneMatch) {
-                    driverPhone = phoneMatch[1]; // 取出號碼
-                    rawStatus = rawStatus.replace(phoneMatch[0], ''); // 從畫面上拔除📞符號與號碼
+                    driverPhone = phoneMatch[1]; 
+                    rawStatus = rawStatus.replace(phoneMatch[0], ''); 
                 }
 
                 let displayText = rawStatus.replace(/✅|❌|📡|🔄/g, '').trim(); 
@@ -168,7 +171,6 @@
 
                 const cardOpacity = isCancelled ? 'opacity-60' : 'opacity-100';
                 
-                // 🚀 v6.3：如果有司機電話，且是已被接單的狀態，就產生撥打按鈕！
                 let driverContactHtml = '';
                 if (isTaken && driverPhone) {
                      driverContactHtml = `
