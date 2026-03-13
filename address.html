@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>常用地址預約</title>
+    <title>常用地址預約 // v4.5 時間格式統一對齊版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
@@ -191,11 +191,11 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script>
-        const VERSION = "v4.4"; // 🚀 幽靈防護鎖視覺修復版
+        const VERSION = "v4.5"; // 🚀 時間格式統一對齊版 (AI 秘書友善)
         const LIFF_ID = '2008907691-3P676tTN'; 
         const PROJECT_B_URL = 'https://liff.line.me/2008907691-1mAjwojZ'; 
         
-        // 🚀 v4.4 對接最新的 GAS 後端大腦
+        // 🚀 對接最新的 GAS 後端大腦
         const BOOKING_GAS_URL = 'https://script.google.com/macros/s/AKfycbzVTtBzYxPy9g-WnaJPS_Q_8GnzmWDf4Kaw7nA8VeDfe6ykM5rV3C2MmMddMh3AG6c9/exec'; 
 
         const PRESET_LOCATIONS = [
@@ -256,9 +256,8 @@
                         if (data.status === 'success' && data.data) {
                             const d = data.data;
                             
-                            // 🚀 v4.4 終極修復：降下防護閘門前，先掀開全螢幕的白布！
                             if (d.orderStatus === '❌ 已取消' || d.orderStatus === 'cancelled') {
-                                document.getElementById('loading-overlay').style.display = 'none'; // <-- 關鍵修復
+                                document.getElementById('loading-overlay').style.display = 'none'; 
                                 
                                 Swal.fire({
                                     icon: 'warning',
@@ -274,7 +273,7 @@
                                         document.body.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;height:100vh;color:#94a3b8;font-weight:bold;background:#f8fafc;">此訂單已失效，請關閉視窗。</div>';
                                     }
                                 });
-                                return; // ⛔ 終止後續載入
+                                return; 
                             }
 
                             document.getElementById('pickup').value = d.pickup;
@@ -284,11 +283,8 @@
                             if (loadedPhone.length === 9 && loadedPhone.startsWith('9')) loadedPhone = '0' + loadedPhone;
                             document.getElementById('phone').value = loadedPhone;
                             
+                            // 這裡載入的通常是後台紀錄的數字格式
                             let loadedTime = String(d.bookingTime);
-                            if (loadedTime.includes('T') && loadedTime.endsWith('Z')) {
-                                const localDate = new Date(loadedTime);
-                                loadedTime = `${localDate.getMonth()+1}月${localDate.getDate()}日 ${String(localDate.getHours()).padStart(2,'0')}:${String(localDate.getMinutes()).padStart(2,'0')}`;
-                            }
                             
                             document.getElementById('booking-time-val').value = loadedTime;
                             const display = document.getElementById('time-display');
@@ -302,7 +298,6 @@
 
                             unlockUI();
                         } else {
-                            // 找不到訂單時也要掀開白布
                             document.getElementById('loading-overlay').style.display = 'none';
                             Swal.fire('讀取失敗', '找不到該筆訂單或已被刪除', 'error').then(() => {
                                 if(liff.isInClient()) liff.closeWindow();
@@ -398,7 +393,8 @@
                 const d = new Date(today); d.setDate(today.getDate() + i); d.setHours(0,0,0,0);
                 const m = (d.getMonth()+1).toString(); const day = d.getDate().toString(); const w = weekDays[d.getDay()]; 
                 const label = i === 0 ? '今天' : (i === 1 ? '明天' : `${m}/${day}`); 
-                dates.push({ val: i, label: label, sub: i > 1 ? `週${w}` : '', fullDate: `${m}月${day}日`, rawDate: d }); 
+                // 🚀 加入 gasDate 給 AI 秘書判讀
+                dates.push({ val: i, label: label, sub: i > 1 ? `週${w}` : '', fullDate: `${m}月${day}日`, gasDate: `${m}/${day}`, rawDate: d }); 
             } return dates; 
         }
         
@@ -474,11 +470,20 @@
         window.selectMinute = function(m) { pickerState.minute = m; applyBookingTime(); closeModernTimeSelector(); }
         
         function applyBookingTime() { 
-            const dateObj = pickerState.dates[pickerState.dateIndex]; const hStr = pickerState.hour.toString().padStart(2, '0'); 
+            const dateObj = pickerState.dates[pickerState.dateIndex]; 
+            const hStr = pickerState.hour.toString().padStart(2, '0'); 
+            
+            // 🚀 畫面上給客人看的中文格式
             const timeStr = `${dateObj.fullDate} ${hStr}:${pickerState.minute}`; 
-            document.getElementById('booking-time-val').value = timeStr; 
+            
+            // 🚀 送給 GAS 後台的 AI 判讀格式 (MM/DD)
+            const gasTimeStr = `${dateObj.gasDate} ${hStr}:${pickerState.minute}`; 
+            
+            document.getElementById('booking-time-val').value = gasTimeStr; 
+            
             const display = document.getElementById('time-display'); 
-            display.innerText = timeStr; display.classList.remove('text-slate-400'); display.classList.add('text-blue-700'); 
+            display.innerText = timeStr; 
+            display.classList.remove('text-slate-400'); display.classList.add('text-blue-700'); 
             document.getElementById('time-icon').className = "fa-solid fa-calendar-check input-icon text-blue-600 text-xl"; 
         }
 
@@ -490,7 +495,8 @@
         }
 
         function cancelOrder() {
-            const oldTime = document.getElementById('booking-time-val').value;
+            // 從畫面上抓取中文時間顯示給客人看
+            const displayTimeNode = document.getElementById('time-display').innerText;
             Swal.fire({
                 title: '確定取消預約？', text: '取消後將同步通知司機。', icon: 'warning',
                 showCancelButton: true, confirmButtonColor: '#e3242b', cancelButtonColor: '#94a3b8',
@@ -506,7 +512,7 @@
                         if(liff.isInClient()) {
                             liff.sendMessages([{
                                 type: 'text',
-                                text: `❌ 已取消預約\n(原定時間：${oldTime})`
+                                text: `❌ 已取消預約\n(原定時間：${displayTimeNode})`
                             }]).then(() => {
                                 Swal.fire('已取消', '預約已成功取消。', 'success').then(() => liff.closeWindow());
                             });
@@ -557,9 +563,12 @@
             const googleMapUrl = mapBaseUrl + encodeURIComponent(pickup);
             const dropoffMapUrl = mapBaseUrl + encodeURIComponent(dropoff);
             
+            // 給 LINE 卡片顯示的中文時間
+            const displayTimeNode = document.getElementById('time-display').innerText;
+
             const flexMsg = {
                 type: "flex",
-                altText: `預約通知：${bookingTime}`,
+                altText: `預約通知：${displayTimeNode}`,
                 contents: {
                     type: "bubble",
                     styles: { header: { backgroundColor: "#FFFFFF" }, body: { backgroundColor: "#FFFFFF" }, footer: { backgroundColor: "#F8F8F8" } },
@@ -570,7 +579,7 @@
                                 type: "box", layout: "vertical", flex: 1, spacing: "xs",
                                 contents: [
                                     { type: "text", text: headerText, weight: "bold", size: "sm", color: headerColor },
-                                    { type: "text", text: `${bookingTime}`, weight: "bold", size: "xl", color: "#111111", adjustMode: "shrink-to-fit" }
+                                    { type: "text", text: `${displayTimeNode}`, weight: "bold", size: "xl", color: "#111111", adjustMode: "shrink-to-fit" }
                                 ]
                             },
                             {
