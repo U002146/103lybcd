@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     
-    <title>專屬動態名片 | 花蓮敬老愛心車隊</title> 
+    <!-- 🚀 v8.15 行銷升級：標題正名為「通話叫車」 -->
+    <title>通話叫車 | 即時司機位置</title> 
     <meta name="apple-mobile-web-app-capable" content="yes">
     
     <script src="https://cdn.tailwindcss.com"></script>
@@ -88,18 +89,16 @@
 
     <div id="status-bar" class="bg-gray-800 text-white p-4 shadow-md z-50 flex items-center justify-between transition-all duration-500">
         <div class="flex items-center flex-grow" id="status-info-area">
-            <!-- 確保大頭照不變形 -->
             <img id="user-avatar" src="https://via.placeholder.com/40" class="w-12 h-12 rounded-full border-2 border-white mr-3 hidden object-cover">
             <div>
-                <!-- 🚀 v8.14 移除黃色司機銘牌，釋放小螢幕的排版空間 -->
                 <h2 id="welcome-text" class="text-lg font-bold leading-tight">資料載入中...</h2>
                 <div class="flex items-center mt-1">
                     <p id="status-text" class="text-sm font-medium opacity-90">正在連線至車輛系統</p>
-                    <!-- 🚀 v8.14 移除即時連線標籤，回歸極簡 -->
                 </div>
             </div>
         </div>
         
+        <!-- 單向距離計算顯示區 (保留) -->
         <div id="distance-display" class="flex flex-col items-end justify-center bg-white/20 px-3 py-1.5 rounded-xl border border-white/30 ml-2 whitespace-nowrap min-w-[80px] shadow-inner">
             <span class="text-[10px] uppercase tracking-wider opacity-90 font-bold"><i class="fa-solid fa-location-arrow mr-1"></i>距離</span>
             <span id="dist-text" class="text-lg font-bold font-mono leading-none mt-0.5">計算中...</span>
@@ -125,7 +124,7 @@
 
     <script>
         // ========= CONFIG 設定區 =========
-        const VERSION = "v8.14"; 
+        const VERSION = "v8.15"; // 🚀 行銷升級：通話叫車正名版
         const LIFF_ID = '2008907691-1mAjwojZ'; 
         
         // 老闆(總台)的 ID，用於判斷是否要切換成官方客服按鈕
@@ -180,6 +179,7 @@
             
             initMap({ lat: 23.9933, lng: 121.6011 });
             
+            // 取得客人手機目前的 GPS，只用來計算距離，不會寫入 Firebase
             getUserLocation().then(pos => {
                 passengerLatLng = pos;
                 updateDistanceDisplay();
@@ -214,6 +214,7 @@
                 map: map, icon: getPinIcon('offline'), label: getPinLabel('offline'), title: "司機位置"
             });
 
+            // 持續監聽客人位置變化，僅用於前端計算距離
             if (navigator.geolocation) {
                 navigator.geolocation.watchPosition((pos) => {
                     passengerLatLng = { lat: pos.coords.latitude, lng: pos.coords.longitude };
@@ -223,7 +224,6 @@
         }
 
         function setupConnectionManager() {
-            // 🚀 v8.14 移除綠色連線點的 DOM 操作，只保留背景資料庫連線切換
             document.addEventListener("visibilitychange", () => {
                 if (document.visibilityState === "visible") {
                     firebase.database().goOnline();
@@ -242,6 +242,7 @@
             }
         }
 
+        // 單向監聽司機在 Firebase 上的位置
         function startRealtimeRadar() {
             db.ref('drivers/' + DRIVER_USER_ID).on('value', snapshot => {
                 updateDriverUI(snapshot.val());
@@ -258,11 +259,9 @@
                     dynamicDriverInfo.photo = data.photo;
                 }
 
-                // 🚀 v8.14 極簡版：只替換頭像，移除身分銘牌賦值
                 document.getElementById('user-avatar').src = dynamicDriverInfo.photo;
                 document.getElementById('user-avatar').style.display = 'block';
 
-                // 動態渲染通話按鈕：老闆用官方綠色，其他司機用電話藍色
                 const contactBtn = document.getElementById('btn-contact-fab');
                 const contactIcon = document.getElementById('contact-icon');
                 const contactText = document.getElementById('contact-text');
@@ -307,6 +306,7 @@
             updateDistanceDisplay();
         }
 
+        // 單向距離計算 (僅在客戶端執行)
         function updateDistanceDisplay() {
             const distSpan = document.getElementById('dist-text');
             if (currentStatus === 'offline' || !carMarker.getPosition() || !passengerLatLng) {
@@ -372,9 +372,10 @@
                 return;
             }
 
+            // 🚀 v8.15 暴力行銷文案升級
             const flexMsg = {
                 type: "flex",
-                altText: `🚕 推薦我的【專屬動態名片】給你：${dynamicDriverInfo.name}`,
+                altText: `🚕 推薦你【通話叫車】：${dynamicDriverInfo.name}`,
                 contents: {
                     type: "bubble",
                     hero: {
@@ -387,7 +388,7 @@
                     body: {
                         type: "box", layout: "vertical",
                         contents: [
-                            { type: "text", text: "花蓮專屬動態名片", weight: "bold", size: "xl", color: "#1B5E20" },
+                            { type: "text", text: "🚕 花蓮在地：通話叫車", weight: "bold", size: "xl", color: "#1B5E20" },
                             {
                                 type: "box", layout: "baseline", margin: "md",
                                 contents: [ 
@@ -395,7 +396,7 @@
                                     { type: "text", text: `${dynamicDriverInfo.name} ${dynamicDriverInfo.carNo}`, weight: "bold", size: "md", margin: "sm", color: "#333333" } 
                                 ]
                             },
-                            { type: "text", text: "服務好、準時！點擊下方按鈕，開啟我的【專屬動態名片】，隨時查看即時位置或與我聯繫喔！", size: "sm", color: "#666666", wrap: true, margin: "md" }
+                            { type: "text", text: "點擊下方按鈕，不僅可以『一鍵通話叫車』，還能直接看到我的『車輛即時位置』，不用在路邊苦等喔！", size: "sm", color: "#666666", wrap: true, margin: "md" }
                         ]
                     },
                     footer: {
@@ -403,7 +404,7 @@
                         contents: [
                             {
                                 type: "button", style: "primary", color: "#00C853", height: "sm",
-                                action: { type: "uri", label: "👀 開啟專屬動態名片", uri: MY_LIFF_URL }
+                                action: { type: "uri", label: "📞 開啟通話叫車", uri: MY_LIFF_URL }
                             }
                         ]
                     }
