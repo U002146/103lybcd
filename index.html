@@ -3,436 +3,172 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>學銘專車：花蓮敬老愛心接送 // v10.0 終極形象官網版</title>
   
-  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-  <meta http-equiv="Pragma" content="no-cache" />
-  <meta http-equiv="Expires" content="0" />
+  <!-- SEO 與分享標籤 -->
+  <meta name="description" content="花蓮敬老愛心車隊 - 免報路名、一鍵定位、在地長輩最安心的選擇！提供即時叫車與預約接送服務。">
+  <meta property="og:title" content="學銘專車：花蓮敬老愛心接送">
+  <meta property="og:description" content="給長輩最安心的乘車體驗！一鍵叫車、免報路名，立刻點擊開啟雷達！">
   
-  <title>花蓮車隊 - 司機端</title> <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
-  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAIxc6PEhHgUs_A9lyRUg8dNbmwOpSamY8&libraries=geometry"></script>
+  <!-- UI 套件 -->
+  <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
   <style>
-    body { margin: 0; padding: 0; font-family: -apple-system, Roboto, sans-serif; overflow: hidden; background: #121212; color: white; }
-    #map { width: 100vw; height: 100vh; display: none; } 
+    body { background-color: #f3f4f6; font-family: -apple-system, 'Noto Sans TC', Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
     
-    @keyframes flash-alert { 0% { background-color: #121212; } 50% { background-color: #b71c1c; } 100% { background-color: #121212; } }
-    .flashing { animation: flash-alert 0.5s infinite; }
-
-    #unlock-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 20000; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
-    .btn-unlock { width: 120px; height: 120px; border-radius: 50%; background: radial-gradient(circle, #00C853 0%, #009624 100%); border: 4px solid #fff; box-shadow: 0 0 30px rgba(0,200,83,0.6); color: white; font-size: 24px; font-weight: bold; cursor: pointer; animation: pulse-green 2s infinite; display: flex; flex-direction: column; justify-content: center; align-items: center; }
-    .btn-unlock:active { transform: scale(0.95); }
-    @keyframes pulse-green { 0% { box-shadow: 0 0 0 0 rgba(0, 200, 83, 0.7); } 70% { box-shadow: 0 0 0 20px rgba(0, 200, 83, 0); } 100% { box-shadow: 0 0 0 0 rgba(0, 200, 83, 0); } }
-
-    #ui-layer { display: none; pointer-events: none; width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 10; }
+    /* 隱藏捲軸但保持順滑滾動 */
+    ::-webkit-scrollbar { width: 0px; background: transparent; }
+    html { scroll-behavior: smooth; }
     
-    #hud { pointer-events: auto; position: absolute; top: 15px; left: 15px; background: rgba(33, 33, 33, 0.9); color: white; padding: 10px 20px; border-radius: 30px; font-weight: bold; font-size: 16px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); display: flex; align-items: center; }
-    .status-dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; margin-right: 8px; }
-    .hud-uploading { border-color: #00C853 !important; box-shadow: 0 0 15px rgba(0, 200, 83, 0.5); }
+    /* 底部安全區 (iOS) */
+    .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
     
-    #top-right-panel { pointer-events: auto; position: absolute; top: 15px; right: 15px; display: flex; flex-direction: column; gap: 12px; }
-    .circle-btn { width: 60px; height: 60px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.8); color: white; font-weight: bold; font-size: 14px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); cursor: pointer; display: flex; flex-direction: column; justify-content: center; align-items: center; backdrop-filter: blur(4px); position: relative; }
-    .bg-off { background: linear-gradient(145deg, #7f8c8d, #95a5a6); }
-    .bg-on { background: linear-gradient(145deg, #d32f2f, #ef5350); }
-    .bg-empty { background: linear-gradient(145deg, #2e7d32, #43a047); }
-    .bg-queue { background: linear-gradient(145deg, #1565c0, #1976d2); }
-    .bg-busy { background: linear-gradient(145deg, #ef6c00, #fb8c00); }
-    .bg-dark { background: linear-gradient(145deg, #37474f, #455a64); }
-    .sub-text { font-size: 10px; opacity: 0.9; margin-top: 0px; font-weight: normal; }
-
-    #mission-panel { 
-        pointer-events: auto; display: none; 
-        position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); 
-        width: 90%; max-width: 350px; 
-        background: #222; border: 2px solid #FFD700; border-radius: 15px; 
-        padding: 15px; box-shadow: 0 10px 40px rgba(0,0,0,0.8); 
-        text-align: center; color: white; animation: slideUp 0.3s;
+    /* 呼吸燈特效：吸引點擊 */
+    @keyframes pulse-shadow {
+      0% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.7); }
+      70% { box-shadow: 0 0 0 15px rgba(22, 163, 74, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0); }
     }
-    @keyframes slideUp { from { transform: translate(-50%, 100px); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
-    .mission-title { color: #FFD700; font-size: 20px; font-weight: bold; margin-bottom: 5px; }
-    .mission-info { font-size: 16px; margin-bottom: 15px; color: #ddd; }
-    .btn-finish { background: #00C853; color: white; border: none; padding: 12px 20px; border-radius: 25px; font-weight: bold; font-size: 18px; cursor: pointer; width: 100%; box-shadow: 0 4px 10px rgba(0,200,83,0.3); }
-
-    #register-box { width: 90%; max-width: 400px; background: #222; padding: 25px; border-radius: 15px; border: 1px solid #444; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: none; z-index: 30000; }
-    .form-input { width: 100%; padding: 12px; background: #333; border: 1px solid #555; border-radius: 8px; color: white; font-size: 16px; box-sizing: border-box; }
-    .btn-post { width: 100%; background: #D50000; color: white; padding: 15px; border: none; border-radius: 8px; font-weight: bold; font-size: 18px; cursor: pointer; }
+    .btn-pulse { animation: pulse-shadow 2s infinite; }
     
-    #saver-overlay { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: black; z-index: 9999; flex-direction: column; justify-content: center; align-items: center; color: #555; user-select: none; }
-    #saver-overlay.active { display: flex; }
-    #saver-overlay.pressing p { color: #00C853; transition: color 0.3s; }
-
-    .swal2-container { z-index: 99999 !important; }
+    /* 圖片防破圖美化 */
+    img { position: relative; }
+    img::after {
+      content: "圖片載入中..."; display: flex; justify-content: center; align-items: center;
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      background-color: #f3f4f6; color: #9ca3af; font-weight: bold; font-size: 14px;
+    }
+    
+    .swal2-popup { border-radius: 24px !important; font-family: 'Noto Sans TC', sans-serif !important; }
   </style>
 </head>
-<body>
+<body class="bg-gray-100 pb-28">
 
-  <div id="unlock-screen">
-      <button class="btn-unlock" onclick="systemStart()">
-          <i class="fa-solid fa-power-off"></i> START
-      </button>
-      <div id="loading-text" style="margin-top:20px;color:#aaa;">點擊啟動系統</div>
-  </div>
-
-  <div id="map"></div>
-
-  <div id="ui-layer">
-      <div id="hud"><span class="status-dot" style="background:gray;"></span> 系統待命</div>
-      
-      <div id="top-right-panel">
-        <button id="btn-power" class="circle-btn bg-off" onclick="togglePower()"><i class="fa-solid fa-power-off"></i><span class="sub-text">OFF</span></button>
-        <button id="btn-status" class="circle-btn bg-empty" style="display:none;" onclick="toggleStatus()"><span id="txt-status">空車</span></button>
-        <button id="btn-saver" class="circle-btn bg-dark" style="display:none;" onclick="toggleSaver(true)"><i class="fa-solid fa-moon"></i><span class="sub-text">掛機</span></button>
-      </div>
-
-      <div id="mission-panel">
-          <div class="mission-title"><i class="fa-solid fa-phone-volume"></i> 乘客呼叫中!</div>
-          <div class="mission-info" id="mission-dist">正在計算距離...</div>
-          <button class="btn-finish" onclick="finishMission()">🏁 我接到了 (清除)</button>
-      </div>
-  </div>
-
-  <audio id="sound-boot" src="data:audio/mpeg;base64,//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//uQxAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"></audio>
-  <audio id="sound-alert" src="data:audio/wav;base64,UklGRl9vT1BXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU"></audio>
-
-  <div id="register-box">
-      <div style="font-size:24px;font-weight:bold;margin-bottom:20px;text-align:center;color:#FFD700;">📋 司機入隊申請</div>
-      <input type="text" id="reg-name" class="form-input" style="margin-bottom:10px;" placeholder="真實姓名">
-      <input type="text" id="reg-car" class="form-input" style="margin-bottom:10px;" placeholder="車牌 (TDP-123)">
-      <input type="tel" id="reg-phone" class="form-input" style="margin-bottom:10px;" placeholder="電話">
-      <input type="text" id="reg-uid" class="form-input" style="margin-bottom:10px;" readonly>
-      <button class="btn-post" style="background:#00C853;" onclick="submitRegistration()">送出審核</button>
-  </div>
-
-  <div id="saver-overlay"><p style="font-size:14px; letter-spacing: 1px;">GPS 持續連線 • 長按喚醒</p></div>
-
-  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-  <script>
-    const LIFF_ID = "2008907691-7ntMtfbA"; 
-    const firebaseConfig = { databaseURL: "https://hualientaxi-bb32f-default-rtdb.asia-southeast1.firebasedatabase.app/" };
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
-
-    var map, myMarker, currentUser = null, isOnline = false;
-    var currentWorkStatus = 'empty'; 
-    var watchId = null, wakeLock = null, heartbeatInterval = null;
+  <!-- 📱 手機版面容器 (維持 App 體驗感) -->
+  <div class="max-w-md mx-auto bg-white min-h-screen shadow-2xl relative overflow-hidden">
     
-    var lastUploadTime = 0, lastUploadLat = 0, lastUploadLng = 0, lastUploadHeading = 0;
-    var lastRenderLat = 0, lastRenderLng = 0; 
-    var queueCenter = null; 
-    var passengerMarker = null, routeLine = null;
-    var checkConnectionInterval = null; 
-    var pressTimer = null;
+    <!-- 🟢 頂部導航列 -->
+    <header class="bg-green-600 text-white p-4 sticky top-0 z-40 shadow-md flex justify-between items-center">
+      <div class="flex items-center gap-2">
+        <i class="fa-solid fa-taxi text-2xl"></i>
+        <h1 class="text-xl font-black tracking-wide">學銘專車</h1>
+      </div>
+      <button onclick="shareWebsite()" class="bg-white/20 hover:bg-white/30 rounded-full w-10 h-10 flex justify-center items-center transition-colors">
+        <i class="fa-solid fa-share-nodes"></i>
+      </button>
+    </header>
 
-    const UPDATE_INTERVAL = 15000;  
-    const HEARTBEAT_TIME = 180000;  
-    const CONNECTION_TIMEOUT = 600000; 
+    <!-- 🎯 Hero 區塊：第一眼行銷轉換 -->
+    <div class="p-6 text-center bg-gradient-to-b from-green-50 to-white">
+      <h2 class="text-2xl font-black text-gray-800 mb-2 leading-snug">花蓮敬老愛心接送服務</h2>
+      <p class="text-gray-600 font-bold mb-5 text-sm">免報路名 ‧ 一鍵定位 ‧ 長輩最安心</p>
+      
+      <!-- 主力轉換按鈕 -->
+      <a href="https://liff.line.me/2008907691-CzDqd7mm" class="inline-flex items-center justify-center w-full bg-green-500 text-white font-black text-xl py-4 rounded-2xl shadow-lg border-2 border-green-400 active:scale-95 transition-transform btn-pulse">
+        <i class="fa-solid fa-location-crosshairs mr-2 text-2xl"></i> 立即開啟叫車雷達
+      </a>
+      <p class="text-xs text-gray-400 mt-3 font-bold"><i class="fa-solid fa-shield-halved"></i> 系統將透過 LINE 安全登入</p>
+    </div>
 
-    const getArrowIcon = (color, heading) => {
-        return { path: "M0,-12 L10,10 L0,5 L-10,10 Z", fillColor: color, fillOpacity: 1, scale: 1.5, strokeColor: "#333", strokeWeight: 1, rotation: heading || 0 };
-    };
+    <!-- 📖 圖文型錄展示區 (000.jpg ~ 006.jpg) -->
+    <div class="px-4 pb-6 space-y-5">
+      
+      <div class="flex items-center justify-center gap-3 mb-6 mt-2">
+        <div class="h-1 w-12 bg-gray-200 rounded-full"></div>
+        <div class="text-gray-400 font-black text-sm tracking-widest">服務亮點介紹</div>
+        <div class="h-1 w-12 bg-gray-200 rounded-full"></div>
+      </div>
 
-    window.onload = function() {
-        document.getElementById('loading-text').innerText = "系統載入中...";
-        initLiff(); initGoogleMap();
-        document.getElementById('loading-text').innerText = "準備就緒，請點擊啟動";
-    };
+      <!-- 圖片容器 (加入圓角與陰影，提升質感) -->
+      <img src="./000.jpg" alt="智慧預約與定位服務" class="w-full rounded-2xl shadow-[0_8px_20px_rgba(0,0,0,0.1)] border border-gray-100 object-cover" onerror="imgError(this)">
+      <img src="./001.jpg" alt="規劃行程與確認送出" class="w-full rounded-2xl shadow-[0_8px_20px_rgba(0,0,0,0.1)] border border-gray-100 object-cover" onerror="imgError(this)">
+      <img src="./002.jpg" alt="輕鬆預約指南" class="w-full rounded-2xl shadow-[0_8px_20px_rgba(0,0,0,0.1)] border border-gray-100 object-cover" onerror="imgError(this)">
+      <img src="./003.jpg" alt="定期接送預約" class="w-full rounded-2xl shadow-[0_8px_20px_rgba(0,0,0,0.1)] border border-gray-100 object-cover" onerror="imgError(this)">
+      <img src="./004.jpg" alt="專屬司機資訊" class="w-full rounded-2xl shadow-[0_8px_20px_rgba(0,0,0,0.1)] border border-gray-100 object-cover" onerror="imgError(this)">
+      <img src="./005.jpg" alt="隨時隨地輕鬆叫車" class="w-full rounded-2xl shadow-[0_8px_20px_rgba(0,0,0,0.1)] border border-gray-100 object-cover" onerror="imgError(this)">
+      <img src="./006.jpg" alt="直覺式的操作功能" class="w-full rounded-2xl shadow-[0_8px_20px_rgba(0,0,0,0.1)] border border-gray-100 object-cover" onerror="imgError(this)">
+      
+    </div>
 
-    // 🚀 v7.5 核心修改：植入 Google Maps 深色夜間模式主題 (Night Mode)
-    function initGoogleMap() {
-        map = new google.maps.Map(document.getElementById("map"), { 
-            center: { lat: 23.991, lng: 121.601 }, 
-            zoom: 15, 
-            disableDefaultUI: true,
-            styles: [
-                { elementType: "geometry", stylers: [{ color: "#242f3e" }] },
-                { elementType: "labels.text.stroke", stylers: [{ color: "#242f3e" }] },
-                { elementType: "labels.text.fill", stylers: [{ color: "#746855" }] },
-                { featureType: "administrative.locality", elementType: "labels.text.fill", stylers: [{ color: "#d59563" }] },
-                { featureType: "poi", elementType: "labels.text.fill", stylers: [{ color: "#d59563" }] },
-                { featureType: "poi.park", elementType: "geometry", stylers: [{ color: "#263c3f" }] },
-                { featureType: "poi.park", elementType: "labels.text.fill", stylers: [{ color: "#6b9a76" }] },
-                { featureType: "road", elementType: "geometry", stylers: [{ color: "#38414e" }] },
-                { featureType: "road", elementType: "geometry.stroke", stylers: [{ color: "#212a37" }] },
-                { featureType: "road", elementType: "labels.text.fill", stylers: [{ color: "#9ca5b3" }] },
-                { featureType: "road.highway", elementType: "geometry", stylers: [{ color: "#746855" }] },
-                { featureType: "road.highway", elementType: "geometry.stroke", stylers: [{ color: "#1f2835" }] },
-                { featureType: "road.highway", elementType: "labels.text.fill", stylers: [{ color: "#f3d19c" }] },
-                { featureType: "transit", elementType: "geometry", stylers: [{ color: "#2f3948" }] },
-                { featureType: "transit.station", elementType: "labels.text.fill", stylers: [{ color: "#d59563" }] },
-                { featureType: "water", elementType: "geometry", stylers: [{ color: "#17263c" }] },
-                { featureType: "water", elementType: "labels.text.fill", stylers: [{ color: "#515c6d" }] },
-                { featureType: "water", elementType: "labels.text.stroke", stylers: [{ color: "#17263c" }] }
-            ]
+    <!-- 底部品牌宣告 -->
+    <div class="text-center py-6 bg-gray-50 text-gray-400 text-xs font-bold border-t border-gray-100">
+      <p>Copyright © 花蓮敬老愛心車隊 (劉學銘)</p>
+      <p class="mt-1">Designed for AgeTech & Easy Booking</p>
+    </div>
+
+  </div>
+
+  <!-- 🚨 黏性轉換區 (Sticky CTA) - 永遠浮動在畫面最下方 -->
+  <div class="fixed bottom-0 left-0 right-0 w-full z-50 bg-white/95 backdrop-blur-md border-t border-gray-200 shadow-[0_-10px_30px_rgba(0,0,0,0.1)] pb-safe">
+    <div class="max-w-md mx-auto px-4 py-3 flex gap-3">
+      
+      <!-- 客服按鈕 (左側，佔比 1) -->
+      <a href="https://lin.ee/9Davl6e" class="flex-1 bg-gradient-to-br from-orange-400 to-orange-500 text-white flex flex-col items-center justify-center py-2.5 rounded-2xl font-bold shadow-md active:scale-95 transition-transform border border-orange-300">
+        <i class="fa-solid fa-headset text-xl mb-1"></i>
+        <span class="text-xs">線上客服</span>
+      </a>
+      
+      <!-- 叫車按鈕 (右側，佔比 2，最具吸引力) -->
+      <a href="https://liff.line.me/2008907691-CzDqd7mm" class="flex-[2.5] bg-gradient-to-br from-green-500 to-green-600 text-white flex flex-col items-center justify-center py-2.5 rounded-2xl font-black shadow-[0_4px_15px_rgba(22,163,74,0.4)] border-2 border-green-400 active:scale-95 transition-transform btn-pulse">
+        <div class="flex items-center gap-2">
+          <i class="fa-solid fa-bolt text-2xl text-yellow-300"></i>
+          <span class="text-xl tracking-wider">立即叫車</span>
+        </div>
+        <span class="text-[10px] text-green-100 font-normal mt-0.5">免下載APP ‧ LINE直接叫車</span>
+      </a>
+      
+    </div>
+  </div>
+
+  <script>
+    // 圖片載入失敗時的美化處理
+    function imgError(image) {
+      image.onerror = null;
+      image.src = "https://placehold.co/800x500/f3f4f6/9ca3af?text=圖片準備中\\n(請確認檔名為 "+ image.src.split('/').pop() +")";
+    }
+
+    // Web Share API 分享功能
+    function shareWebsite() {
+      const shareData = {
+        title: '學銘專車：花蓮敬老愛心接送',
+        text: '給長輩最安心的乘車體驗！免報路名、一鍵定位，點擊網址立即叫車🚕',
+        url: window.location.href
+      }
+
+      if (navigator.share) {
+        navigator.share(shareData)
+          .catch((error) => console.log('分享取消或失敗', error));
+      } else {
+        // 若瀏覽器不支援，使用 SweetAlert 提示複製網址
+        Swal.fire({
+          title: '分享給親朋好友',
+          text: '請點擊下方按鈕複製本站網址',
+          icon: 'info',
+          confirmButtonText: '<i class="fa-solid fa-copy"></i> 複製網址',
+          confirmButtonColor: '#00C853',
+        }).then((result) => {
+          if (result.isConfirmed) {
+            navigator.clipboard.writeText(window.location.href);
+            Swal.fire({ icon: 'success', title: '複製成功！', timer: 1500, showConfirmButton: false });
+          }
         });
+      }
     }
 
-    function systemStart() {
-        const boot = document.getElementById('sound-boot');
-        if(boot) boot.play().catch(e=>{});
-        
-        document.getElementById('unlock-screen').style.display = 'none';
-        document.getElementById('map').style.display = 'block';
-        document.getElementById('ui-layer').style.display = 'block';
-        if (currentUser) checkIdentity(currentUser.userId);
-        setupSaverEvents();
-    }
-
-    async function initLiff() {
-        try { 
-            await liff.init({ liffId: LIFF_ID });
-            if (!liff.isLoggedIn()) {
-                liff.login();
-                return;
-            } else {
-                currentUser = await liff.getProfile(); 
-                localStorage.setItem('driverId', currentUser.userId);
-            }
-        } catch (e) {
-            console.error("LIFF 初始化失敗", e);
-        }
-    }
-
-    function checkIdentity(uid) {
-        db.ref('drivers/' + uid).once('value').then(snapshot => {
-            if (snapshot.exists()) {
-                const d = snapshot.val();
-                document.getElementById('hud').innerHTML = `<span class="status-dot" style="background:#2ecc71;"></span> 嗨，${d.name}`;
-                document.getElementById('btn-power').style.display = 'flex';
-                if(localStorage.getItem('isOnline') === 'true') togglePower(true);
-                listenForRequests(uid);
-            } else {
-                document.getElementById('ui-layer').style.display = 'none';
-                document.getElementById('register-box').style.display = 'block';
-                document.getElementById('reg-uid').value = uid;
-            }
+    // 進站歡迎提示 (非侵入式，滑動一段距離後才顯示，或停留 10 秒後顯示)
+    let hasShownWelcome = false;
+    window.addEventListener('scroll', () => {
+      if (!hasShownWelcome && window.scrollY > 300) {
+        hasShownWelcome = true;
+        const Toast = Swal.mixin({
+          toast: true, position: 'top-end', showConfirmButton: false, timer: 3000,
+          timerProgressBar: true, customClass: { popup: 'rounded-xl' }
         });
-    }
-
-    function listenForRequests(uid) {
-        db.ref('drivers/' + uid + '/request').on('value', snapshot => {
-            const req = snapshot.val();
-            if (req) {
-                const alert = document.getElementById('sound-alert');
-                if(alert) { alert.currentTime = 0; alert.play().catch(e=>{}); }
-                if(navigator.vibrate) navigator.vibrate([500, 200, 500, 200, 500]);
-                
-                document.body.classList.add('flashing');
-                setTimeout(() => { document.body.classList.remove('flashing'); }, 5000);
-
-                const pLoc = new google.maps.LatLng(req.lat, req.lng);
-                if(!passengerMarker) {
-                    passengerMarker = new google.maps.Marker({
-                        position: pLoc, map: map, label: { text: "客", color: "white" },
-                        icon: { path: google.maps.SymbolPath.CIRCLE, scale: 10, fillColor: "#D50000", fillOpacity: 1, strokeColor: "white", strokeWeight: 2 },
-                        animation: google.maps.Animation.BOUNCE
-                    });
-                } else { passengerMarker.setPosition(pLoc); }
-
-                if(myMarker) {
-                    if(routeLine) routeLine.setMap(null);
-                    routeLine = new google.maps.Polyline({
-                        path: [myMarker.getPosition(), pLoc], geodesic: true,
-                        strokeColor: '#2962FF', strokeOpacity: 0.8, strokeWeight: 5,
-                        icons: [{ icon: {path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW}, offset: '100%' }],
-                        map: map
-                    });
-                    const dist = google.maps.geometry.spherical.computeDistanceBetween(myMarker.getPosition(), pLoc);
-                    document.getElementById('mission-dist').innerText = `乘客距離：${Math.round(dist)} 公尺`;
-                }
-                document.getElementById('mission-panel').style.display = 'block';
-            } else {
-                finishMission(false);
-            }
-        });
-    }
-
-    function finishMission(updateDB = true) {
-        if(passengerMarker) { passengerMarker.setMap(null); passengerMarker = null; }
-        if(routeLine) { routeLine.setMap(null); routeLine = null; }
-        document.getElementById('mission-panel').style.display = 'none';
-        if(updateDB && currentUser) db.ref('drivers/' + currentUser.userId + '/request').remove();
-    }
-
-    function startGPS() {
-        if (!navigator.geolocation) return;
-        watchId = navigator.geolocation.watchPosition((pos) => {
-            const { latitude, longitude, heading } = pos.coords;
-            smartUpload(latitude, longitude, heading || 0); 
-        }, (err) => console.error(err), { enableHighAccuracy: true, maximumAge: 0 });
-    }
-
-    function smartUpload(lat, lng, heading) {
-        if(!currentUser || !isOnline) return;
-        const now = Date.now();
-        const currentPos = new google.maps.LatLng(lat, lng);
-
-        if (lastRenderLat === 0) { lastRenderLat = lat; lastRenderLng = lng; }
-        if (lastUploadLat === 0) { lastUploadLat = lat; lastUploadLng = lng; lastUploadHeading = heading; forceUpload(lat, lng); return; }
-
-        const lastRenderPos = new google.maps.LatLng(lastRenderLat, lastRenderLng);
-        const distRender = google.maps.geometry.spherical.computeDistanceBetween(currentPos, lastRenderPos);
-        if (!myMarker || distRender >= 10) {
-            updateMarker(lat, lng, heading);
-            lastRenderLat = lat; lastRenderLng = lng; 
-        }
-
-        const lastUpPos = new google.maps.LatLng(lastUploadLat, lastUploadLng);
-        const distUploadMeters = google.maps.geometry.spherical.computeDistanceBetween(currentPos, lastUpPos);
-        const timeDiff = now - lastUploadTime;
-
-        if (currentWorkStatus === 'busy') {
-            if (timeDiff >= HEARTBEAT_TIME || distUploadMeters >= 500) { 
-                lastUploadHeading = heading; forceUpload(lat, lng); 
-            }
-            return; 
-        }
-
-        if (currentWorkStatus === 'queue' && queueCenter) {
-            const qPos = new google.maps.LatLng(queueCenter.lat, queueCenter.lng);
-            if (google.maps.geometry.spherical.computeDistanceBetween(currentPos, qPos) > 500) {
-                currentWorkStatus = 'busy'; 
-                queueCenter = null; 
-                document.getElementById('btn-status').className = "circle-btn bg-busy";
-                document.getElementById('txt-status').innerText = "載客";
-                updateHUD(false, "⚠️ 已離開排班區，自動切換為載客"); 
-                refreshMarkerIcon(); 
-                lastUploadHeading = heading; forceUpload(lat, lng); 
-            } else if (timeDiff >= HEARTBEAT_TIME) {
-                lastUploadHeading = heading; forceUpload(lat, lng); 
-            }
-            return; 
-        }
-
-        if (currentWorkStatus === 'empty') {
-            let headingDiff = Math.abs(heading - lastUploadHeading);
-            if (headingDiff > 180) headingDiff = 360 - headingDiff;
-
-            if (timeDiff >= HEARTBEAT_TIME) { lastUploadHeading = heading; forceUpload(lat, lng); return; }
-            if (headingDiff >= 30 && distUploadMeters >= 15) { lastUploadHeading = heading; forceUpload(lat, lng); return; }
-            if (distUploadMeters >= 200) { lastUploadHeading = heading; forceUpload(lat, lng); return; }
-            if (distUploadMeters >= 25 && timeDiff >= UPDATE_INTERVAL) { lastUploadHeading = heading; forceUpload(lat, lng); return; }
-        }
-    }
-
-    function updateMarker(lat, lng, heading) {
-        const latLng = new google.maps.LatLng(lat, lng);
-        const color = currentWorkStatus==='busy'?'#e67e22':(currentWorkStatus==='queue'?'#3498db':'#2ecc71');
-        if (!myMarker) { myMarker = new google.maps.Marker({ position: latLng, map: map, icon: getArrowIcon(color, heading), title: "我" }); map.panTo(latLng); } 
-        else { 
-            myMarker.setPosition(latLng); myMarker.setIcon(getArrowIcon(color, heading)); 
-            if(!document.getElementById('saver-overlay').classList.contains('active')) map.panTo(latLng);
-        }
-        if(passengerMarker && routeLine) { 
-            routeLine.setPath([latLng, passengerMarker.getPosition()]); 
-            const dist = google.maps.geometry.spherical.computeDistanceBetween(latLng, passengerMarker.getPosition()); 
-            document.getElementById('mission-dist').innerText = `乘客距離：${Math.round(dist)} 公尺`; 
-        }
-    }
-
-    function refreshMarkerIcon() {
-        if (!myMarker) return;
-        const color = currentWorkStatus === 'busy' ? '#e67e22' : (currentWorkStatus === 'queue' ? '#3498db' : '#2ecc71');
-        let currentHeading = 0;
-        const currentIcon = myMarker.getIcon();
-        if (currentIcon && currentIcon.rotation !== undefined) {
-            currentHeading = currentIcon.rotation;
-        }
-        myMarker.setIcon(getArrowIcon(color, currentHeading));
-    }
-
-    function forceUpload(lat, lng) {
-        if(!currentUser) return;
-        if(!lat && myMarker) { const pos = myMarker.getPosition(); lat = pos.lat(); lng = pos.lng(); }
-        if(!lat) return;
-        updateHUD(true, "⚡ 資料上傳...");
-        db.ref('drivers/'+currentUser.userId).update({
-            lat: lat, lng: lng, status: 'online', workStatus: currentWorkStatus,
-            lastUpdate: firebase.database.ServerValue.TIMESTAMP
-        }).then(() => {
-            setTimeout(() => { updateHUD(false, `🟢 上線中 (${getWorkStatusText()})`); }, 1000);
-            lastUploadTime = Date.now(); 
-            lastUploadLat = lat; 
-            lastUploadLng = lng; 
-        }).catch(e => { console.error("Upload failed", e); });
-    }
-
-    function updateHUD(isUploading, text) {
-        const hud = document.getElementById('hud');
-        hud.innerHTML = `<span class="status-dot" style="background:${isUploading ? '#00C853' : '#2ecc71'};"></span> ${text}`;
-        if(isUploading) hud.classList.add('hud-uploading'); else hud.classList.remove('hud-uploading');
-    }
-
-    function startConnectionCheck() {
-        if(checkConnectionInterval) clearInterval(checkConnectionInterval);
-        checkConnectionInterval = setInterval(() => {
-            if(!isOnline) return;
-            const now = Date.now();
-            if (now - lastUploadTime > CONNECTION_TIMEOUT) {
-                console.log("網頁從休眠中喚醒，強制更新座標...");
-                if (navigator.geolocation) {
-                    navigator.geolocation.getCurrentPosition(pos => {
-                        forceUpload(pos.coords.latitude, pos.coords.longitude);
-                    }, err => console.error(err), { enableHighAccuracy: true });
-                }
-            }
-        }, 60000); 
-    }
-
-    function toggleStatus(){ 
-        const btn = document.getElementById('btn-status'); 
-        const txt = document.getElementById('txt-status'); 
-        if(currentWorkStatus === 'empty') { 
-            currentWorkStatus = 'queue'; btn.className = "circle-btn bg-queue"; txt.innerText = "排班"; 
-            if(myMarker) { const pos = myMarker.getPosition(); queueCenter = { lat: pos.lat(), lng: pos.lng() }; } 
-        } else if (currentWorkStatus === 'queue') { 
-            currentWorkStatus = 'busy'; btn.className = "circle-btn bg-busy"; txt.innerText = "載客"; queueCenter = null; 
-        } else { 
-            currentWorkStatus = 'empty'; btn.className = "circle-btn bg-empty"; txt.innerText = "空車"; queueCenter = null; 
-        } 
-        refreshMarkerIcon();
-        forceUpload(); 
-    }
-
-    function togglePower(forceOn=false) {
-        const btn = document.getElementById('btn-power');
-        const subBtns = ['btn-status', 'btn-saver'];
-        if (forceOn || !isOnline) {
-            isOnline = true; localStorage.setItem('isOnline', 'true');
-            btn.className = "circle-btn bg-on"; btn.innerHTML = `<i class="fa-solid fa-power-off"></i><span class="sub-text">ON</span>`;
-            subBtns.forEach(id => document.getElementById(id).style.display = 'flex');
-            requestWakeLock(); startGPS(); startConnectionCheck();
-            lastUploadTime = Date.now(); 
-            if (heartbeatInterval) clearInterval(heartbeatInterval); 
-            heartbeatInterval = setInterval(() => { if(Date.now() - lastUploadTime > HEARTBEAT_TIME) forceUpload(); }, 60000);
-        } else {
-            isOnline = false; localStorage.setItem('isOnline', 'false');
-            btn.className = "circle-btn bg-off"; btn.innerHTML = `<i class="fa-solid fa-power-off"></i><span class="sub-text">OFF</span>`;
-            document.getElementById('hud').innerHTML = `<span class="status-dot" style="background:gray;"></span> 系統待命`;
-            subBtns.forEach(id => document.getElementById(id).style.display = 'none');
-            if (watchId) navigator.geolocation.clearWatch(watchId);
-            if (checkConnectionInterval) clearInterval(checkConnectionInterval);
-            
-            currentWorkStatus = 'empty'; 
-            queueCenter = null;
-            document.getElementById('btn-status').className = "circle-btn bg-empty";
-            document.getElementById('txt-status').innerText = "空車";
-            refreshMarkerIcon();
-
-            db.ref('drivers/' + currentUser.userId).update({ 
-                status: 'offline',
-                workStatus: 'empty' 
-            });
-        }
-    }
-
-    function getWorkStatusText() { return currentWorkStatus==='queue'?'排班':(currentWorkStatus==='busy'?'載客':'空車'); }
-    function setupSaverEvents() { const overlay = document.getElementById('saver-overlay'); const startPress = (e) => { e.preventDefault(); overlay.classList.add('pressing'); pressTimer = setTimeout(() => { toggleSaver(false); if(navigator.vibrate) navigator.vibrate(100); }, 1500); }; const cancelPress = () => { overlay.classList.remove('pressing'); clearTimeout(pressTimer); }; overlay.addEventListener('touchstart', startPress); overlay.addEventListener('touchend', cancelPress); overlay.addEventListener('mousedown', startPress); overlay.addEventListener('mouseup', cancelPress); }
-    function toggleSaver(enable){ const overlay=document.getElementById('saver-overlay'); const btn=document.getElementById('btn-saver'); if(enable){ overlay.classList.add('active'); btn.className="circle-btn bg-empty"; } else{ overlay.classList.remove('active'); overlay.classList.remove('pressing'); btn.className="circle-btn bg-dark"; } }
-    async function requestWakeLock() { try { if('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch(e){} }
-    function releaseWakeLock() { if(wakeLock) wakeLock.release(); }
-    function submitRegistration() { const name = document.getElementById('reg-name').value; const car = document.getElementById('reg-car').value; const phone = document.getElementById('reg-phone').value; const uid = document.getElementById('reg-uid').value; if(!name || !car || !phone) return alert("請填寫完整"); liff.sendMessages([{type:'text', text:`【申請入隊】\n姓名:${name}\n車號:${car}\n電話:${phone}\nID:${uid}`}]) .then(() => { alert("已送出申請"); document.querySelector('.btn-submit').disabled=true; }).catch(() => alert("請手動複製ID給管理員: " + uid)); }
+        Toast.fire({ icon: 'info', title: '滑到底部，隨時可以點擊「立即叫車」喔！' });
+      }
+    });
   </script>
 </body>
 </html>
