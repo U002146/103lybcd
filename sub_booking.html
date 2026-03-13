@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>定期接送預約 // v5.7 時間格式統一對齊版</title>
+    <title>定期接送預約 // v5.8 語法除錯修復與防呆保險絲版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
@@ -40,9 +40,10 @@
 </head>
 <body>
 
-    <div id="loading-overlay" class="fixed inset-0 bg-white z-[9999] flex flex-col items-center justify-center">
+    <div id="loading-overlay" class="fixed inset-0 bg-white z-[9999] flex flex-col items-center justify-center transition-opacity duration-500">
         <div class="loader mb-4 w-12 h-12 border-4 text-emerald-500"></div>
         <p class="text-slate-600 font-bold text-lg tracking-widest animate-pulse">系統連線中...</p>
+        <button onclick="unlockUI()" class="mt-8 text-sm text-gray-300 underline">若卡住請點此</button>
     </div>
 
     <div id="app" class="hidden flex-col min-h-screen">
@@ -121,7 +122,6 @@
                     </div>
                 </div>
 
-                <!-- 🚀 v5.5 增加返程時間切換按鈕 -->
                 <div class="flex items-center justify-between mb-3 bg-indigo-50 p-3 rounded-xl border border-indigo-100 cursor-pointer active:scale-95 transition-transform" onclick="toggleReturnTime()">
                     <div class="flex items-center text-indigo-700 font-bold text-sm">
                         <i class="fa-solid fa-repeat mr-2"></i> 增加返程時間 (來回趟)
@@ -133,7 +133,6 @@
                     </div>
                 </div>
 
-                <!-- 返程時間輸入框 (預設隱藏) -->
                 <div id="return-time-container" class="hidden input-group !mb-0 relative border-indigo-200 bg-white">
                     <i class="fa-solid fa-clock-rotate-left input-icon text-indigo-500"></i>
                     <div class="flex-1">
@@ -143,7 +142,6 @@
                 </div>
             </div>
 
-            <!-- 預先微調剔除區塊 -->
             <div id="preview-card" class="booking-card !bg-indigo-50/50 !border-indigo-100 hidden">
                 <div class="flex items-center justify-between mb-3">
                     <h2 class="text-sm font-bold text-indigo-600 uppercase tracking-widest flex items-center">
@@ -195,7 +193,7 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script>
-        const VERSION = "v5.7"; // 🚀 時間格式統一對齊版 (AI 秘書友善格式)
+        const VERSION = "v5.8"; // 🚀 語法除錯修復與防呆保險絲版
         
         // ⚠️ 這裡填入你為這支 sub_booking.html 新申請的 LIFF ID
         const LIFF_ID = '2008907691-e4V07Yfr'; 
@@ -225,6 +223,9 @@
         let isRoundTrip = false; // 來回趟開關狀態
 
         window.onload = function() {
+            // 🚀 防呆保險絲：不管發生什麼事，5 秒後必定掀開白布
+            setTimeout(unlockUI, 5000); 
+
             const savedPhone = localStorage.getItem('taxi_user_phone');
             if(savedPhone) document.getElementById('phone').value = savedPhone;
             const savedPayment = localStorage.getItem('taxi_selected_payment');
@@ -254,10 +255,16 @@
         };
 
         function unlockUI() {
-            document.getElementById('loading-overlay').style.display = 'none';
-            document.getElementById('app').classList.remove('hidden');
-            document.getElementById('app').classList.add('flex');
-            calculateTrips(); 
+            const overlay = document.getElementById('loading-overlay');
+            if (overlay && overlay.style.display !== 'none') {
+                overlay.style.opacity = '0';
+                setTimeout(() => {
+                    overlay.style.display = 'none';
+                    document.getElementById('app').classList.remove('hidden');
+                    document.getElementById('app').classList.add('flex');
+                    calculateTrips(); 
+                }, 300);
+            }
         }
 
         function swapLocations() {
@@ -268,7 +275,6 @@
             inputs.forEach(el => { el.style.transform = 'scale(0.98)'; setTimeout(() => el.style.transform = 'scale(1)', 150); });
         }
 
-        // UI 元件功能 (與舊版相同)
         function openPresetLocations(target) { 
             currentTargetInput = target; 
             const targetName = target === 'pickup' ? '上車點' : '下車點';
@@ -303,7 +309,6 @@
             if(label !== '現金') iconElem.classList.add(colorClass.split(' ')[0]); 
         }
 
-        // 🚀 v5.5 切換來回趟
         window.toggleReturnTime = function() {
             isRoundTrip = !isRoundTrip;
             document.getElementById('return-toggle').checked = isRoundTrip;
@@ -321,7 +326,6 @@
             calculateTrips();
         }
 
-        // 🚀 v5.7 雙軌時間引擎：同時產生 dateStr 與 gasDateStr
         function calculateTrips() {
             generatedTrips = [];
             const timeVal = document.getElementById('sub-time').value;
@@ -343,14 +347,11 @@
                     const m = currentDate.getMonth() + 1;
                     const d = currentDate.getDate();
                     
-                    // 🚀 雙軌格式：dateStr 給前端顯示，gasDateStr 給後端 AI 解析
                     const chineseDate = `${m}月${d}日`;
                     const numDate = `${m}/${d}`;
                     
-                    // 塞入去程
                     generatedTrips.push({ type: 'go', dateStr: chineseDate, gasDateStr: numDate, timeStr: timeVal });
                     
-                    // 如果開啟來回，塞入回程
                     if (isRoundTrip && returnTimeVal) {
                         generatedTrips.push({ type: 'back', dateStr: chineseDate, gasDateStr: numDate, timeStr: returnTimeVal });
                     }
@@ -361,7 +362,6 @@
             renderTripTags();
         }
 
-        // 🚀 v5.5 渲染雙色標籤
         function renderTripTags() {
             const container = document.getElementById('trip-tags-container');
             const previewCard = document.getElementById('preview-card');
@@ -396,7 +396,6 @@
                     <div class="bg-white border ${tagColor} pl-2 pr-1 py-1.5 rounded-xl flex items-center justify-between text-sm font-bold shadow-sm transition-all active:scale-95">
                         <div class="flex items-center gap-2">
                             ${tagBadge}
-                            <!-- 顯示中文給客人看 -->
                             <span>${trip.dateStr} ${trip.timeStr}</span>
                         </div>
                         <button type="button" onclick="removeTrip(${index})" class="text-slate-300 hover:text-rose-500 bg-slate-50 hover:bg-rose-100 rounded-full w-7 h-7 flex items-center justify-center transition-colors">
@@ -455,16 +454,13 @@
             const sortedDows = Array.from(selectedDows).sort();
             const dowString = sortedDows.map(d => dowNames[d]).join('、');
             
-            // 🚀 核心升級：送給 GAS 的陣列，強制使用純數字版 (gasDateStr)
             const outTripsForGas = generatedTrips.filter(t => t.type === 'go').map(t => `${t.gasDateStr} ${t.timeStr}`);
             const backTripsForGas = generatedTrips.filter(t => t.type === 'back').map(t => `${t.gasDateStr} ${t.timeStr}`);
 
-            // 卡片顯示文案判斷
             const hasMix = outTripsForGas.length > 0 && backTripsForGas.length > 0;
             const freqText = hasMix ? `每週${dowString} (去回)` : (outTripsForGas.length > 0 ? `每週${dowString} (單程)` : `每週${dowString} (反向)`);
             const routeText = hasMix ? `${pickup} ⇄ ${dropoff}` : `${pickup} ➔ ${dropoff}`;
 
-            // 1. 準備總表摘要卡片
             const summaryMsg = {
                 type: "flex",
                 altText: `📅 定期接送成立 (共 ${generatedTrips.length} 趟)`,
@@ -503,15 +499,15 @@
                             },
                             { type: "separator", margin: "md", color: "#EEEEEE" },
                             {
+                                // 🚀 v5.8 修復：修正 syntax error (text: text: payment)
                                 type: "box", layout: "horizontal", margin: "md",
-                                contents: [ { type: "text", text: "💰 付款", flex: 2, color: "#888888", size: "sm" }, { type: "text", text: text: payment, flex: 5, color: "#111111", size: "sm", weight: "bold" } ]
+                                contents: [ { type: "text", text: "💰 付款", flex: 2, color: "#888888", size: "sm" }, { type: "text", text: payment, flex: 5, color: "#111111", size: "sm", weight: "bold" } ]
                             }
                         ]
                     }
                 }
             };
 
-            // 2. 準備小卡片與送給 GAS 的雙重請求
             let messagesToSend = [summaryMsg];
             let carouselBubbles = [];
             let goIndex = 1;
@@ -524,14 +520,14 @@
                     subId = `${baseGo}-${goIndex}`;
                     title = `第 ${goIndex} 趟`;
                     rStr = `${pickup} ➔ ${dropoff}`;
-                    headColor = "#e0f2fe"; // 藍色去程
+                    headColor = "#e0f2fe"; 
                     bText = "去程";
                     goIndex++;
                 } else {
                     subId = `${baseBack}-${backIndex}`;
                     title = `第 ${backIndex} 趟`;
-                    rStr = `${dropoff} ➔ ${pickup}`; // 顯示反轉
-                    headColor = "#e0e7ff"; // 紫色回程
+                    rStr = `${dropoff} ➔ ${pickup}`; 
+                    headColor = "#e0e7ff"; 
                     bText = "回程";
                     backIndex++;
                 }
@@ -549,7 +545,6 @@
                                     { type: "text", text: bText, size: "xs", color: trip.type === 'go' ? "#0284c7" : "#4f46e5", weight: "bold" }
                                 ]
                             },
-                            // 🚀 給客人的推播卡片，依舊使用中文版 dateStr，體驗不打折
                             { type: "text", text: `${trip.dateStr} ${trip.timeStr}`, size: "sm", color: "#0f172a", weight: "bold", margin: "xs" }
                         ]
                     },
@@ -586,7 +581,6 @@
             try {
                 const nowTimestamp = new Date().toISOString();
                 
-                // 🚀 核心升級：發送給 GAS 的是 outTripsForGas (數字版)
                 if (outTripsForGas.length > 0) {
                     fetch(BOOKING_GAS_URL, {
                         method: 'POST', mode: 'no-cors',
@@ -600,7 +594,6 @@
                     }).catch(e => console.error(e));
                 }
 
-                // 🚀 核心升級：發送給 GAS 的是 backTripsForGas (數字版)
                 if (backTripsForGas.length > 0) {
                     fetch(BOOKING_GAS_URL, {
                         method: 'POST', mode: 'no-cors',
