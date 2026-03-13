@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>定期接送預約</title>
+    <title>定期接送預約 // v5.7 時間格式統一對齊版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
@@ -195,7 +195,7 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script>
-        const VERSION = "v5.5"; // 🚀 來回趟自動反轉版
+        const VERSION = "v5.7"; // 🚀 時間格式統一對齊版 (AI 秘書友善格式)
         
         // ⚠️ 這裡填入你為這支 sub_booking.html 新申請的 LIFF ID
         const LIFF_ID = '2008907691-e4V07Yfr'; 
@@ -220,7 +220,7 @@
         let passengerId = "unknown";
         let selectedDows = new Set(); 
         
-        // 陣列改為存物件： { type: 'go'|'back', dateStr: '3月12日', timeStr: '08:00' }
+        // 陣列改為存物件： { type: 'go'|'back', dateStr: '3月12日', gasDateStr: '3/12', timeStr: '08:00' }
         let generatedTrips = []; 
         let isRoundTrip = false; // 來回趟開關狀態
 
@@ -321,7 +321,7 @@
             calculateTrips();
         }
 
-        // 🚀 v5.5 同時推算去程與回程
+        // 🚀 v5.7 雙軌時間引擎：同時產生 dateStr 與 gasDateStr
         function calculateTrips() {
             generatedTrips = [];
             const timeVal = document.getElementById('sub-time').value;
@@ -343,12 +343,16 @@
                     const m = currentDate.getMonth() + 1;
                     const d = currentDate.getDate();
                     
+                    // 🚀 雙軌格式：dateStr 給前端顯示，gasDateStr 給後端 AI 解析
+                    const chineseDate = `${m}月${d}日`;
+                    const numDate = `${m}/${d}`;
+                    
                     // 塞入去程
-                    generatedTrips.push({ type: 'go', dateStr: `${m}月${d}日`, timeStr: timeVal });
+                    generatedTrips.push({ type: 'go', dateStr: chineseDate, gasDateStr: numDate, timeStr: timeVal });
                     
                     // 如果開啟來回，塞入回程
                     if (isRoundTrip && returnTimeVal) {
-                        generatedTrips.push({ type: 'back', dateStr: `${m}月${d}日`, timeStr: returnTimeVal });
+                        generatedTrips.push({ type: 'back', dateStr: chineseDate, gasDateStr: numDate, timeStr: returnTimeVal });
                     }
                 }
                 currentDate.setDate(currentDate.getDate() + 1);
@@ -392,6 +396,7 @@
                     <div class="bg-white border ${tagColor} pl-2 pr-1 py-1.5 rounded-xl flex items-center justify-between text-sm font-bold shadow-sm transition-all active:scale-95">
                         <div class="flex items-center gap-2">
                             ${tagBadge}
+                            <!-- 顯示中文給客人看 -->
                             <span>${trip.dateStr} ${trip.timeStr}</span>
                         </div>
                         <button type="button" onclick="removeTrip(${index})" class="text-slate-300 hover:text-rose-500 bg-slate-50 hover:bg-rose-100 rounded-full w-7 h-7 flex items-center justify-center transition-colors">
@@ -450,13 +455,13 @@
             const sortedDows = Array.from(selectedDows).sort();
             const dowString = sortedDows.map(d => dowNames[d]).join('、');
             
-            // 將過濾後的資料分別整理出字串陣列
-            const outTrips = generatedTrips.filter(t => t.type === 'go').map(t => `${t.dateStr} ${t.timeStr}`);
-            const backTrips = generatedTrips.filter(t => t.type === 'back').map(t => `${t.dateStr} ${t.timeStr}`);
+            // 🚀 核心升級：送給 GAS 的陣列，強制使用純數字版 (gasDateStr)
+            const outTripsForGas = generatedTrips.filter(t => t.type === 'go').map(t => `${t.gasDateStr} ${t.timeStr}`);
+            const backTripsForGas = generatedTrips.filter(t => t.type === 'back').map(t => `${t.gasDateStr} ${t.timeStr}`);
 
             // 卡片顯示文案判斷
-            const hasMix = outTrips.length > 0 && backTrips.length > 0;
-            const freqText = hasMix ? `每週${dowString} (去回)` : (outTrips.length > 0 ? `每週${dowString} (單程)` : `每週${dowString} (反向)`);
+            const hasMix = outTripsForGas.length > 0 && backTripsForGas.length > 0;
+            const freqText = hasMix ? `每週${dowString} (去回)` : (outTripsForGas.length > 0 ? `每週${dowString} (單程)` : `每週${dowString} (反向)`);
             const routeText = hasMix ? `${pickup} ⇄ ${dropoff}` : `${pickup} ➔ ${dropoff}`;
 
             // 1. 準備總表摘要卡片
@@ -499,7 +504,7 @@
                             { type: "separator", margin: "md", color: "#EEEEEE" },
                             {
                                 type: "box", layout: "horizontal", margin: "md",
-                                contents: [ { type: "text", text: "💰 付款", flex: 2, color: "#888888", size: "sm" }, { type: "text", text: payment, flex: 5, color: "#111111", size: "sm", weight: "bold" } ]
+                                contents: [ { type: "text", text: "💰 付款", flex: 2, color: "#888888", size: "sm" }, { type: "text", text: text: payment, flex: 5, color: "#111111", size: "sm", weight: "bold" } ]
                             }
                         ]
                     }
@@ -544,6 +549,7 @@
                                     { type: "text", text: bText, size: "xs", color: trip.type === 'go' ? "#0284c7" : "#4f46e5", weight: "bold" }
                                 ]
                             },
+                            // 🚀 給客人的推播卡片，依舊使用中文版 dateStr，體驗不打折
                             { type: "text", text: `${trip.dateStr} ${trip.timeStr}`, size: "sm", color: "#0f172a", weight: "bold", margin: "xs" }
                         ]
                     },
@@ -578,10 +584,10 @@
             }
 
             try {
-                // 🚀 v5.5 終極分流魔法：直接對 GAS 發起兩次請求！完全不用改後端程式碼！
                 const nowTimestamp = new Date().toISOString();
                 
-                if (outTrips.length > 0) {
+                // 🚀 核心升級：發送給 GAS 的是 outTripsForGas (數字版)
+                if (outTripsForGas.length > 0) {
                     fetch(BOOKING_GAS_URL, {
                         method: 'POST', mode: 'no-cors',
                         headers: { 'Content-Type': 'application/json' },
@@ -589,20 +595,21 @@
                             type: 'subscription', baseOrderId: baseGo,
                             userId: passengerId, userName: userName, phone: phone,
                             pickup: pickup, dropoff: dropoff, payment: payment,
-                            bookingTimes: outTrips, timestamp: nowTimestamp
+                            bookingTimes: outTripsForGas, timestamp: nowTimestamp 
                         })
                     }).catch(e => console.error(e));
                 }
 
-                if (backTrips.length > 0) {
+                // 🚀 核心升級：發送給 GAS 的是 backTripsForGas (數字版)
+                if (backTripsForGas.length > 0) {
                     fetch(BOOKING_GAS_URL, {
                         method: 'POST', mode: 'no-cors',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             type: 'subscription', baseOrderId: baseBack,
                             userId: passengerId, userName: userName, phone: phone,
-                            pickup: dropoff, dropoff: pickup, payment: payment, // 🚀 完美反轉上下車點
-                            bookingTimes: backTrips, timestamp: nowTimestamp
+                            pickup: dropoff, dropoff: pickup, payment: payment, 
+                            bookingTimes: backTripsForGas, timestamp: nowTimestamp 
                         })
                     }).catch(e => console.error(e));
                 }
