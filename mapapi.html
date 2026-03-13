@@ -157,7 +157,7 @@
     </div>
 
     <script>
-        const VERSION = "v4.6"; // 🚀 地圖版：載入卡死修復版
+        const VERSION = "v4.7"; // 🚀 天下統一總帳本版：即時單全面寫入 GAS 
         const API_KEY = 'AIzaSyAIxc6PEhHgUs_A9lyRUg8dNbmwOpSamY8'; 
         const LIFF_ID = '2008907691-MAdAtfyf'; 
         const PROJECT_B_URL = 'https://liff.line.me/2008907691-1mAjwojZ'; 
@@ -443,22 +443,28 @@
             let headerColor = "";
             let displayTime = "";
             let orderPayload = null;
+            let finalBookingTime = bookingTime; // 儲存最終要寫入 GAS 的時間
 
             if (bookingMode === 'NOW') {
                 displayTime = `即時單 ${nowTimeStr}`;
                 headerTitle = `🚕 尋找附近車輛中`;
                 headerColor = "#000000";
+                
+                // 🚀 核心更新：抓取客人的「現在時間」，偽裝成預約時間送給 AI 秘書
+                const nDate = new Date();
+                finalBookingTime = `${nDate.getMonth()+1}月${nDate.getDate()}日 ${String(nDate.getHours()).padStart(2,'0')}:${String(nDate.getMinutes()).padStart(2,'0')}`;
             } else {
                 displayTime = `${bookingTime}`;
                 headerTitle = editOrderId ? "🔄 預約已更新" : "📅 預約確認";
                 headerColor = editOrderId ? "#EA580C" : "#1d4ed8";
-                
-                orderPayload = {
-                    orderId: currentOrderId, userId: passengerId, userName: userName, phone: phone,
-                    pickup: pickup, dropoff: dropoff, payment: payment, bookingTime: bookingTime,
-                    status: editOrderId ? "updated" : "new", timestamp: new Date().toISOString()
-                };
             }
+
+            // 🚀 天下統一：無論如何都建立 Payload，準備寫入總帳本
+            orderPayload = {
+                orderId: currentOrderId, userId: passengerId, userName: userName, phone: phone,
+                pickup: pickup, dropoff: dropoff, payment: payment, bookingTime: finalBookingTime,
+                status: editOrderId ? "updated" : "new", timestamp: new Date().toISOString()
+            };
 
             let flexHeaderContents = [
                 {
@@ -530,7 +536,8 @@
             };
 
             try {
-                if (bookingMode === 'RESERVE' && orderPayload) {
+                // 🚀 解除封印：不再判斷預約或即時，一律寫入 GAS！
+                if (orderPayload) {
                     fetch(BOOKING_GAS_URL, {
                         method: 'POST', mode: 'no-cors',
                         headers: { 'Content-Type': 'application/json' },
