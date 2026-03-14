@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>花蓮敬老車隊 // v10.7 搶單大廳 (通訊回傳版)</title>
+    <title>花蓮敬老車隊 // v10.8 搶單大廳 (完整打包版)</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -84,7 +84,6 @@
     const urlParams = new URLSearchParams(window.location.search);
     const myDriverId = urlParams.get('driverId') || 'TDP-TESTER';
     const myDriverName = urlParams.get('driverName') || myDriverId; 
-    // 🚀 v10.7：讀取司機電話
     const myDriverPhone = urlParams.get('driverPhone') || ''; 
     
     document.getElementById('header-title').innerHTML = `📋 搶單大廳 <span class="text-xs text-gray-500 ml-1">(${myDriverName})</span>`;
@@ -208,7 +207,6 @@
                 
                 const orderData = snapshot.val();
                 
-                // 🚀 v10.7 回傳給試算表：一併加上 driverPhone
                 if (GAS_WEB_APP_URL && GAS_WEB_APP_URL.includes('script.google.com')) {
                     fetch(GAS_WEB_APP_URL, {
                         method: 'POST',
@@ -219,11 +217,12 @@
                             orderId: orderId,
                             driverId: myDriverId,
                             driverName: myDriverName,
-                            driverPhone: myDriverPhone // <-- 傳回司機電話
+                            driverPhone: myDriverPhone 
                         })
                     }).catch(e => console.log("回報試算表失敗", e));
                 }
 
+                // 🚀 v10.8 完整打包：把時間跟下車點一起裝進去！
                 database.ref(`drivers/${myDriverId}/request`).set({
                     userId: "fleet_order", 
                     userName: orderData.passengerName || "總台派單",
@@ -231,7 +230,9 @@
                     lat: 0, lng: 0,
                     timestamp: firebase.database.ServerValue.TIMESTAMP,
                     note: (orderData.pickup || "指定地點") + "｜總台單", 
-                    fleetOrderId: orderId
+                    fleetOrderId: orderId,
+                    time: orderData.time || "",            // <-- 補上預約時間
+                    dropoff: orderData.dropoff || ""       // <-- 補上下車點
                 });
                 database.ref(`drivers/${myDriverId}`).update({ workStatus: 'busy' });
             }
