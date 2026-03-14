@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     
-    <!-- 🚀 v8.16 接地氣按鈕版：與圖文選單統一「通話叫車」 -->
     <title>通話叫車 | 即時司機位置</title> 
     <meta name="apple-mobile-web-app-capable" content="yes">
     
@@ -98,7 +97,6 @@
             </div>
         </div>
         
-        <!-- 單向距離計算顯示區 (保留) -->
         <div id="distance-display" class="flex flex-col items-end justify-center bg-white/20 px-3 py-1.5 rounded-xl border border-white/30 ml-2 whitespace-nowrap min-w-[80px] shadow-inner">
             <span class="text-[10px] uppercase tracking-wider opacity-90 font-bold"><i class="fa-solid fa-location-arrow mr-1"></i>距離</span>
             <span id="dist-text" class="text-lg font-bold font-mono leading-none mt-0.5">計算中...</span>
@@ -116,7 +114,6 @@
         <span>分享給好友</span>
     </div>
 
-    <!-- 動態變身的聯絡按鈕 (預設改為通話叫車) -->
     <a href="https://lin.ee/9Davl6e" target="_blank" id="btn-contact-fab" class="official-style">
         <i id="contact-icon" class="fa-solid fa-phone-volume"></i>
         <span id="contact-text">通話叫車</span>
@@ -124,7 +121,7 @@
 
     <script>
         // ========= CONFIG 設定區 =========
-        const VERSION = "v8.16"; // 🚀 接地氣按鈕版：總台按鈕改為「通話叫車」
+        const VERSION = "v8.17"; // 🚀 閃電載入修復版
         const LIFF_ID = '2008907691-1mAjwojZ'; 
         
         // 老闆(總台)的 ID，用於判斷是否要切換成官方客服按鈕
@@ -246,7 +243,10 @@
         function startRealtimeRadar() {
             db.ref('drivers/' + DRIVER_USER_ID).on('value', snapshot => {
                 updateDriverUI(snapshot.val());
-            }, err => console.error("Sync Error:", err));
+            }, err => {
+                console.error("Sync Error:", err);
+                Swal.close(); // 發生錯誤也關閉轉圈圈
+            });
         }
 
         function updateDriverUI(data) {
@@ -266,7 +266,7 @@
                 const contactIcon = document.getElementById('contact-icon');
                 const contactText = document.getElementById('contact-text');
 
-                // 🚀 v8.16 總台模式：一律顯示「通話叫車」與話筒圖示
+                // 總台模式：一律顯示「通話叫車」與話筒圖示
                 if (DRIVER_USER_ID === BOSS_ID || !dynamicDriverInfo.phone) {
                     contactBtn.href = OFFICIAL_LINE_URL;
                     contactBtn.target = "_blank"; 
@@ -287,15 +287,23 @@
                     else if (data.workStatus === 'queue') status = 'queue';
                     else status = 'available'; 
                     
-                    const newPos = { lat: parseFloat(data.lat), lng: parseFloat(data.lng) };
-                    carMarker.setPosition(newPos);
-
-                    if (isFirstFocus) {
-                        map.panTo(newPos);
-                        isFirstFocus = false;
-                        Swal.close(); 
+                    // 🚀 防呆機制：確保有經緯度才移動地圖
+                    if (data.lat !== undefined && data.lng !== undefined) {
+                        const newPos = { lat: parseFloat(data.lat), lng: parseFloat(data.lng) };
+                        if (!isNaN(newPos.lat) && !isNaN(newPos.lng)) {
+                            carMarker.setPosition(newPos);
+                            if (isFirstFocus) {
+                                map.panTo(newPos);
+                            }
+                        }
                     }
                 }
+            }
+
+            // 🚀 無論司機是否在線，只要資料庫有回應，就立刻關閉轉圈圈！
+            if (isFirstFocus) {
+                isFirstFocus = false;
+                Swal.close(); 
             }
 
             if (currentStatus !== status) {
