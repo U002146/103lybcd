@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     
-    <!-- 🚀 v8.15 行銷升級：標題正名為「通話叫車」 -->
+    <!-- 🚀 v8.16 接地氣按鈕版：與圖文選單統一「通話叫車」 -->
     <title>通話叫車 | 即時司機位置</title> 
     <meta name="apple-mobile-web-app-capable" content="yes">
     
@@ -116,15 +116,15 @@
         <span>分享給好友</span>
     </div>
 
-    <!-- 動態變身的聯絡按鈕 -->
+    <!-- 動態變身的聯絡按鈕 (預設改為通話叫車) -->
     <a href="https://lin.ee/9Davl6e" target="_blank" id="btn-contact-fab" class="official-style">
-        <i id="contact-icon" class="fa-solid fa-headset"></i>
-        <span id="contact-text">官方客服</span>
+        <i id="contact-icon" class="fa-solid fa-phone-volume"></i>
+        <span id="contact-text">通話叫車</span>
     </a>
 
     <script>
         // ========= CONFIG 設定區 =========
-        const VERSION = "v8.15"; // 🚀 行銷升級：通話叫車正名版
+        const VERSION = "v8.16"; // 🚀 接地氣按鈕版：總台按鈕改為「通話叫車」
         const LIFF_ID = '2008907691-1mAjwojZ'; 
         
         // 老闆(總台)的 ID，用於判斷是否要切換成官方客服按鈕
@@ -266,12 +266,13 @@
                 const contactIcon = document.getElementById('contact-icon');
                 const contactText = document.getElementById('contact-text');
 
+                // 🚀 v8.16 總台模式：一律顯示「通話叫車」與話筒圖示
                 if (DRIVER_USER_ID === BOSS_ID || !dynamicDriverInfo.phone) {
                     contactBtn.href = OFFICIAL_LINE_URL;
                     contactBtn.target = "_blank"; 
                     contactBtn.className = "official-style";
-                    contactIcon.className = "fa-solid fa-headset";
-                    contactText.innerText = "官方客服";
+                    contactIcon.className = "fa-solid fa-phone-volume";
+                    contactText.innerText = "通話叫車";
                 } else {
                     contactBtn.href = `tel:${dynamicDriverInfo.phone}`;
                     contactBtn.target = "_self"; 
@@ -372,7 +373,6 @@
                 return;
             }
 
-            // 🚀 v8.15 暴力行銷文案升級
             const flexMsg = {
                 type: "flex",
                 altText: `🚕 推薦你【通話叫車】：${dynamicDriverInfo.name}`,
