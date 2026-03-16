@@ -27,12 +27,6 @@
     .zone-count { background: #f1c40f; color: #000; padding: 2px 10px; border-radius: 20px; font-weight: bold; font-size: 14px; min-width: 25px; text-align: center; }
     .zone-count.empty { background: #00C853; color: white; animation: pulse 2s infinite; }
     
-    /* 🔥 烽火警報特效 */
-    @keyframes fire-flash { 0% { background-color: rgba(231, 76, 60, 0.2); } 50% { background-color: rgba(231, 76, 60, 0.8); } 100% { background-color: rgba(231, 76, 60, 0.2); } }
-    .zone-on-fire .zone-header { animation: fire-flash 0.8s infinite !important; border-left: 6px solid #e74c3c; }
-    .btn-fire { background: #e74c3c; color: white; border: none; padding: 5px 12px; border-radius: 6px; font-weight: bold; font-size: 12px; cursor: pointer; box-shadow: 0 0 10px rgba(231, 76, 60, 0.5); }
-    .btn-fire:active { transform: scale(0.9); }
-
     @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(0,200,83,0.7); } 70% { box-shadow: 0 0 0 10px rgba(0,200,83,0); } 100% { box-shadow: 0 0 0 0 rgba(0,200,83,0); } }
     
     .driver-list { display: none; padding: 10px; background: #222; border-bottom: 1px solid #444; }
@@ -60,8 +54,8 @@
     @keyframes pulse-radar { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
     .radar-active { animation: pulse-radar 2s infinite; color: #00C853; border-color: #00C853; }
 
-    /* 💬 車隊對講機 UI */
-    #chat-fab { position: fixed; bottom: 20px; right: 20px; width: 60px; height: 60px; background: linear-gradient(135deg, #8e44ad, #9b59b6); border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 24px; color: white; box-shadow: 0 4px 15px rgba(142, 68, 173, 0.5); cursor: pointer; z-index: 100; border: 2px solid #d2b4de; }
+    /* 💬 車隊對講機 UI (移至地圖右上角) */
+    #chat-fab { position: fixed; top: 15px; right: 15px; width: 55px; height: 55px; background: linear-gradient(135deg, #8e44ad, #9b59b6); border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 22px; color: white; box-shadow: 0 4px 15px rgba(142, 68, 173, 0.5); cursor: pointer; z-index: 100; border: 2px solid #d2b4de; }
     #chat-fab:active { transform: scale(0.95); }
     #chat-badge { position: absolute; top: -5px; right: -5px; background: #e74c3c; color: white; font-size: 12px; font-weight: bold; width: 22px; height: 22px; border-radius: 50%; display: flex; justify-content: center; align-items: center; border: 2px solid #1e1e1e; }
 
@@ -82,12 +76,11 @@
 </head>
 <body>
 
-  <audio id="firework-sound" src="firework.mp3" preload="auto"></audio>
   <audio id="msg-sound" src="https://actions.google.com/sounds/v1/water/droplet_reverb.ogg" preload="auto"></audio>
 
   <div id="map-container"><div id="map"></div></div>
   <div class="marquee">
-    <span>戰情監控中 (14區)</span>
+    <span>戰情監控中(14區)</span>
     <span class="radar-indicator radar-active"><i class="fa-solid fa-satellite-dish"></i> <span>即時連機</span></span>
     <span id="clock"></span>
   </div>
@@ -116,7 +109,7 @@
   </div>
 
   <script>
-    const VERSION = "v6.3"; // 🚀 三叉戟升級版
+    const VERSION = "v6.4"; // 🚀 精簡實戰版 (右上角對講機)
     const firebaseConfig = { databaseURL: "https://hualientaxi-bb32f-default-rtdb.asia-southeast1.firebasedatabase.app/" };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
@@ -195,15 +188,9 @@
     };
 
     window.onload = function() {
-        // 互動後解鎖音效權限防呆
-        document.body.addEventListener('click', () => {
-            document.getElementById('firework-sound').play().then(()=>document.getElementById('firework-sound').pause()).catch(()=>{});
-        }, { once: true });
-
         initMap();
         processGeoData(); 
         startRealtimeRadar(); 
-        startBeaconsListener();
         startChatListener();
         setInterval(() => document.getElementById('clock').innerText = new Date().toLocaleString(), 1000);
     };
@@ -234,12 +221,12 @@
         Object.keys(data).forEach(key => {
             const d = data[key];
             if (d.status !== 'online') {
-                delete localQueueTracker[key]; // 下線則清除計時
+                delete localQueueTracker[key]; 
                 return;
             }
 
             activeIds.add(key);
-            d.id = key; // 存入ID供排序用
+            d.id = key; 
 
             // ⏳ 排班計時邏輯：只要是 queue 狀態且沒記錄，就開始計時
             if (d.workStatus === 'queue') {
@@ -303,7 +290,6 @@
 
                     const displayCarNo = d.carNo || d.car || '計程車';
                     
-                    // 計算等候幾分鐘
                     let waitHtml = "";
                     if (d.queueTime) {
                         let mins = Math.floor((Date.now() - d.queueTime) / 60000);
@@ -327,71 +313,14 @@
     }
 
     // ==========================================
-    // 2. 🔥 熱區烽火系統 (沖天炮警報)
-    // ==========================================
-    let playedBeacons = new Set();
-    let isInitialBeaconLoad = true;
-    setTimeout(() => isInitialBeaconLoad = false, 3000); // 防載入舊警報狂響
-
-    window.triggerBeacon = function(zoneId, zoneName) {
-        Swal.fire({
-            title: '確定點燃烽火？',
-            text: `即將對全車隊發送【${zoneName}】缺車支援警報！`,
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#e74c3c',
-            cancelButtonColor: '#34495e',
-            confirmButtonText: '🔥 點燃！',
-            cancelButtonText: '取消'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                db.ref('beacons/' + zoneId).set({
-                    timestamp: firebase.database.ServerValue.TIMESTAMP,
-                    by: myDriverName
-                });
-                Swal.fire('烽火已點燃', '全體車隊已收到您的支援請求！', 'success');
-            }
-        });
-    }
-
-    function startBeaconsListener() {
-        db.ref('beacons').on('value', snap => {
-            const data = snap.val() || {};
-            const now = Date.now();
-            
-            document.querySelectorAll('.zone-block').forEach(el => el.classList.remove('zone-on-fire'));
-
-            for(let zId in data) {
-                const b = data[zId];
-                // 烽火存活時間：5分鐘 (300000毫秒)
-                if (now - b.timestamp < 300000) {
-                    const zoneBlock = document.getElementById('zone-' + zId);
-                    if(zoneBlock) zoneBlock.classList.add('zone-on-fire');
-
-                    // 播放沖天炮
-                    const beaconKey = zId + '_' + b.timestamp;
-                    if (!isInitialBeaconLoad && !playedBeacons.has(beaconKey)) {
-                        playedBeacons.add(beaconKey);
-                        playFireworkSound();
-                    }
-                }
-            }
-        });
-    }
-
-    function playFireworkSound() {
-        const audio = document.getElementById('firework-sound');
-        if(audio) {
-            audio.currentTime = 0;
-            audio.play().catch(e=>console.log("需點擊螢幕解鎖音效", e));
-        }
-    }
-
-    // ==========================================
-    // 3. 💬 車隊對講機系統
+    // 2. 💬 車隊對講機系統
     // ==========================================
     let isChatOpen = false;
     let unreadCount = 0;
+    
+    // 初始化防呆，避免載入舊訊息狂響
+    let isInitialLoad = true;
+    setTimeout(() => isInitialLoad = false, 3000);
 
     window.toggleChat = function() {
         const panel = document.getElementById('chat-panel');
@@ -425,7 +354,7 @@
             
             scrollToBottom();
 
-            if (!isMe && !isInitialBeaconLoad) {
+            if (!isMe && !isInitialLoad) {
                 if (!isChatOpen) {
                     unreadCount++;
                     const badge = document.getElementById('chat-badge');
@@ -459,7 +388,7 @@
     }
 
     // ==========================================
-    // 4. 地圖與區域繪製邏輯
+    // 3. 地圖與區域繪製邏輯
     // ==========================================
     function processGeoData() {
         const points = [];
@@ -526,7 +455,6 @@
                             <i class="fa-solid fa-map-location-dot" style="margin-right:10px; color:${z.color};"></i> ${z.name}
                         </div>
                         <div style="display:flex; align-items:center; gap:10px;">
-                            <button class="btn-fire" onclick="event.stopPropagation(); triggerBeacon('${z.id}', '${z.name}')">🚨 點燃烽火</button>
                             <div class="zone-count" id="count-${z.id}">0</div>
                         </div>
                     </div>
