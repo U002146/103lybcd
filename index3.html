@@ -2,8 +2,11 @@
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>敬老愛心計程車 - 排班區</title> 
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>敬老愛心計程車 - 戰情室</title> 
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
   <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAIxc6PEhHgUs_A9lyRUg8dNbmwOpSamY8&libraries=geometry"></script>
@@ -12,65 +15,126 @@
   <style>
     body { margin: 0; padding: 0; background: #121212; color: white; font-family: 'Segoe UI', sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
     
-    #map-container { height: 50%; width: 100%; position: relative; border-bottom: 3px solid #00C853; background: #fff; }
+    #map-container { height: 45%; width: 100%; position: relative; border-bottom: 3px solid #00C853; background: #fff; }
     #map { width: 100%; height: 100%; }
 
-    #board-container { height: 50%; width: 100%; display: flex; flex-direction: column; background: #1e1e1e; }
+    #board-container { height: 55%; width: 100%; display: flex; flex-direction: column; background: #1e1e1e; position: relative; }
     
-    .zone-header { padding: 10px 15px; background: #2c3e50; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #444; cursor: pointer; transition: background 0.2s; }
+    .zone-header { padding: 12px 15px; background: #2c3e50; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #444; cursor: pointer; transition: background 0.2s; }
     .zone-header:hover { background: #34495e; }
     
     .zone-title { font-size: 16px; font-weight: bold; color: #fff; display: flex; align-items: center; }
     .zone-count { background: #f1c40f; color: #000; padding: 2px 10px; border-radius: 20px; font-weight: bold; font-size: 14px; min-width: 25px; text-align: center; }
     .zone-count.empty { background: #00C853; color: white; animation: pulse 2s infinite; }
+    
+    /* 🔥 烽火警報特效 */
+    @keyframes fire-flash { 0% { background-color: rgba(231, 76, 60, 0.2); } 50% { background-color: rgba(231, 76, 60, 0.8); } 100% { background-color: rgba(231, 76, 60, 0.2); } }
+    .zone-on-fire .zone-header { animation: fire-flash 0.8s infinite !important; border-left: 6px solid #e74c3c; }
+    .btn-fire { background: #e74c3c; color: white; border: none; padding: 5px 12px; border-radius: 6px; font-weight: bold; font-size: 12px; cursor: pointer; box-shadow: 0 0 10px rgba(231, 76, 60, 0.5); }
+    .btn-fire:active { transform: scale(0.9); }
+
     @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(0,200,83,0.7); } 70% { box-shadow: 0 0 0 10px rgba(0,200,83,0); } 100% { box-shadow: 0 0 0 0 rgba(0,200,83,0); } }
     
     .driver-list { display: none; padding: 10px; background: #222; border-bottom: 1px solid #444; }
-    .driver-list.active { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+    .driver-list.active { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
     
-    .driver-card { background: #333; border-radius: 8px; padding: 10px; display: flex; align-items: center; border-left: 4px solid #00C853; justify-content: space-between; }
+    .driver-card { background: #333; border-radius: 8px; padding: 10px; display: flex; align-items: center; border-left: 4px solid #00C853; justify-content: space-between; position: relative; }
     .driver-card.queue { border-left-color: #3498db; }
     .driver-card.busy { border-left-color: #e67e22; opacity: 0.5; }
     
     .d-left { display: flex; align-items: center; }
     .d-avatar { width: 40px; height: 40px; border-radius: 50%; background: #555; overflow: hidden; margin-right: 10px; }
     .d-avatar img { width: 100%; height: 100%; object-fit: cover; }
-    .d-info h3 { margin: 0; font-size: 16px; color: #fff; }
+    .d-info h3 { margin: 0; font-size: 15px; color: #fff; display: flex; align-items: center; }
     .d-info p { margin: 2px 0 0; font-size: 12px; color: #aaa; }
 
-    .btn-dial { background: #00C853; color: white; width: 40px; height: 40px; border-radius: 50%; display: flex; justify-content: center; align-items: center; text-decoration: none; box-shadow: 0 2px 5px rgba(0,0,0,0.3); transition: transform 0.1s; }
+    /* ⏳ 排班計時器標籤 */
+    .time-badge { font-size: 10px; background: #3498db; color: white; padding: 2px 6px; border-radius: 4px; margin-left: 6px; font-weight: normal; }
+
+    .btn-dial { background: #00C853; color: white; width: 38px; height: 38px; border-radius: 50%; display: flex; justify-content: center; align-items: center; text-decoration: none; box-shadow: 0 2px 5px rgba(0,0,0,0.3); transition: transform 0.1s; }
     .btn-dial:active { transform: scale(0.9); }
     .btn-dial.disabled { background: #555; pointer-events: none; }
-    .btn-dial i { font-size: 18px; }
 
     .marquee { background: #000; color: #00C853; padding: 8px; font-size: 14px; white-space: nowrap; overflow: hidden; text-align: center; border-bottom: 1px solid #333; display: flex; justify-content: center; align-items: center; gap: 10px;}
     .radar-indicator { background: #111; color: #00C853; padding: 2px 8px; border-radius: 10px; border: 1px solid #00C853; font-size: 12px; font-weight: bold; }
-    
     @keyframes pulse-radar { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
     .radar-active { animation: pulse-radar 2s infinite; color: #00C853; border-color: #00C853; }
+
+    /* 💬 車隊對講機 UI */
+    #chat-fab { position: fixed; bottom: 20px; right: 20px; width: 60px; height: 60px; background: linear-gradient(135deg, #8e44ad, #9b59b6); border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 24px; color: white; box-shadow: 0 4px 15px rgba(142, 68, 173, 0.5); cursor: pointer; z-index: 100; border: 2px solid #d2b4de; }
+    #chat-fab:active { transform: scale(0.95); }
+    #chat-badge { position: absolute; top: -5px; right: -5px; background: #e74c3c; color: white; font-size: 12px; font-weight: bold; width: 22px; height: 22px; border-radius: 50%; display: flex; justify-content: center; align-items: center; border: 2px solid #1e1e1e; }
+
+    #chat-panel { position: fixed; bottom: -100%; left: 0; width: 100%; height: 65%; background: rgba(30, 30, 30, 0.95); backdrop-filter: blur(10px); z-index: 101; border-top-left-radius: 20px; border-top-right-radius: 20px; display: flex; flex-direction: column; transition: bottom 0.3s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 -5px 25px rgba(0,0,0,0.5); border-top: 1px solid #444; }
+    #chat-panel.open { bottom: 0; }
+    .chat-header { padding: 15px; background: #8e44ad; color: white; font-weight: bold; display: flex; justify-content: space-between; align-items: center; border-top-left-radius: 20px; border-top-right-radius: 20px; cursor: pointer; }
+    .chat-messages { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+    .msg-box { max-width: 80%; padding: 10px 14px; border-radius: 15px; font-size: 14px; line-height: 1.4; position: relative; }
+    .msg-mine { background: #00C853; color: white; align-self: flex-end; border-bottom-right-radius: 2px; }
+    .msg-others { background: #444; color: white; align-self: flex-start; border-bottom-left-radius: 2px; }
+    .msg-name { font-size: 10px; color: #aaa; margin-bottom: 4px; font-weight: bold; }
+    .msg-mine .msg-name { display: none; }
+    .chat-input-area { padding: 15px; background: #222; display: flex; gap: 10px; border-top: 1px solid #444; padding-bottom: 25px;}
+    .chat-input-area input { flex: 1; padding: 12px 15px; border-radius: 25px; border: none; background: #111; color: white; outline: none; }
+    .chat-input-area button { background: #8e44ad; color: white; border: none; width: 45px; height: 45px; border-radius: 50%; cursor: pointer; font-size: 16px; }
+    .chat-input-area button:active { transform: scale(0.9); }
   </style>
 </head>
 <body>
 
+  <audio id="firework-sound" src="firework.mp3" preload="auto"></audio>
+  <audio id="msg-sound" src="https://actions.google.com/sounds/v1/water/droplet_reverb.ogg" preload="auto"></audio>
+
   <div id="map-container"><div id="map"></div></div>
   <div class="marquee">
-    <span>全境監控中 (14區)</span>
-    <span class="radar-indicator radar-active" id="radar-status-box"><i class="fa-solid fa-satellite-dish"></i> <span id="radar-status-text">即時連機</span></span>
+    <span>戰情監控中 (14區)</span>
+    <span class="radar-indicator radar-active"><i class="fa-solid fa-satellite-dish"></i> <span>即時連機</span></span>
     <span id="clock"></span>
   </div>
 
-  <div id="board-container" style="overflow-y: auto;">
+  <div id="board-container" style="overflow-y: auto; padding-bottom: 80px;">
     <div id="zones-wrapper"></div>
   </div>
 
+  <div id="chat-fab" onclick="toggleChat()">
+    <i class="fa-solid fa-walkie-talkie"></i>
+    <span id="chat-badge" class="hidden">0</span>
+  </div>
+
+  <div id="chat-panel">
+    <div class="chat-header" onclick="toggleChat()">
+        <span><i class="fa-solid fa-walkie-talkie mr-2"></i>車隊對講機</span>
+        <i class="fa-solid fa-chevron-down"></i>
+    </div>
+    <div class="chat-messages" id="chat-messages">
+        <div style="text-align:center; color:#666; font-size:12px; margin-top:20px;">歡迎使用車隊專屬無線電</div>
+    </div>
+    <div class="chat-input-area">
+        <input type="text" id="chat-input" placeholder="回報前線戰況..." onkeypress="if(event.key==='Enter') sendMsg()">
+        <button onclick="sendMsg()"><i class="fa-solid fa-paper-plane"></i></button>
+    </div>
+  </div>
+
   <script>
-    const VERSION = "v6.2"; // 🚀 車牌修復版：修正舊版 d.car 變數，改為 d.carNo
+    const VERSION = "v6.3"; // 🚀 三叉戟升級版
     const firebaseConfig = { databaseURL: "https://hualientaxi-bb32f-default-rtdb.asia-southeast1.firebasedatabase.app/" };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
     
+    const urlParams = new URLSearchParams(window.location.search);
+    let myDriverId = urlParams.get('did') || 'TDP-TESTER';
+    let myDriverName = "司機";
+
+    // 抓取自己的名字供聊天室使用
+    db.ref('drivers/' + myDriverId).once('value', snap => {
+        if(snap.exists() && snap.val().name) myDriverName = snap.val().name;
+    });
+
     var map, markers = {}, zonePolygons = {}; 
     var ZONES_DATA = []; 
+
+    // ⏳ 本地排班計時器記錄表 { driverId: timestamp }
+    let localQueueTracker = {};
 
     const ZONE_CONFIG = {
         "花蓮前站":   { color: "#2980b9", priority: 1 },
@@ -131,9 +195,16 @@
     };
 
     window.onload = function() {
+        // 互動後解鎖音效權限防呆
+        document.body.addEventListener('click', () => {
+            document.getElementById('firework-sound').play().then(()=>document.getElementById('firework-sound').pause()).catch(()=>{});
+        }, { once: true });
+
         initMap();
         processGeoData(); 
         startRealtimeRadar(); 
+        startBeaconsListener();
+        startChatListener();
         setInterval(() => document.getElementById('clock').innerText = new Date().toLocaleString(), 1000);
     };
 
@@ -144,6 +215,9 @@
         });
     }
 
+    // ==========================================
+    // 1. 排班區雷達與計時器 (自動排序)
+    // ==========================================
     function startRealtimeRadar() {
         db.ref('drivers').on('value', snapshot => {
             updateDashboard(snapshot);
@@ -159,10 +233,23 @@
 
         Object.keys(data).forEach(key => {
             const d = data[key];
-            
-            if (d.status !== 'online') return;
+            if (d.status !== 'online') {
+                delete localQueueTracker[key]; // 下線則清除計時
+                return;
+            }
 
             activeIds.add(key);
+            d.id = key; // 存入ID供排序用
+
+            // ⏳ 排班計時邏輯：只要是 queue 狀態且沒記錄，就開始計時
+            if (d.workStatus === 'queue') {
+                if (!localQueueTracker[key]) localQueueTracker[key] = Date.now();
+                d.queueTime = localQueueTracker[key];
+            } else {
+                delete localQueueTracker[key];
+                d.queueTime = null;
+            }
+
             const pos = new google.maps.LatLng(d.lat, d.lng);
             
             if (!markers[key]) {
@@ -180,12 +267,20 @@
             });
         });
 
-        for(let k in markers) { if(!activeIds.has(k)) { markers[k].setMap(null); delete markers[k]; } }
+        for(let k in markers) { if(!activeIds.has(k)) { markers[k].setMap(null); delete markers[k]; delete localQueueTracker[k]; } }
 
         ZONES_DATA.forEach(z => {
             const list = document.getElementById(`list-${z.id}`);
             const count = document.getElementById(`count-${z.id}`);
             if(!list || !count) return;
+
+            // 🎯 強制排序：有計時的排前面 (時間越早數值越小排越前)，沒計時的排後面
+            zoneDrivers[z.id].sort((a, b) => {
+                if (a.queueTime && b.queueTime) return a.queueTime - b.queueTime;
+                if (a.queueTime) return -1;
+                if (b.queueTime) return 1;
+                return 0;
+            });
 
             list.innerHTML = "";
             count.innerText = zoneDrivers[z.id].length;
@@ -206,14 +301,20 @@
                         ? `<a href="tel:${d.phone}" class="btn-dial ${isBusy ? 'disabled' : ''}"><i class="fa-solid fa-phone"></i></a>` 
                         : `<div style="width:40px;"></div>`;
 
-                    // 🚀 v6.2 核心修復：d.car 變更為 d.carNo，優先讀取新版車牌變數，向下相容舊版 d.car
                     const displayCarNo = d.carNo || d.car || '計程車';
+                    
+                    // 計算等候幾分鐘
+                    let waitHtml = "";
+                    if (d.queueTime) {
+                        let mins = Math.floor((Date.now() - d.queueTime) / 60000);
+                        waitHtml = `<span class="time-badge"><i class="fa-solid fa-hourglass-half"></i> ${mins}分</span>`;
+                    }
 
                     list.innerHTML += `
                         <div class="driver-card ${statusClass}">
                             <div class="d-left">
                                 <div class="d-avatar"><img src="${avatar}"></div>
-                                <div class="d-info"><h3>${d.name}</h3><p>${displayCarNo}</p></div>
+                                <div class="d-info"><h3>${d.name} ${waitHtml}</h3><p>${displayCarNo}</p></div>
                             </div>
                             ${phoneBtn}
                         </div>
@@ -225,6 +326,141 @@
         });
     }
 
+    // ==========================================
+    // 2. 🔥 熱區烽火系統 (沖天炮警報)
+    // ==========================================
+    let playedBeacons = new Set();
+    let isInitialBeaconLoad = true;
+    setTimeout(() => isInitialBeaconLoad = false, 3000); // 防載入舊警報狂響
+
+    window.triggerBeacon = function(zoneId, zoneName) {
+        Swal.fire({
+            title: '確定點燃烽火？',
+            text: `即將對全車隊發送【${zoneName}】缺車支援警報！`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#e74c3c',
+            cancelButtonColor: '#34495e',
+            confirmButtonText: '🔥 點燃！',
+            cancelButtonText: '取消'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                db.ref('beacons/' + zoneId).set({
+                    timestamp: firebase.database.ServerValue.TIMESTAMP,
+                    by: myDriverName
+                });
+                Swal.fire('烽火已點燃', '全體車隊已收到您的支援請求！', 'success');
+            }
+        });
+    }
+
+    function startBeaconsListener() {
+        db.ref('beacons').on('value', snap => {
+            const data = snap.val() || {};
+            const now = Date.now();
+            
+            document.querySelectorAll('.zone-block').forEach(el => el.classList.remove('zone-on-fire'));
+
+            for(let zId in data) {
+                const b = data[zId];
+                // 烽火存活時間：5分鐘 (300000毫秒)
+                if (now - b.timestamp < 300000) {
+                    const zoneBlock = document.getElementById('zone-' + zId);
+                    if(zoneBlock) zoneBlock.classList.add('zone-on-fire');
+
+                    // 播放沖天炮
+                    const beaconKey = zId + '_' + b.timestamp;
+                    if (!isInitialBeaconLoad && !playedBeacons.has(beaconKey)) {
+                        playedBeacons.add(beaconKey);
+                        playFireworkSound();
+                    }
+                }
+            }
+        });
+    }
+
+    function playFireworkSound() {
+        const audio = document.getElementById('firework-sound');
+        if(audio) {
+            audio.currentTime = 0;
+            audio.play().catch(e=>console.log("需點擊螢幕解鎖音效", e));
+        }
+    }
+
+    // ==========================================
+    // 3. 💬 車隊對講機系統
+    // ==========================================
+    let isChatOpen = false;
+    let unreadCount = 0;
+
+    window.toggleChat = function() {
+        const panel = document.getElementById('chat-panel');
+        const badge = document.getElementById('chat-badge');
+        isChatOpen = !isChatOpen;
+        if(isChatOpen) {
+            panel.classList.add('open');
+            badge.classList.add('hidden');
+            unreadCount = 0;
+            badge.innerText = '0';
+            setTimeout(()=> scrollToBottom(), 300);
+        } else {
+            panel.classList.remove('open');
+        }
+    }
+
+    function startChatListener() {
+        db.ref('chat/messages').limitToLast(30).on('child_added', snap => {
+            const msg = snap.val();
+            const isMe = msg.senderId === myDriverId;
+            const msgBox = document.getElementById('chat-messages');
+            
+            const timeStr = new Date(msg.timestamp).toLocaleTimeString('zh-TW', {hour: '2-digit', minute:'2-digit'});
+            
+            msgBox.innerHTML += `
+                <div class="msg-box ${isMe ? 'msg-mine' : 'msg-others'}">
+                    <div class="msg-name">${msg.senderName} • ${timeStr}</div>
+                    <div>${msg.text}</div>
+                </div>
+            `;
+            
+            scrollToBottom();
+
+            if (!isMe && !isInitialBeaconLoad) {
+                if (!isChatOpen) {
+                    unreadCount++;
+                    const badge = document.getElementById('chat-badge');
+                    badge.innerText = unreadCount;
+                    badge.classList.remove('hidden');
+                    
+                    const audio = document.getElementById('msg-sound');
+                    if(audio) { audio.currentTime = 0; audio.play().catch(()=>{}); }
+                }
+            }
+        });
+    }
+
+    window.sendMsg = function() {
+        const input = document.getElementById('chat-input');
+        const text = input.value.trim();
+        if(!text) return;
+        
+        db.ref('chat/messages').push({
+            senderId: myDriverId,
+            senderName: myDriverName,
+            text: text,
+            timestamp: firebase.database.ServerValue.TIMESTAMP
+        });
+        input.value = '';
+    }
+
+    function scrollToBottom() {
+        const msgBox = document.getElementById('chat-messages');
+        msgBox.scrollTop = msgBox.scrollHeight;
+    }
+
+    // ==========================================
+    // 4. 地圖與區域繪製邏輯
+    // ==========================================
     function processGeoData() {
         const points = [];
         const polygons = [];
@@ -289,7 +525,10 @@
                         <div class="zone-title">
                             <i class="fa-solid fa-map-location-dot" style="margin-right:10px; color:${z.color};"></i> ${z.name}
                         </div>
-                        <div class="zone-count" id="count-${z.id}">0</div>
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <button class="btn-fire" onclick="event.stopPropagation(); triggerBeacon('${z.id}', '${z.name}')">🚨 點燃烽火</button>
+                            <div class="zone-count" id="count-${z.id}">0</div>
+                        </div>
                     </div>
                     <div class="driver-list" id="list-${z.id}"></div>
                 </div>
