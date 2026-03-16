@@ -42,8 +42,8 @@
     .d-info h3 { margin: 0; font-size: 15px; color: #fff; display: flex; align-items: center; }
     .d-info p { margin: 2px 0 0; font-size: 12px; color: #aaa; }
 
-    /* ⏳ 排班計時器標籤 */
-    .time-badge { font-size: 10px; background: #3498db; color: white; padding: 2px 6px; border-radius: 4px; margin-left: 6px; font-weight: normal; }
+    /* ⏳ 靜態入列時間標籤 */
+    .time-badge { font-size: 11px; background: #3498db; color: white; padding: 2px 6px; border-radius: 4px; margin-left: 6px; font-weight: bold; letter-spacing: 0.5px;}
 
     .btn-dial { background: #00C853; color: white; width: 38px; height: 38px; border-radius: 50%; display: flex; justify-content: center; align-items: center; text-decoration: none; box-shadow: 0 2px 5px rgba(0,0,0,0.3); transition: transform 0.1s; }
     .btn-dial:active { transform: scale(0.9); }
@@ -54,21 +54,30 @@
     @keyframes pulse-radar { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
     .radar-active { animation: pulse-radar 2s infinite; color: #00C853; border-color: #00C853; }
 
-    /* 💬 車隊對講機 UI (移至地圖右上角) */
+    /* 💬 聊天室懸浮按鈕 */
     #chat-fab { position: fixed; top: 15px; right: 15px; width: 55px; height: 55px; background: linear-gradient(135deg, #8e44ad, #9b59b6); border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 22px; color: white; box-shadow: 0 4px 15px rgba(142, 68, 173, 0.5); cursor: pointer; z-index: 100; border: 2px solid #d2b4de; }
     #chat-fab:active { transform: scale(0.95); }
     #chat-badge { position: absolute; top: -5px; right: -5px; background: #e74c3c; color: white; font-size: 12px; font-weight: bold; width: 22px; height: 22px; border-radius: 50%; display: flex; justify-content: center; align-items: center; border: 2px solid #1e1e1e; }
 
-    #chat-panel { position: fixed; bottom: -100%; left: 0; width: 100%; height: 65%; background: rgba(30, 30, 30, 0.95); backdrop-filter: blur(10px); z-index: 101; border-top-left-radius: 20px; border-top-right-radius: 20px; display: flex; flex-direction: column; transition: bottom 0.3s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 -5px 25px rgba(0,0,0,0.5); border-top: 1px solid #444; }
+    /* 💬 聊天室面板與 LINE 質感泡泡 */
+    #chat-panel { position: fixed; bottom: -100%; left: 0; width: 100%; height: 65%; background: rgba(25, 25, 25, 0.98); backdrop-filter: blur(10px); z-index: 101; border-top-left-radius: 20px; border-top-right-radius: 20px; display: flex; flex-direction: column; transition: bottom 0.3s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 -5px 25px rgba(0,0,0,0.5); border-top: 1px solid #444; }
     #chat-panel.open { bottom: 0; }
     .chat-header { padding: 15px; background: #8e44ad; color: white; font-weight: bold; display: flex; justify-content: space-between; align-items: center; border-top-left-radius: 20px; border-top-right-radius: 20px; cursor: pointer; }
-    .chat-messages { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
-    .msg-box { max-width: 80%; padding: 10px 14px; border-radius: 15px; font-size: 14px; line-height: 1.4; position: relative; }
-    .msg-mine { background: #00C853; color: white; align-self: flex-end; border-bottom-right-radius: 2px; }
-    .msg-others { background: #444; color: white; align-self: flex-start; border-bottom-left-radius: 2px; }
-    .msg-name { font-size: 10px; color: #aaa; margin-bottom: 4px; font-weight: bold; }
-    .msg-mine .msg-name { display: none; }
-    .chat-input-area { padding: 15px; background: #222; display: flex; gap: 10px; border-top: 1px solid #444; padding-bottom: 25px;}
+    .chat-messages { flex: 1; padding: 15px 15px 5px 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; }
+    
+    .chat-row { display: flex; gap: 10px; align-items: flex-end; }
+    .chat-row.mine { flex-direction: row-reverse; }
+    .chat-avatar { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; background: #555; flex-shrink: 0; border: 1px solid #444;}
+    .chat-content { display: flex; flex-direction: column; max-width: 75%; }
+    .chat-row.mine .chat-content { align-items: flex-end; }
+    .chat-row.others .chat-content { align-items: flex-start; }
+    
+    .chat-name { font-size: 11px; color: #aaa; margin-bottom: 4px; font-weight: bold; }
+    .chat-bubble { padding: 10px 14px; font-size: 15px; line-height: 1.4; word-break: break-word; box-shadow: 0 1px 2px rgba(0,0,0,0.2); }
+    .chat-row.mine .chat-bubble { background: #00C853; color: white; border-radius: 18px 18px 2px 18px; }
+    .chat-row.others .chat-bubble { background: #333; color: white; border-radius: 18px 18px 18px 2px; }
+
+    .chat-input-area { padding: 15px; background: #1e1e1e; display: flex; gap: 10px; border-top: 1px solid #333; padding-bottom: 25px;}
     .chat-input-area input { flex: 1; padding: 12px 15px; border-radius: 25px; border: none; background: #111; color: white; outline: none; }
     .chat-input-area button { background: #8e44ad; color: white; border: none; width: 45px; height: 45px; border-radius: 50%; cursor: pointer; font-size: 16px; }
     .chat-input-area button:active { transform: scale(0.9); }
@@ -80,7 +89,7 @@
 
   <div id="map-container"><div id="map"></div></div>
   <div class="marquee">
-    <span>戰情監控中(14區)</span>
+    <span>戰情監控中 (14區)</span>
     <span class="radar-indicator radar-active"><i class="fa-solid fa-satellite-dish"></i> <span>即時連機</span></span>
     <span id="clock"></span>
   </div>
@@ -100,7 +109,7 @@
         <i class="fa-solid fa-chevron-down"></i>
     </div>
     <div class="chat-messages" id="chat-messages">
-        <div style="text-align:center; color:#666; font-size:12px; margin-top:20px;">歡迎使用車隊專屬無線電</div>
+        <div style="text-align:center; color:#555; font-size:12px; margin-bottom:10px;">🛡️ 歡迎使用車隊專屬無線電 🛡️</div>
     </div>
     <div class="chat-input-area">
         <input type="text" id="chat-input" placeholder="回報前線戰況..." onkeypress="if(event.key==='Enter') sendMsg()">
@@ -109,7 +118,7 @@
   </div>
 
   <script>
-    const VERSION = "v6.4"; // 🚀 精簡實戰版 (右上角對講機)
+    const VERSION = "v6.5"; // 🚀 LINE 通訊質感版
     const firebaseConfig = { databaseURL: "https://hualientaxi-bb32f-default-rtdb.asia-southeast1.firebasedatabase.app/" };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
@@ -117,10 +126,15 @@
     const urlParams = new URLSearchParams(window.location.search);
     let myDriverId = urlParams.get('did') || 'TDP-TESTER';
     let myDriverName = "司機";
+    let myDriverPhoto = "https://cdn-icons-png.flaticon.com/512/3237/3237472.png"; // 預設頭像
 
-    // 抓取自己的名字供聊天室使用
+    // 抓取自己的名字與頭像供聊天室使用
     db.ref('drivers/' + myDriverId).once('value', snap => {
-        if(snap.exists() && snap.val().name) myDriverName = snap.val().name;
+        if(snap.exists()) {
+            let data = snap.val();
+            if(data.name) myDriverName = data.name;
+            if(data.photo) myDriverPhoto = data.photo;
+        }
     });
 
     var map, markers = {}, zonePolygons = {}; 
@@ -203,7 +217,7 @@
     }
 
     // ==========================================
-    // 1. 排班區雷達與計時器 (自動排序)
+    // 1. 排班區雷達與靜態計時器 (自動排序)
     // ==========================================
     function startRealtimeRadar() {
         db.ref('drivers').on('value', snapshot => {
@@ -228,7 +242,6 @@
             activeIds.add(key);
             d.id = key; 
 
-            // ⏳ 排班計時邏輯：只要是 queue 狀態且沒記錄，就開始計時
             if (d.workStatus === 'queue') {
                 if (!localQueueTracker[key]) localQueueTracker[key] = Date.now();
                 d.queueTime = localQueueTracker[key];
@@ -261,7 +274,6 @@
             const count = document.getElementById(`count-${z.id}`);
             if(!list || !count) return;
 
-            // 🎯 強制排序：有計時的排前面 (時間越早數值越小排越前)，沒計時的排後面
             zoneDrivers[z.id].sort((a, b) => {
                 if (a.queueTime && b.queueTime) return a.queueTime - b.queueTime;
                 if (a.queueTime) return -1;
@@ -290,10 +302,12 @@
 
                     const displayCarNo = d.carNo || d.car || '計程車';
                     
+                    // 🚀 靜態入列時間顯示 (例如：13:19)
                     let waitHtml = "";
                     if (d.queueTime) {
-                        let mins = Math.floor((Date.now() - d.queueTime) / 60000);
-                        waitHtml = `<span class="time-badge"><i class="fa-solid fa-hourglass-half"></i> ${mins}分</span>`;
+                        let qDate = new Date(d.queueTime);
+                        let qTimeStr = qDate.getHours().toString().padStart(2,'0') + ":" + qDate.getMinutes().toString().padStart(2,'0');
+                        waitHtml = `<span class="time-badge"><i class="fa-solid fa-clock mr-1"></i>${qTimeStr} 入列</span>`;
                     }
 
                     list.innerHTML += `
@@ -313,12 +327,10 @@
     }
 
     // ==========================================
-    // 2. 💬 車隊對講機系統
+    // 2. 💬 車隊對講機系統 (LINE 質感版)
     // ==========================================
     let isChatOpen = false;
     let unreadCount = 0;
-    
-    // 初始化防呆，避免載入舊訊息狂響
     let isInitialLoad = true;
     setTimeout(() => isInitialLoad = false, 3000);
 
@@ -344,13 +356,32 @@
             const msgBox = document.getElementById('chat-messages');
             
             const timeStr = new Date(msg.timestamp).toLocaleTimeString('zh-TW', {hour: '2-digit', minute:'2-digit'});
+            const msgPhoto = msg.senderPhoto || 'https://cdn-icons-png.flaticon.com/512/3237/3237472.png';
             
-            msgBox.innerHTML += `
-                <div class="msg-box ${isMe ? 'msg-mine' : 'msg-others'}">
-                    <div class="msg-name">${msg.senderName} • ${timeStr}</div>
-                    <div>${msg.text}</div>
-                </div>
-            `;
+            // 🚀 區分左右邊，並加上頭像
+            if (isMe) {
+                // 自己說的話 (右邊)
+                msgBox.innerHTML += `
+                    <div class="chat-row mine">
+                        <img src="${msgPhoto}" class="chat-avatar">
+                        <div class="chat-content">
+                            <div class="chat-name">${timeStr}</div>
+                            <div class="chat-bubble">${msg.text}</div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                // 別人說的話 (左邊)
+                msgBox.innerHTML += `
+                    <div class="chat-row others">
+                        <img src="${msgPhoto}" class="chat-avatar">
+                        <div class="chat-content">
+                            <div class="chat-name">${msg.senderName} • ${timeStr}</div>
+                            <div class="chat-bubble">${msg.text}</div>
+                        </div>
+                    </div>
+                `;
+            }
             
             scrollToBottom();
 
@@ -376,6 +407,7 @@
         db.ref('chat/messages').push({
             senderId: myDriverId,
             senderName: myDriverName,
+            senderPhoto: myDriverPhoto, // 🚀 傳送時夾帶自己的頭像
             text: text,
             timestamp: firebase.database.ServerValue.TIMESTAMP
         });
