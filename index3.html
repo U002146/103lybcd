@@ -59,7 +59,7 @@
     #chat-fab:active { transform: scale(0.95); }
     #chat-badge { position: absolute; top: -5px; right: -5px; background: #e74c3c; color: white; font-size: 12px; font-weight: bold; width: 22px; height: 22px; border-radius: 50%; display: flex; justify-content: center; align-items: center; border: 2px solid #1e1e1e; }
 
-    /* 💬 聊天室面板與 LINE 質感泡泡 */
+    /* 💬 聊天室面板與泡泡 */
     #chat-panel { position: fixed; bottom: -100%; left: 0; width: 100%; height: 65%; background: rgba(25, 25, 25, 0.98); backdrop-filter: blur(10px); z-index: 101; border-top-left-radius: 20px; border-top-right-radius: 20px; display: flex; flex-direction: column; transition: bottom 0.3s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 -5px 25px rgba(0,0,0,0.5); border-top: 1px solid #444; }
     #chat-panel.open { bottom: 0; }
     .chat-header { padding: 15px; background: #8e44ad; color: white; font-weight: bold; display: flex; justify-content: space-between; align-items: center; border-top-left-radius: 20px; border-top-right-radius: 20px; cursor: pointer; }
@@ -118,17 +118,24 @@
   </div>
 
   <script>
-    const VERSION = "v6.5"; // 🚀 LINE 通訊質感版
+    const VERSION = "v6.6"; // 🚀 聊天室顯示雙邊名稱與時間版
     const firebaseConfig = { databaseURL: "https://hualientaxi-bb32f-default-rtdb.asia-southeast1.firebasedatabase.app/" };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
     
+    // 🚀 從網址解析 driverId
     const urlParams = new URLSearchParams(window.location.search);
-    let myDriverId = urlParams.get('did') || 'TDP-TESTER';
-    let myDriverName = "司機";
-    let myDriverPhoto = "https://cdn-icons-png.flaticon.com/512/3237/3237472.png"; // 預設頭像
+    let myDriverId = urlParams.get('did'); 
+    
+    // 如果網址沒有 did，防呆回退到預設值
+    if (!myDriverId || myDriverId === 'null') {
+        myDriverId = 'TDP-TESTER';
+    }
 
-    // 抓取自己的名字與頭像供聊天室使用
+    let myDriverName = "司機";
+    let myDriverPhoto = "https://cdn-icons-png.flaticon.com/512/3237/3237472.png"; 
+
+    // 🚀 去資料庫抓取真實照片與名稱
     db.ref('drivers/' + myDriverId).once('value', snap => {
         if(snap.exists()) {
             let data = snap.val();
@@ -139,8 +146,6 @@
 
     var map, markers = {}, zonePolygons = {}; 
     var ZONES_DATA = []; 
-
-    // ⏳ 本地排班計時器記錄表 { driverId: timestamp }
     let localQueueTracker = {};
 
     const ZONE_CONFIG = {
@@ -302,7 +307,6 @@
 
                     const displayCarNo = d.carNo || d.car || '計程車';
                     
-                    // 🚀 靜態入列時間顯示 (例如：13:19)
                     let waitHtml = "";
                     if (d.queueTime) {
                         let qDate = new Date(d.queueTime);
@@ -327,7 +331,7 @@
     }
 
     // ==========================================
-    // 2. 💬 車隊對講機系統 (LINE 質感版)
+    // 2. 💬 車隊對講機系統 (v6.6 雙向顯示名稱與照片)
     // ==========================================
     let isChatOpen = false;
     let unreadCount = 0;
@@ -358,14 +362,14 @@
             const timeStr = new Date(msg.timestamp).toLocaleTimeString('zh-TW', {hour: '2-digit', minute:'2-digit'});
             const msgPhoto = msg.senderPhoto || 'https://cdn-icons-png.flaticon.com/512/3237/3237472.png';
             
-            // 🚀 區分左右邊，並加上頭像
+            // 🚀 區分左右邊，並強制加上頭像與名稱
             if (isMe) {
                 // 自己說的話 (右邊)
                 msgBox.innerHTML += `
                     <div class="chat-row mine">
                         <img src="${msgPhoto}" class="chat-avatar">
                         <div class="chat-content">
-                            <div class="chat-name">${timeStr}</div>
+                            <div class="chat-name">${msg.senderName} • ${timeStr}</div>
                             <div class="chat-bubble">${msg.text}</div>
                         </div>
                     </div>
@@ -407,7 +411,7 @@
         db.ref('chat/messages').push({
             senderId: myDriverId,
             senderName: myDriverName,
-            senderPhoto: myDriverPhoto, // 🚀 傳送時夾帶自己的頭像
+            senderPhoto: myDriverPhoto,
             text: text,
             timestamp: firebase.database.ServerValue.TIMESTAMP
         });
