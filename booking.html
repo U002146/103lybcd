@@ -32,11 +32,11 @@
         .type-btn i { font-size: 24px; margin-bottom: 6px; }
         .type-btn span { font-size: 12px; }
         
-        /* 🟩 專車 */
+        /* 🟩 專車 (綠色) */
         .type-btn[data-type="專車"].selected { border-color: #10B981; background: #ecfdf5; color: #047857; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2); }
-        /* 🟪 愛心 */
+        /* 🟪 愛心 (粉紅) */
         .type-btn[data-type="愛心"].selected { border-color: #EC4899; background: #fdf2f8; color: #be185d; box-shadow: 0 4px 12px rgba(236, 72, 153, 0.2); }
-        /* 🟨 多元 */
+        /* 🟨 多元 (金黃) */
         .type-btn[data-type="多元"].selected { border-color: #F59E0B; background: linear-gradient(135deg, #fffbeb, #fef3c7); color: #b45309; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3); }
 
         .loader { border: 3px solid #f3f3f3; border-top: 3px solid #10B981; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; }
@@ -131,11 +131,11 @@
     </div>
 
     <script>
-        const VERSION = "v5.0"; 
-        const API_KEY = 'AIzaSyAIxc6PEhHgUs_A9lyRUg8dNbmwOpSamY8'; // 請確保此 KEY 有啟用 Places API 與 Distance Matrix API
-        const LIFF_ID = '2008907691-26xuAmND'; 
-        const PROJECT_B_URL = 'https://liff.line.me/2008907691-1mAjwojZ'; 
-        const BOOKING_GAS_URL = 'https://script.google.com/macros/s/AKfycbzVTtBzYxPy9g-WnaJPS_Q_8GnzmWDf4Kaw7nA8VeDfe6ykM5rV3C2MmMddMh3AG6c9/exec'; 
+        const VERSION = "v5.1"; 
+        const API_KEY = 'AIzaSyAIxc6PEhHgUs_A9lyRUg8dNbmwOpSamY8'; // ✅ 已綁定金鑰，並通過 Google Console 安全限制
+        const LIFF_ID = '2008907691-26xuAmND'; // ✅ 新的 booking.html 專屬 LIFF ID
+        const PROJECT_B_URL = 'https://liff.line.me/2008907691-1mAjwojZ'; // 客端查看司機位置的網址
+        const BOOKING_GAS_URL = 'https://script.google.com/macros/s/AKfycbzVTtBzYxPy9g-WnaJPS_Q_8GnzmWDf4Kaw7nA8VeDfe6ykM5rV3C2MmMddMh3AG6c9/exec'; // 總帳本 GAS
 
         const PAYMENT_METHODS = [
             {id:'現金',label:'現金', icon:'<i class="fa-solid fa-coins text-slate-600"></i>'},
@@ -147,12 +147,13 @@
         let geocoder, distanceMatrix;
         let userName = "尊榮貴賓"; 
         let passengerId = "unknown";
-        let selectedServiceType = "多元";
+        let selectedServiceType = "多元"; // 預設車型
 
         const urlParams = new URLSearchParams(window.location.search);
         const editOrderId = urlParams.get('orderId');
 
         window.onload = function() {
+            // 5秒防呆機制，若發生異常至少會解開遮罩
             setTimeout(() => { document.getElementById('loading-overlay').style.display = 'none'; }, 5000); 
             
             const savedPhone = localStorage.getItem('taxi_user_phone');
@@ -349,7 +350,7 @@
                             showCancelButton: true,
                             confirmButtonColor: '#0f172a',
                             cancelButtonColor: '#f1f5f9',
-                            confirmButtonText: '✅ 確認呼叫專車',
+                            confirmButtonText: '✅ 確認呼叫車輛',
                             cancelButtonText: '<span style="color:#64748b;font-weight:bold;">返回修改</span>',
                             customClass: { popup: 'bottom-sheet animate__animated animate__slideInUp' },
                             position: 'bottom',
