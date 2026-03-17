@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>專屬定位叫車</title> 
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+
+    <style>
+        body { font-family: 'Noto Sans TC', sans-serif; background-color: #f4f4f5; min-height: 100vh; overflow-x: hidden; }
+        input, select, textarea { font-size: 16px !important; }
+        
+        #edit-mode-banner { display: none; background: #FEF3C7; color: #D97706; text-align: center; padding: 8px; font-size: 13px; font-weight: bold; border-bottom: 1px solid #FDE68A; position: sticky; top: 0; z-index: 50; }
+
+        /* 頂部品牌區 */
+        .brand-header { background: linear-gradient(135deg, #1e293b, #0f172a); padding: 30px 20px 40px 20px; border-bottom-left-radius: 30px; border-bottom-right-radius: 30px; color: white; position: relative; overflow: hidden; box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
+        .brand-header::before { content: ''; position: absolute; right: -20px; top: -20px; width: 150px; height: 150px; background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 70%); border-radius: 50%; }
+
+        /* 主控面板 */
+        .main-card { background: white; border-radius: 24px; padding: 24px; margin: -25px 15px 20px 15px; box-shadow: 0 8px 30px rgba(0,0,0,0.06); position: relative; z-index: 10; }
+
+        .input-group { background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px; padding: 12px 16px; margin-bottom: 12px; transition: all 0.2s; display: flex; align-items: center; }
+        .input-group:focus-within { border-color: #3b82f6; background-color: #fff; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
+        .input-icon { width: 24px; text-align: center; margin-right: 12px; font-size: 1.1rem; }
+
+        /* 車型選擇按鈕 */
+        .type-selector { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px; }
+        .type-btn { display: flex; flex-direction: column; items-center; justify-content: center; padding: 12px 5px; border-radius: 16px; border: 2px solid #e2e8f0; background: white; color: #64748b; font-weight: bold; transition: all 0.2s; cursor: pointer; text-align: center; }
+        .type-btn i { font-size: 24px; margin-bottom: 6px; }
+        .type-btn span { font-size: 12px; }
+        
+        /* 🟩 專車 */
+        .type-btn[data-type="專車"].selected { border-color: #10B981; background: #ecfdf5; color: #047857; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2); }
+        /* 🟪 愛心 */
+        .type-btn[data-type="愛心"].selected { border-color: #EC4899; background: #fdf2f8; color: #be185d; box-shadow: 0 4px 12px rgba(236, 72, 153, 0.2); }
+        /* 🟨 多元 */
+        .type-btn[data-type="多元"].selected { border-color: #F59E0B; background: linear-gradient(135deg, #fffbeb, #fef3c7); color: #b45309; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3); }
+
+        .loader { border: 3px solid #f3f3f3; border-top: 3px solid #10B981; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        /* SweetAlert 司機名片樣式 */
+        .swal2-popup.bottom-sheet { margin-bottom: 0; padding-bottom: env(safe-area-inset-bottom); border-bottom-left-radius: 0 !important; border-bottom-right-radius: 0 !important; width: 100%; max-width: 500px; }
+        .driver-card-popup { background: linear-gradient(to bottom, #ffffff, #f8fafc); border: 1px solid #e2e8f0; border-radius: 20px; padding: 15px; margin-bottom: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        .skeleton-block { background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 8px; }
+        @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+        /* 隱藏 Google Autocomplete 下拉選單的 LOGO */
+        .pac-container { border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); border: none; font-family: 'Noto Sans TC', sans-serif; z-index: 9999; }
+        .pac-item { padding: 10px 15px; font-size: 14px; cursor: pointer; }
+        .pac-item:hover { background-color: #f8fafc; }
+    </style>
+</head>
+<body>
+
+    <div id="loading-overlay" class="fixed inset-0 bg-white z-[9999] flex flex-col items-center justify-center transition-opacity duration-500">
+        <div class="loader mb-4 w-12 h-12 border-4 text-emerald-500"></div>
+        <p id="loading-text" class="text-gray-500 font-bold text-lg animate-pulse tracking-widest">系統連線中...</p>
+    </div>
+
+    <div id="edit-mode-banner"><i class="fa-solid fa-pen-to-square"></i> 訂單修改模式</div>
+
+    <div class="brand-header">
+        <h1 class="text-2xl font-black tracking-wider mb-1">劉學銘專屬叫車</h1>
+        <p class="text-slate-300 text-sm font-bold opacity-90"><i class="fa-solid fa-shield-halved text-emerald-400 mr-1"></i> 合法多元・敬老愛心車隊</p>
+    </div>
+
+    <div class="main-card">
+        <h3 class="text-xs font-bold text-slate-400 mb-3 uppercase tracking-widest">Select Service</h3>
+        <div class="type-selector" id="type-selector">
+            <div class="type-btn" data-type="專車" onclick="selectType('專車')">
+                <i class="fa-solid fa-car text-emerald-500"></i><span>專車接送</span>
+            </div>
+            <div class="type-btn" data-type="愛心" onclick="selectType('愛心')">
+                <i class="fa-solid fa-wheelchair text-pink-500"></i><span>敬老愛心</span>
+            </div>
+            <div class="type-btn selected" data-type="多元" onclick="selectType('多元')">
+                <i class="fa-solid fa-crown text-amber-500"></i><span>多元旗艦</span>
+            </div>
+        </div>
+
+        <h3 class="text-xs font-bold text-slate-400 mb-3 uppercase tracking-widest mt-4">Trip Details</h3>
+        
+        <div class="input-group">
+            <i class="fa-regular fa-circle-dot input-icon text-emerald-500"></i>
+            <div class="flex-1">
+                <label class="block text-[10px] text-slate-400 font-bold">上車地點 (GPS自動定位)</label>
+                <input type="text" id="pickup" autocomplete="off" placeholder="正在獲取位置..." class="w-full bg-transparent font-bold text-slate-800 outline-none">
+            </div>
+            <button onclick="getLocation()" class="text-emerald-500 p-2 active:scale-90"><i class="fa-solid fa-crosshairs"></i></button>
+        </div>
+
+        <div class="input-group border-l-4 border-l-amber-400">
+            <i class="fa-solid fa-location-dot input-icon text-rose-500"></i>
+            <div class="flex-1">
+                <label class="block text-[10px] text-amber-500 font-bold">下車地點 (必填)</label>
+                <input type="text" id="dropoff" autocomplete="off" placeholder="請輸入目的地計算車資..." class="w-full bg-transparent font-bold text-slate-800 outline-none">
+            </div>
+        </div>
+
+        <div class="flex gap-3">
+            <div class="input-group flex-1">
+                <i class="fa-solid fa-phone input-icon text-slate-400"></i>
+                <div class="flex-1">
+                    <label class="block text-[10px] text-slate-400 font-bold">聯絡電話</label>
+                    <input type="tel" id="phone" placeholder="09xx-xxx-xxx" class="w-full bg-transparent font-bold text-slate-800 outline-none">
+                </div>
+            </div>
+            <div class="input-group w-2/5 cursor-pointer" onclick="openPaymentPicker()">
+                <div class="flex-1">
+                    <label class="block text-[10px] text-slate-400 font-bold">付款</label>
+                    <div class="font-bold text-slate-800 text-sm truncate" id="payment-display">現金</div>
+                </div>
+                <i class="fa-solid fa-caret-down text-slate-300 text-xs"></i>
+                <input type="hidden" id="payment-value" value="現金">
+            </div>
+        </div>
+    </div>
+
+    <div class="fixed bottom-0 left-0 right-0 p-5 bg-white/95 backdrop-blur-md border-t border-gray-100 pb-8">
+        <button id="cancelOrderBtn" onclick="cancelOrder()" class="hidden w-full mb-3 bg-rose-50 text-rose-600 font-bold py-3 rounded-2xl border border-rose-200">
+            <i class="fa-solid fa-trash-can mr-2"></i>取消此訂單
+        </button>
+        <button id="submitBtn" onclick="calculateAndConfirm()" class="w-full bg-slate-900 text-white font-bold py-4 rounded-2xl shadow-xl shadow-slate-300 active:scale-[0.98] transition-all text-xl flex items-center justify-center space-x-2">
+            <i class="fa-solid fa-calculator"></i>
+            <span id="submit-btn-text">估算車資並叫車</span>
+        </button>
+    </div>
+
+    <script>
+        const VERSION = "v5.0"; 
+        const API_KEY = 'AIzaSyAIxc6PEhHgUs_A9lyRUg8dNbmwOpSamY8'; // 請確保此 KEY 有啟用 Places API 與 Distance Matrix API
+        const LIFF_ID = '2008907691-MAdAtfyf'; 
+        const PROJECT_B_URL = 'https://liff.line.me/2008907691-1mAjwojZ'; 
+        const BOOKING_GAS_URL = 'https://script.google.com/macros/s/AKfycbzVTtBzYxPy9g-WnaJPS_Q_8GnzmWDf4Kaw7nA8VeDfe6ykM5rV3C2MmMddMh3AG6c9/exec'; 
+
+        const PAYMENT_METHODS = [
+            {id:'現金',label:'現金', icon:'<i class="fa-solid fa-coins text-slate-600"></i>'},
+            {id:'LINE PAY',label:'LINE Pay', icon:'<i class="fa-brands fa-line text-green-500"></i>'},
+            {id:'敬老卡',label:'敬老愛心卡', icon:'<i class="fa-solid fa-address-card text-orange-500"></i>'},
+            {id:'乘車券',label:'乘車券', icon:'<i class="fa-solid fa-ticket text-blue-500"></i>'}
+        ];
+
+        let geocoder, distanceMatrix;
+        let userName = "尊榮貴賓"; 
+        let passengerId = "unknown";
+        let selectedServiceType = "多元";
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const editOrderId = urlParams.get('orderId');
+
+        window.onload = function() {
+            setTimeout(() => { document.getElementById('loading-overlay').style.display = 'none'; }, 5000); 
+            
+            const savedPhone = localStorage.getItem('taxi_user_phone');
+            if(savedPhone) document.getElementById('phone').value = savedPhone;
+            
+            const savedPayment = localStorage.getItem('taxi_selected_payment');
+            if(savedPayment) { document.getElementById('payment-display').innerText = savedPayment; document.getElementById('payment-value').value = savedPayment; }
+
+            initLiff();
+            loadGoogleMaps();
+        };
+
+        // 選擇車型UI
+        window.selectType = function(type) {
+            selectedServiceType = type;
+            document.querySelectorAll('.type-btn').forEach(btn => btn.classList.remove('selected'));
+            document.querySelector(`.type-btn[data-type="${type}"]`).classList.add('selected');
+        }
+
+        // 載入 Google Maps API (不需實體地圖，僅需 Places/Distance)
+        function loadGoogleMaps() {
+            if (API_KEY.includes('請在此填入') || API_KEY === '') { alert('請填入 API KEY'); return; }
+            const mapScript = document.createElement('script');
+            mapScript.src = `https://maps.googleapis.com/maps/api/js?key=${API_KEY}&libraries=places&language=zh-TW&callback=initMapsServices`;
+            mapScript.async = true; mapScript.defer = true;
+            document.head.appendChild(mapScript);
+        }
+
+        window.initMapsServices = function() {
+            geocoder = new google.maps.Geocoder();
+            distanceMatrix = new google.maps.DistanceMatrixService();
+            
+            // 綁定地址自動完成
+            new google.maps.places.Autocomplete(document.getElementById('pickup'), { componentRestrictions: { country: "tw" } });
+            new google.maps.places.Autocomplete(document.getElementById('dropoff'), { componentRestrictions: { country: "tw" } });
+
+            if (!editOrderId) { getLocation(); }
+        };
+
+        // 自動定位並轉地址
+        function getLocation() {
+            const pickupInput = document.getElementById('pickup');
+            pickupInput.value = "定位中...";
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition((pos) => {
+                    const latlng = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+                    geocoder.geocode({ location: latlng }, (results, status) => {
+                        if (status === "OK" && results[0]) {
+                            pickupInput.value = results[0].formatted_address.replace(/^\d+\s*/, '').replace(/台灣/, '');
+                        } else { pickupInput.value = "無法解析地址，請手動輸入"; }
+                        document.getElementById('loading-overlay').style.display = 'none';
+                    });
+                }, () => { pickupInput.value = ""; pickupInput.placeholder = "請手動輸入上車點"; document.getElementById('loading-overlay').style.display = 'none'; }, { enableHighAccuracy: true, timeout: 5000 });
+            }
+        }
+
+        async function initLiff() {
+            try { 
+                await liff.init({ liffId: LIFF_ID }); 
+                if(liff.isLoggedIn()) {
+                    const profile = await liff.getProfile();
+                    userName = profile.displayName;
+                    passengerId = profile.userId;
+                } else {
+                    liff.login({ redirectUri: window.location.href });
+                    return;
+                }
+                checkEditModeAndLoad();
+            } catch (e) { console.error('LIFF Error', e); checkEditModeAndLoad(); }
+        }
+
+        function checkEditModeAndLoad() {
+            if (editOrderId) {
+                document.getElementById('edit-mode-banner').style.display = 'block';
+                document.getElementById('submit-btn-text').innerText = '儲存修改';
+                document.getElementById('cancelOrderBtn').classList.remove('hidden');
+
+                fetch(BOOKING_GAS_URL + "?orderId=" + editOrderId)
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.status === 'success' && data.data) {
+                            const d = data.data;
+                            document.getElementById('pickup').value = d.pickup;
+                            document.getElementById('dropoff').value = d.dropoff === "上車告知 / 未指定" ? "" : d.dropoff;
+                            
+                            let loadedPhone = String(d.phone);
+                            if (loadedPhone.length === 9 && loadedPhone.startsWith('9')) loadedPhone = '0' + loadedPhone;
+                            document.getElementById('phone').value = loadedPhone;
+                            
+                            document.getElementById('payment-value').value = d.payment;
+                            document.getElementById('payment-display').innerText = d.payment;
+                            document.getElementById('loading-overlay').style.display = 'none';
+                        }
+                    });
+            }
+        }
+
+        function openPaymentPicker() {
+            let html = '<div class="grid grid-cols-2 gap-3 p-2">';
+            PAYMENT_METHODS.forEach(m => {
+                html += `<button type="button" onclick="document.getElementById('payment-value').value='${m.id}'; document.getElementById('payment-display').innerText='${m.label}'; localStorage.setItem('taxi_selected_payment','${m.id}'); Swal.close();" class="flex flex-col items-center justify-center p-4 border border-gray-200 rounded-2xl active:bg-gray-50 transition-all">${m.icon}<span class="text-sm font-bold mt-2 text-slate-700">${m.label}</span></button>`;
+            });
+            html += '</div>';
+            Swal.fire({ title: '付款方式', html: html, showConfirmButton: false, showCloseButton: true, customClass: { popup: 'bottom-sheet animate__animated animate__slideInUp' }, position: 'bottom' });
+        }
+
+        // 🚀 核心功能：骨架屏報價與司機名片確認
+        function calculateAndConfirm() {
+            const pickup = document.getElementById('pickup').value.trim();
+            const dropoff = document.getElementById('dropoff').value.trim();
+            const phone = document.getElementById('phone').value.trim();
+            const payment = document.getElementById('payment-value').value;
+
+            if(!pickup || pickup === '定位中...') return Swal.fire('請輸入上車點', '', 'warning');
+            if(!dropoff) return Swal.fire('請輸入下車點以計算車資', '本服務需明確目的地', 'warning');
+            if(!phone || phone.length < 8) return Swal.fire('請填寫聯絡電話', '', 'warning');
+
+            // 1. 彈出骨架屏動畫 (Skeleton)
+            Swal.fire({
+                title: '路線計算中...',
+                html: `
+                    <div class="driver-card-popup text-left mt-4">
+                        <div class="flex items-center gap-4 mb-4">
+                            <div class="w-16 h-16 rounded-full skeleton-block"></div>
+                            <div class="flex-1 space-y-2">
+                                <div class="h-4 w-3/4 skeleton-block"></div>
+                                <div class="h-3 w-1/2 skeleton-block"></div>
+                            </div>
+                        </div>
+                        <div class="h-12 w-full skeleton-block rounded-xl"></div>
+                    </div>
+                    <p class="text-sm text-gray-400 font-bold mt-2"><i class="fa-solid fa-satellite-dish animate-pulse"></i> 正在為您計算最佳路徑與專屬報價...</p>
+                `,
+                showConfirmButton: false,
+                allowOutsideClick: false,
+                customClass: { popup: 'bottom-sheet animate__animated animate__slideInUp' },
+                position: 'bottom'
+            });
+
+            // 2. 呼叫 Google Distance Matrix API
+            distanceMatrix.getDistanceMatrix({
+                origins: [pickup], destinations: [dropoff],
+                travelMode: 'DRIVING', unitSystem: google.maps.UnitSystem.METRIC
+            }, (response, status) => {
+                if (status === 'OK' && response.rows[0].elements[0].status === 'OK') {
+                    const result = response.rows[0].elements[0];
+                    const distKm = result.distance.value / 1000;
+                    const durationText = result.duration.text;
+                    
+                    // 模擬車資計算 (起跳100 + 每公里25)
+                    let estimatedFare = Math.round(100 + (distKm * 25));
+                    
+                    // 依據車型加成
+                    let typeBadgeHtml = '';
+                    if(selectedServiceType === '多元') {
+                        estimatedFare = Math.round(estimatedFare * 1.2); // 多元加成
+                        typeBadgeHtml = `<span class="bg-amber-100 text-amber-700 px-2 py-1 rounded text-xs font-black border border-amber-200">👑 多元旗艦</span>`;
+                    } else if(selectedServiceType === '愛心') {
+                        typeBadgeHtml = `<span class="bg-pink-100 text-pink-700 px-2 py-1 rounded text-xs font-black border border-pink-200">❤️ 敬老愛心</span>`;
+                    } else {
+                        typeBadgeHtml = `<span class="bg-emerald-100 text-emerald-700 px-2 py-1 rounded text-xs font-black border border-emerald-200">🟩 舒適專車</span>`;
+                    }
+
+                    // 3. 顯示司機數位名片與報價
+                    setTimeout(() => {
+                        Swal.fire({
+                            title: '確認行程報價',
+                            html: `
+                                <div class="driver-card-popup text-left mt-2">
+                                    <div class="flex items-center gap-4 mb-4">
+                                        <img src="https://ui-avatars.com/api/?name=銘&background=0f172a&color=fff&size=128" class="w-16 h-16 rounded-full border-2 border-slate-200 shadow-sm">
+                                        <div>
+                                            <h4 class="text-lg font-black text-slate-800 m-0 leading-tight">劉學銘 <i class="fa-solid fa-circle-check text-blue-500 text-sm"></i></h4>
+                                            <p class="text-xs text-slate-500 font-bold mt-1">登記證：TDP-1123 • ⭐ 5.0</p>
+                                            <div class="mt-1">${typeBadgeHtml}</div>
+                                        </div>
+                                    </div>
+                                    <div class="bg-slate-50 p-3 rounded-xl border border-slate-100 mb-3 text-center">
+                                        <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-1">給客人一個現在就出發的理由！</p>
+                                        <p class="text-sm font-bold text-slate-700">「在地資深運將，平穩舒適，準時抵達！」</p>
+                                    </div>
+                                    <div class="flex justify-between items-center bg-emerald-50 p-4 rounded-xl border border-emerald-100">
+                                        <div>
+                                            <p class="text-xs text-emerald-600 font-bold mb-1">預估時間</p>
+                                            <p class="text-lg font-black text-slate-800">${durationText}</p>
+                                        </div>
+                                        <div class="text-right">
+                                            <p class="text-xs text-emerald-600 font-bold mb-1">預估車資 (${distKm.toFixed(1)}km)</p>
+                                            <p class="text-2xl font-black text-emerald-600">~NT$ ${estimatedFare}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            `,
+                            showCancelButton: true,
+                            confirmButtonColor: '#0f172a',
+                            cancelButtonColor: '#f1f5f9',
+                            confirmButtonText: '✅ 確認呼叫專車',
+                            cancelButtonText: '<span style="color:#64748b;font-weight:bold;">返回修改</span>',
+                            customClass: { popup: 'bottom-sheet animate__animated animate__slideInUp' },
+                            position: 'bottom',
+                            allowOutsideClick: false
+                        }).then((result) => {
+                            if (result.isConfirmed) {
+                                executeSubmitOrder(pickup, dropoff, phone, payment, estimatedFare, durationText);
+                            }
+                        });
+                    }, 800);
+
+                } else {
+                    Swal.fire('計算失敗', '無法計算距離，請確認地址是否精確。', 'error');
+                }
+            });
+        }
+
+        // 🚀 正式送出訂單
+        async function executeSubmitOrder(pickup, dropoff, phone, payment, estFare, estTime) {
+            Swal.fire({title: '發送中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
+            
+            localStorage.setItem('taxi_user_phone', phone);
+            const currentOrderId = editOrderId || `TDP-${String(new Date().getMonth()+1).padStart(2,'0')}${String(new Date().getDate()).padStart(2,'0')}-${Math.floor(1000 + Math.random() * 9000)}`;
+            const nowTimeStr = new Date().toLocaleTimeString('zh-TW', {hour:'2-digit', minute:'2-digit', hour12:false});
+            const finalBookingTime = `${new Date().getMonth()+1}/${new Date().getDate()} ${nowTimeStr}`;
+
+            // 🚀 核心更新：加入 orderType 與預估報價
+            const orderPayload = {
+                orderId: currentOrderId, userId: passengerId, userName: userName, phone: phone,
+                pickup: pickup, dropoff: dropoff, payment: payment, bookingTime: finalBookingTime,
+                orderType: selectedServiceType, // 專車、愛心、多元
+                estimatedFare: estFare,
+                estimatedTime: estTime,
+                status: editOrderId ? "updated" : "new", timestamp: new Date().toISOString()
+            };
+
+            const flexMsg = {
+                type: "flex", altText: "🚕 專屬叫車確認單",
+                contents: {
+                    type: "bubble",
+                    header: { type: "box", layout: "vertical", backgroundColor: "#0f172a", contents: [ { type: "text", text: "🚕 劉學銘專屬車隊", color: "#ffffff", weight: "bold" }, { type: "text", text: `[${selectedServiceType}] 訂單已建立`, color: "#10b981", size: "xs", weight: "bold" } ] },
+                    body: {
+                        type: "box", layout: "vertical", spacing: "md",
+                        contents: [
+                            { type: "box", layout: "horizontal", contents: [ { type: "text", text: "上車", color: "#888888", size: "sm", flex: 1 }, { type: "text", text: pickup, wrap: true, weight: "bold", size: "sm", flex: 3 } ] },
+                            { type: "box", layout: "horizontal", contents: [ { type: "text", text: "下車", color: "#888888", size: "sm", flex: 1 }, { type: "text", text: dropoff, wrap: true, weight: "bold", size: "sm", flex: 3 } ] },
+                            { type: "separator", margin: "md" },
+                            { type: "box", layout: "horizontal", contents: [ { type: "text", text: "預估車資", color: "#888888", size: "sm", flex: 1 }, { type: "text", text: `約 $${estFare} 元`, weight: "bold", size: "md", color: "#10b981", flex: 3 } ] }
+                        ]
+                    },
+                    footer: { type: "box", layout: "vertical", contents: [ { type: "button", style: "primary", color: "#10b981", action: { type: "uri", label: "👀 查看司機位置", uri: PROJECT_B_URL } } ] }
+                }
+            };
+
+            try {
+                fetch(BOOKING_GAS_URL, {
+                    method: 'POST', mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(orderPayload)
+                }).catch(e => console.error("GAS Error", e));
+                
+                if (liff.isInClient()) {
+                    await liff.sendMessages([flexMsg]);
+                    Swal.fire({ icon: 'success', title: '預約成功', text: '請留意 LINE 通知，準備搭車！', timer: 2000, showConfirmButton: false }).then(() => liff.closeWindow());
+                } else {
+                    Swal.fire({ icon: 'success', title: '預約成功 (外部測試)', text: `訂單已送出` });
+                }
+            } catch (e) {
+                Swal.fire('錯誤', '網路異常，請稍後再試', 'error');
+            }
+        }
+
+        // 取消訂單
+        function cancelOrder() {
+            Swal.fire({
+                title: '確定取消預約？', icon: 'warning', showCancelButton: true, confirmButtonColor: '#e3242b',
+                confirmButtonText: '確定取消', cancelButtonText: '保留預約'
+            }).then((res) => {
+                if(res.isConfirmed) {
+                    Swal.fire({title: '處理中', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
+                    fetch(BOOKING_GAS_URL, {
+                        method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ orderId: editOrderId, status: 'cancelled', timestamp: new Date().toISOString() })
+                    }).then(() => {
+                        if(liff.isInClient()) { liff.sendMessages([{ type: 'text', text: `❌ 已取消預約` }]).then(() => { liff.closeWindow(); }); } 
+                        else { Swal.fire('已取消', '', 'success'); }
+                    });
+                }
+            });
+        }
+    </script>
+</body>
+</html>
