@@ -140,7 +140,6 @@
         </div>
     </div>
 
-    <!-- Time Selector Modal -->
     <div id="time-selector-modal" onclick="closeModernTimeSelector(event)">
         <div id="time-selector-content" onclick="event.stopPropagation()">
             <div class="flex justify-between items-center mb-4 pb-2 border-b border-gray-100">
@@ -157,7 +156,7 @@
     </div>
 
     <script>
-        const VERSION = "v4.8"; // 🚀 時間格式統一對齊版 (AI 秘書友善格式)
+        const VERSION = "v4.9"; // 🚀 拔除查看司機位置按鈕 (精簡卡片版)
         const API_KEY = 'AIzaSyAIxc6PEhHgUs_A9lyRUg8dNbmwOpSamY8'; 
         const LIFF_ID = '2008907691-MAdAtfyf'; 
         const PROJECT_B_URL = 'https://liff.line.me/2008907691-1mAjwojZ'; 
@@ -302,7 +301,6 @@
                             if (loadedPhone.length === 9 && loadedPhone.startsWith('9')) loadedPhone = '0' + loadedPhone;
                             document.getElementById('phone').value = loadedPhone;
                             
-                            // 無論資料庫裡是什麼格式，直接顯示出來
                             let loadedTime = String(d.bookingTime);
                             
                             document.getElementById('booking-mode').value = 'RESERVE';
@@ -347,7 +345,6 @@
                 const m = (d.getMonth()+1).toString(); const day = d.getDate().toString(); 
                 const w = weekDays[d.getDay()]; 
                 const label = i === 0 ? '今天' : (i === 1 ? '明天' : `${m}/${day}`); 
-                // 🚀 加入 gasDate 提供純數字與斜線格式給 AI 秘書判讀
                 dates.push({ val: i, label: label, sub: i > 1 ? `週${w}` : '', fullDate: `${m}月${day}日`, gasDate: `${m}/${day}` }); 
             } return dates; 
         }
@@ -377,10 +374,7 @@
             const dateObj = pickerState.dates[pickerState.dateIndex]; 
             const hStr = pickerState.hour.toString().padStart(2, '0'); 
             
-            // 🚀 畫面上給客人看親切的中文格式
             const timeStr = `${dateObj.fullDate} ${hStr}:${pickerState.minute}`; 
-            
-            // 🚀 系統底層送給 GAS 的是 AI 看得懂的純數字斜線格式 (MM/DD)
             const gasTimeStr = `${dateObj.gasDate} ${hStr}:${pickerState.minute}`; 
             
             document.getElementById('booking-time-val').value = gasTimeStr; 
@@ -393,7 +387,6 @@
         }
 
         function cancelOrder() {
-            // 從畫面上抓取時間，如果是修改模式，直接顯示即可
             const displayTimeNode = document.getElementById('time-display').innerText;
             Swal.fire({
                 title: '確定取消預約？', text: '取消後將同步通知司機。', icon: 'warning',
@@ -466,18 +459,15 @@
                 headerTitle = `🚕 尋找附近車輛中`;
                 headerColor = "#000000";
                 
-                // 🚀 核心更新：將即時單的時間轉換為 AI 秘書看得懂的純數字斜線格式 (MM/DD HH:mm)
                 const nDate = new Date();
                 finalBookingTime = `${nDate.getMonth()+1}/${nDate.getDate()} ${String(nDate.getHours()).padStart(2,'0')}:${String(nDate.getMinutes()).padStart(2,'0')}`;
             } else {
-                // 預約單：LINE 畫面上顯示親切的中文格式 (如 3月13日 16:20)
                 const timeDisplayNode = document.getElementById('time-display').innerText;
                 displayTime = timeDisplayNode;
                 headerTitle = editOrderId ? "🔄 預約已更新" : "📅 預約確認";
                 headerColor = editOrderId ? "#EA580C" : "#1d4ed8";
             }
 
-            // 🚀 天下統一：無論如何都建立 Payload，準備寫入總帳本 (此時 finalBookingTime 必定為 MM/DD HH:mm)
             orderPayload = {
                 orderId: currentOrderId, userId: passengerId, userName: userName, phone: phone,
                 pickup: pickup, dropoff: dropoff, payment: payment, bookingTime: finalBookingTime,
@@ -502,12 +492,13 @@
                 });
             }
 
+            // 🚀 v4.9 拔除 footer (查看司機位置按鈕)
             const flexMsg = {
                 type: "flex",
                 altText: bookingMode === 'NOW' ? "🚕 即時叫車" : `預約通知：${displayTime}`,
                 contents: {
                     type: "bubble",
-                    styles: { header: { backgroundColor: "#FFFFFF" }, body: { backgroundColor: "#FFFFFF" }, footer: { backgroundColor: "#F8F8F8" } },
+                    styles: { header: { backgroundColor: "#FFFFFF" }, body: { backgroundColor: "#FFFFFF" } },
                     header: {
                         type: "box", layout: "horizontal", spacing: "sm", alignItems: "center",
                         contents: flexHeaderContents,
@@ -539,14 +530,6 @@
                             {
                                 type: "box", layout: "horizontal", margin: "lg",
                                 contents: [ { type: "text", text: "💰 付款", flex: 2, color: "#888888", size: "md" }, { type: "text", text: payment, flex: 5, color: "#111111", size: "md", weight: "bold" } ]
-                            }
-                        ]
-                    },
-                    footer: {
-                        type: "box", layout: "vertical", spacing: "sm", contents: [
-                            {
-                                type: "button", style: "primary", color: "#10B981", height: "sm",
-                                action: { type: "uri", label: "👀 查看司機位置", uri: PROJECT_B_URL }
                             }
                         ]
                     }
