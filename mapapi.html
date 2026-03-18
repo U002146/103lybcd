@@ -156,7 +156,7 @@
     </div>
 
     <script>
-        const VERSION = "v4.9"; // 🚀 拔除查看司機位置按鈕 (精簡卡片版)
+        const VERSION = "v4.10"; // 🚀 移除即時單上方贅字 (極簡卡片版)
         const API_KEY = 'AIzaSyAIxc6PEhHgUs_A9lyRUg8dNbmwOpSamY8'; 
         const LIFF_ID = '2008907691-MAdAtfyf'; 
         const PROJECT_B_URL = 'https://liff.line.me/2008907691-1mAjwojZ'; 
@@ -456,7 +456,7 @@
 
             if (bookingMode === 'NOW') {
                 displayTime = `即時單 ${nowTimeStr}`;
-                headerTitle = `🚕 尋找附近車輛中`;
+                headerTitle = null; // 🚀 移除即時單上方的小字
                 headerColor = "#000000";
                 
                 const nDate = new Date();
@@ -474,13 +474,20 @@
                 status: editOrderId ? "updated" : "new", timestamp: new Date().toISOString()
             };
 
+            let flexHeaderTextContents = [];
+            
+            // 只有當 headerTitle 不為空時（即預約模式），才加入上方小字
+            if (headerTitle) {
+                flexHeaderTextContents.push({ type: "text", text: headerTitle, weight: "bold", size: "sm", color: headerColor });
+            }
+            
+            // 永遠加入大字的 displayTime
+            flexHeaderTextContents.push({ type: "text", text: displayTime, weight: "bold", size: "xl", color: "#111111", adjustMode: "shrink-to-fit" });
+
             let flexHeaderContents = [
                 {
                     type: "box", layout: "vertical", flex: 1, spacing: "xs",
-                    contents: [
-                        { type: "text", text: headerTitle, weight: "bold", size: "sm", color: headerColor },
-                        { type: "text", text: displayTime, weight: "bold", size: "xl", color: "#111111", adjustMode: "shrink-to-fit" }
-                    ]
+                    contents: flexHeaderTextContents
                 }
             ];
 
@@ -492,7 +499,6 @@
                 });
             }
 
-            // 🚀 v4.9 拔除 footer (查看司機位置按鈕)
             const flexMsg = {
                 type: "flex",
                 altText: bookingMode === 'NOW' ? "🚕 即時叫車" : `預約通知：${displayTime}`,
