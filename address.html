@@ -146,7 +146,6 @@
         </div>
     </div>
 
-    <!-- 滿版時間選擇器 Modal -->
     <div id="time-selector-modal" onclick="closeModernTimeSelector(event)">
         <div id="time-selector-content" onclick="event.stopPropagation()">
             <div class="flex justify-between items-center mb-5 flex-shrink-0">
@@ -191,7 +190,7 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script>
-        const VERSION = "v4.5"; // 🚀 時間格式統一對齊版 (AI 秘書友善)
+        const VERSION = "v4.6"; // 🚀 拔除司機位置按鈕 (精簡卡片版)
         const LIFF_ID = '2008907691-3P676tTN'; 
         const PROJECT_B_URL = 'https://liff.line.me/2008907691-1mAjwojZ'; 
         
@@ -283,7 +282,6 @@
                             if (loadedPhone.length === 9 && loadedPhone.startsWith('9')) loadedPhone = '0' + loadedPhone;
                             document.getElementById('phone').value = loadedPhone;
                             
-                            // 這裡載入的通常是後台紀錄的數字格式
                             let loadedTime = String(d.bookingTime);
                             
                             document.getElementById('booking-time-val').value = loadedTime;
@@ -393,7 +391,6 @@
                 const d = new Date(today); d.setDate(today.getDate() + i); d.setHours(0,0,0,0);
                 const m = (d.getMonth()+1).toString(); const day = d.getDate().toString(); const w = weekDays[d.getDay()]; 
                 const label = i === 0 ? '今天' : (i === 1 ? '明天' : `${m}/${day}`); 
-                // 🚀 加入 gasDate 給 AI 秘書判讀
                 dates.push({ val: i, label: label, sub: i > 1 ? `週${w}` : '', fullDate: `${m}月${day}日`, gasDate: `${m}/${day}`, rawDate: d }); 
             } return dates; 
         }
@@ -473,10 +470,7 @@
             const dateObj = pickerState.dates[pickerState.dateIndex]; 
             const hStr = pickerState.hour.toString().padStart(2, '0'); 
             
-            // 🚀 畫面上給客人看的中文格式
             const timeStr = `${dateObj.fullDate} ${hStr}:${pickerState.minute}`; 
-            
-            // 🚀 送給 GAS 後台的 AI 判讀格式 (MM/DD)
             const gasTimeStr = `${dateObj.gasDate} ${hStr}:${pickerState.minute}`; 
             
             document.getElementById('booking-time-val').value = gasTimeStr; 
@@ -495,7 +489,6 @@
         }
 
         function cancelOrder() {
-            // 從畫面上抓取中文時間顯示給客人看
             const displayTimeNode = document.getElementById('time-display').innerText;
             Swal.fire({
                 title: '確定取消預約？', text: '取消後將同步通知司機。', icon: 'warning',
@@ -563,15 +556,15 @@
             const googleMapUrl = mapBaseUrl + encodeURIComponent(pickup);
             const dropoffMapUrl = mapBaseUrl + encodeURIComponent(dropoff);
             
-            // 給 LINE 卡片顯示的中文時間
             const displayTimeNode = document.getElementById('time-display').innerText;
 
+            // 🚀 v4.6 拔除 footer (查看司機位置按鈕)
             const flexMsg = {
                 type: "flex",
                 altText: `預約通知：${displayTimeNode}`,
                 contents: {
                     type: "bubble",
-                    styles: { header: { backgroundColor: "#FFFFFF" }, body: { backgroundColor: "#FFFFFF" }, footer: { backgroundColor: "#F8F8F8" } },
+                    styles: { header: { backgroundColor: "#FFFFFF" }, body: { backgroundColor: "#FFFFFF" } },
                     header: {
                         type: "box", layout: "horizontal", spacing: "sm", alignItems: "center",
                         contents: [ 
@@ -618,14 +611,6 @@
                             {
                                 type: "box", layout: "horizontal", margin: "lg",
                                 contents: [ { type: "text", text: "💰 付款", flex: 2, color: "#888888", size: "md" }, { type: "text", text: payment, flex: 5, color: "#111111", size: "md", weight: "bold" } ]
-                            }
-                        ]
-                    },
-                    footer: {
-                        type: "box", layout: "vertical", spacing: "sm", contents: [
-                            {
-                                type: "button", style: "primary", color: "#10B981", height: "sm",
-                                action: { type: "uri", label: "👀 查看司機位置", uri: PROJECT_B_URL }
                             }
                         ]
                     }
