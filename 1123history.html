@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <!-- 🚀 更名為：我的行程 -->
     <title>我的行程</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -34,14 +33,13 @@
 <body>
 
     <div id="app-header" class="header-bg">
-        <i class="fa-solid fa-calendar-check header-icon"></i> <!-- 圖示改為行事曆 -->
+        <i class="fa-solid fa-calendar-check header-icon"></i>
         <div class="flex items-center justify-between relative z-10">
             <div>
                 <h1 class="text-2xl font-black tracking-wide flex items-center">
                     <img id="user-avatar" src="https://via.placeholder.com/50" class="w-10 h-10 rounded-full border-2 border-white mr-3 hidden shadow-md">
                     <span id="user-name-display">載入中...</span>
                 </h1>
-                <!-- 🚀 副標題改為專屬行程手帳 -->
                 <p class="text-slate-300 text-sm mt-1 font-bold">專屬行程手帳</p> 
             </div>
             <div id="total-count-badge" class="hidden flex-col items-center bg-white/10 px-3 py-1.5 rounded-xl backdrop-blur-sm border border-white/20">
@@ -61,7 +59,6 @@
             <div class="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center mb-4 text-blue-300 text-4xl">
                 <i class="fa-solid fa-car-side"></i>
             </div>
-            <!-- 🚀 空白狀態文字更新 -->
             <h3 class="text-lg font-bold text-slate-700 mb-1">尚無行程紀錄</h3>
             <p class="text-sm text-slate-400 mb-6">您的專屬行程手帳目前還是空白的喔！</p>
             <button onclick="goToBooking()" class="bg-blue-600 text-white font-bold py-3 px-6 rounded-xl shadow-lg active:scale-95 transition-transform flex items-center">
@@ -70,14 +67,13 @@
         </div>
 
         <div id="history-list" class="hidden flex-col gap-3">
-            <!-- 歷史卡片會透過 JS 動態產生於此 -->
-        </div>
+            </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script>
-        const VERSION = "v6.4"; // 🚀 完美更名版
+        const VERSION = "v6.5"; // 🚀 新增直接修改與取消功能版
         
         const LIFF_ID = '2008907691-WHXiIAeb'; 
         const BOOKING_LIFF_URL = 'https://liff.line.me/2008907691-3P676tTN'; 
@@ -91,7 +87,6 @@
                 liff.getProfile().then(profile => {
                     userId = profile.userId;
                     
-                    // 🚀 標題改為「XXX 的行程」
                     document.getElementById('user-name-display').innerText = profile.displayName + " 的行程";
                     if(profile.pictureUrl) {
                         const avatar = document.getElementById('user-avatar');
@@ -105,6 +100,12 @@
         };
 
         function fetchHistory() {
+            // 每次撈取時重置畫面狀態
+            document.getElementById('loading-state').classList.remove('hidden');
+            document.getElementById('history-list').classList.add('hidden');
+            document.getElementById('empty-state').classList.add('hidden');
+            document.getElementById('empty-state').classList.remove('flex');
+            
             const url = `${BOOKING_GAS_URL}?action=getHistory&userId=${userId}`;
             
             fetch(url)
@@ -165,21 +166,36 @@
                     badgeClass = 'status-dispatch'; 
                     statusIcon = '<i class="fa-solid fa-satellite-dish mr-1"></i>';
                     displayText = '尋找車輛中';
-                } else if (rawStatus.includes('新預約')) {
+                } else if (rawStatus.includes('新預約') || rawStatus.includes('已修改')) {
                     displayText = '已預約';
                 }
 
                 const cardOpacity = isCancelled ? 'opacity-60' : 'opacity-100';
                 
-                let driverContactHtml = '';
+                let actionButtonsHtml = '';
+                
+                // 🚀 核心邏輯：依據狀態顯示對應按鈕
                 if (isTaken && driverPhone) {
-                     driverContactHtml = `
+                    // 若司機已接單，顯示聯絡司機按鈕
+                    actionButtonsHtml = `
                         <div class="mt-3 pt-3 border-t border-slate-100">
                             <a href="tel:${driverPhone}" class="w-full bg-blue-50 hover:bg-blue-100 text-blue-600 font-bold py-2.5 rounded-xl transition-colors text-sm flex items-center justify-center">
                                 <i class="fa-solid fa-phone-volume mr-2"></i> 聯絡司機 (${driverPhone})
                             </a>
                         </div>
                      `;
+                } else if (!isCancelled && !isTaken) {
+                    // 若為新單或在大廳中，顯示修改與取消按鈕
+                    actionButtonsHtml = `
+                        <div class="mt-3 pt-3 border-t border-slate-100 flex gap-2">
+                            <button onclick="modifyOrder('${item.orderId}')" class="flex-1 bg-slate-50 border border-slate-200 text-slate-600 font-bold py-2.5 rounded-xl transition-colors text-sm active:bg-slate-100 flex items-center justify-center">
+                                <i class="fa-solid fa-pen mr-2"></i> 修改
+                            </button>
+                            <button onclick="cancelOrder('${item.orderId}', '${item.bookingTime}')" class="flex-1 bg-rose-50 border border-rose-100 text-rose-500 font-bold py-2.5 rounded-xl transition-colors text-sm active:bg-rose-100 flex items-center justify-center">
+                                <i class="fa-solid fa-trash-can mr-2"></i> 取消
+                            </button>
+                        </div>
+                    `;
                 }
 
                 const cardHtml = `
@@ -204,7 +220,7 @@
                             <div><i class="fa-solid fa-wallet mr-1"></i> ${item.payment}</div>
                         </div>
                         
-                        ${driverContactHtml}
+                        ${actionButtonsHtml}
                     </div>
                 `;
                 listContainer.innerHTML += cardHtml;
@@ -212,6 +228,46 @@
             
             listContainer.classList.remove('hidden');
             listContainer.classList.add('flex');
+        }
+
+        // 🚀 修改訂單功能 (帶參數跳轉至叫車頁面)
+        window.modifyOrder = function(orderId) {
+            window.location.href = `${BOOKING_LIFF_URL}?orderId=${orderId}`;
+        }
+
+        // 🚀 取消訂單功能 (發射訊號給總台並更新畫面)
+        window.cancelOrder = function(orderId, displayTime) {
+            Swal.fire({
+                title: '確定取消預約？',
+                text: '取消後將同步通知司機。',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#e3242b',
+                cancelButtonColor: '#94a3b8',
+                confirmButtonText: '確定取消',
+                cancelButtonText: '保留預約'
+            }).then((res) => {
+                if (res.isConfirmed) {
+                    Swal.fire({ title: '處理中', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+                    
+                    fetch(BOOKING_GAS_URL, {
+                        method: 'POST', mode: 'no-cors',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ orderId: orderId, status: 'cancelled', timestamp: new Date().toISOString() })
+                    }).then(() => {
+                        // 嘗試送出 LINE 訊息，並在完成後重新撈取資料刷新畫面
+                        if (liff.isInClient()) {
+                            liff.sendMessages([{ type: 'text', text: `❌ 已取消預約\n(原定時間：${displayTime})` }]).then(() => {
+                                Swal.fire('已取消', '預約已成功取消。', 'success').then(() => fetchHistory());
+                            });
+                        } else {
+                            Swal.fire('已取消', '預約已成功取消。', 'success').then(() => fetchHistory());
+                        }
+                    }).catch(e => {
+                        Swal.fire('發生錯誤', '取消失敗，請稍後再試。', 'error');
+                    });
+                }
+            });
         }
 
         function goToBooking() {
