@@ -35,16 +35,20 @@
         .app-header { background: #1A1A1A; padding: 15px 20px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; z-index: 50; flex-shrink: 0; }
         .radar-ping { width: 12px; height: 12px; background-color: #00C853; border-radius: 50%; box-shadow: 0 0 10px #00C853; animation: ping 2s infinite; }
         
-        #order-list { flex: 1; padding: 15px; display: flex; flex-direction: row; gap: 15px; overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; align-items: center; }
+        #order-list { flex: 1; padding: 15px; display: flex; flex-direction: row; gap: 15px; overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; align-items: center; transition: all 0.3s; }
         #order-list::-webkit-scrollbar { display: none; } 
 
-        .order-card { background: #1A1A1A; border-radius: 20px; padding: 20px; border: 2px solid #00B0FF; box-shadow: 0 10px 30px rgba(0, 176, 255, 0.15); animation: slideIn 0.3s ease-out; position: relative; overflow: hidden; flex: 0 0 88%; scroll-snap-align: center; max-height: 90%; display: flex; flex-direction: column; justify-content: space-between;}
+        .order-card { background: #1A1A1A; border-radius: 20px; padding: 20px; border: 2px solid #00B0FF; box-shadow: 0 10px 30px rgba(0, 176, 255, 0.15); animation: slideIn 0.3s ease-out; position: relative; overflow: hidden; flex: 0 0 88%; scroll-snap-align: center; max-height: 90%; display: flex; flex-direction: column; justify-content: space-between; transition: all 0.3s;}
         .order-card.taken { border-color: #555; opacity: 0.5; filter: grayscale(100%); pointer-events: none; }
         .address-big { color: #00B0FF; font-size: 24px; font-weight: 900; letter-spacing: 1px; margin: 10px 0; line-height: 1.3; word-break: break-all;}
 
         .btn-snatch { background: linear-gradient(135deg, #00C853, #1B5E20); color: white; width: 100%; padding: 16px; border-radius: 15px; font-size: 20px; font-weight: 900; border: 2px solid #00E676; box-shadow: 0 6px 20px rgba(0, 200, 83, 0.4); display: flex; justify-content: center; align-items: center; gap: 10px; cursor: pointer; margin-top: 15px; }
         .btn-snatch:active { transform: scale(0.95); }
         .btn-snatch.disabled { background: #333; border-color: #555; box-shadow: none; cursor: not-allowed; color: #888; }
+
+        /* 🚀 隱藏按鈕樣式 */
+        .btn-ignore { position: absolute; top: 12px; right: 12px; width: 32px; height: 32px; background: rgba(255,255,255,0.1); color: #888; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; z-index: 10; border: 1px solid rgba(255,255,255,0.1); }
+        .btn-ignore:active { transform: scale(0.9); background: rgba(255,50,50,0.8); color: white; border-color: transparent; }
 
         @keyframes ping { 0% { transform: scale(1); opacity: 1; } 75%, 100% { transform: scale(2.5); opacity: 0; } }
         @keyframes slideIn { from { transform: translateX(50px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
@@ -75,7 +79,7 @@
         <div id="empty-state" class="flex flex-col items-center justify-center w-full h-full opacity-50">
             <i class="fa-solid fa-radar text-6xl mb-4 text-gray-600"></i>
             <p class="text-lg font-bold text-gray-400">目前大廳無任務</p>
-            <p class="text-sm text-gray-500 mt-2">所有訂單皆已被承接</p>
+            <p class="text-sm text-gray-500 mt-2">過期單已隱藏，請等候新單</p>
         </div>
     </div>
 </div>
@@ -94,6 +98,9 @@
 
     let audioCtx = null;
     let knownOrderIds = new Set();
+    
+    // 🚀 讀取司機手動略過的訂單記憶 (最多存 100 筆避免爆滿)
+    let ignoredOrders = new Set(JSON.parse(localStorage.getItem('taxi_ignored_orders') || '[]'));
 
     function playDingDong() {
         try {
@@ -114,6 +121,38 @@
         if (audioCtx.state === 'suspended') audioCtx.resume();
     }, { once: true });
 
+    // 🚀 自動判定訂單是否過期 (超過 30 分鐘)
+    function isOrderExpired(order) {
+        const now = new Date().getTime();
+        const THIRTY_MINS = 30 * 60 * 1000;
+
+        if (!order.time || order.time === '即時單' || !order.time.includes('/')) {
+            // 即時單：看建單時間 (createdAt)
+            const created = order.createdAt || now; 
+            return (now - created) > THIRTY_MINS;
+        } else {
+            try {
+                // 預約單格式：MM/DD HH:mm (ex: 3/19 18:00)
+                const currentYear = new Date().getFullYear();
+                const [datePart, timePart] = order.time.split(' ');
+                const [month, day] = datePart.split('/');
+                const [hour, minute] = timePart.split(':');
+                
+                let targetDate = new Date(currentYear, parseInt(month)-1, parseInt(day), parseInt(hour), parseInt(minute)).getTime();
+
+                // 若遇到跨年狀況 (如 12月底預約 1月單)
+                if (targetDate < now - 30 * 24 * 60 * 60 * 1000) {
+                    targetDate = new Date(currentYear + 1, parseInt(month)-1, parseInt(day), parseInt(hour), parseInt(minute)).getTime();
+                }
+
+                // 超過預約時間 30 分鐘後視為過期
+                return now > (targetDate + THIRTY_MINS);
+            } catch(e) {
+                return false; 
+            }
+        }
+    }
+
     const ordersRef = database.ref('fleet_orders');
     
     ordersRef.on('value', (snapshot) => {
@@ -129,7 +168,13 @@
 
         Object.keys(orders).reverse().forEach(orderId => {
             const order = orders[orderId];
+            
+            // 🚀 核心過濾機制：只顯示 pending，且沒有被手動略過，且還沒過期的單
             if (order.status === 'pending') {
+                if (ignoredOrders.has(orderId) || isOrderExpired(order)) {
+                    return; // 放棄渲染此單
+                }
+
                 pendingCount++;
                 if (!knownOrderIds.has(orderId)) { knownOrderIds.add(orderId); playDingDong(); }
                 renderOrderCard(orderId, order);
@@ -153,8 +198,10 @@
         const noteHtml = data.note ? `<span class="text-xs bg-gray-700 px-2 py-1 rounded text-white ml-2 border border-gray-600">${data.note}</span>` : '';
 
         card.innerHTML = `
+            <button class="btn-ignore" onclick="ignoreOrder('${orderId}')" title="隱藏此單"><i class="fa-solid fa-xmark"></i></button>
+
             <div>
-                <div class="flex justify-between items-center mb-3">
+                <div class="flex justify-between items-center mb-3 pr-8">
                     <div class="flex items-center gap-2">
                         <span class="bg-red-600 text-white text-[11px] px-2 py-1 rounded shadow-sm border border-red-500 animate-pulse font-black"><i class="fa-solid fa-fire mr-1"></i>總台派單</span>
                         <span class="text-gray-400 text-xs font-bold font-mono">#${orderId.substring(0, 6)}</span>
@@ -183,6 +230,37 @@
         orderList.appendChild(card);
     }
 
+    // 🚀 手動略過該單功能
+    window.ignoreOrder = function(orderId) {
+        ignoredOrders.add(orderId);
+        
+        // 避免陣列爆滿，只保留最後 100 筆紀錄
+        const saveArray = [...ignoredOrders].slice(-100);
+        localStorage.setItem('taxi_ignored_orders', JSON.stringify(saveArray));
+        
+        const card = document.getElementById(`card-${orderId}`);
+        if (card) {
+            card.style.transform = "scale(0.8)";
+            card.style.opacity = "0";
+            setTimeout(() => {
+                card.remove();
+                checkEmptyState();
+            }, 300);
+        }
+    }
+
+    // 🚀 檢查是否需要顯示空大廳狀態
+    function checkEmptyState() {
+        const remainingCards = document.querySelectorAll('.order-card');
+        if (remainingCards.length === 0) {
+            orderList.appendChild(emptyState);
+            emptyState.style.display = 'flex';
+            swipeHint.classList.add('hidden');
+        } else if (remainingCards.length === 1) {
+            swipeHint.classList.add('hidden');
+        }
+    }
+
     function snatchOrder(orderId, btn) {
         btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> 系統判定中...';
         btn.classList.add('disabled'); btn.disabled = true;
@@ -198,6 +276,7 @@
                 const card = document.getElementById(`card-${orderId}`);
                 if(card) { card.classList.add('taken'); btn.innerHTML = '<i class="fa-solid fa-ban"></i> 已被其他司機搶走'; setTimeout(() => card.remove(), 2000); }
                 showErrorSwal("手速太慢！", "該訂單剛好被其他司機搶先一步接走了！");
+                checkEmptyState();
             } else {
                 Swal.fire({
                     icon: 'success', title: '⚡ 搶單成功！',
@@ -222,7 +301,6 @@
                     }).catch(e => console.log("回報試算表失敗", e));
                 }
 
-                // 🚀 v10.8 完整打包：把時間跟下車點一起裝進去！
                 database.ref(`drivers/${myDriverId}/request`).set({
                     userId: "fleet_order", 
                     userName: orderData.passengerName || "總台派單",
@@ -231,8 +309,8 @@
                     timestamp: firebase.database.ServerValue.TIMESTAMP,
                     note: (orderData.pickup || "指定地點") + "｜總台單", 
                     fleetOrderId: orderId,
-                    time: orderData.time || "",            // <-- 補上預約時間
-                    dropoff: orderData.dropoff || ""       // <-- 補上下車點
+                    time: orderData.time || "",            
+                    dropoff: orderData.dropoff || ""       
                 });
                 database.ref(`drivers/${myDriverId}`).update({ workStatus: 'busy' });
             }
