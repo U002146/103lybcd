@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>搶單大廳</title>
+    <title>任務大廳</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -22,7 +22,6 @@
             appId: "1:553275317473:web:ae33f273c97c5c309ceba0"
         };
         
-        // 🔥 請確認這是你最新部署的 GAS 網址！
         const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzVTtBzYxPy9g-WnaJPS_Q_8GnzmWDf4Kaw7nA8VeDfe6ykM5rV3C2MmMddMh3AG6c9/exec"; 
 
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
@@ -46,7 +45,6 @@
         .btn-snatch:active { transform: scale(0.95); }
         .btn-snatch.disabled { background: #333; border-color: #555; box-shadow: none; cursor: not-allowed; color: #888; }
 
-        /* 🚀 隱藏按鈕樣式 */
         .btn-ignore { position: absolute; top: 12px; right: 12px; width: 32px; height: 32px; background: rgba(255,255,255,0.1); color: #888; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; z-index: 10; border: 1px solid rgba(255,255,255,0.1); }
         .btn-ignore:active { transform: scale(0.9); background: rgba(255,50,50,0.8); color: white; border-color: transparent; }
 
@@ -63,10 +61,10 @@
 <div id="app-container">
     <div class="app-header">
         <div class="flex items-center gap-3">
-            <i class="fa-solid fa-bolt text-purple-400 text-xl"></i>
+            <i class="fa-solid fa-list-check text-purple-400 text-xl"></i>
             <div class="flex flex-col">
-                <span class="text-lg font-black tracking-wider text-white" id="header-title">📋 搶單大廳</span>
-                <span id="swipe-hint" class="text-[10px] text-yellow-400 font-bold hidden animate-pulse">👉 左右滑動可看更多訂單</span>
+                <span class="text-lg font-black tracking-wider text-white" id="header-title">📋 任務大廳</span>
+                <span id="swipe-hint" class="text-[10px] text-yellow-400 font-bold hidden animate-pulse">👉 左右滑動可看更多任務</span>
             </div>
         </div>
         <div class="flex items-center gap-2 bg-gray-800 px-3 py-1.5 rounded-full border border-gray-700">
@@ -78,8 +76,8 @@
     <div id="order-list">
         <div id="empty-state" class="flex flex-col items-center justify-center w-full h-full opacity-50">
             <i class="fa-solid fa-radar text-6xl mb-4 text-gray-600"></i>
-            <p class="text-lg font-bold text-gray-400">目前大廳無任務</p>
-            <p class="text-sm text-gray-500 mt-2">過期單已隱藏，請等候新單</p>
+            <p class="text-lg font-bold text-gray-400">目前無待辦任務</p>
+            <p class="text-sm text-gray-500 mt-2">過期任務已隱藏，請等候新任務</p>
         </div>
     </div>
 </div>
@@ -90,7 +88,7 @@
     const myDriverName = urlParams.get('driverName') || myDriverId; 
     const myDriverPhone = urlParams.get('driverPhone') || ''; 
     
-    document.getElementById('header-title').innerHTML = `📋 搶單大廳 <span class="text-xs text-gray-500 ml-1">(${myDriverName})</span>`;
+    document.getElementById('header-title').innerHTML = `📋 任務大廳 <span class="text-xs text-gray-500 ml-1">(${myDriverName})</span>`;
 
     const orderList = document.getElementById('order-list');
     const emptyState = document.getElementById('empty-state');
@@ -99,7 +97,6 @@
     let audioCtx = null;
     let knownOrderIds = new Set();
     
-    // 🚀 讀取司機手動略過的訂單記憶 (最多存 100 筆避免爆滿)
     let ignoredOrders = new Set(JSON.parse(localStorage.getItem('taxi_ignored_orders') || '[]'));
 
     function playDingDong() {
@@ -121,18 +118,15 @@
         if (audioCtx.state === 'suspended') audioCtx.resume();
     }, { once: true });
 
-    // 🚀 自動判定訂單是否過期 (超過 30 分鐘)
     function isOrderExpired(order) {
         const now = new Date().getTime();
         const THIRTY_MINS = 30 * 60 * 1000;
 
         if (!order.time || order.time === '即時單' || !order.time.includes('/')) {
-            // 即時單：看建單時間 (createdAt)
             const created = order.createdAt || now; 
             return (now - created) > THIRTY_MINS;
         } else {
             try {
-                // 預約單格式：MM/DD HH:mm (ex: 3/19 18:00)
                 const currentYear = new Date().getFullYear();
                 const [datePart, timePart] = order.time.split(' ');
                 const [month, day] = datePart.split('/');
@@ -140,12 +134,10 @@
                 
                 let targetDate = new Date(currentYear, parseInt(month)-1, parseInt(day), parseInt(hour), parseInt(minute)).getTime();
 
-                // 若遇到跨年狀況 (如 12月底預約 1月單)
                 if (targetDate < now - 30 * 24 * 60 * 60 * 1000) {
                     targetDate = new Date(currentYear + 1, parseInt(month)-1, parseInt(day), parseInt(hour), parseInt(minute)).getTime();
                 }
 
-                // 超過預約時間 30 分鐘後視為過期
                 return now > (targetDate + THIRTY_MINS);
             } catch(e) {
                 return false; 
@@ -169,10 +161,9 @@
         Object.keys(orders).reverse().forEach(orderId => {
             const order = orders[orderId];
             
-            // 🚀 核心過濾機制：只顯示 pending，且沒有被手動略過，且還沒過期的單
             if (order.status === 'pending') {
                 if (ignoredOrders.has(orderId) || isOrderExpired(order)) {
-                    return; // 放棄渲染此單
+                    return; 
                 }
 
                 pendingCount++;
@@ -198,12 +189,12 @@
         const noteHtml = data.note ? `<span class="text-xs bg-gray-700 px-2 py-1 rounded text-white ml-2 border border-gray-600">${data.note}</span>` : '';
 
         card.innerHTML = `
-            <button class="btn-ignore" onclick="ignoreOrder('${orderId}')" title="隱藏此單"><i class="fa-solid fa-xmark"></i></button>
+            <button class="btn-ignore" onclick="ignoreOrder('${orderId}')" title="隱藏此任務"><i class="fa-solid fa-xmark"></i></button>
 
             <div>
                 <div class="flex justify-between items-center mb-3 pr-8">
                     <div class="flex items-center gap-2">
-                        <span class="bg-red-600 text-white text-[11px] px-2 py-1 rounded shadow-sm border border-red-500 animate-pulse font-black"><i class="fa-solid fa-fire mr-1"></i>總台派單</span>
+                        <span class="bg-blue-600 text-white text-[11px] px-2 py-1 rounded shadow-sm border border-blue-500 font-black"><i class="fa-solid fa-bell mr-1"></i>系統任務</span>
                         <span class="text-gray-400 text-xs font-bold font-mono">#${orderId.substring(0, 6)}</span>
                     </div>
                     <span class="text-yellow-400 text-sm font-bold bg-yellow-400/10 px-2 py-1 rounded-lg border border-yellow-400/20"><i class="fa-solid fa-clock mr-1"></i>${data.time || '即時單'}</span>
@@ -218,23 +209,21 @@
                     </div>
                     <div class="flex items-start gap-2">
                         <div class="w-6 text-center mt-0.5"><i class="fa-solid fa-user text-blue-400"></i></div>
-                        <span class="leading-tight">乘客：<span class="text-white">${data.passengerName || '總台派發'}</span> ${noteHtml}</span>
+                        <span class="leading-tight">乘客：<span class="text-white">${data.passengerName || '系統指派'}</span> ${noteHtml}</span>
                     </div>
                 </div>
             </div>
 
-            <button class="btn-snatch" id="btn-${orderId}" onclick="snatchOrder('${orderId}', this)">
-                <i class="fa-solid fa-bolt"></i> ⚡ 立即搶單
+            <button class="btn-snatch" id="btn-${orderId}" onclick="acceptOrder('${orderId}', this)">
+                <i class="fa-solid fa-check-circle"></i> ⚡ 承接任務
             </button>
         `;
         orderList.appendChild(card);
     }
 
-    // 🚀 手動略過該單功能
     window.ignoreOrder = function(orderId) {
         ignoredOrders.add(orderId);
         
-        // 避免陣列爆滿，只保留最後 100 筆紀錄
         const saveArray = [...ignoredOrders].slice(-100);
         localStorage.setItem('taxi_ignored_orders', JSON.stringify(saveArray));
         
@@ -249,7 +238,6 @@
         }
     }
 
-    // 🚀 檢查是否需要顯示空大廳狀態
     function checkEmptyState() {
         const remainingCards = document.querySelectorAll('.order-card');
         if (remainingCards.length === 0) {
@@ -261,7 +249,7 @@
         }
     }
 
-    function snatchOrder(orderId, btn) {
+    function acceptOrder(orderId, btn) {
         btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> 系統判定中...';
         btn.classList.add('disabled'); btn.disabled = true;
         const orderRef = database.ref(`fleet_orders/${orderId}`);
@@ -274,13 +262,13 @@
             if (error) { showErrorSwal("網路異常", "系統連線錯誤，請重試！"); } 
             else if (!committed) {
                 const card = document.getElementById(`card-${orderId}`);
-                if(card) { card.classList.add('taken'); btn.innerHTML = '<i class="fa-solid fa-ban"></i> 已被其他司機搶走'; setTimeout(() => card.remove(), 2000); }
-                showErrorSwal("手速太慢！", "該訂單剛好被其他司機搶先一步接走了！");
+                if(card) { card.classList.add('taken'); btn.innerHTML = '<i class="fa-solid fa-ban"></i> 已被承接'; setTimeout(() => card.remove(), 2000); }
+                showErrorSwal("晚了一步！", "該任務已由其他車輛承接！");
                 checkEmptyState();
             } else {
                 Swal.fire({
-                    icon: 'success', title: '⚡ 搶單成功！',
-                    html: '<div style="font-size:18px; font-weight:bold; color:#00C853; margin-bottom:10px;">任務已同步至主機！</div><div style="color:#aaa;">請<b style="color:white;">向下滑動</b>關閉大廳，<br>回地圖直接聯繫乘客！</div>',
+                    icon: 'success', title: '⚡ 承接成功！',
+                    html: '<div style="font-size:18px; font-weight:bold; color:#00C853; margin-bottom:10px;">任務已同步至手帳！</div><div style="color:#aaa;">請<b style="color:white;">向下滑動</b>關閉大廳，<br>回地圖直接聯繫乘客！</div>',
                     confirmButtonText: '⬇️ 往下滑動關閉', confirmButtonColor: '#00C853', allowOutsideClick: false
                 });
                 
@@ -303,11 +291,11 @@
 
                 database.ref(`drivers/${myDriverId}/request`).set({
                     userId: "fleet_order", 
-                    userName: orderData.passengerName || "總台派單",
+                    userName: orderData.passengerName || "系統任務",
                     userPhone: orderData.phone || "",
                     lat: 0, lng: 0,
                     timestamp: firebase.database.ServerValue.TIMESTAMP,
-                    note: (orderData.pickup || "指定地點") + "｜總台單", 
+                    note: (orderData.pickup || "指定地點") + "｜任務單", 
                     fleetOrderId: orderId,
                     time: orderData.time || "",            
                     dropoff: orderData.dropoff || ""       
