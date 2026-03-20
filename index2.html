@@ -34,13 +34,17 @@
     #driver-carousel { position: absolute; bottom: 20px; left: 0; width: 100%; display: flex; gap: 15px; padding: 10px 20px; box-sizing: border-box; overflow-x: auto; scroll-snap-type: x mandatory; z-index: 20; scrollbar-width: none; }
     #driver-carousel::-webkit-scrollbar { display: none; }
     
+    /* 🚀 優化排版：改為直向堆疊，對大字體更友善 */
     .driver-card { 
         flex: 0 0 92%; max-width: 380px; background: white; border-radius: 24px; padding: 16px 20px; 
         box-shadow: 0 10px 30px rgba(0,0,0,0.25); scroll-snap-align: center; 
-        display: flex; flex-direction: row; align-items: center; gap: 12px; 
+        display: flex; flex-direction: column; gap: 12px; 
         transition: transform 0.2s; border: 2px solid #ddd; position: relative; 
     }
     
+    .driver-card-top { display: flex; flex-direction: row; align-items: center; gap: 12px; width: 100%; }
+    .driver-card-actions { display: flex; gap: 10px; width: 100%; }
+
     .driver-card.tracking-mode { border-color: #00B0FF; box-shadow: 0 10px 35px rgba(0, 176, 255, 0.3); } 
     .driver-card.arrived-mode { border-color: #FF9800; box-shadow: 0 10px 35px rgba(255, 152, 0, 0.4); animation: card-pulse 2s infinite; } 
     .driver-card.busy-mode { border-color: #00C853; box-shadow: 0 10px 35px rgba(0, 200, 83, 0.3); } 
@@ -67,29 +71,30 @@
     .d-meta span { display: flex; align-items: center; gap: 6px; }
     .d-meta i { width: 16px; text-align: center; color: #888; }
     
+    /* 🚀 滿版操作按鈕 */
     .btn-call-action {
-        height: 44px; padding: 0 16px; border-radius: 22px;
+        height: 48px; padding: 0 16px; border-radius: 12px;
         background: linear-gradient(135deg, #00C853, #1B5E20); color: white;
         display: flex; justify-content: center; align-items: center; gap: 8px;
-        font-size: 15px; font-weight: 900; box-shadow: 0 4px 12px rgba(76, 175, 80, 0.4);
-        border: 2px solid #00E676; flex-shrink: 0; cursor: pointer; transition: transform 0.1s; white-space: nowrap;
+        font-size: 16px; font-weight: 900; box-shadow: 0 4px 12px rgba(76, 175, 80, 0.4);
+        border: 2px solid #00E676; flex: 1; cursor: pointer; transition: transform 0.1s; white-space: nowrap;
     }
     .btn-call-action:active { transform: scale(0.95); background: #1B5E20; }
     .btn-call-action:disabled { background: #9E9E9E; border-color: #757575; box-shadow: none; cursor: not-allowed; transform: none; }
     
-    .btn-cancel-mini {
-        position: absolute; top: -10px; right: -10px;
-        width: 32px; height: 32px; border-radius: 50%;
-        background: white; color: #d32f2f;
-        display: flex; justify-content: center; align-items: center;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.2); border: 2px solid #ffebee;
-        font-size: 16px; cursor: pointer; z-index: 10; transition: transform 0.1s;
+    /* 🚀 巨大化取消按鈕 */
+    .btn-cancel-action {
+        height: 48px; padding: 0 16px; border-radius: 12px;
+        background: linear-gradient(135deg, #F44336, #B71C1C); color: white;
+        display: flex; justify-content: center; align-items: center; gap: 8px;
+        font-size: 16px; font-weight: 900; box-shadow: 0 4px 12px rgba(244, 67, 54, 0.4);
+        border: 2px solid #EF9A9A; flex: 1; cursor: pointer; transition: transform 0.1s; white-space: nowrap;
     }
-    .btn-cancel-mini:active { transform: scale(0.9); }
+    .btn-cancel-action:active { transform: scale(0.95); background: #B71C1C; }
 
     .btn-call-full { width: 100%; height: 50px; border-radius: 16px; background: linear-gradient(135deg, #F57F17, #E65100); color: white; display: flex; justify-content: center; align-items: center; gap: 12px; text-decoration: none; font-size: 18px; font-weight: 900; box-shadow: 0 6px 15px rgba(245, 127, 23, 0.4); border: 2px solid #FFB300; cursor: pointer; }
 
-    #btn-loc { position: absolute; bottom: 150px; right: 20px; width: 55px; height: 55px; background: white; border-radius: 50%; box-shadow: 0 4px 15px rgba(0,0,0,0.25); display: flex; justify-content: center; align-items: center; font-size: 24px; color: #333; cursor: pointer; z-index: 15; border: 2px solid #eee; transition: bottom 0.3s; }
+    #btn-loc { position: absolute; bottom: 170px; right: 20px; width: 55px; height: 55px; background: white; border-radius: 50%; box-shadow: 0 4px 15px rgba(0,0,0,0.25); display: flex; justify-content: center; align-items: center; font-size: 24px; color: #333; cursor: pointer; z-index: 15; border: 2px solid #eee; transition: bottom 0.3s; }
     
     @keyframes pulse-radar { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
     @keyframes card-pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 152, 0, 0.4); } 70% { box-shadow: 0 0 0 15px rgba(255, 152, 0, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 152, 0, 0); } }
@@ -120,7 +125,7 @@
 
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script>
-    const VERSION = "v9.21"; 
+    const VERSION = "v9.22"; 
     const LIFF_ID = "2008907691-CzDqd7mm"; 
     const GAS_URL = "https://script.google.com/macros/s/AKfycbzjWZ8j394jfKoMVbPWGvHJHqwF7RBCQxnxyju1ifWKoKdM7RE512F7qrhUsQqQGoWg/exec"; 
     
@@ -155,7 +160,7 @@
     };
 
     window.onload = async function() {
-        Swal.fire({ title: '連線中', text: '正在為您尋找附近車輛...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
+        Swal.fire({ title: '連線中', text: '正在為您尋找附近空車...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
         initMap();
         await initLiffAndCheckBlacklist(); 
     };
@@ -201,9 +206,10 @@
 
         const HERO_IMAGE_URL = "https://u002146.github.io/103lybcd/photos/005.jpg"; 
 
+        // 🚀 拔除車隊字眼，改為接送服務
         const flexMessage = {
             "type": "flex",
-            "altText": "🚕 您的好友推薦了優質車隊！",
+            "altText": "🚕 您的好友推薦了優質接送服務！",
             "contents": {
                 "type": "bubble",
                 "hero": {
@@ -217,9 +223,9 @@
                     "type": "box",
                     "layout": "vertical",
                     "contents": [
-                        { "type": "text", "text": "花蓮敬老愛心車隊", "weight": "bold", "size": "xl", "color": "#111111" },
+                        { "type": "text", "text": "花蓮敬老愛心接送", "weight": "bold", "size": "xl", "color": "#111111" },
                         { "type": "text", "text": "免報路名 ‧ 一鍵雙向定位", "size": "sm", "color": "#FF9800", "weight": "bold", "margin": "sm" },
-                        { "type": "text", "text": "在地長輩最安心的叫車神器！點擊下方按鈕，立即開啟叫車雷達，附近空車一目了然。", "size": "xs", "color": "#666666", "wrap": true, "margin": "md" }
+                        { "type": "text", "text": "在地長輩最安心的接送神器！點擊下方按鈕，立即開啟叫車雷達，附近空車一目了然。", "size": "xs", "color": "#666666", "wrap": true, "margin": "md" }
                     ]
                 },
                 "footer": {
@@ -247,7 +253,7 @@
         try {
             const result = await liff.shareTargetPicker([flexMessage]);
             if (result) {
-                Swal.fire({ icon: 'success', title: '分享成功！', text: '感謝您推薦花蓮敬老愛心車隊！', timer: 2000, showConfirmButton: false, customClass: {popup: 'rounded-[24px]'} });
+                Swal.fire({ icon: 'success', title: '分享成功！', text: '感謝您推薦花蓮敬老愛心接送！', timer: 2000, showConfirmButton: false, customClass: {popup: 'rounded-[24px]'} });
             }
         } catch (error) {
             console.error('分享失敗', error);
@@ -503,32 +509,46 @@
             if (d.isTracked && currentTrackStep === '2') {
                 newHTML += `
                     <div class="${cardClass}" id="card-${d.id}">
-                        <div class="d-avatar"><img src="${avatar}"></div>
-                        <div class="d-info" style="justify-content: center; text-align: center;">
-                            <div style="color: #2E7D32; font-weight: 900; font-size: 18px; margin-bottom: 2px;">✅ 您已在車上</div>
-                            <div style="font-size: 13px; color: #555; font-weight: bold;"><i class="fa-solid fa-flag-checkered"></i> 祝您旅途愉快</div>
+                        <div class="driver-card-top" style="justify-content: center;">
+                            <div class="d-avatar"><img src="${avatar}"></div>
+                            <div class="d-info" style="justify-content: center; text-align: center;">
+                                <div style="color: #2E7D32; font-weight: 900; font-size: 18px; margin-bottom: 2px;">✅ 您已在車上</div>
+                                <div style="font-size: 13px; color: #555; font-weight: bold;"><i class="fa-solid fa-flag-checkered"></i> 祝您旅途愉快</div>
+                            </div>
                         </div>
                     </div>
                 `;
             } else {
-                let callAction = d.isTracked ? `window.location.href='tel:${d.phone}'` : `callDriver('${d.id}', '${d.phone}', this); event.stopPropagation();`;
-                let btnContent = d.isTracked ? `<i class="fa-solid fa-phone"></i> 聯絡司機` : `<i class="fa-solid fa-bolt"></i> 一鍵叫車`;
-                let cancelBtn = d.isTracked ? `<div class="btn-cancel-mini" onclick="exitTrackingMode(false); event.stopPropagation();"><i class="fa-solid fa-xmark"></i></div>` : '';
-                
+                // 🚀 動態生成下方按鈕，如果是追蹤模式，顯示取消與聯絡雙按鈕
+                let actionButtons = '';
+                if (d.isTracked) {
+                    actionButtons = `
+                        <div class="driver-card-actions">
+                            <button class="btn-cancel-action" onclick="exitTrackingMode(false); event.stopPropagation();"><i class="fa-solid fa-xmark"></i> 取消叫車</button>
+                            <button class="btn-call-action" onclick="window.location.href='tel:${d.phone}'"><i class="fa-solid fa-phone"></i> 聯絡司機</button>
+                        </div>
+                    `;
+                } else {
+                    actionButtons = `
+                        <div class="driver-card-actions">
+                            <button class="btn-call-action" onclick="callDriver('${d.id}', '${d.phone}', this); event.stopPropagation();"><i class="fa-solid fa-bolt"></i> 一鍵叫車</button>
+                        </div>
+                    `;
+                }
+
                 newHTML += `
                     <div class="${cardClass}" id="card-${d.id}" onclick="map.panTo({lat:${d.lat}, lng:${d.lng}})">
-                        ${cancelBtn}
-                        <div class="d-avatar"><img src="${avatar}"></div>
-                        <div class="d-info">
-                            <div class="d-name">${d.name} ${statusTag}</div>
-                            <div class="d-meta">
-                                <span><i class="fa-solid fa-taxi"></i> ${displayCarNo}</span>
-                                <span><i class="fa-solid fa-location-arrow"></i> 距離 ${distText}</span>
+                        <div class="driver-card-top">
+                            <div class="d-avatar"><img src="${avatar}"></div>
+                            <div class="d-info">
+                                <div class="d-name">${d.name} ${statusTag}</div>
+                                <div class="d-meta">
+                                    <span><i class="fa-solid fa-taxi"></i> ${displayCarNo}</span>
+                                    <span><i class="fa-solid fa-location-arrow"></i> 距離 ${distText}</span>
+                                </div>
                             </div>
                         </div>
-                        <button class="btn-call-action" onclick="${callAction}">
-                            ${btnContent}
-                        </button>
+                        ${actionButtons}
                     </div>
                 `;
             }
@@ -604,7 +624,6 @@
         if (!myLat || !myLng) { makeCallAndTrack(); return; }
 
         try {
-            // 🚀 v9.21 將畫面上的「地址」直接傳給司機端！
             const currentAddress = document.getElementById('loc-text').innerText;
             
             const writePromise = db.ref('drivers/' + driverId + '/request').set({
@@ -613,8 +632,8 @@
                 userId: passengerId, 
                 userName: passengerName,
                 userPhone: passengerPhone, 
-                pickup: currentAddress,    // 🔥 寫入上車地址
-                dropoff: "依乘客指示",      // 🔥 寫入預設下車地址
+                pickup: currentAddress, 
+                dropoff: "依乘客指示",  
                 timestamp: firebase.database.ServerValue.TIMESTAMP
             });
 
@@ -668,7 +687,7 @@
         
         if (isAuto) {
             Swal.fire({
-                icon: 'success', title: '行程已結束', text: '感謝您搭乘花蓮車隊，期待下次為您服務！',
+                icon: 'success', title: '行程已結束', text: '感謝您搭乘花蓮敬老愛心接送，期待下次為您服務！',
                 confirmButtonColor: '#00C853', confirmButtonText: '確定'
             });
         } else {
