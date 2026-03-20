@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>敬老愛心計程車 - 戰情室</title> 
+  <title>司機戰情室</title> 
   
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -40,10 +40,14 @@
     .d-avatar { width: 40px; height: 40px; border-radius: 50%; background: #555; overflow: hidden; margin-right: 10px; }
     .d-avatar img { width: 100%; height: 100%; object-fit: cover; }
     .d-info h3 { margin: 0; font-size: 15px; color: #fff; display: flex; align-items: center; }
-    .d-info p { margin: 2px 0 0; font-size: 12px; color: #aaa; }
+    .d-info p { margin: 2px 0 0; font-size: 12px; color: #aaa; display: flex; align-items: center; gap: 6px; }
 
     /* ⏳ 靜態入列時間標籤 */
     .time-badge { font-size: 11px; background: #3498db; color: white; padding: 2px 6px; border-radius: 4px; margin-left: 6px; font-weight: bold; letter-spacing: 0.5px;}
+    
+    /* 🚗 車種標籤 */
+    .type-badge-multi { background: #111; color: #f1c40f; border: 1px solid #f1c40f; font-size: 10px; padding: 1px 4px; border-radius: 4px; font-weight: bold; }
+    .type-badge-taxi { background: #f1c40f; color: #000; font-size: 10px; padding: 1px 4px; border-radius: 4px; font-weight: bold; }
 
     .btn-dial { background: #00C853; color: white; width: 38px; height: 38px; border-radius: 50%; display: flex; justify-content: center; align-items: center; text-decoration: none; box-shadow: 0 2px 5px rgba(0,0,0,0.3); transition: transform 0.1s; }
     .btn-dial:active { transform: scale(0.9); }
@@ -105,11 +109,11 @@
 
   <div id="chat-panel">
     <div class="chat-header" onclick="toggleChat()">
-        <span><i class="fa-solid fa-walkie-talkie mr-2"></i>車隊對講機</span>
+        <span><i class="fa-solid fa-walkie-talkie mr-2"></i>內部對講機</span>
         <i class="fa-solid fa-chevron-down"></i>
     </div>
     <div class="chat-messages" id="chat-messages">
-        <div style="text-align:center; color:#555; font-size:12px; margin-bottom:10px;">🛡️ 歡迎使用車隊專屬無線電 🛡️</div>
+        <div style="text-align:center; color:#555; font-size:12px; margin-bottom:10px;">🛡️ 歡迎使用內部專屬無線電 🛡️</div>
     </div>
     <div class="chat-input-area">
         <input type="text" id="chat-input" placeholder="回報前線戰況..." onkeypress="if(event.key==='Enter') sendMsg()">
@@ -118,16 +122,14 @@
   </div>
 
   <script>
-    const VERSION = "v6.6"; // 🚀 聊天室顯示雙邊名稱與時間版
+    const VERSION = "v6.7"; // 🚀 雙軌監控版：去車隊字眼＋新增多元小黃標籤
     const firebaseConfig = { databaseURL: "https://hualientaxi-bb32f-default-rtdb.asia-southeast1.firebasedatabase.app/" };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
     
-    // 🚀 從網址解析 driverId
     const urlParams = new URLSearchParams(window.location.search);
     let myDriverId = urlParams.get('did'); 
     
-    // 如果網址沒有 did，防呆回退到預設值
     if (!myDriverId || myDriverId === 'null') {
         myDriverId = 'TDP-TESTER';
     }
@@ -135,7 +137,6 @@
     let myDriverName = "司機";
     let myDriverPhoto = "https://cdn-icons-png.flaticon.com/512/3237/3237472.png"; 
 
-    // 🚀 去資料庫抓取真實照片與名稱
     db.ref('drivers/' + myDriverId).once('value', snap => {
         if(snap.exists()) {
             let data = snap.val();
@@ -305,7 +306,12 @@
                         ? `<a href="tel:${d.phone}" class="btn-dial ${isBusy ? 'disabled' : ''}"><i class="fa-solid fa-phone"></i></a>` 
                         : `<div style="width:40px;"></div>`;
 
-                    const displayCarNo = d.carNo || d.car || '計程車';
+                    const displayCarNo = d.carNo || d.car || '車輛';
+                    
+                    // 🚀 雙軌制：車種動態標籤
+                    const carTypeTag = d.carType === 'multi' 
+                        ? `<span class="type-badge-multi">多元</span>` 
+                        : `<span class="type-badge-taxi">小黃</span>`;
                     
                     let waitHtml = "";
                     if (d.queueTime) {
@@ -318,7 +324,10 @@
                         <div class="driver-card ${statusClass}">
                             <div class="d-left">
                                 <div class="d-avatar"><img src="${avatar}"></div>
-                                <div class="d-info"><h3>${d.name} ${waitHtml}</h3><p>${displayCarNo}</p></div>
+                                <div class="d-info">
+                                    <h3>${d.name} ${waitHtml}</h3>
+                                    <p>${displayCarNo} ${carTypeTag}</p>
+                                </div>
                             </div>
                             ${phoneBtn}
                         </div>
@@ -331,7 +340,7 @@
     }
 
     // ==========================================
-    // 2. 💬 車隊對講機系統 (v6.6 雙向顯示名稱與照片)
+    // 2. 💬 內部對講機系統 (v6.7 雙向顯示名稱與照片)
     // ==========================================
     let isChatOpen = false;
     let unreadCount = 0;
@@ -362,9 +371,8 @@
             const timeStr = new Date(msg.timestamp).toLocaleTimeString('zh-TW', {hour: '2-digit', minute:'2-digit'});
             const msgPhoto = msg.senderPhoto || 'https://cdn-icons-png.flaticon.com/512/3237/3237472.png';
             
-            // 🚀 區分左右邊，並強制加上頭像與名稱
+            // 區分左右邊，並強制加上頭像與名稱
             if (isMe) {
-                // 自己說的話 (右邊)
                 msgBox.innerHTML += `
                     <div class="chat-row mine">
                         <img src="${msgPhoto}" class="chat-avatar">
@@ -375,7 +383,6 @@
                     </div>
                 `;
             } else {
-                // 別人說的話 (左邊)
                 msgBox.innerHTML += `
                     <div class="chat-row others">
                         <img src="${msgPhoto}" class="chat-avatar">
