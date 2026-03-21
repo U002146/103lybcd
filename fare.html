@@ -9,8 +9,13 @@
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
-        .pac-container { border-radius: 8px; margin-top: 5px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); font-size: 18px; }
+        /* 優化 Google 地址下拉選單 */
+        .pac-container { border-radius: 8px; margin-top: 5px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); font-size: 18px; z-index: 10000 !important; }
         .pac-item { padding: 12px; cursor: pointer; }
+        
+        /* 自定義 Loading SwAL (非同步防護) */
+        .loading-icon { color: #f59e0b; animation: spin 1.5s linear infinite; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen pb-10">
@@ -22,12 +27,25 @@
 
     <div class="p-4 max-w-md mx-auto">
         <div class="bg-white rounded-xl shadow-md p-5 space-y-4">
+            
+            <div class="grid grid-cols-2 gap-3 pb-2">
+                <button onclick="selectVehicleType('taxi')" id="btn-taxi" class="w-full bg-yellow-400 hover:bg-yellow-500 text-black font-black text-2xl py-6 rounded-2xl shadow-inner transition-transform active:scale-95 border-4 border-yellow-500">
+                    🚕 小黃
+                </button>
+                <button onclick="selectVehicleType('multicar')" id="btn-multicar" class="w-full bg-white text-gray-500 font-bold text-2xl py-6 rounded-2xl border-4 border-gray-200 active:bg-blue-50">
+                    🚙 多元
+                </button>
+            </div>
+            
             <div>
                 <label class="block text-gray-500 text-sm mb-1 font-bold">上車地點</label>
                 <div class="flex gap-2">
-                    <input id="start_address" type="text" placeholder="輸入起點或點擊右側定位" 
-                           class="flex-1 border-2 border-gray-200 rounded-lg p-3 text-lg focus:border-blue-500 outline-none">
-                    <button onclick="getCurrentLocation()" class="bg-blue-100 text-blue-600 px-3 rounded-lg active:bg-blue-200">
+                    <div class="relative flex-1">
+                        <input id="start_address" type="text" placeholder="輸入起點或定位" 
+                               class="w-full border-2 border-gray-200 rounded-lg p-4 text-xl focus:border-blue-500 outline-none pr-12 debounce">
+                        <button onclick="clearInput('start_address')" class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500 text-xl">✖</button>
+                    </div>
+                    <button id="btn-location" onclick="getCurrentLocation()" class="bg-blue-100 text-blue-600 px-4 rounded-lg active:bg-blue-200">
                         📍
                     </button>
                 </div>
@@ -35,12 +53,15 @@
 
             <div>
                 <label class="block text-gray-500 text-sm mb-1 font-bold">下車地點</label>
-                <input id="end_address" type="text" placeholder="你要去哪裡？" 
-                       class="w-full border-2 border-gray-200 rounded-lg p-3 text-lg focus:border-blue-500 outline-none">
+                <div class="relative">
+                    <input id="end_address" type="text" placeholder="你要去哪裡？" 
+                           class="w-full border-2 border-gray-200 rounded-lg p-4 text-xl focus:border-blue-500 outline-none pr-12">
+                    <button onclick="clearInput('end_address')" class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500 text-xl">✖</button>
+                </div>
             </div>
 
-            <button onclick="calculateFare()" 
-                    class="w-full bg-yellow-400 hover:bg-yellow-500 text-black font-black text-2xl py-4 rounded-xl shadow-inner transition-transform active:scale-95">
+            <button id="btn-calculate" onclick="calculateFare()" 
+                    class="w-full bg-yellow-400 hover:bg-yellow-500 text-black font-black text-2xl py-5 rounded-xl shadow-inner transition-transform active:scale-95 mt-4">
                 💰 開始預估車資
             </button>
         </div>
@@ -48,7 +69,7 @@
         <div id="result_card" class="hidden mt-6 bg-white rounded-xl shadow-md p-6 border-t-8 border-green-500 animate-bounce-in">
             <div class="text-center">
                 <p class="text-gray-500 font-bold text-lg">預估金額區間</p>
-                <h2 id="fare_range" class="text-4xl font-black text-green-600 my-2">NT$ 100 - 120</h2>
+                <h2 id="fare_range" class="text-5xl font-black text-green-600 my-3">NT$ 100 - 120</h2>
                 <div class="flex justify-around text-gray-600 mt-4 border-t pt-4">
                     <div>
                         <p class="text-xs">預估距離</p>
@@ -64,19 +85,9 @@
 
         <div class="mt-8 space-y-3">
             <p class="text-center text-gray-400 text-sm font-bold">— 覺得合適？立即出發 —</p>
-            <div class="grid grid-cols-1 gap-3">
-                <button onclick="redirectToAction('fav')" class="bg-white border-2 border-green-600 text-green-700 font-bold py-4 rounded-xl flex items-center justify-center gap-2 active:bg-green-50">
-                    🏠 常用地址
-                </button>
-                <div class="grid grid-cols-2 gap-3">
-                    <button onclick="redirectToAction('loc')" class="bg-green-600 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 active:bg-green-700 shadow-md">
-                        📍 定位叫車
-                    </button>
-                    <button onclick="redirectToAction('quick')" class="bg-orange-500 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 active:bg-orange-600 shadow-md">
-                        ⚡ 一鍵叫車
-                    </button>
-                </div>
-            </div>
+            <button onclick="redirectToOneKeyBooking()" class="w-full bg-green-600 text-white font-black text-2xl py-6 rounded-2xl flex items-center justify-center gap-3 active:bg-green-700 shadow-xl transition-all animate-pulse-slight debounce">
+                ⚡ 立即前往 一鍵叫車系統
+            </button>
         </div>
     </div>
 
@@ -85,41 +96,95 @@
     <script>
         let userId = "guest";
         let startAutocomplete, endAutocomplete;
+        let selectedVehicle = "taxi"; // 預設小黃
+        let hualienBounds; // 花蓮邊界鎖定 API 升級
 
         // 初始化 LIFF
         async function initLiff() {
             try {
-                await liff.init({ liffId: "YOUR_LIFF_ID" });
+                // 替換 YOUR_LIFF_ID 為獨立 LIFF ID
+                await liff.init({ liffId: "2008907691-Faf4aET8" });
                 if (!liff.isLoggedIn()) {
                     liff.login();
                 } else {
                     const profile = await liff.getProfile();
                     userId = profile.userId;
+                    initMapBounds();
                     initAutocomplete();
                 }
             } catch (err) {
                 console.error("LIFF Init Error", err);
+                initMapBounds();
                 initAutocomplete(); // 即使失敗也允許測試
             }
         }
 
+        function initMapBounds() {
+            // 24.3 to 23.1, 121.7 to 121.1 (精準花蓮縣方框)
+            hualienBounds = new google.maps.LatLngBounds(
+                new google.maps.LatLng(23.1, 121.1),
+                new google.maps.LatLng(24.3, 121.7)
+            );
+        }
+
         function initAutocomplete() {
-            const options = { componentRestrictions: { country: "tw" } };
+            const options = { 
+                componentRestrictions: { country: "tw" },
+                bounds: hualienBounds,
+                strictBounds: true // 強制鎖定花蓮 API 升級
+            };
             startAutocomplete = new google.maps.places.Autocomplete(document.getElementById('start_address'), options);
             endAutocomplete = new google.maps.places.Autocomplete(document.getElementById('end_address'), options);
         }
 
+        // AgeTech: 一鍵清除採用
+        function clearInput(id) {
+            document.getElementById(id).value = '';
+            document.getElementById(id).focus();
+        }
+
+        // UI 連動：車型選擇
+        function selectVehicleType(type) {
+            selectedVehicle = type;
+            const btnTaxi = document.getElementById('btn-taxi');
+            const btnMulticar = document.getElementById('btn-multicar');
+
+            if (type === 'taxi') {
+                btnTaxi.className = "w-full bg-yellow-400 hover:bg-yellow-500 text-black font-black text-2xl py-6 rounded-2xl shadow-inner border-4 border-yellow-500";
+                btnMulticar.className = "w-full bg-white text-gray-500 font-bold text-2xl py-6 rounded-2xl border-4 border-gray-200 active:bg-blue-50";
+            } else {
+                btnMulticar.className = "w-full bg-blue-600 text-white font-black text-2xl py-6 rounded-2xl shadow-inner border-4 border-blue-600";
+                btnTaxi.className = "w-full bg-white text-gray-500 font-bold text-2xl py-6 rounded-2xl border-4 border-gray-200 active:bg-blue-50";
+            }
+        }
+
         function getCurrentLocation() {
+            // 非同步防護 採用
+            Swal.fire({
+                title: '📍 正在獲取您的位置...',
+                allowOutsideClick: false,
+                didOpen: () => { Swal.showLoading(); }
+            });
+
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition((pos) => {
                     const latlng = { lat: pos.coords.latitude, lng: pos.coords.longitude };
                     const geocoder = new google.maps.Geocoder();
                     geocoder.geocode({ location: latlng }, (results, status) => {
+                        Swal.close();
                         if (status === "OK" && results[0]) {
                             document.getElementById('start_address').value = results[0].formatted_address;
+                        } else {
+                            Swal.fire("定位失敗", "無法將座標轉換為地址", "error");
                         }
                     });
+                }, (error) => {
+                    Swal.close();
+                    Swal.fire("定位失敗", "請確認是否開啟 GPS 與權限", "error");
                 });
+            } else {
+                Swal.close();
+                Swal.fire("定位失敗", "您的瀏覽器不支援定位", "error");
             }
         }
 
@@ -135,37 +200,45 @@
             // 防禦：每日次數限制
             if (!checkDailyLimit()) return;
 
+            // 非同步防護 採用
+            Swal.fire({
+                title: '💰 正在計算最佳路線...',
+                allowOutsideClick: false,
+                didOpen: () => { Swal.showLoading(); }
+            });
+
             const service = new google.maps.DirectionsService();
             service.route({
                 origin: start,
                 destination: end,
                 travelMode: google.maps.TravelMode.DRIVING
             }, (response, status) => {
+                Swal.close();
                 if (status === "OK") {
                     const route = response.routes[0].legs[0];
                     const distanceMeter = route.distance.value;
                     const durationSec = route.duration.value;
                     
-                    const fare = computeHualienFare(distanceMeter, durationSec);
+                    const fare = computeHualienFare(distanceMeter, durationSec, selectedVehicle);
                     
                     document.getElementById('result_card').classList.remove('hidden');
                     document.getElementById('fare_range').innerText = `NT$ ${fare.min} - ${fare.max}`;
                     document.getElementById('res_distance').innerText = (distanceMeter / 1000).toFixed(1) + " km";
                     document.getElementById('res_duration').innerText = Math.round(durationSec / 60) + " 分鐘";
                     
-                    window.scrollTo({ top: 300, behavior: 'smooth' });
+                    window.scrollTo({ top: 400, behavior: 'smooth' });
                 } else {
-                    Swal.fire("路徑計算失敗", "請確認地址是否正確", "error");
+                    Swal.fire("計算失敗", "起點或終點位於無法行駛的區域", "error");
                 }
             });
         }
 
-        function computeHualienFare(meters, seconds) {
+        function computeHualienFare(meters, seconds, vehicleType) {
             const now = new Date();
             const hour = now.getHours();
             const isNight = (hour >= 22 || hour < 6);
 
-            // 花蓮費率邏輯
+            // 花蓮小黃費率邏輯
             let baseFare = isNight ? 120 : 100; // 起跳
             let distance = meters;
             
@@ -177,6 +250,12 @@
             
             // 延滯計時模擬：預估會有 10% 的等紅燈/塞車費
             let total = baseFare + extraFare;
+
+            // 車型乘數連動 (擴充準備)
+            if (vehicleType === 'multicar') {
+                total = total * 1.2; // 多元預設 1.2 倍
+            }
+            
             return {
                 min: Math.floor(total),
                 max: Math.floor(total * 1.15) // 給予 15% 浮動區間
@@ -185,8 +264,8 @@
 
         function checkDailyLimit() {
             const today = new Date().toDateString();
-            const countKey = userId + '_count';
-            const dateKey = userId + '_date';
+            const countKey = userId + '_fare_count';
+            const dateKey = userId + '_fare_date';
             
             let count = parseInt(localStorage.getItem(countKey) || "0");
             let lastDate = localStorage.getItem(dateKey);
@@ -197,7 +276,13 @@
             }
 
             if (count >= 10) {
-                Swal.fire("查詢次數已達上限", "為了維持服務品質，每日限查 10 次。請直接點擊下方按鈕叫車！", "info");
+                Swal.fire({
+                    icon: 'info',
+                    title: "查詢次數已達上限",
+                    text: "今日限查 10 次。為了不浪費您的時間，請直接點擊下方叫車！",
+                    confirmButtonText: '確定',
+                    confirmButtonColor: '#16a34a' // green-600
+                });
                 return false;
             }
 
@@ -205,9 +290,10 @@
             return true;
         }
 
-        function redirectToAction(type) {
-            // 這裡替換成你的主叫車 LINE 官方帳號連結或另一個 LIFF URL
-            const mainLiffUrl = "https://line.me/R/ti/p/@your_id"; 
+        // 行銷收斂漏斗採用
+        function redirectToOneKeyBooking() {
+            // 定位至主叫車 LIFF (敬老愛心系統)
+            const mainLiffUrl = "https://liff.line.me/2008907691-CzDqd7mm"; 
             liff.openWindow({ url: mainLiffUrl, external: false });
         }
 
