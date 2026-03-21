@@ -1,3 +1,4 @@
+// v9.24 [跨系統無縫接軌] 實裝 URL 參數攔截，自動填入起點，並將預估車資隱形封裝至下車點欄位
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
@@ -66,7 +67,6 @@
     .tag-arrived { background: #FFF3E0; color: #E65100; border: 1px solid #FF9800; animation: pulse-radar 1.5s infinite; }
     .tag-busy { background: #E8F5E9; color: #2E7D32; border: 1px solid #4CAF50; } 
 
-    /* 🚀 新增：星級徽章樣式 */
     .tag-star { background: #FFF8E1; color: #F57F17; border: 1px solid #FFC107; margin-left: auto; font-size: 13px; }
 
     .d-meta { font-size: 14px; font-weight: 600; color: #666; display: flex; flex-direction: column; gap: 2px; }
@@ -125,7 +125,7 @@
 
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script>
-    const VERSION = "v9.23"; 
+    const VERSION = "v9.24"; 
     const LIFF_ID = "2008907691-CzDqd7mm"; 
     const GAS_URL = "https://script.google.com/macros/s/AKfycbzjWZ8j394jfKoMVbPWGvHJHqwF7RBCQxnxyju1ifWKoKdM7RE512F7qrhUsQqQGoWg/exec"; 
     
@@ -147,8 +147,14 @@
     let myTrackedDriverId = localStorage.getItem('trackedDriverId') || null;
     let currentTrackStep = localStorage.getItem('trackStep') || '1';
 
-    // 🚀 司機星級快取字典 (避免重複運算)
     let driverRatingsCache = {};
+
+    // 🚀 URL 參數攔截器：接收從「預估車資」傳遞過來的跨系統變數
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlPickup = urlParams.get('p');
+    const urlDropoff = urlParams.get('d');
+    const urlFare = urlParams.get('f');
+    const urlVehicle = urlParams.get('v');
 
     const getPinIcon = (type, isTracked, workStatus, trackStep) => {
         if (isTracked) {
@@ -168,7 +174,6 @@
         await initLiffAndCheckBlacklist(); 
     };
 
-    // 🚀 計算指定司機的平均星數
     async function fetchDriverRating(driverId) {
         if (driverRatingsCache[driverId] !== undefined) return driverRatingsCache[driverId];
         
@@ -331,6 +336,10 @@
             locTextEl.style.color = "#333";
             locIconEl.className = "fa-solid fa-location-dot";
             locIconEl.style.color = "#e74c3c";
+            // 🚀 如果客人沒有在追蹤司機，且傳入了 urlPickup，則恢復顯示他指定的上車點
+            if (urlPickup) {
+                locTextEl.innerText = urlPickup;
+            }
         }
     }
 
@@ -356,10 +365,15 @@
                 if (myTrackedDriverId) {
                     updateStatusUI(); 
                 } else {
-                    const currentGooglePos = new google.maps.LatLng(myLat, myLng);
-                    if (!lastGeocodePos || google.maps.geometry.spherical.computeDistanceBetween(lastGeocodePos, currentGooglePos) > 100) {
-                        getAddress(myLat, myLng);
-                        lastGeocodePos = currentGooglePos;
+                    // 🚀 如果有從預估頁面帶上車點過來，強制鎖死文字，不呼叫 Google 反查
+                    if (urlPickup) {
+                        document.getElementById('loc-text').innerText = urlPickup;
+                    } else {
+                        const currentGooglePos = new google.maps.LatLng(myLat, myLng);
+                        if (!lastGeocodePos || google.maps.geometry.spherical.computeDistanceBetween(lastGeocodePos, currentGooglePos) > 100) {
+                            getAddress(myLat, myLng);
+                            lastGeocodePos = currentGooglePos;
+                        }
                     }
                 }
                 
@@ -387,7 +401,11 @@
         currentTrackStep = '1';
         
         lastGeocodePos = null;
-        if (myLat && myLng) getAddress(myLat, myLng);
+        if (urlPickup) {
+            document.getElementById('loc-text').innerText = urlPickup;
+        } else if (myLat && myLng) {
+            getAddress(myLat, myLng);
+        }
         updateStatusUI();
         
         Swal.fire({
@@ -447,7 +465,6 @@
             }
         }
 
-        // 🚀 收集需要顯示的司機，並非同步抓取他們的星星
         let tempDrivers = [];
 
         Object.keys(data).forEach(key => {
@@ -500,7 +517,6 @@
             tempDrivers.push(d);
         });
 
-        // 🚀 批次抓取星級資料
         for (let d of tempDrivers) {
             d.ratingStr = await fetchDriverRating(d.id);
             activeDrivers.push(d);
@@ -551,7 +567,6 @@
             const avatar = d.photo || 'https://cdn-icons-png.flaticon.com/512/3237/3237472.png';
             const displayCarNo = d.carNo || d.car || '花蓮計程車';
             
-            // 🚀 建立星級 UI
             let ratingUI = '';
             if (d.ratingStr === "NEW") {
                 ratingUI = `<span class="tag tag-star">✨ 新手司機</span>`;
@@ -676,16 +691,26 @@
         if (!myLat || !myLng) { makeCallAndTrack(); return; }
 
         try {
-            const currentAddress = document.getElementById('loc-text').innerText;
+            // 🚀 核心邏輯：組合上車點、下車點與隱形預估車資
+            const currentAddress = urlPickup ? urlPickup : document.getElementById('loc-text').innerText;
+            
+            let finalDropoff = "依乘客指示";
+            if (urlDropoff) {
+                finalDropoff = urlDropoff;
+                if (urlFare) {
+                    let vName = urlVehicle === 'multicar' ? '多元' : '小黃';
+                    finalDropoff += ` (預估單: ${vName} $${urlFare})`;
+                }
+            }
             
             const writePromise = db.ref('drivers/' + driverId + '/request').set({
-                lat: myLat, 
+                lat: myLat, // 依然傳送乘客實際 GPS 座標讓司機導航用
                 lng: myLng, 
                 userId: passengerId, 
                 userName: passengerName,
                 userPhone: passengerPhone, 
-                pickup: currentAddress, 
-                dropoff: "依乘客指示",  
+                pickup: currentAddress,   // 顯示剛才使用者填寫的精準上車點
+                dropoff: finalDropoff,    // 巧妙將下車點與車資塞給司機端看
                 timestamp: firebase.database.ServerValue.TIMESTAMP
             });
 
@@ -734,7 +759,11 @@
         currentTrackStep = '1';
         
         lastGeocodePos = null;
-        if (myLat && myLng) getAddress(myLat, myLng);
+        if (urlPickup) {
+            document.getElementById('loc-text').innerText = urlPickup;
+        } else if (myLat && myLng) {
+            getAddress(myLat, myLng);
+        }
         updateStatusUI();
         
         if (isAuto) {
@@ -759,6 +788,8 @@
     }
     
     function getAddress(lat, lng) {
+        if (urlPickup) return; // 🚀 如果有自訂上車點，絕對不呼叫 Google 反查覆蓋它
+
         document.getElementById('loc-text').innerText = "定位中...";
         
         const geocoder = new google.maps.Geocoder();
