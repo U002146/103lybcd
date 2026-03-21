@@ -34,7 +34,6 @@
     #driver-carousel { position: absolute; bottom: 20px; left: 0; width: 100%; display: flex; gap: 15px; padding: 10px 20px; box-sizing: border-box; overflow-x: auto; scroll-snap-type: x mandatory; z-index: 20; scrollbar-width: none; }
     #driver-carousel::-webkit-scrollbar { display: none; }
     
-    /* 🚀 優化排版：改為直向堆疊，對大字體更友善 */
     .driver-card { 
         flex: 0 0 92%; max-width: 380px; background: white; border-radius: 24px; padding: 16px 20px; 
         box-shadow: 0 10px 30px rgba(0,0,0,0.25); scroll-snap-align: center; 
@@ -67,11 +66,13 @@
     .tag-arrived { background: #FFF3E0; color: #E65100; border: 1px solid #FF9800; animation: pulse-radar 1.5s infinite; }
     .tag-busy { background: #E8F5E9; color: #2E7D32; border: 1px solid #4CAF50; } 
 
+    /* 🚀 新增：星級徽章樣式 */
+    .tag-star { background: #FFF8E1; color: #F57F17; border: 1px solid #FFC107; margin-left: auto; font-size: 13px; }
+
     .d-meta { font-size: 14px; font-weight: 600; color: #666; display: flex; flex-direction: column; gap: 2px; }
     .d-meta span { display: flex; align-items: center; gap: 6px; }
     .d-meta i { width: 16px; text-align: center; color: #888; }
     
-    /* 🚀 滿版操作按鈕 */
     .btn-call-action {
         height: 48px; padding: 0 16px; border-radius: 12px;
         background: linear-gradient(135deg, #00C853, #1B5E20); color: white;
@@ -82,7 +83,6 @@
     .btn-call-action:active { transform: scale(0.95); background: #1B5E20; }
     .btn-call-action:disabled { background: #9E9E9E; border-color: #757575; box-shadow: none; cursor: not-allowed; transform: none; }
     
-    /* 🚀 巨大化取消按鈕 */
     .btn-cancel-action {
         height: 48px; padding: 0 16px; border-radius: 12px;
         background: linear-gradient(135deg, #F44336, #B71C1C); color: white;
@@ -125,7 +125,7 @@
 
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script>
-    const VERSION = "v9.22"; 
+    const VERSION = "v9.23"; 
     const LIFF_ID = "2008907691-CzDqd7mm"; 
     const GAS_URL = "https://script.google.com/macros/s/AKfycbzjWZ8j394jfKoMVbPWGvHJHqwF7RBCQxnxyju1ifWKoKdM7RE512F7qrhUsQqQGoWg/exec"; 
     
@@ -147,6 +147,9 @@
     let myTrackedDriverId = localStorage.getItem('trackedDriverId') || null;
     let currentTrackStep = localStorage.getItem('trackStep') || '1';
 
+    // 🚀 司機星級快取字典 (避免重複運算)
+    let driverRatingsCache = {};
+
     const getPinIcon = (type, isTracked, workStatus, trackStep) => {
         if (isTracked) {
             let trackColor = '#00B0FF'; 
@@ -164,6 +167,40 @@
         initMap();
         await initLiffAndCheckBlacklist(); 
     };
+
+    // 🚀 計算指定司機的平均星數
+    async function fetchDriverRating(driverId) {
+        if (driverRatingsCache[driverId] !== undefined) return driverRatingsCache[driverId];
+        
+        try {
+            const snapshot = await firestoreDb.collection('trips')
+                .where('driverId', '==', driverId)
+                .where('status', '==', 'completed')
+                .get();
+                
+            let totalStars = 0;
+            let count = 0;
+            
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                if (data.rating) {
+                    totalStars += data.rating;
+                    count++;
+                }
+            });
+            
+            if (count === 0) {
+                driverRatingsCache[driverId] = "NEW";
+            } else {
+                driverRatingsCache[driverId] = (totalStars / count).toFixed(1);
+            }
+            return driverRatingsCache[driverId];
+        } catch (e) {
+            console.error("抓取星級失敗:", e);
+            driverRatingsCache[driverId] = "NEW";
+            return "NEW";
+        }
+    }
 
     async function initLiffAndCheckBlacklist() { 
         try { 
@@ -206,7 +243,6 @@
 
         const HERO_IMAGE_URL = "https://u002146.github.io/103lybcd/photos/005.jpg"; 
 
-        // 🚀 拔除車隊字眼，改為接送服務
         const flexMessage = {
             "type": "flex",
             "altText": "🚕 您的好友推薦了優質接送服務！",
@@ -365,7 +401,7 @@
         if (lastDriversData) processDriversData(lastDriversData); 
     }
 
-    function processDriversData(data) {
+    async function processDriversData(data) {
         if (!data) return;
         const activeDrivers = [];
         const activeIds = new Set();
@@ -410,6 +446,9 @@
                 }
             }
         }
+
+        // 🚀 收集需要顯示的司機，並非同步抓取他們的星星
+        let tempDrivers = [];
 
         Object.keys(data).forEach(key => {
             const d = data[key];
@@ -458,8 +497,14 @@
             d.id = key;
             d.distUser = distUser;
             d.isTracked = isTracked;
-            activeDrivers.push(d);
+            tempDrivers.push(d);
         });
+
+        // 🚀 批次抓取星級資料
+        for (let d of tempDrivers) {
+            d.ratingStr = await fetchDriverRating(d.id);
+            activeDrivers.push(d);
+        }
 
         for(let k in markers) { if(!activeIds.has(k)) { markers[k].setMap(null); delete markers[k]; } }
         updateCarousel(activeDrivers.sort((a,b) => a.distUser - b.distUser));
@@ -506,6 +551,14 @@
             const avatar = d.photo || 'https://cdn-icons-png.flaticon.com/512/3237/3237472.png';
             const displayCarNo = d.carNo || d.car || '花蓮計程車';
             
+            // 🚀 建立星級 UI
+            let ratingUI = '';
+            if (d.ratingStr === "NEW") {
+                ratingUI = `<span class="tag tag-star">✨ 新手司機</span>`;
+            } else {
+                ratingUI = `<span class="tag tag-star">⭐ ${d.ratingStr}</span>`;
+            }
+            
             if (d.isTracked && currentTrackStep === '2') {
                 newHTML += `
                     <div class="${cardClass}" id="card-${d.id}">
@@ -519,7 +572,6 @@
                     </div>
                 `;
             } else {
-                // 🚀 動態生成下方按鈕，如果是追蹤模式，顯示取消與聯絡雙按鈕
                 let actionButtons = '';
                 if (d.isTracked) {
                     actionButtons = `
@@ -541,7 +593,7 @@
                         <div class="driver-card-top">
                             <div class="d-avatar"><img src="${avatar}"></div>
                             <div class="d-info">
-                                <div class="d-name">${d.name} ${statusTag}</div>
+                                <div class="d-name">${d.name} ${statusTag} ${ratingUI}</div>
                                 <div class="d-meta">
                                     <span><i class="fa-solid fa-taxi"></i> ${displayCarNo}</span>
                                     <span><i class="fa-solid fa-location-arrow"></i> 距離 ${distText}</span>
