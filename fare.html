@@ -1,4 +1,4 @@
-// v1.2 [尾數精準校正] 強制車資預估收斂為 0 或 5 的倍數，符合真實跳錶邏輯
+// v1.3 [跨系統無縫傳值] 將起訖點與預估車資封裝進 URL 參數，打通漏斗斷點
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
@@ -103,7 +103,6 @@
         // 初始化 LIFF
         async function initLiff() {
             try {
-                // 已實裝正式 LIFF ID
                 await liff.init({ liffId: "2008907691-Faf4aET8" });
                 if (!liff.isLoggedIn()) {
                     liff.login();
@@ -255,11 +254,10 @@
                 total = total * 1.2; // 多元預設 1.2 倍
             }
             
-            // 強制收斂至 5 的倍數 (台灣計程車跳錶邏輯)
+            // 強制收斂至 5 的倍數
             let minFare = Math.round(total / 5) * 5;
             let maxFare = Math.round((total * 1.15) / 5) * 5;
             
-            // 防呆：如果距離太短導致 min 和 max 算起來一樣，強制拉開 10 元區間
             if (maxFare <= minFare) {
                 maxFare = minFare + 10;
             }
@@ -298,10 +296,37 @@
             return true;
         }
 
-        // 行銷收斂漏斗導流
+        // 🚀 架構師核心修改：行銷收斂漏斗導流 (帶上網址參數)
         function redirectToOneKeyBooking() {
-            const mainLiffUrl = "https://liff.line.me/2008907691-CzDqd7mm"; 
-            liff.openWindow({ url: mainLiffUrl, external: false });
+            const start = document.getElementById('start_address').value;
+            const end = document.getElementById('end_address').value;
+            let baseUrl = "https://liff.line.me/2008907691-CzDqd7mm"; 
+            
+            // 如果連起點都沒填，直接跳轉，不帶參數
+            if (start.trim() === "") {
+                liff.openWindow({ url: baseUrl, external: false });
+                return;
+            }
+
+            // 準備封裝參數
+            const params = new URLSearchParams();
+            params.append('p', start); // p = pickup
+            
+            if (end.trim() !== "") {
+                params.append('d', end); // d = dropoff
+            }
+
+            // 確認是否已經計算出車資 (Result Card 沒有 hidden)
+            const resultCard = document.getElementById('result_card');
+            if (!resultCard.classList.contains('hidden')) {
+                const fareText = document.getElementById('fare_range').innerText.replace('NT$ ', '');
+                params.append('f', fareText); // f = fare
+                params.append('v', selectedVehicle); // v = vehicle type
+            }
+
+            // 組合完整網址並跳轉
+            const finalUrl = baseUrl + "?" + params.toString();
+            liff.openWindow({ url: finalUrl, external: false });
         }
 
         window.onload = initLiff;
