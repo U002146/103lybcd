@@ -73,17 +73,18 @@
         </div>
 
         <div id="history-list" class="hidden flex-col gap-3">
-            <!-- 歷史卡片會透過 JS 動態產生於此 -->
-        </div>
+            </div>
     </div>
 
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script>
-        const VERSION = "v10.3"; // 🚀 綠色高質感地址版
+        const VERSION = "v10.4"; // 🚀 星級評分與車資顯示版
         
         const LIFF_ID = "2008907691-fVLGsJtK"; 
         const BOOKING_LIFF_URL = 'https://liff.line.me/2008907691-CzDqd7mm'; 
         const OFFICIAL_PHONE = "0976981123"; 
+        // 🚀 填入你的 GAS 總台大腦網址 (用來讓未評分的訂單跳轉去評分)
+        const GAS_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbzVTtBzYxPy9g-WnaJPS_Q_8GnzmWDf4Kaw7nA8VeDfe6ykM5rV3C2MmMddMh3AG6c9/exec";
 
         const firebaseConfig = { 
             databaseURL: "https://hualientaxi-bb32f-default-rtdb.asia-southeast1.firebasedatabase.app/",
@@ -131,7 +132,11 @@
                 }
 
                 let trips = [];
-                snapshot.forEach(doc => trips.push(doc.data()));
+                snapshot.forEach(doc => {
+                    let data = doc.data();
+                    data.id = doc.id; // 🚀 把文件 ID 塞進去，評分連結會用到
+                    trips.push(data);
+                });
                 renderHistory(trips);
 
             } catch (error) {
@@ -187,14 +192,55 @@
                 const displayText = isCancelled ? '已取消' : '已完成';
                 const cardOpacity = isCancelled ? 'opacity-60' : 'opacity-100';
                 
-                // 🚀 v10.3 讀取剛寫入的地址，沒有就給預設值
                 const pickupAddr = trip.pickup || "上車點未紀錄";
                 const dropoffAddr = trip.dropoff || "依乘客指示";
+
+                // 🚀 v10.4 核心：如果是已完成訂單，顯示車資與評分區塊
+                let tripDetailsHtml = '';
+                if (!isCancelled) {
+                    const fareDisplay = trip.fare ? `<span class="text-amber-600 font-black">NT$ ${trip.fare}</span>` : `<span class="text-slate-400 font-bold">未紀錄</span>`;
+                    
+                    let ratingDisplay = '';
+                    if (trip.rating) {
+                        // 已經評分過，顯示 5 顆星星
+                        let stars = '';
+                        for (let i = 1; i <= 5; i++) {
+                            stars += `<i class="fa-solid fa-star ${i <= trip.rating ? 'text-amber-400' : 'text-slate-200'}"></i>`;
+                        }
+                        ratingDisplay = `
+                            <div class="flex items-center">
+                                ${stars}
+                                <span class="text-xs text-amber-500 font-black ml-1">${trip.rating}.0</span>
+                            </div>
+                        `;
+                    } else {
+                        // 尚未評分，顯示評分按鈕 (連結到 GAS)
+                        const rateUrl = `${GAS_WEBHOOK_URL}?action=rate&tripId=${trip.id}&driverName=${encodeURIComponent(driverName)}`;
+                        ratingDisplay = `
+                            <a href="${rateUrl}" class="text-amber-600 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-lg text-xs font-black hover:bg-amber-100 transition active:scale-95 inline-block">
+                                ⭐ 前往評價
+                            </a>
+                        `;
+                    }
+
+                    tripDetailsHtml = `
+                        <div class="flex justify-between items-center bg-slate-50 p-3 rounded-xl mb-3 border border-slate-100">
+                            <div class="flex flex-col">
+                                <span class="text-[10px] text-slate-400 font-bold mb-0.5">實收車資</span>
+                                ${fareDisplay}
+                            </div>
+                            <div class="flex flex-col items-end">
+                                <span class="text-[10px] text-slate-400 font-bold mb-0.5">我的評價</span>
+                                ${ratingDisplay}
+                            </div>
+                        </div>
+                    `;
+                }
 
                 let driverContactHtml = '';
                 if (!isCancelled) {
                      driverContactHtml = `
-                        <div class="mt-3 pt-3 border-t border-slate-100 flex justify-between items-center">
+                        <div class="mt-2 flex justify-between items-center">
                             <div class="text-xs text-slate-400 font-bold flex items-center">
                                 <i class="fa-solid fa-shield-halved mr-1 text-green-500"></i> 敬老愛心計程車
                             </div>
@@ -222,11 +268,12 @@
                             <i class="fa-solid fa-location-dot text-rose-500 w-5 text-center mr-2"></i> ${dropoffAddr}
                         </div>
                         
-                        <div class="flex items-center bg-slate-50 p-2 rounded-lg text-xs font-bold text-slate-500 mb-1">
+                        <div class="flex items-center bg-slate-50 p-2 rounded-lg text-xs font-bold text-slate-500 mb-3">
                             <div class="w-6 text-center text-slate-400"><i class="fa-solid fa-user-tie"></i></div> 
                             <span class="text-slate-700">司機：${driverName}</span>
                         </div>
                         
+                        ${tripDetailsHtml}
                         ${driverContactHtml}
                     </div>
                 `;
