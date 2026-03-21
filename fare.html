@@ -1,4 +1,4 @@
-// v1.1 [正式授權版] 實裝正式 LIFF ID 與 Google Maps API Key
+// v1.2 [尾數精準校正] 強制車資預估收斂為 0 或 5 的倍數，符合真實跳錶邏輯
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
@@ -255,9 +255,18 @@
                 total = total * 1.2; // 多元預設 1.2 倍
             }
             
+            // 強制收斂至 5 的倍數 (台灣計程車跳錶邏輯)
+            let minFare = Math.round(total / 5) * 5;
+            let maxFare = Math.round((total * 1.15) / 5) * 5;
+            
+            // 防呆：如果距離太短導致 min 和 max 算起來一樣，強制拉開 10 元區間
+            if (maxFare <= minFare) {
+                maxFare = minFare + 10;
+            }
+            
             return {
-                min: Math.floor(total),
-                max: Math.floor(total * 1.15) // 給予 15% 浮動區間
+                min: minFare,
+                max: maxFare
             };
         }
 
