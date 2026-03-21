@@ -1,3 +1,4 @@
+// v1.1 [正式授權版] 實裝正式 LIFF ID 與 Google Maps API Key
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
@@ -97,12 +98,12 @@
         let userId = "guest";
         let startAutocomplete, endAutocomplete;
         let selectedVehicle = "taxi"; // 預設小黃
-        let hualienBounds; // 花蓮邊界鎖定 API 升級
+        let hualienBounds; 
 
         // 初始化 LIFF
         async function initLiff() {
             try {
-                // 替換 YOUR_LIFF_ID 為獨立 LIFF ID
+                // 已實裝正式 LIFF ID
                 await liff.init({ liffId: "2008907691-Faf4aET8" });
                 if (!liff.isLoggedIn()) {
                     liff.login();
@@ -131,13 +132,13 @@
             const options = { 
                 componentRestrictions: { country: "tw" },
                 bounds: hualienBounds,
-                strictBounds: true // 強制鎖定花蓮 API 升級
+                strictBounds: true 
             };
             startAutocomplete = new google.maps.places.Autocomplete(document.getElementById('start_address'), options);
             endAutocomplete = new google.maps.places.Autocomplete(document.getElementById('end_address'), options);
         }
 
-        // AgeTech: 一鍵清除採用
+        // 一鍵清除
         function clearInput(id) {
             document.getElementById(id).value = '';
             document.getElementById(id).focus();
@@ -159,7 +160,6 @@
         }
 
         function getCurrentLocation() {
-            // 非同步防護 採用
             Swal.fire({
                 title: '📍 正在獲取您的位置...',
                 allowOutsideClick: false,
@@ -200,7 +200,6 @@
             // 防禦：每日次數限制
             if (!checkDailyLimit()) return;
 
-            // 非同步防護 採用
             Swal.fire({
                 title: '💰 正在計算最佳路線...',
                 allowOutsideClick: false,
@@ -251,7 +250,7 @@
             // 延滯計時模擬：預估會有 10% 的等紅燈/塞車費
             let total = baseFare + extraFare;
 
-            // 車型乘數連動 (擴充準備)
+            // 車型乘數連動
             if (vehicleType === 'multicar') {
                 total = total * 1.2; // 多元預設 1.2 倍
             }
@@ -281,7 +280,7 @@
                     title: "查詢次數已達上限",
                     text: "今日限查 10 次。為了不浪費您的時間，請直接點擊下方叫車！",
                     confirmButtonText: '確定',
-                    confirmButtonColor: '#16a34a' // green-600
+                    confirmButtonColor: '#16a34a' 
                 });
                 return false;
             }
@@ -290,9 +289,8 @@
             return true;
         }
 
-        // 行銷收斂漏斗採用
+        // 行銷收斂漏斗導流
         function redirectToOneKeyBooking() {
-            // 定位至主叫車 LIFF (敬老愛心系統)
             const mainLiffUrl = "https://liff.line.me/2008907691-CzDqd7mm"; 
             liff.openWindow({ url: mainLiffUrl, external: false });
         }
