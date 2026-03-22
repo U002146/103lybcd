@@ -16,7 +16,6 @@
     <style>
         body { font-family: 'Noto Sans TC', sans-serif; background-color: #f1f5f9; overflow-x: hidden; min-height: 100vh; display: flex; flex-direction: column; }
         
-        /* 🚀 綠色車隊漸層配色 */
         .header-bg { background: linear-gradient(135deg, #00C853 0%, #1B5E20 100%); border-bottom-left-radius: 32px; border-bottom-right-radius: 32px; padding: 24px 20px 40px 20px; color: white; position: relative; overflow: hidden; box-shadow: 0 10px 25px rgba(0, 200, 83, 0.2); }
         .header-icon { position: absolute; right: -20px; top: -10px; font-size: 120px; opacity: 0.1; transform: rotate(-10deg); color: #fff;}
         
@@ -78,13 +77,11 @@
 
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script>
-        const VERSION = "v10.4"; // 🚀 星級評分與車資顯示版
+        const VERSION = "v10.5"; // 🚀 沉浸式內建彈窗評分版
         
         const LIFF_ID = "2008907691-fVLGsJtK"; 
         const BOOKING_LIFF_URL = 'https://liff.line.me/2008907691-CzDqd7mm'; 
         const OFFICIAL_PHONE = "0976981123"; 
-        // 🚀 填入你的 GAS 總台大腦網址 (用來讓未評分的訂單跳轉去評分)
-        const GAS_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbzVTtBzYxPy9g-WnaJPS_Q_8GnzmWDf4Kaw7nA8VeDfe6ykM5rV3C2MmMddMh3AG6c9/exec";
 
         const firebaseConfig = { 
             databaseURL: "https://hualientaxi-bb32f-default-rtdb.asia-southeast1.firebasedatabase.app/",
@@ -134,7 +131,7 @@
                 let trips = [];
                 snapshot.forEach(doc => {
                     let data = doc.data();
-                    data.id = doc.id; // 🚀 把文件 ID 塞進去，評分連結會用到
+                    data.id = doc.id; 
                     trips.push(data);
                 });
                 renderHistory(trips);
@@ -163,7 +160,6 @@
                 let driverCar = trip.carNo || "專屬座車";
                 let contactPhone = trip.driverPhone || OFFICIAL_PHONE;
                 
-                // 🛡️ 兼容舊版：如果沒有名字，去 RTDB 撈
                 if (!trip.driverName && trip.driverId) {
                     try {
                         let dSnap = await db.ref('drivers/' + trip.driverId).once('value');
@@ -195,14 +191,12 @@
                 const pickupAddr = trip.pickup || "上車點未紀錄";
                 const dropoffAddr = trip.dropoff || "依乘客指示";
 
-                // 🚀 v10.4 核心：如果是已完成訂單，顯示車資與評分區塊
                 let tripDetailsHtml = '';
                 if (!isCancelled) {
                     const fareDisplay = trip.fare ? `<span class="text-amber-600 font-black">NT$ ${trip.fare}</span>` : `<span class="text-slate-400 font-bold">未紀錄</span>`;
                     
                     let ratingDisplay = '';
                     if (trip.rating) {
-                        // 已經評分過，顯示 5 顆星星
                         let stars = '';
                         for (let i = 1; i <= 5; i++) {
                             stars += `<i class="fa-solid fa-star ${i <= trip.rating ? 'text-amber-400' : 'text-slate-200'}"></i>`;
@@ -214,12 +208,11 @@
                             </div>
                         `;
                     } else {
-                        // 尚未評分，顯示評分按鈕 (連結到 GAS)
-                        const rateUrl = `${GAS_WEBHOOK_URL}?action=rate&tripId=${trip.id}&driverName=${encodeURIComponent(driverName)}`;
+                        // 🚀 核心升級：替換為呼叫 JavaScript 內建彈窗，不再導向 GAS
                         ratingDisplay = `
-                            <a href="${rateUrl}" class="text-amber-600 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-lg text-xs font-black hover:bg-amber-100 transition active:scale-95 inline-block">
+                            <button onclick="openRatingPopup('${trip.id}')" class="text-amber-600 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-lg text-xs font-black hover:bg-amber-100 transition active:scale-95 inline-block cursor-pointer">
                                 ⭐ 前往評價
-                            </a>
+                            </button>
                         `;
                     }
 
@@ -290,6 +283,71 @@
             } else {
                 document.getElementById('empty-state').classList.remove('hidden');
                 document.getElementById('empty-state').classList.add('flex');
+            }
+        }
+
+        // 🚀 新增：內建動態五星彈窗
+        window.openRatingPopup = async function(tripId) {
+            let selectedRating = 0;
+            const { isConfirmed } = await Swal.fire({
+                title: '本次服務評價',
+                html: `
+                    <p style="color:#666; margin-bottom:15px; font-weight:bold;">為司機打個分數吧！</p>
+                    <div id="star-rating-container" style="display:flex; justify-content:center; gap:10px; font-size:40px; color:#ddd; cursor:pointer;">
+                        <i class="fa-solid fa-star star-btn" data-val="1"></i>
+                        <i class="fa-solid fa-star star-btn" data-val="2"></i>
+                        <i class="fa-solid fa-star star-btn" data-val="3"></i>
+                        <i class="fa-solid fa-star star-btn" data-val="4"></i>
+                        <i class="fa-solid fa-star star-btn" data-val="5"></i>
+                    </div>
+                `,
+                showCancelButton: true,
+                confirmButtonColor: '#F59E0B', 
+                cancelButtonColor: '#94a3b8',
+                confirmButtonText: '送出評價',
+                cancelButtonText: '取消',
+                didOpen: () => {
+                    const stars = document.querySelectorAll('.star-btn');
+                    stars.forEach(star => {
+                        star.addEventListener('click', function() {
+                            selectedRating = parseInt(this.getAttribute('data-val'));
+                            stars.forEach(s => {
+                                if (parseInt(s.getAttribute('data-val')) <= selectedRating) {
+                                    s.style.color = '#FFC107'; 
+                                } else {
+                                    s.style.color = '#ddd'; 
+                                }
+                            });
+                        });
+                    });
+                },
+                preConfirm: () => {
+                    if (selectedRating === 0) {
+                        Swal.showValidationMessage('請點擊星星進行評分喔！');
+                        return false;
+                    }
+                    return selectedRating;
+                }
+            });
+
+            if (isConfirmed && selectedRating > 0) {
+                Swal.fire({ title: '送出中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
+                try {
+                    // 寫入 Firestore
+                    await firestoreDb.collection('trips').doc(tripId).update({
+                        rating: selectedRating,
+                        ratingTime: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    
+                    Swal.fire({ icon: 'success', title: '評價成功', text: '感謝您的回饋！', timer: 1500, showConfirmButton: false })
+                    .then(() => {
+                        // 🚀 重新撈取資料，讓按鈕瞬間變成星星！
+                        fetchHistory(); 
+                    });
+                } catch(e) { 
+                    console.error(e); 
+                    Swal.fire('錯誤', '評分送出失敗，請稍後再試', 'error');
+                }
             }
         }
 
