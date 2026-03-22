@@ -122,7 +122,7 @@
 
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script>
-    const VERSION = "v9.28"; // 🚀 純淨叫車與評價版 (拔除不穩定的預估參數)
+    const VERSION = "v9.29"; // 🚀 正式更名統一為「一鍵叫車」
     const LIFF_ID = "2008907691-CzDqd7mm"; 
     const GAS_URL = "https://script.google.com/macros/s/AKfycbzjWZ8j394jfKoMVbPWGvHJHqwF7RBCQxnxyju1ifWKoKdM7RE512F7qrhUsQqQGoWg/exec"; 
     
@@ -208,9 +208,9 @@
                 "type": "bubble",
                 "hero": { "type": "image", "url": "https://u002146.github.io/103lybcd/photos/005.jpg", "size": "full", "aspectRatio": "20:13", "aspectMode": "cover" },
                 "body": { "type": "box", "layout": "vertical", "contents": [
-                    { "type": "text", "text": "花蓮敬老愛心接送", "weight": "bold", "size": "xl", "color": "#111111" },
+                    { "type": "text", "text": "一鍵叫車", "weight": "bold", "size": "xl", "color": "#111111" },
                     { "type": "text", "text": "免報路名 ‧ 一鍵雙向定位", "size": "sm", "color": "#FF9800", "weight": "bold", "margin": "sm" },
-                    { "type": "text", "text": "在地長輩最安心的接送神器！點擊下方按鈕，立即開啟叫車雷達，附近空車一目了然。", "size": "xs", "color": "#666666", "wrap": true, "margin": "md" }
+                    { "type": "text", "text": "最安心的接送神器！點擊下方按鈕，立即開啟叫車雷達，附近空車一目了然。", "size": "xs", "color": "#666666", "wrap": true, "margin": "md" }
                 ]},
                 "footer": { "type": "box", "layout": "vertical", "contents": [{ "type": "button", "style": "primary", "color": "#00C853", "action": { "type": "uri", "label": "📍 點我開啟叫車雷達", "uri": "https://liff.line.me/2008907691-CzDqd7mm" } }] }
             }
@@ -391,7 +391,7 @@
                 focusConfirm: false, confirmButtonText: '確定綁定', confirmButtonColor: '#00C853', allowOutsideClick: false,
                 preConfirm: () => { const val = document.getElementById('swal-input-phone').value.replace(/\D/g, ''); if (!/^09\d{8}$/.test(val)) Swal.showValidationMessage('請輸入正確的手機號碼'); return val; }
             });
-            if (formValues) { passengerPhone = formValues; localStorage.setItem('passengerPhone', passengerPhone); Swal.fire({ icon: 'success', title: '綁定成功！', text: '即將為您派車...', timer: 1500, showConfirmButton: false }); await new Promise(r => setTimeout(r, 1500)); } else return; 
+            if (formValues) { passengerPhone = formValues; localStorage.setItem('passengerPhone', passengerPhone); Swal.fire({ icon: 'success', title: '綁定成功！', text: '即往往為您派車...', timer: 1500, showConfirmButton: false }); await new Promise(r => setTimeout(r, 1500)); } else return; 
         }
 
         const originalContent = btn.innerHTML; btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin" style="font-size:20px;"></i>'; btn.disabled = true;
