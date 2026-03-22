@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>預估車資計算機</title>
   
   <script src="https://cdn.tailwindcss.com"></script>
@@ -12,96 +12,102 @@
   <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAIxc6PEhHgUs_A9lyRUg8dNbmwOpSamY8&libraries=places,geometry"></script>
   
   <style>
-    body { margin: 0; font-family: 'Noto Sans TC', sans-serif; background-color: #f8fafc; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+    body { margin: 0; font-family: 'Noto Sans TC', sans-serif; background-color: #e2e8f0; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
     
-    .header-bg { background: linear-gradient(135deg, #1e3a8a, #0f172a); color: white; padding: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); z-index: 10; }
+    #map { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1; }
     
-    .input-card { background: white; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); padding: 16px; margin: -10px 15px 15px 15px; position: relative; z-index: 20; }
-    .input-row { display: flex; align-items: center; background: #f1f5f9; border-radius: 12px; padding: 10px 15px; margin-bottom: 10px; border: 1px solid #e2e8f0; }
-    .input-row input { flex: 1; background: transparent; border: none; outline: none; font-size: 15px; font-weight: bold; color: #334155; width: 100%; }
-    .input-row input::placeholder { color: #94a3b8; font-weight: normal; }
+    .header-overlay { position: absolute; top: 0; left: 0; width: 100%; padding: 25px 20px 50px; background: linear-gradient(180deg, rgba(15,23,42,0.85) 0%, rgba(15,23,42,0) 100%); z-index: 10; pointer-events: none; }
     
-    .btn-calc { background: linear-gradient(135deg, #00C853, #1B5E20); color: white; width: 100%; padding: 14px; border-radius: 12px; font-weight: 900; font-size: 16px; box-shadow: 0 4px 15px rgba(0, 200, 83, 0.3); transition: transform 0.1s; }
+    /* 🚀 底部抽屜 (Bottom Sheet) 設計 */
+    #bottom-sheet { position: absolute; bottom: 0; left: 0; width: 100%; background: white; border-top-left-radius: 28px; border-top-right-radius: 28px; box-shadow: 0 -10px 40px rgba(0,0,0,0.15); z-index: 20; transition: transform 0.3s ease; }
+    
+    .input-row { display: flex; align-items: center; background: #f8fafc; border-radius: 16px; padding: 12px 16px; margin-bottom: 12px; border: 1px solid #e2e8f0; transition: border-color 0.2s; }
+    .input-row:focus-within { border-color: #00C853; background: #fff; box-shadow: 0 0 0 3px rgba(0,200,83,0.1); }
+    .input-row input { flex: 1; background: transparent; border: none; outline: none; font-size: 16px; font-weight: bold; color: #1e293b; width: 100%; }
+    .input-row input::placeholder { color: #94a3b8; font-weight: normal; font-size: 15px; }
+    
+    .btn-calc { background: linear-gradient(135deg, #00C853, #1B5E20); color: white; width: 100%; padding: 16px; border-radius: 16px; font-weight: 900; font-size: 18px; box-shadow: 0 6px 20px rgba(0, 200, 83, 0.3); border: none; cursor: pointer; transition: transform 0.1s; margin-top: 5px; }
     .btn-calc:active { transform: scale(0.96); }
     
-    #map { flex: 1; width: 100%; background: #e2e8f0; }
+    /* 車資結果卡片 */
+    .fare-card { border: 2px solid #f1f5f9; border-radius: 16px; padding: 14px 18px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; }
+    .fare-title { font-size: 16px; font-weight: bold; color: #334155; display: flex; align-items: center; gap: 10px; }
+    .fare-price { font-size: 24px; font-weight: 900; color: #0f172a; }
     
-    /* 結果面板 */
-    #result-panel { position: absolute; bottom: 0; left: 0; right: 0; background: white; border-top-left-radius: 24px; border-top-right-radius: 24px; box-shadow: 0 -5px 20px rgba(0,0,0,0.1); padding: 20px; transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); z-index: 30; max-height: 60vh; overflow-y: auto; }
-    #result-panel.show { transform: translateY(0); }
-    
-    .drag-handle { width: 40px; height: 5px; background: #cbd5e1; border-radius: 5px; margin: 0 auto 15px auto; }
-    
-    .fare-card { border: 2px solid #f1f5f9; border-radius: 16px; padding: 12px 16px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; transition: border-color 0.2s; }
-    .fare-card:active { border-color: #cbd5e1; background: #f8fafc; }
-    
-    .fare-title { font-size: 15px; font-weight: bold; color: #334155; display: flex; align-items: center; gap: 8px; }
-    .fare-price { font-size: 22px; font-weight: 900; color: #0f172a; }
-    
-    /* 特定車型顏色 */
+    .fc-yellow { border-color: #fef3c7; background: #fffbeb; }
     .fc-yellow .fare-price { color: #d97706; }
+    
+    .fc-multi12 { border-color: #e0f2fe; background: #f0f9ff; }
     .fc-multi12 .fare-price { color: #0284c7; }
+    
+    .fc-multi14 { border-color: #ede9fe; background: #f5f3ff; }
     .fc-multi14 .fare-price { color: #7c3aed; }
     
-    .pac-container { border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); font-family: 'Noto Sans TC'; border: none; margin-top: 5px; }
-    .pac-item { padding: 10px 15px; cursor: pointer; }
-    .pac-item:hover { background-color: #f1f5f9; }
+    .pac-container { border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); font-family: 'Noto Sans TC'; border: none; margin-top: 5px; padding: 5px; }
+    .pac-item { padding: 12px 15px; cursor: pointer; font-size: 15px; border-top: 1px solid #f1f5f9; }
+    .pac-item:hover { background-color: #f8fafc; }
+    .swal2-popup { border-radius: 24px !important; font-family: 'Noto Sans TC', sans-serif !important; }
   </style>
 </head>
 <body>
 
-  <div class="header-bg">
-    <h1 class="text-xl font-black flex items-center gap-2">
-      <i class="fa-solid fa-calculator text-blue-300"></i> 預估車資計算
+  <div class="header-overlay">
+    <h1 class="text-2xl font-black text-white drop-shadow-md flex items-center gap-2">
+      <i class="fa-solid fa-calculator text-emerald-400"></i> 預估車資
     </h1>
-    <p class="text-xs text-blue-200 mt-1 opacity-80">輸入地址立即比較多種車型費率</p>
-  </div>
-
-  <div class="input-card">
-    <div class="input-row">
-      <i class="fa-solid fa-circle-dot text-emerald-500 w-6 text-center mr-2"></i>
-      <input type="text" id="pickup-input" placeholder="請輸入上車地點">
-      <button onclick="useMyLocation()" class="text-blue-500 p-2 active:scale-90"><i class="fa-solid fa-crosshairs"></i></button>
-    </div>
-    
-    <div class="input-row mb-4">
-      <i class="fa-solid fa-location-dot text-rose-500 w-6 text-center mr-2"></i>
-      <input type="text" id="dropoff-input" placeholder="請輸入下車地點">
-    </div>
-    
-    <button onclick="calculateFare()" class="btn-calc">開始計算車資</button>
+    <p class="text-sm text-slate-200 mt-1 font-bold drop-shadow">精準估算・透明費率</p>
   </div>
 
   <div id="map"></div>
 
-  <div id="result-panel">
-    <div class="drag-handle" onclick="closeResult()"></div>
+  <div id="bottom-sheet">
     
-    <div class="flex justify-between items-end mb-4 border-b border-slate-100 pb-3">
-        <div>
-            <div class="text-xs text-slate-400 font-bold mb-1">預估距離與時間</div>
-            <div class="text-lg font-black text-slate-800" id="route-meta">-- 公里 / -- 分鐘</div>
+    <div id="input-view" class="p-6">
+        <div class="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-5"></div>
+        
+        <div class="input-row">
+            <i class="fa-solid fa-circle-dot text-emerald-500 w-6 text-center mr-2 text-lg"></i>
+            <input type="text" id="pickup-input" placeholder="請輸入上車地點">
+            <button onclick="useMyLocation()" class="text-blue-500 p-2 active:scale-90 bg-blue-50 rounded-xl ml-2"><i class="fa-solid fa-crosshairs"></i></button>
         </div>
-        <button onclick="closeResult()" class="text-slate-400 bg-slate-100 rounded-full w-8 h-8 flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
+        
+        <div class="input-row mb-2">
+            <i class="fa-solid fa-location-dot text-rose-500 w-6 text-center mr-2 text-lg"></i>
+            <input type="text" id="dropoff-input" placeholder="請輸入下車地點">
+        </div>
+        
+        <button onclick="calculateFare()" class="btn-calc">開始計算車資</button>
     </div>
 
-    <div class="fare-card fc-yellow">
-        <div class="fare-title"><i class="fa-solid fa-taxi text-amber-500"></i> 🚕 標準小黃 (跳表)</div>
-        <div class="fare-price" id="fare-yellow">$--</div>
-    </div>
-    
-    <div class="fare-card fc-multi12">
-        <div class="fare-title"><i class="fa-solid fa-car-side text-sky-500"></i> 🚘 多元專車 (1.2倍)</div>
-        <div class="fare-price" id="fare-m12">$--</div>
-    </div>
-    
-    <div class="fare-card fc-multi14">
-        <div class="fare-title"><i class="fa-solid fa-van-shuttle text-violet-500"></i> 🚐 尊榮六座 (1.4倍)</div>
-        <div class="fare-price" id="fare-m14">$--</div>
-    </div>
+    <div id="result-view" class="p-6 hidden">
+        <div class="flex justify-between items-start mb-4 border-b border-slate-100 pb-4">
+            <div>
+                <div class="text-xs text-slate-400 font-bold mb-1">預估距離與時間</div>
+                <div class="text-xl font-black text-slate-800" id="route-meta">-- 公里 / -- 分鐘</div>
+            </div>
+            <button onclick="resetView()" class="text-slate-400 hover:text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-full w-10 h-10 flex items-center justify-center transition-colors">
+                <i class="fa-solid fa-arrow-down"></i>
+            </button>
+        </div>
 
-    <div class="text-xs text-slate-400 text-center mt-4 font-bold">
-        * 預估車資僅供參考，實際車資以最終行駛路線與路況為準。
+        <div class="fare-card fc-yellow">
+            <div class="fare-title"><i class="fa-solid fa-taxi text-amber-500 text-xl"></i> 標準小黃 (跳表)</div>
+            <div class="fare-price" id="fare-yellow">$--</div>
+        </div>
+        
+        <div class="fare-card fc-multi12">
+            <div class="fare-title"><i class="fa-solid fa-car-side text-sky-500 text-xl"></i> 多元專車 (1.2倍)</div>
+            <div class="fare-price" id="fare-m12">$--</div>
+        </div>
+        
+        <div class="fare-card fc-multi14">
+            <div class="fare-title"><i class="fa-solid fa-van-shuttle text-violet-500 text-xl"></i> 尊榮六座 (1.4倍)</div>
+            <div class="fare-price" id="fare-m14">$--</div>
+        </div>
+
+        <div class="text-xs text-slate-400 text-center mt-4 font-bold">
+            * 預估車資僅供參考，實際收費以最終行駛路線為準。
+        </div>
     </div>
   </div>
 
@@ -111,17 +117,18 @@
 
     function initMap() {
         map = new google.maps.Map(document.getElementById("map"), {
-            center: { lat: 23.991, lng: 121.601 }, zoom: 13,
+            center: { lat: 23.991, lng: 121.601 }, zoom: 14,
             disableDefaultUI: true, mapTypeControl: false
         });
         
         directionsService = new google.maps.DirectionsService();
         directionsRenderer = new google.maps.DirectionsRenderer({
-            map: map, suppressMarkers: false,
-            polylineOptions: { strokeColor: '#3b82f6', strokeWeight: 5 }
+            map: map, 
+            suppressMarkers: false,
+            preserveViewport: true, // 🚀 關閉自動亂縮放，我們自己寫保護機制！
+            polylineOptions: { strokeColor: '#00C853', strokeWeight: 6, strokeOpacity: 0.8 }
         });
 
-        // 綁定地址輸入框自動完成
         const options = { componentRestrictions: { country: "tw" } };
         pickupAutocomplete = new google.maps.places.Autocomplete(document.getElementById('pickup-input'), options);
         dropoffAutocomplete = new google.maps.places.Autocomplete(document.getElementById('dropoff-input'), options);
@@ -158,11 +165,11 @@
         const dropoff = document.getElementById('dropoff-input').value;
 
         if (!pickup || !dropoff) {
-            Swal.fire({ icon: 'warning', title: '請填寫完整', text: '上車與下車地點都必須填寫喔！', confirmButtonColor: '#3b82f6' });
+            Swal.fire({ icon: 'warning', title: '請填寫完整', text: '上車與下車地點都必須填寫喔！', confirmButtonColor: '#00C853' });
             return;
         }
 
-        Swal.fire({ title: '計算路線中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
+        Swal.fire({ title: '規劃路線中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
 
         const request = {
             origin: pickup,
@@ -176,41 +183,52 @@
                 directionsRenderer.setDirections(result);
                 const route = result.routes[0].legs[0];
                 
-                const distanceMeters = route.distance.value; // 公尺
-                const durationSeconds = route.duration.value; // 秒
+                const distanceMeters = route.distance.value; 
+                const durationSeconds = route.duration.value; 
                 
                 document.getElementById('route-meta').innerText = `${route.distance.text} / ${route.duration.text}`;
                 
-                // 🚀 執行花蓮計程車費率概算演算法
                 const yellowFare = estimateHualienTaxiFare(distanceMeters, durationSeconds);
                 
                 document.getElementById('fare-yellow').innerText = `~NT$ ${yellowFare}`;
                 document.getElementById('fare-m12').innerText = `~NT$ ${Math.ceil(yellowFare * 1.2)}`;
                 document.getElementById('fare-m14').innerText = `~NT$ ${Math.ceil(yellowFare * 1.4)}`;
 
-                document.getElementById('result-panel').classList.add('show');
+                // 切換視圖
+                document.getElementById('input-view').classList.add('hidden');
+                document.getElementById('result-view').classList.remove('hidden');
+
+                // 🚀 核心視角保護機制：將地圖縮放到「扣除底部面板後」的可視區域
+                const bounds = result.routes[0].bounds;
+                // 動態抓取底部結果面板的高度 (大約加上 40px 的緩衝)
+                const bottomSheetHeight = document.getElementById('bottom-sheet').offsetHeight + 40;
+                
+                // 讓 Google Maps 把路線完美擠在畫面的上半部！
+                map.fitBounds(bounds, { top: 120, bottom: bottomSheetHeight, left: 50, right: 50 });
+
             } else {
                 Swal.fire('找不到路線', '無法計算此兩點間的路線，請嘗試輸入更準確的地址。', 'error');
             }
         });
     }
     
-    // 🚀 花蓮計程車計費概算 (起跳100元/1km，續跳5元/230m)
+    // 花蓮計程車計費概算 (起跳100元/1km，續跳5元/230m)
     function estimateHualienTaxiFare(meters, seconds) {
-        let fare = 100; // 起跳價
+        let fare = 100; 
         if (meters > 1000) {
             fare += Math.ceil((meters - 1000) / 230) * 5;
         }
-        // 加上 10% 左右的延滯時間/紅綠燈緩衝估算，讓價格更貼近現實
+        // 加上 10% 左右的延滯時間緩衝，更貼近真實跳表
         fare = Math.ceil(fare * 1.1); 
         return fare;
     }
 
-    function closeResult() {
-        document.getElementById('result-panel').classList.remove('show');
+    function resetView() {
+        // 返回輸入模式
+        document.getElementById('result-view').classList.add('hidden');
+        document.getElementById('input-view').classList.remove('hidden');
     }
 
-    // 初始化 Google Maps
     window.addEventListener('load', () => {
         if(typeof google === 'undefined') {
             setTimeout(initMap, 500);
