@@ -122,7 +122,7 @@
 
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script>
-    const VERSION = "v9.27"; // 🚀 評價系統＋預估車資完美接軌版
+    const VERSION = "v9.28"; // 🚀 純淨叫車與評價版 (拔除不穩定的預估參數)
     const LIFF_ID = "2008907691-CzDqd7mm"; 
     const GAS_URL = "https://script.google.com/macros/s/AKfycbzjWZ8j394jfKoMVbPWGvHJHqwF7RBCQxnxyju1ifWKoKdM7RE512F7qrhUsQqQGoWg/exec"; 
     
@@ -133,18 +133,6 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database(); 
     const firestoreDb = firebase.firestore(); 
-
-    // 🚀 核心修復：攔截網址傳來的預估車資參數
-    const urlParams = new URLSearchParams(window.location.search);
-    const passedPickup = urlParams.get('pickup');
-    const passedDropoff = urlParams.get('dropoff');
-    const passedFare = urlParams.get('fare');
-    
-    // 組合最終的下車資訊
-    let globalDropoff = passedDropoff || "依乘客指示";
-    if (passedFare) {
-        globalDropoff += ` ｜ 預估車資: ${passedFare}`;
-    }
     
     var map, userMarker, markers = {};
     var myLat = null, myLng = null; 
@@ -171,11 +159,6 @@
     };
 
     window.onload = async function() {
-        // 🚀 若有傳入地址，載入時直接鎖死上方地址欄
-        if (passedPickup) {
-            document.getElementById('loc-text').innerText = passedPickup;
-        }
-
         Swal.fire({ title: '連線中', text: '正在為您尋找附近空車...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
         initMap();
         await initLiffAndCheckBlacklist(); 
@@ -256,9 +239,7 @@
                 locTextEl.innerText = "✅ 專車前往中"; locTextEl.style.color = "#0277BD"; locIconEl.className = "fa-solid fa-car-side"; locIconEl.style.color = "#03A9F4";
             }
         } else {
-            if (!passedPickup) {
-                locTextEl.style.color = "#333"; 
-            }
+            locTextEl.style.color = "#333"; 
             locIconEl.className = "fa-solid fa-location-dot"; 
             locIconEl.style.color = "#e74c3c";
         }
@@ -424,11 +405,10 @@
 
         if (!myLat || !myLng) { makeCallAndTrack(); return; }
         try {
-            // 🚀 核心修復：寫入訂單時使用 globalDropoff (包含預估車資)
             const currentAddress = document.getElementById('loc-text').innerText;
             const writePromise = db.ref('drivers/' + driverId + '/request').set({ 
                 lat: myLat, lng: myLng, userId: passengerId, userName: passengerName, userPhone: passengerPhone, 
-                pickup: currentAddress, dropoff: globalDropoff, timestamp: firebase.database.ServerValue.TIMESTAMP 
+                pickup: currentAddress, dropoff: "依乘客指示", timestamp: firebase.database.ServerValue.TIMESTAMP 
             });
             const pushPromise = fetch(GAS_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ source: 'web_app', driverId: driverId }) });
             await Promise.race([Promise.all([writePromise, pushPromise]), new Promise(r => setTimeout(r, 2000))]);
@@ -510,12 +490,6 @@
     function centerMap(){ if(userMarker) { map.panTo(userMarker.getPosition()); map.setZoom(15); } }
     
     function getAddress(lat, lng) {
-        // 🚀 核心修復：如果網址有傳入地址，直接鎖定不給 GPS 反查覆蓋
-        if (passedPickup) {
-            document.getElementById('loc-text').innerText = passedPickup;
-            return;
-        }
-        
         document.getElementById('loc-text').innerText = "定位中...";
         const geocoder = new google.maps.Geocoder();
         geocoder.geocode({ location: { lat: lat, lng: lng } }, (results, status) => {
