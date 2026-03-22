@@ -1,334 +1,223 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>花蓮專屬-預估車資查詢</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-    <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
-        /* 優化 Google 地址下拉選單 */
-        .pac-container { border-radius: 8px; margin-top: 5px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); font-size: 18px; z-index: 10000 !important; }
-        .pac-item { padding: 12px; cursor: pointer; }
-        
-        /* 自定義 Loading SwAL (非同步防護) */
-        .loading-icon { color: #f59e0b; animation: spin 1.5s linear infinite; }
-        @keyframes spin { 100% { transform: rotate(360deg); } }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>預估車資計算機</title>
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAIxc6PEhHgUs_A9lyRUg8dNbmwOpSamY8&libraries=places,geometry"></script>
+  
+  <style>
+    body { margin: 0; font-family: 'Noto Sans TC', sans-serif; background-color: #f8fafc; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+    
+    .header-bg { background: linear-gradient(135deg, #1e3a8a, #0f172a); color: white; padding: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); z-index: 10; }
+    
+    .input-card { background: white; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); padding: 16px; margin: -10px 15px 15px 15px; position: relative; z-index: 20; }
+    .input-row { display: flex; align-items: center; background: #f1f5f9; border-radius: 12px; padding: 10px 15px; margin-bottom: 10px; border: 1px solid #e2e8f0; }
+    .input-row input { flex: 1; background: transparent; border: none; outline: none; font-size: 15px; font-weight: bold; color: #334155; width: 100%; }
+    .input-row input::placeholder { color: #94a3b8; font-weight: normal; }
+    
+    .btn-calc { background: linear-gradient(135deg, #00C853, #1B5E20); color: white; width: 100%; padding: 14px; border-radius: 12px; font-weight: 900; font-size: 16px; box-shadow: 0 4px 15px rgba(0, 200, 83, 0.3); transition: transform 0.1s; }
+    .btn-calc:active { transform: scale(0.96); }
+    
+    #map { flex: 1; width: 100%; background: #e2e8f0; }
+    
+    /* 結果面板 */
+    #result-panel { position: absolute; bottom: 0; left: 0; right: 0; background: white; border-top-left-radius: 24px; border-top-right-radius: 24px; box-shadow: 0 -5px 20px rgba(0,0,0,0.1); padding: 20px; transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); z-index: 30; max-height: 60vh; overflow-y: auto; }
+    #result-panel.show { transform: translateY(0); }
+    
+    .drag-handle { width: 40px; height: 5px; background: #cbd5e1; border-radius: 5px; margin: 0 auto 15px auto; }
+    
+    .fare-card { border: 2px solid #f1f5f9; border-radius: 16px; padding: 12px 16px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; transition: border-color 0.2s; }
+    .fare-card:active { border-color: #cbd5e1; background: #f8fafc; }
+    
+    .fare-title { font-size: 15px; font-weight: bold; color: #334155; display: flex; align-items: center; gap: 8px; }
+    .fare-price { font-size: 22px; font-weight: 900; color: #0f172a; }
+    
+    /* 特定車型顏色 */
+    .fc-yellow .fare-price { color: #d97706; }
+    .fc-multi12 .fare-price { color: #0284c7; }
+    .fc-multi14 .fare-price { color: #7c3aed; }
+    
+    .pac-container { border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); font-family: 'Noto Sans TC'; border: none; margin-top: 5px; }
+    .pac-item { padding: 10px 15px; cursor: pointer; }
+    .pac-item:hover { background-color: #f1f5f9; }
+  </style>
 </head>
-<body class="bg-gray-100 min-h-screen pb-10">
+<body>
 
-    <div class="bg-blue-600 text-white p-6 text-center shadow-lg">
-        <h1 class="text-2xl font-bold">預估車資查詢</h1>
-        <p class="text-sm mt-1 opacity-90">⚠️ 實際金額以車上計費錶為準</p>
+  <div class="header-bg">
+    <h1 class="text-xl font-black flex items-center gap-2">
+      <i class="fa-solid fa-calculator text-blue-300"></i> 預估車資計算
+    </h1>
+    <p class="text-xs text-blue-200 mt-1 opacity-80">輸入地址立即比較多種車型費率</p>
+  </div>
+
+  <div class="input-card">
+    <div class="input-row">
+      <i class="fa-solid fa-circle-dot text-emerald-500 w-6 text-center mr-2"></i>
+      <input type="text" id="pickup-input" placeholder="請輸入上車地點">
+      <button onclick="useMyLocation()" class="text-blue-500 p-2 active:scale-90"><i class="fa-solid fa-crosshairs"></i></button>
+    </div>
+    
+    <div class="input-row mb-4">
+      <i class="fa-solid fa-location-dot text-rose-500 w-6 text-center mr-2"></i>
+      <input type="text" id="dropoff-input" placeholder="請輸入下車地點">
+    </div>
+    
+    <button onclick="calculateFare()" class="btn-calc">開始計算車資</button>
+  </div>
+
+  <div id="map"></div>
+
+  <div id="result-panel">
+    <div class="drag-handle" onclick="closeResult()"></div>
+    
+    <div class="flex justify-between items-end mb-4 border-b border-slate-100 pb-3">
+        <div>
+            <div class="text-xs text-slate-400 font-bold mb-1">預估距離與時間</div>
+            <div class="text-lg font-black text-slate-800" id="route-meta">-- 公里 / -- 分鐘</div>
+        </div>
+        <button onclick="closeResult()" class="text-slate-400 bg-slate-100 rounded-full w-8 h-8 flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
     </div>
 
-    <div class="p-4 max-w-md mx-auto">
-        <div class="bg-white rounded-xl shadow-md p-5 space-y-4">
-            
-            <div class="grid grid-cols-2 gap-3 pb-2">
-                <button onclick="selectVehicleType('taxi')" id="btn-taxi" class="w-full bg-yellow-400 hover:bg-yellow-500 text-black font-black text-2xl py-6 rounded-2xl shadow-inner transition-transform active:scale-95 border-4 border-yellow-500">
-                    🚕 小黃
-                </button>
-                <button onclick="selectVehicleType('multicar')" id="btn-multicar" class="w-full bg-white text-gray-500 font-bold text-2xl py-6 rounded-2xl border-4 border-gray-200 active:bg-blue-50">
-                    🚙 多元
-                </button>
-            </div>
-            
-            <div>
-                <label class="block text-gray-500 text-sm mb-1 font-bold">上車地點</label>
-                <div class="flex gap-2">
-                    <div class="relative flex-1">
-                        <input id="start_address" type="text" placeholder="輸入起點或定位" 
-                               class="w-full border-2 border-gray-200 rounded-lg p-4 text-xl focus:border-blue-500 outline-none pr-12 debounce">
-                        <button onclick="clearInput('start_address')" class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500 text-xl">✖</button>
-                    </div>
-                    <button id="btn-location" onclick="getCurrentLocation()" class="bg-blue-100 text-blue-600 px-4 rounded-lg active:bg-blue-200">
-                        📍
-                    </button>
-                </div>
-            </div>
-
-            <div>
-                <label class="block text-gray-500 text-sm mb-1 font-bold">下車地點</label>
-                <div class="relative">
-                    <input id="end_address" type="text" placeholder="你要去哪裡？" 
-                           class="w-full border-2 border-gray-200 rounded-lg p-4 text-xl focus:border-blue-500 outline-none pr-12">
-                    <button onclick="clearInput('end_address')" class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500 text-xl">✖</button>
-                </div>
-            </div>
-
-            <button id="btn-calculate" onclick="calculateFare()" 
-                    class="w-full bg-yellow-400 hover:bg-yellow-500 text-black font-black text-2xl py-5 rounded-xl shadow-inner transition-transform active:scale-95 mt-4">
-                💰 開始預估車資
-            </button>
-        </div>
-
-        <div id="result_card" class="hidden mt-6 bg-white rounded-xl shadow-md p-6 border-t-8 border-green-500 animate-bounce-in">
-            <div class="text-center">
-                <p class="text-gray-500 font-bold text-lg">預估金額區間</p>
-                <h2 id="fare_range" class="text-5xl font-black text-green-600 my-3">NT$ 100 - 120</h2>
-                <div class="flex justify-around text-gray-600 mt-4 border-t pt-4">
-                    <div>
-                        <p class="text-xs">預估距離</p>
-                        <p id="res_distance" class="font-bold text-xl">0.0 km</p>
-                    </div>
-                    <div>
-                        <p class="text-xs">預估時間</p>
-                        <p id="res_duration" class="font-bold text-xl">0 分鐘</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="mt-8 space-y-3">
-            <p class="text-center text-gray-400 text-sm font-bold">— 覺得合適？立即出發 —</p>
-            <button onclick="redirectToOneKeyBooking()" class="w-full bg-green-600 text-white font-black text-2xl py-6 rounded-2xl flex items-center justify-center gap-3 active:bg-green-700 shadow-xl transition-all animate-pulse-slight debounce">
-                ⚡ 立即前往 一鍵叫車系統
-            </button>
-        </div>
+    <div class="fare-card fc-yellow">
+        <div class="fare-title"><i class="fa-solid fa-taxi text-amber-500"></i> 🚕 標準小黃 (跳表)</div>
+        <div class="fare-price" id="fare-yellow">$--</div>
+    </div>
+    
+    <div class="fare-card fc-multi12">
+        <div class="fare-title"><i class="fa-solid fa-car-side text-sky-500"></i> 🚘 多元專車 (1.2倍)</div>
+        <div class="fare-price" id="fare-m12">$--</div>
+    </div>
+    
+    <div class="fare-card fc-multi14">
+        <div class="fare-title"><i class="fa-solid fa-van-shuttle text-violet-500"></i> 🚐 尊榮六座 (1.4倍)</div>
+        <div class="fare-price" id="fare-m14">$--</div>
     </div>
 
-    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAIxc6PEhHgUs_A9lyRUg8dNbmwOpSamY8&libraries=places"></script>
+    <div class="text-xs text-slate-400 text-center mt-4 font-bold">
+        * 預估車資僅供參考，實際車資以最終行駛路線與路況為準。
+    </div>
+  </div>
 
-    <script>
-        let userId = "guest";
-        let startAutocomplete, endAutocomplete;
-        let selectedVehicle = "taxi"; // 預設小黃
-        let hualienBounds; 
+  <script>
+    let map, directionsService, directionsRenderer;
+    let pickupAutocomplete, dropoffAutocomplete;
 
-        // 初始化 LIFF
-        async function initLiff() {
-            try {
-                await liff.init({ liffId: "2008907691-Faf4aET8" });
-                if (!liff.isLoggedIn()) {
-                    liff.login();
-                } else {
-                    const profile = await liff.getProfile();
-                    userId = profile.userId;
-                    initMapBounds();
-                    initAutocomplete();
-                }
-            } catch (err) {
-                console.error("LIFF Init Error", err);
-                initMapBounds();
-                initAutocomplete(); // 即使失敗也允許測試
-            }
-        }
+    function initMap() {
+        map = new google.maps.Map(document.getElementById("map"), {
+            center: { lat: 23.991, lng: 121.601 }, zoom: 13,
+            disableDefaultUI: true, mapTypeControl: false
+        });
+        
+        directionsService = new google.maps.DirectionsService();
+        directionsRenderer = new google.maps.DirectionsRenderer({
+            map: map, suppressMarkers: false,
+            polylineOptions: { strokeColor: '#3b82f6', strokeWeight: 5 }
+        });
 
-        function initMapBounds() {
-            // 24.3 to 23.1, 121.7 to 121.1 (精準花蓮縣方框)
-            hualienBounds = new google.maps.LatLngBounds(
-                new google.maps.LatLng(23.1, 121.1),
-                new google.maps.LatLng(24.3, 121.7)
-            );
-        }
+        // 綁定地址輸入框自動完成
+        const options = { componentRestrictions: { country: "tw" } };
+        pickupAutocomplete = new google.maps.places.Autocomplete(document.getElementById('pickup-input'), options);
+        dropoffAutocomplete = new google.maps.places.Autocomplete(document.getElementById('dropoff-input'), options);
+    }
 
-        function initAutocomplete() {
-            const options = { 
-                componentRestrictions: { country: "tw" },
-                bounds: hualienBounds,
-                strictBounds: true 
-            };
-            startAutocomplete = new google.maps.places.Autocomplete(document.getElementById('start_address'), options);
-            endAutocomplete = new google.maps.places.Autocomplete(document.getElementById('end_address'), options);
-        }
-
-        // 一鍵清除
-        function clearInput(id) {
-            document.getElementById(id).value = '';
-            document.getElementById(id).focus();
-        }
-
-        // UI 連動：車型選擇
-        function selectVehicleType(type) {
-            selectedVehicle = type;
-            const btnTaxi = document.getElementById('btn-taxi');
-            const btnMulticar = document.getElementById('btn-multicar');
-
-            if (type === 'taxi') {
-                btnTaxi.className = "w-full bg-yellow-400 hover:bg-yellow-500 text-black font-black text-2xl py-6 rounded-2xl shadow-inner border-4 border-yellow-500";
-                btnMulticar.className = "w-full bg-white text-gray-500 font-bold text-2xl py-6 rounded-2xl border-4 border-gray-200 active:bg-blue-50";
-            } else {
-                btnMulticar.className = "w-full bg-blue-600 text-white font-black text-2xl py-6 rounded-2xl shadow-inner border-4 border-blue-600";
-                btnTaxi.className = "w-full bg-white text-gray-500 font-bold text-2xl py-6 rounded-2xl border-4 border-gray-200 active:bg-blue-50";
-            }
-        }
-
-        function getCurrentLocation() {
-            Swal.fire({
-                title: '📍 正在獲取您的位置...',
-                allowOutsideClick: false,
-                didOpen: () => { Swal.showLoading(); }
-            });
-
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition((pos) => {
-                    const latlng = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+    function useMyLocation() {
+        if (navigator.geolocation) {
+            Swal.fire({ title: '定位中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const lat = position.coords.latitude;
+                    const lng = position.coords.longitude;
                     const geocoder = new google.maps.Geocoder();
-                    geocoder.geocode({ location: latlng }, (results, status) => {
+                    geocoder.geocode({ location: { lat, lng } }, (results, status) => {
                         Swal.close();
                         if (status === "OK" && results[0]) {
-                            document.getElementById('start_address').value = results[0].formatted_address;
-                        } else {
-                            Swal.fire("定位失敗", "無法將座標轉換為地址", "error");
+                            const addr = results[0].formatted_address.replace("台灣", "").replace(/[0-9]{3}/, "");
+                            document.getElementById('pickup-input').value = addr;
+                            map.panTo({lat, lng});
+                            map.setZoom(16);
                         }
                     });
-                }, (error) => {
-                    Swal.close();
-                    Swal.fire("定位失敗", "請確認是否開啟 GPS 與權限", "error");
-                });
+                },
+                () => { Swal.fire('錯誤', '無法取得您的位置，請確認是否開啟 GPS 權限。', 'error'); },
+                { enableHighAccuracy: true, timeout: 10000 }
+            );
+        } else {
+            Swal.fire('錯誤', '您的裝置不支援 GPS 定位。', 'error');
+        }
+    }
+
+    function calculateFare() {
+        const pickup = document.getElementById('pickup-input').value;
+        const dropoff = document.getElementById('dropoff-input').value;
+
+        if (!pickup || !dropoff) {
+            Swal.fire({ icon: 'warning', title: '請填寫完整', text: '上車與下車地點都必須填寫喔！', confirmButtonColor: '#3b82f6' });
+            return;
+        }
+
+        Swal.fire({ title: '計算路線中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
+
+        const request = {
+            origin: pickup,
+            destination: dropoff,
+            travelMode: 'DRIVING'
+        };
+
+        directionsService.route(request, (result, status) => {
+            Swal.close();
+            if (status == 'OK') {
+                directionsRenderer.setDirections(result);
+                const route = result.routes[0].legs[0];
+                
+                const distanceMeters = route.distance.value; // 公尺
+                const durationSeconds = route.duration.value; // 秒
+                
+                document.getElementById('route-meta').innerText = `${route.distance.text} / ${route.duration.text}`;
+                
+                // 🚀 執行花蓮計程車費率概算演算法
+                const yellowFare = estimateHualienTaxiFare(distanceMeters, durationSeconds);
+                
+                document.getElementById('fare-yellow').innerText = `~NT$ ${yellowFare}`;
+                document.getElementById('fare-m12').innerText = `~NT$ ${Math.ceil(yellowFare * 1.2)}`;
+                document.getElementById('fare-m14').innerText = `~NT$ ${Math.ceil(yellowFare * 1.4)}`;
+
+                document.getElementById('result-panel').classList.add('show');
             } else {
-                Swal.close();
-                Swal.fire("定位失敗", "您的瀏覽器不支援定位", "error");
+                Swal.fire('找不到路線', '無法計算此兩點間的路線，請嘗試輸入更準確的地址。', 'error');
             }
+        });
+    }
+    
+    // 🚀 花蓮計程車計費概算 (起跳100元/1km，續跳5元/230m)
+    function estimateHualienTaxiFare(meters, seconds) {
+        let fare = 100; // 起跳價
+        if (meters > 1000) {
+            fare += Math.ceil((meters - 1000) / 230) * 5;
         }
+        // 加上 10% 左右的延滯時間/紅綠燈緩衝估算，讓價格更貼近現實
+        fare = Math.ceil(fare * 1.1); 
+        return fare;
+    }
 
-        async function calculateFare() {
-            const start = document.getElementById('start_address').value;
-            const end = document.getElementById('end_address').value;
+    function closeResult() {
+        document.getElementById('result-panel').classList.remove('show');
+    }
 
-            if (!start || !end) {
-                Swal.fire("請輸入起訖點", "", "warning");
-                return;
-            }
-
-            // 防禦：每日次數限制
-            if (!checkDailyLimit()) return;
-
-            Swal.fire({
-                title: '💰 正在計算最佳路線...',
-                allowOutsideClick: false,
-                didOpen: () => { Swal.showLoading(); }
-            });
-
-            const service = new google.maps.DirectionsService();
-            service.route({
-                origin: start,
-                destination: end,
-                travelMode: google.maps.TravelMode.DRIVING
-            }, (response, status) => {
-                Swal.close();
-                if (status === "OK") {
-                    const route = response.routes[0].legs[0];
-                    const distanceMeter = route.distance.value;
-                    const durationSec = route.duration.value;
-                    
-                    const fare = computeHualienFare(distanceMeter, durationSec, selectedVehicle);
-                    
-                    document.getElementById('result_card').classList.remove('hidden');
-                    document.getElementById('fare_range').innerText = `NT$ ${fare.min} - ${fare.max}`;
-                    document.getElementById('res_distance').innerText = (distanceMeter / 1000).toFixed(1) + " km";
-                    document.getElementById('res_duration').innerText = Math.round(durationSec / 60) + " 分鐘";
-                    
-                    window.scrollTo({ top: 400, behavior: 'smooth' });
-                } else {
-                    Swal.fire("計算失敗", "起點或終點位於無法行駛的區域", "error");
-                }
-            });
+    // 初始化 Google Maps
+    window.addEventListener('load', () => {
+        if(typeof google === 'undefined') {
+            setTimeout(initMap, 500);
+        } else {
+            initMap();
         }
-
-        function computeHualienFare(meters, seconds, vehicleType) {
-            const now = new Date();
-            const hour = now.getHours();
-            const isNight = (hour >= 22 || hour < 6);
-
-            // 花蓮小黃費率邏輯
-            let baseFare = isNight ? 120 : 100; // 起跳
-            let distance = meters;
-            
-            // 扣除起程 1000m
-            distance = Math.max(0, distance - 1000);
-            
-            // 續程：每 230m $5
-            let extraFare = Math.ceil(distance / 230) * 5;
-            
-            // 延滯計時模擬：預估會有 10% 的等紅燈/塞車費
-            let total = baseFare + extraFare;
-
-            // 車型乘數連動
-            if (vehicleType === 'multicar') {
-                total = total * 1.2; // 多元預設 1.2 倍
-            }
-            
-            // 強制收斂至 5 的倍數
-            let minFare = Math.round(total / 5) * 5;
-            let maxFare = Math.round((total * 1.15) / 5) * 5;
-            
-            if (maxFare <= minFare) {
-                maxFare = minFare + 10;
-            }
-            
-            return {
-                min: minFare,
-                max: maxFare
-            };
-        }
-
-        function checkDailyLimit() {
-            const today = new Date().toDateString();
-            const countKey = userId + '_fare_count';
-            const dateKey = userId + '_fare_date';
-            
-            let count = parseInt(localStorage.getItem(countKey) || "0");
-            let lastDate = localStorage.getItem(dateKey);
-
-            if (lastDate !== today) {
-                count = 0;
-                localStorage.setItem(dateKey, today);
-            }
-
-            if (count >= 10) {
-                Swal.fire({
-                    icon: 'info',
-                    title: "查詢次數已達上限",
-                    text: "今日限查 10 次。為了不浪費您的時間，請直接點擊下方叫車！",
-                    confirmButtonText: '確定',
-                    confirmButtonColor: '#16a34a' 
-                });
-                return false;
-            }
-
-            localStorage.setItem(countKey, count + 1);
-            return true;
-        }
-
-        // 🚀 架構師核心修改：行銷收斂漏斗導流 (帶上網址參數)
-        function redirectToOneKeyBooking() {
-            const start = document.getElementById('start_address').value;
-            const end = document.getElementById('end_address').value;
-            let baseUrl = "https://liff.line.me/2008907691-CzDqd7mm"; 
-            
-            // 如果連起點都沒填，直接跳轉，不帶參數
-            if (start.trim() === "") {
-                liff.openWindow({ url: baseUrl, external: false });
-                return;
-            }
-
-            // 準備封裝參數
-            const params = new URLSearchParams();
-            params.append('p', start); // p = pickup
-            
-            if (end.trim() !== "") {
-                params.append('d', end); // d = dropoff
-            }
-
-            // 確認是否已經計算出車資 (Result Card 沒有 hidden)
-            const resultCard = document.getElementById('result_card');
-            if (!resultCard.classList.contains('hidden')) {
-                const fareText = document.getElementById('fare_range').innerText.replace('NT$ ', '');
-                params.append('f', fareText); // f = fare
-                params.append('v', selectedVehicle); // v = vehicle type
-            }
-
-            // 組合完整網址並跳轉
-            const finalUrl = baseUrl + "?" + params.toString();
-            liff.openWindow({ url: finalUrl, external: false });
-        }
-
-        window.onload = initLiff;
-    </script>
+    });
+  </script>
 </body>
 </html>
