@@ -25,28 +25,28 @@
         box-shadow: 0 -10px 40px rgba(0,0,0,0.1); z-index: 20; 
         transition: transform 0.3s ease;
         
-        /* 💡 鎖定高度：讓叫車模式與結果模式一樣高 (大約占螢幕的一半) */
+        /* 💡 鎖定高度：讓叫車模式與結果模式一樣高 (占螢幕 50vh) */
         height: 50vh;
-        display: flex; flex-direction: column; padding: 24px;
+        display: flex; flex-direction: column; padding: 20px 24px 24px 24px;
     }
     
-    .drag-handle { width: 40px; height: 5px; background: #cbd5e1; border-radius: 5px; margin: 0 auto 20px auto; flex-shrink: 0; }
+    .drag-handle { width: 40px; height: 5px; background: #cbd5e1; border-radius: 5px; margin: 0 auto 15px auto; flex-shrink: 0; }
     
     /* 視圖容器 */
     #views-container { flex: 1; display: flex; flex-direction: column; position: relative; }
     #input-view, #result-view { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; transition: opacity 0.3s ease; }
     #input-view.hidden, #result-view.hidden { opacity: 0; pointer-events: none; }
     
-    .input-row { display: flex; align-items: center; background: #f8fafc; border-radius: 16px; padding: 12px 16px; margin-bottom: 12px; border: 1px solid #e2e8f0; transition: border-color 0.2s; }
+    .input-row { display: flex; align-items: center; background: #f8fafc; border-radius: 16px; padding: 12px 16px; border: 1px solid #e2e8f0; transition: border-color 0.2s; }
     .input-row:focus-within { border-color: #00C853; background: #fff; box-shadow: 0 0 0 3px rgba(0,200,83,0.1); }
     .input-row input { flex: 1; background: transparent; border: none; outline: none; font-size: 16px; font-weight: bold; color: #1e293b; width: 100%; }
     .input-row input::placeholder { color: #94a3b8; font-weight: normal; font-size: 15px; }
     
-    .btn-calc { background: linear-gradient(135deg, #00C853, #1B5E20); color: white; width: 100%; padding: 16px; border-radius: 16px; font-weight: 900; font-size: 18px; box-shadow: 0 6px 20px rgba(0, 200, 83, 0.3); border: none; cursor: pointer; transition: transform 0.1s; margin-top: auto; }
+    .btn-calc { background: linear-gradient(135deg, #00C853, #1B5E20); color: white; width: 100%; padding: 16px; border-radius: 16px; font-weight: 900; font-size: 18px; box-shadow: 0 6px 20px rgba(0, 200, 83, 0.3); border: none; cursor: pointer; transition: transform 0.1s; flex-shrink: 0; }
     .btn-calc:active { transform: scale(0.96); }
     
     /* 車資結果卡片 */
-    .fare-card { border: 2px solid #f1f5f9; border-radius: 16px; padding: 14px 18px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; flex: 1; margin-top: auto; }
+    .fare-card { border: 2px solid #f1f5f9; border-radius: 16px; padding: 12px 18px; display: flex; align-items: center; justify-content: space-between; flex: 1; transition: all 0.2s; }
     .fare-title { font-size: 16px; font-weight: bold; color: #334155; display: flex; align-items: center; gap: 10px; }
     .fare-price { font-size: 24px; font-weight: 900; color: #0f172a; }
     
@@ -80,23 +80,30 @@
     <div class="drag-handle"></div>
     
     <div id="views-container">
+        
         <div id="input-view">
-            <div class="input-row">
-                <i class="fa-solid fa-circle-dot text-emerald-500 w-6 text-center mr-2 text-lg"></i>
-                <input type="text" id="pickup-input" placeholder="請輸入上車地點">
-                <button onclick="useMyLocation()" class="text-blue-500 p-2 active:scale-90 bg-blue-50 rounded-xl ml-2"><i class="fa-solid fa-crosshairs"></i></button>
+            <div class="text-xs text-slate-400 font-bold text-center tracking-wide flex items-center justify-center gap-1.5 bg-slate-50 py-2 rounded-lg border border-slate-100">
+                <i class="fa-solid fa-circle-info text-slate-300"></i> 預估車資僅供參考，實際收費以最終行駛為準
             </div>
             
-            <div class="input-row">
-                <i class="fa-solid fa-location-dot text-rose-500 w-6 text-center mr-2 text-lg"></i>
-                <input type="text" id="dropoff-input" placeholder="請輸入下車地點">
+            <div class="my-auto space-y-3 w-full">
+                <div class="input-row">
+                    <i class="fa-solid fa-circle-dot text-emerald-500 w-6 text-center mr-2 text-lg"></i>
+                    <input type="text" id="pickup-input" placeholder="請輸入上車地點">
+                    <button onclick="useMyLocation()" class="text-blue-500 p-2 active:scale-90 bg-blue-50 rounded-xl ml-2"><i class="fa-solid fa-crosshairs"></i></button>
+                </div>
+                
+                <div class="input-row">
+                    <i class="fa-solid fa-location-dot text-rose-500 w-6 text-center mr-2 text-lg"></i>
+                    <input type="text" id="dropoff-input" placeholder="請輸入下車地點">
+                </div>
             </div>
             
-            <button onclick="calculateFare()" class="btn-calc">開始計算車資</button>
+            <button onclick="calculateFare()" class="btn-calc mt-auto">開始計算車資</button>
         </div>
 
         <div id="result-view" class="hidden">
-            <div class="flex justify-between items-start mb-4 border-b border-slate-100 pb-4">
+            <div class="flex justify-between items-start mb-3 border-b border-slate-100 pb-3 flex-shrink-0">
                 <div>
                     <div class="text-xs text-slate-400 font-bold mb-1">預估距離與時間</div>
                     <div class="text-xl font-black text-slate-800" id="route-meta">-- 公里 / -- 分鐘</div>
@@ -106,25 +113,24 @@
                 </button>
             </div>
 
-            <div class="fare-card fc-yellow">
-                <div class="fare-title"><i class="fa-solid fa-taxi text-amber-500 text-xl"></i> 標準小黃 (跳表)</div>
-                <div class="fare-price" id="fare-yellow">$--</div>
-            </div>
-            
-            <div class="fare-card fc-multi12">
-                <div class="fare-title"><i class="fa-solid fa-car-side text-sky-500 text-xl"></i> 多元專車 (1.2倍)</div>
-                <div class="fare-price" id="fare-m12">$--</div>
-            </div>
-            
-            <div class="fare-card fc-multi14">
-                <div class="fare-title"><i class="fa-solid fa-van-shuttle text-violet-500 text-xl"></i> 尊榮六座 (1.4倍)</div>
-                <div class="fare-price" id="fare-m14">$--</div>
-            </div>
-
-            <div class="text-xs text-slate-400 text-center mt-3 font-bold">
-                * 預估車資僅供參考，實際收費以最終行駛路線為準。
+            <div class="flex-1 flex flex-col gap-2.5 justify-center">
+                <div class="fare-card fc-yellow">
+                    <div class="fare-title"><i class="fa-solid fa-taxi text-amber-500 text-xl"></i> 標準小黃 (跳表)</div>
+                    <div class="fare-price" id="fare-yellow">$--</div>
+                </div>
+                
+                <div class="fare-card fc-multi12">
+                    <div class="fare-title"><i class="fa-solid fa-car-side text-sky-500 text-xl"></i> 多元專車 (1.2倍)</div>
+                    <div class="fare-price" id="fare-m12">$--</div>
+                </div>
+                
+                <div class="fare-card fc-multi14">
+                    <div class="fare-title"><i class="fa-solid fa-van-shuttle text-violet-500 text-xl"></i> 尊榮六座 (1.4倍)</div>
+                    <div class="fare-price" id="fare-m14">$--</div>
+                </div>
             </div>
         </div>
+
     </div>
   </div>
 
@@ -142,13 +148,16 @@
         directionsRenderer = new google.maps.DirectionsRenderer({
             map: map, 
             suppressMarkers: false,
-            preserveViewport: true, // 🚀 我們保留自己寫的安全視角保護機制！
+            preserveViewport: true, // 保留安全視角保護機制
             polylineOptions: { strokeColor: '#00C853', strokeWeight: 6, strokeOpacity: 0.8 }
         });
 
         const options = { componentRestrictions: { country: "tw" } };
         pickupAutocomplete = new google.maps.places.Autocomplete(document.getElementById('pickup-input'), options);
         dropoffAutocomplete = new google.maps.places.Autocomplete(document.getElementById('dropoff-input'), options);
+        
+        pickupAutocomplete.setFields(['formatted_address', 'geometry']);
+        dropoffAutocomplete.setFields(['formatted_address', 'geometry']);
     }
 
     function useMyLocation() {
@@ -207,16 +216,16 @@
                 
                 const yellowFare = estimateHualienTaxiFare(distanceMeters, durationSeconds);
                 
-                // 🚀 修復核心：所有倍率計算完，皆透過 roundToTaxiStandard() 進位到 5 或 0
+                // 確保所有倍率皆進位到 5 或 0
                 document.getElementById('fare-yellow').innerText = `~NT$ ${yellowFare}`;
                 document.getElementById('fare-m12').innerText = `~NT$ ${roundToTaxiStandard(yellowFare * 1.2)}`;
                 document.getElementById('fare-m14').innerText = `~NT$ ${roundToTaxiStandard(yellowFare * 1.4)}`;
 
-                // 切換視圖
+                // 觸發 UI 無縫切換
                 document.getElementById('input-view').classList.add('hidden');
                 document.getElementById('result-view').classList.remove('hidden');
 
-                // 🚀 核心視角保護機制：將地圖縮放到「扣除底部面板後」的可視區域
+                // 視角保護機制
                 const bounds = result.routes[0].bounds;
                 const bottomSheetHeight = document.getElementById('bottom-sheet').offsetHeight + 30;
                 map.fitBounds(bounds, { top: 110, bottom: bottomSheetHeight, left: 50, right: 50 });
@@ -227,27 +236,27 @@
         });
     }
     
-    // 花蓮計程車計費概算 (起跳100元/1km，續跳5元/230m)
+    // 花蓮計程車計費演算法
     function estimateHualienTaxiFare(meters, seconds) {
         let fare = 100; 
         if (meters > 1000) {
             fare += Math.ceil((meters - 1000) / 230) * 5;
         }
-        // 加上 10% 延滯時間緩衝，並進位
+        // 加入緩衝並以計程車標準進位
         fare = roundToTaxiStandard(fare * 1.1); 
         return fare;
     }
     
-    // 🚀 新增：計程車進位演算法 (尾數進位到 最接近的 5 或 0)
+    // 計程車專用：自動進位到最接近的 5 或 0 (如 103 -> 105, 102 -> 100)
     function roundToTaxiStandard(num) {
         return Math.round(num / 5) * 5;
     }
 
     function resetView() {
-        // 按下收回，返回叫車模式
+        // 返回叫車模式
         document.getElementById('result-view').classList.add('hidden');
         document.getElementById('input-view').classList.remove('hidden');
-        centerMap(); // 視角回到花蓮市區
+        centerMap(); 
     }
 
     function centerMap(){
