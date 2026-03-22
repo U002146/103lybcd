@@ -3,11 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  
   <title>敬老愛心接送</title> 
   <meta name="apple-mobile-web-app-capable" content="yes">
+  
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script> 
+  
   <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAIxc6PEhHgUs_A9lyRUg8dNbmwOpSamY8&libraries=geometry"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -17,30 +20,45 @@
     #map { width: 100vw; height: 100vh; }
     #top-bar { position: absolute; top: 15px; left: 15px; right: 15px; z-index: 10; display: flex; justify-content: space-between; pointer-events: none; align-items: flex-start;}
     .status-pill { background: white; padding: 10px 15px; border-radius: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); font-weight: bold; color: #333; pointer-events: auto; display: flex; align-items: center; font-size: 14px; height: fit-content; transition: all 0.3s;}
+    
     .action-buttons-container { display: flex; flex-direction: column; gap: 12px; pointer-events: auto; }
+    
     .btn-customer { background: linear-gradient(135deg, #00C853, #64DD17); color: white; width: 50px; height: 50px; border-radius: 50%; display: flex; flex-direction: column; justify-content: center; align-items: center; box-shadow: 0 4px 15px rgba(0,0,0,0.2); text-decoration: none; font-size: 11px; font-weight: bold; border: 2px solid white; transition: transform 0.1s;}
     .btn-customer:active { transform: scale(0.92); }
     .btn-customer i { font-size: 18px; margin-bottom: 2px; }
+
     .btn-share { background: linear-gradient(135deg, #FF9800, #FF5722); color: white; width: 50px; height: 50px; border-radius: 50%; display: flex; flex-direction: column; justify-content: center; align-items: center; box-shadow: 0 4px 15px rgba(255,152,0,0.4); cursor: pointer; font-size: 11px; font-weight: bold; border: 2px solid white; transition: transform 0.1s;}
     .btn-share:active { transform: scale(0.92); background: #E65100; }
     .btn-share i { font-size: 18px; margin-bottom: 2px; }
+    
     #driver-carousel { position: absolute; bottom: 20px; left: 0; width: 100%; display: flex; gap: 15px; padding: 10px 20px; box-sizing: border-box; overflow-x: auto; scroll-snap-type: x mandatory; z-index: 20; scrollbar-width: none; }
     #driver-carousel::-webkit-scrollbar { display: none; }
-    .driver-card { flex: 0 0 92%; max-width: 380px; background: white; border-radius: 24px; padding: 16px 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.25); scroll-snap-align: center; display: flex; flex-direction: column; gap: 12px; transition: transform 0.2s; border: 2px solid #ddd; position: relative; }
+    
+    .driver-card { 
+        flex: 0 0 92%; max-width: 380px; background: white; border-radius: 24px; padding: 16px 20px; 
+        box-shadow: 0 10px 30px rgba(0,0,0,0.25); scroll-snap-align: center; 
+        display: flex; flex-direction: column; gap: 12px; 
+        transition: transform 0.2s; border: 2px solid #ddd; position: relative; 
+    }
+    
     .driver-card-top { display: flex; flex-direction: row; align-items: center; gap: 12px; width: 100%; }
     .driver-card-actions { display: flex; gap: 10px; width: 100%; }
+
     .driver-card.tracking-mode { border-color: #00B0FF; box-shadow: 0 10px 35px rgba(0, 176, 255, 0.3); } 
     .driver-card.arrived-mode { border-color: #FF9800; box-shadow: 0 10px 35px rgba(255, 152, 0, 0.4); animation: card-pulse 2s infinite; } 
     .driver-card.busy-mode { border-color: #00C853; box-shadow: 0 10px 35px rgba(0, 200, 83, 0.3); } 
     .driver-card.queue-mode { border-color: #00B0FF; }
+    
     .d-avatar { width: 70px; height: 70px; background: #eee; border-radius: 50%; overflow: hidden; border: 3px solid #00C853; box-shadow: 0 4px 12px rgba(0,0,0,0.15); flex-shrink: 0; }
     .driver-card.tracking-mode .d-avatar { border-color: #00B0FF; }
     .driver-card.arrived-mode .d-avatar { border-color: #FF9800; } 
     .driver-card.busy-mode .d-avatar { border-color: #00C853; }
     .driver-card.queue-mode .d-avatar { border-color: #00B0FF; }
     .d-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    
     .d-info { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 4px; }
     .d-name { font-size: 20px; font-weight: 900; color: #000; display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin: 0; line-height: 1.2; }
+    
     .tag { font-size: 12px; padding: 2px 6px; border-radius: 6px; font-weight: bold; display: inline-flex; align-items: center; }
     .tag-empty { background: #e8f5e9; color: #1B5E20; border: 1px solid #4CAF50; }
     .tag-queue { background: #e3f2fd; color: #0D47A1; border: 1px solid #2196F3; }
@@ -48,18 +66,37 @@
     .tag-arrived { background: #FFF3E0; color: #E65100; border: 1px solid #FF9800; animation: pulse-radar 1.5s infinite; }
     .tag-busy { background: #E8F5E9; color: #2E7D32; border: 1px solid #4CAF50; } 
     .tag-star { background: #FFF8E1; color: #F57F17; border: 1px solid #FFC107; margin-left: auto; font-size: 13px; }
+
     .d-meta { font-size: 14px; font-weight: 600; color: #666; display: flex; flex-direction: column; gap: 2px; }
     .d-meta span { display: flex; align-items: center; gap: 6px; }
     .d-meta i { width: 16px; text-align: center; color: #888; }
-    .btn-call-action { height: 48px; padding: 0 16px; border-radius: 12px; background: linear-gradient(135deg, #00C853, #1B5E20); color: white; display: flex; justify-content: center; align-items: center; gap: 8px; font-size: 16px; font-weight: 900; box-shadow: 0 4px 12px rgba(76, 175, 80, 0.4); border: 2px solid #00E676; flex: 1; cursor: pointer; transition: transform 0.1s; white-space: nowrap; }
+    
+    .btn-call-action {
+        height: 48px; padding: 0 16px; border-radius: 12px;
+        background: linear-gradient(135deg, #00C853, #1B5E20); color: white;
+        display: flex; justify-content: center; align-items: center; gap: 8px;
+        font-size: 16px; font-weight: 900; box-shadow: 0 4px 12px rgba(76, 175, 80, 0.4);
+        border: 2px solid #00E676; flex: 1; cursor: pointer; transition: transform 0.1s; white-space: nowrap;
+    }
     .btn-call-action:active { transform: scale(0.95); background: #1B5E20; }
     .btn-call-action:disabled { background: #9E9E9E; border-color: #757575; box-shadow: none; cursor: not-allowed; transform: none; }
-    .btn-cancel-action { height: 48px; padding: 0 16px; border-radius: 12px; background: linear-gradient(135deg, #F44336, #B71C1C); color: white; display: flex; justify-content: center; align-items: center; gap: 8px; font-size: 16px; font-weight: 900; box-shadow: 0 4px 12px rgba(244, 67, 54, 0.4); border: 2px solid #EF9A9A; flex: 1; cursor: pointer; transition: transform 0.1s; white-space: nowrap; }
+    
+    .btn-cancel-action {
+        height: 48px; padding: 0 16px; border-radius: 12px;
+        background: linear-gradient(135deg, #F44336, #B71C1C); color: white;
+        display: flex; justify-content: center; align-items: center; gap: 8px;
+        font-size: 16px; font-weight: 900; box-shadow: 0 4px 12px rgba(244, 67, 54, 0.4);
+        border: 2px solid #EF9A9A; flex: 1; cursor: pointer; transition: transform 0.1s; white-space: nowrap;
+    }
     .btn-cancel-action:active { transform: scale(0.95); background: #B71C1C; }
+
     .btn-call-full { width: 100%; height: 50px; border-radius: 16px; background: linear-gradient(135deg, #F57F17, #E65100); color: white; display: flex; justify-content: center; align-items: center; gap: 12px; text-decoration: none; font-size: 18px; font-weight: 900; box-shadow: 0 6px 15px rgba(245, 127, 23, 0.4); border: 2px solid #FFB300; cursor: pointer; }
+
     #btn-loc { position: absolute; bottom: 170px; right: 20px; width: 55px; height: 55px; background: white; border-radius: 50%; box-shadow: 0 4px 15px rgba(0,0,0,0.25); display: flex; justify-content: center; align-items: center; font-size: 24px; color: #333; cursor: pointer; z-index: 15; border: 2px solid #eee; transition: bottom 0.3s; }
+    
     @keyframes pulse-radar { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
     @keyframes card-pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 152, 0, 0.4); } 70% { box-shadow: 0 0 0 15px rgba(255, 152, 0, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 152, 0, 0); } }
+    
     .swal2-popup { border-radius: 24px !important; font-family: 'Noto Sans TC', sans-serif !important; }
   </style>
 </head>
@@ -85,7 +122,7 @@
 
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script>
-    const VERSION = "v9.24"; 
+    const VERSION = "v9.26"; // 🚀 智慧判斷版：避免掃到颱風尾吃負評
     const LIFF_ID = "2008907691-CzDqd7mm"; 
     const GAS_URL = "https://script.google.com/macros/s/AKfycbzjWZ8j394jfKoMVbPWGvHJHqwF7RBCQxnxyju1ifWKoKdM7RE512F7qrhUsQqQGoWg/exec"; 
     
@@ -107,6 +144,9 @@
     let currentTrackStep = localStorage.getItem('trackStep') || '1';
 
     let driverRatingsCache = {};
+    
+    // 🚀 核心：判斷是不是「剛打開 APP」
+    let isAppJustLoaded = true;
 
     const getPinIcon = (type, isTracked, workStatus, trackStep) => {
         if (isTracked) {
@@ -251,12 +291,18 @@
         if (myTrackedDriverId) {
             const trackedData = data[myTrackedDriverId];
             if (!trackedData || trackedData.status !== 'online') {
-                exitTrackingMode(true); 
+                exitTrackingMode(true, isAppJustLoaded); 
             } else {
                 const req = trackedData.request; const wasBusy = localStorage.getItem('wasBusy') === 'true';
                 if (req && req.status === 'rejected') { handleOrderRejected(); return; }
                 if (!req || req.userId !== passengerId) {
-                    if (wasBusy) { localStorage.removeItem('wasBusy'); exitTrackingMode(true); } else { handleOrderRejected(); }
+                    if (wasBusy) { 
+                        localStorage.removeItem('wasBusy'); 
+                        // 🚀 傳入 isAppJustLoaded 標記
+                        exitTrackingMode(true, isAppJustLoaded); 
+                    } else { 
+                        handleOrderRejected(); 
+                    }
                     return; 
                 }
                 if (trackedData.workStatus === 'arrived') {
@@ -297,6 +343,9 @@
         for (let d of tempDrivers) { d.ratingStr = await fetchDriverRating(d.id); activeDrivers.push(d); }
         for(let k in markers) { if(!activeIds.has(k)) { markers[k].setMap(null); delete markers[k]; } }
         updateCarousel(activeDrivers.sort((a,b) => a.distUser - b.distUser));
+
+        // 🚀 第一次執行完畢後，把標記設為 false (代表不再是剛打開)
+        isAppJustLoaded = false;
     }
 
     function updateCarousel(drivers) {
@@ -328,7 +377,7 @@
             if (d.isTracked && currentTrackStep === '2') {
                 newHTML += `<div class="${cardClass}" id="card-${d.id}"><div class="driver-card-top" style="justify-content: center;"><div class="d-avatar"><img src="${avatar}"></div><div class="d-info" style="justify-content: center; text-align: center;"><div style="color: #2E7D32; font-weight: 900; font-size: 18px; margin-bottom: 2px;">✅ 您已在車上</div><div style="font-size: 13px; color: #555; font-weight: bold;"><i class="fa-solid fa-flag-checkered"></i> 祝您旅途愉快</div></div></div></div>`;
             } else {
-                let actionButtons = d.isTracked ? `<div class="driver-card-actions"><button class="btn-cancel-action" onclick="exitTrackingMode(false); event.stopPropagation();"><i class="fa-solid fa-xmark"></i> 取消叫車</button><button class="btn-call-action" onclick="window.location.href='tel:${d.phone}'"><i class="fa-solid fa-phone"></i> 聯絡司機</button></div>` : `<div class="driver-card-actions"><button class="btn-call-action" onclick="callDriver('${d.id}', '${d.phone}', this); event.stopPropagation();"><i class="fa-solid fa-bolt"></i> 一鍵叫車</button></div>`;
+                let actionButtons = d.isTracked ? `<div class="driver-card-actions"><button class="btn-cancel-action" onclick="exitTrackingMode(false, false); event.stopPropagation();"><i class="fa-solid fa-xmark"></i> 取消叫車</button><button class="btn-call-action" onclick="window.location.href='tel:${d.phone}'"><i class="fa-solid fa-phone"></i> 聯絡司機</button></div>` : `<div class="driver-card-actions"><button class="btn-call-action" onclick="callDriver('${d.id}', '${d.phone}', this); event.stopPropagation();"><i class="fa-solid fa-bolt"></i> 一鍵叫車</button></div>`;
                 newHTML += `<div class="${cardClass}" id="card-${d.id}" onclick="map.panTo({lat:${d.lat}, lng:${d.lng}})"><div class="driver-card-top"><div class="d-avatar"><img src="${avatar}"></div><div class="d-info"><div class="d-name">${d.name} ${statusTag} ${ratingUI}</div><div class="d-meta"><span><i class="fa-solid fa-taxi"></i> ${displayCarNo}</span><span><i class="fa-solid fa-location-arrow"></i> 距離 ${distText}</span></div></div></div>${actionButtons}</div>`;
             }
         });
@@ -365,7 +414,7 @@
         } catch (error) {} finally { makeCallAndTrack(); }
     }
 
-    async function exitTrackingMode(isAuto) {
+    async function exitTrackingMode(isAuto, skipRating = false) {
         if (!isAuto && myTrackedDriverId) {
             const confirm = await Swal.fire({ title: '確定要取消叫車嗎？', text: "取消後將立即通知司機", icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', cancelButtonColor: '#3085d6', confirmButtonText: '是的，取消叫車', cancelButtonText: '按錯了' });
             if (!confirm.isConfirmed) return; 
@@ -376,8 +425,22 @@
             return;
         }
 
-        // 🚀 行程結束：動態五星評分彈窗
         if (isAuto) {
+            // 🚀 如果發現是「重新打開 APP」才發現行程結束，默默重置，絕對不拿舊評價來煩人！
+            if (skipRating) {
+                resetTrackingState();
+                return;
+            }
+
+            // 🚀 以下是正常的「剛結束行程」評分邏輯
+            Swal.fire({ title: '同步行程資料中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
+            let targetTripId = null;
+            try {
+                const snapshot = await firestoreDb.collection('trips')
+                    .where('passengerId', '==', passengerId).orderBy('timestamp', 'desc').limit(1).get();
+                if (!snapshot.empty) targetTripId = snapshot.docs[0].id;
+            } catch(e) { console.error(e); }
+
             resetTrackingState();
 
             let selectedRating = 0;
@@ -393,60 +456,29 @@
                         <i class="fa-solid fa-star star-btn" data-val="5"></i>
                     </div>
                 `,
-                showCancelButton: true,
-                confirmButtonColor: '#00C853',
-                cancelButtonColor: '#94a3b8',
-                confirmButtonText: '送出評價',
-                cancelButtonText: '略過並關閉',
-                allowOutsideClick: false,
+                showCancelButton: true, confirmButtonColor: '#00C853', cancelButtonColor: '#94a3b8', confirmButtonText: '送出評價', cancelButtonText: '略過並關閉', allowOutsideClick: false,
                 didOpen: () => {
                     const stars = document.querySelectorAll('.star-btn');
                     stars.forEach(star => {
                         star.addEventListener('click', function() {
                             selectedRating = parseInt(this.getAttribute('data-val'));
-                            stars.forEach(s => {
-                                if (parseInt(s.getAttribute('data-val')) <= selectedRating) {
-                                    s.style.color = '#FFC107'; 
-                                } else {
-                                    s.style.color = '#ddd'; 
-                                }
-                            });
+                            stars.forEach(s => { s.style.color = parseInt(s.getAttribute('data-val')) <= selectedRating ? '#FFC107' : '#ddd'; });
                         });
                     });
                 },
-                preConfirm: () => {
-                    if (selectedRating === 0) {
-                        Swal.showValidationMessage('請點擊星星進行評分喔！');
-                        return false;
-                    }
-                    return selectedRating;
-                }
+                preConfirm: () => { if (selectedRating === 0) { Swal.showValidationMessage('請點擊星星進行評分喔！'); return false; } return selectedRating; }
             });
 
             if (isConfirmed && selectedRating > 0) {
                 Swal.fire({ title: '送出中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
                 try {
-                    // 自動抓取最新的一筆訂單寫入評分
-                    const snapshot = await firestoreDb.collection('trips')
-                        .where('passengerId', '==', passengerId)
-                        .orderBy('timestamp', 'desc')
-                        .limit(1).get();
-                        
-                    if (!snapshot.empty) {
-                        await firestoreDb.collection('trips').doc(snapshot.docs[0].id).update({
-                            rating: selectedRating,
-                            ratingTime: firebase.firestore.FieldValue.serverTimestamp()
-                        });
+                    if (targetTripId) {
+                        await firestoreDb.collection('trips').doc(targetTripId).update({ rating: selectedRating, ratingTime: firebase.firestore.FieldValue.serverTimestamp() });
                     }
-                } catch(e) { console.error(e); }
+                } catch(e) {}
             }
 
-            // 🚀 關鍵動作：關閉 LIFF，讓客人回到 LINE 對話框看收據！
-            if (liff.isInClient()) {
-                liff.closeWindow();
-            } else {
-                Swal.fire({ icon: 'success', title: '感謝搭乘', text: '您可以關閉此網頁了', showConfirmButton: false });
-            }
+            if (liff.isInClient()) { liff.closeWindow(); } else { Swal.fire({ icon: 'success', title: '感謝搭乘', text: '您可以關閉此網頁了', showConfirmButton: false }); }
         }
     }
 
