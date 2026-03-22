@@ -22,7 +22,7 @@
     
     .header-overlay { position: absolute; top: 0; left: 0; width: 100%; padding: 25px 20px 50px; background: linear-gradient(180deg, rgba(15,23,42,0.85) 0%, rgba(15,23,42,0) 100%); z-index: 10; pointer-events: none; }
     
-    /* 底部抽屜 (Bottom Sheet) 強制視覺同高 */
+    /* 底部抽屜 (Bottom Sheet) */
     #bottom-sheet { 
         position: absolute; bottom: 0; left: 0; width: 100%; 
         background: white; border-top-left-radius: 28px; border-top-right-radius: 28px; 
@@ -44,6 +44,10 @@
     .input-row input { flex: 1; background: transparent; border: none; outline: none; font-size: 16px; font-weight: bold; color: #1e293b; width: 100%; }
     .input-row input::placeholder { color: #94a3b8; font-weight: normal; font-size: 15px; }
     
+    /* 🚀 針對唯讀的上車點加入視覺回饋 */
+    .input-row input:read-only { color: #00C853; font-weight: 900; cursor: default; }
+    .input-row.locked { background: #f0fdf4; border-color: #bbf7d0; }
+
     .btn-calc { background: linear-gradient(135deg, #00C853, #1B5E20); color: white; width: 100%; padding: 16px; border-radius: 16px; font-weight: 900; font-size: 18px; box-shadow: 0 6px 20px rgba(0, 200, 83, 0.3); border: none; cursor: pointer; transition: transform 0.1s; flex-shrink: 0; }
     .btn-calc:active { transform: scale(0.96); }
     
@@ -89,15 +93,15 @@
             </div>
             
             <div class="my-auto space-y-3 w-full">
-                <div class="input-row">
-                    <i class="fa-solid fa-circle-dot text-emerald-500 w-6 text-center mr-2 text-lg"></i>
-                    <input type="text" id="pickup-input" placeholder="請輸入上車地點 (限花蓮境內)">
-                    <button onclick="useMyLocation()" class="text-blue-500 p-2 active:scale-90 bg-blue-50 rounded-xl ml-2"><i class="fa-solid fa-crosshairs"></i></button>
+                <div class="input-row locked" onclick="triggerGpsWarning()">
+                    <i class="fa-solid fa-location-crosshairs text-emerald-500 w-6 text-center mr-2 text-lg"></i>
+                    <input type="text" id="pickup-input" placeholder="自動定位目前位置..." readonly>
+                    <button onclick="useMyLocation(); event.stopPropagation();" class="text-emerald-600 p-2 active:scale-90 bg-emerald-100 rounded-xl ml-2"><i class="fa-solid fa-rotate-right"></i></button>
                 </div>
                 
                 <div class="input-row">
                     <i class="fa-solid fa-location-dot text-rose-500 w-6 text-center mr-2 text-lg"></i>
-                    <input type="text" id="dropoff-input" placeholder="請輸入下車地點 (限花蓮境內)">
+                    <input type="text" id="dropoff-input" placeholder="請輸入下車地點 (跨縣市可)">
                 </div>
             </div>
             
@@ -120,12 +124,10 @@
                     <div class="fare-title"><i class="fa-solid fa-taxi text-amber-500 text-xl"></i> 標準小黃 (跳表)</div>
                     <div class="fare-price" id="fare-yellow">$--</div>
                 </div>
-                
                 <div class="fare-card fc-multi12">
                     <div class="fare-title"><i class="fa-solid fa-car-side text-sky-500 text-xl"></i> 多元專車 (1.2倍)</div>
                     <div class="fare-price" id="fare-m12">$--</div>
                 </div>
-                
                 <div class="fare-card fc-multi14">
                     <div class="fare-title"><i class="fa-solid fa-van-shuttle text-violet-500 text-xl"></i> 尊榮六座 (1.4倍)</div>
                     <div class="fare-price" id="fare-m14">$--</div>
@@ -137,23 +139,21 @@
   </div>
 
   <script>
-    const VERSION = "v2.6"; // 🚀 縣府公文演算法 + 花蓮專屬電子圍籬版
+    const VERSION = "v2.7"; // 🚀 鎖死上車點GPS + 解禁長途外縣市下車點
     const LIFF_ID = "2008907691-Faf4aET8"; 
     const DAILY_LIMIT = 10;
     
-    const firebaseConfig = { 
-        projectId: "hualientaxi-bb32f" 
-    };
+    const firebaseConfig = { projectId: "hualientaxi-bb32f" };
     firebase.initializeApp(firebaseConfig);
     const firestoreDb = firebase.firestore(); 
 
     let map, directionsService, directionsRenderer;
-    let pickupAutocomplete, dropoffAutocomplete;
+    let dropoffAutocomplete; // 🚀 拔除了上車點的自動完成
     let passengerId = "unknown";
+    let isPickupValid = false; // 用來標記 GPS 鎖定的上車點是否合法
 
     window.onload = async function() {
         Swal.fire({ title: '系統載入中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
-        
         if(typeof google !== 'undefined') { initMap(); }
         
         try { 
@@ -165,37 +165,37 @@
             const blockDoc = await firestoreDb.collection('blacklists').doc(passengerId).get();
             if (blockDoc.exists) { 
                 document.body.innerHTML = ''; document.body.style.backgroundColor = '#f8d7da';
-                Swal.fire({
-                    icon: 'error', title: '服務暫停', html: '您的帳號目前<b>無法使用車隊系統</b>。',
-                    confirmButtonText: '確定', confirmButtonColor: '#e74c3c', allowOutsideClick: false
-                }).then(() => { liff.closeWindow(); });
+                Swal.fire({ icon: 'error', title: '服務暫停', html: '您的帳號目前無法使用車隊系統。', confirmButtonText: '確定', confirmButtonColor: '#e74c3c', allowOutsideClick: false }).then(() => { liff.closeWindow(); });
                 return; 
             }
             
             updateQuotaDisplay();
-            Swal.close();
+            
+            // 🚀 自動執行 GPS 定位 (無需客人手動按)
+            useMyLocation();
+
         } catch(e) { 
-            console.error(e);
             Swal.fire({ icon: 'error', title: '系統錯誤', text: 'LINE 授權失敗，請重新開啟網頁' }); 
         } 
     };
 
+    function triggerGpsWarning() {
+        if (!isPickupValid) {
+            Swal.fire({ icon: 'info', title: '上車點鎖定', text: '為確保系統安全與防護，上車點僅限由 GPS 自動定位，無法手動輸入喔！', confirmButtonColor: '#00C853' });
+        }
+    }
+
     function getRemainingQuota() {
         const today = new Date().toISOString().split('T')[0]; 
         let usageData = JSON.parse(localStorage.getItem('fareCalcUsage')) || { date: today, count: 0 };
-        
-        if (usageData.date !== today) {
-            usageData = { date: today, count: 0 };
-            localStorage.setItem('fareCalcUsage', JSON.stringify(usageData));
-        }
+        if (usageData.date !== today) { usageData = { date: today, count: 0 }; localStorage.setItem('fareCalcUsage', JSON.stringify(usageData)); }
         return Math.max(0, DAILY_LIMIT - usageData.count);
     }
 
     function recordUsage() {
         const today = new Date().toISOString().split('T')[0];
         let usageData = JSON.parse(localStorage.getItem('fareCalcUsage')) || { date: today, count: 0 };
-        usageData.count++;
-        localStorage.setItem('fareCalcUsage', JSON.stringify(usageData));
+        usageData.count++; localStorage.setItem('fareCalcUsage', JSON.stringify(usageData));
         updateQuotaDisplay();
     }
 
@@ -206,46 +206,57 @@
 
     function initMap() {
         map = new google.maps.Map(document.getElementById("map"), {
-            center: { lat: 23.991, lng: 121.601 }, zoom: 14,
-            disableDefaultUI: true, mapTypeControl: false
+            center: { lat: 23.991, lng: 121.601 }, zoom: 14, disableDefaultUI: true, mapTypeControl: false
         });
         
         directionsService = new google.maps.DirectionsService();
         directionsRenderer = new google.maps.DirectionsRenderer({
-            map: map, 
-            suppressMarkers: false,
-            preserveViewport: true, 
+            map: map, suppressMarkers: false, preserveViewport: true, 
             polylineOptions: { strokeColor: '#00C853', strokeWeight: 6, strokeOpacity: 0.8 }
         });
 
-        // 🚀 自動完成限定台灣境內
         const options = { componentRestrictions: { country: "tw" } };
-        pickupAutocomplete = new google.maps.places.Autocomplete(document.getElementById('pickup-input'), options);
+        // 🚀 只有下車點保留自動完成功能
         dropoffAutocomplete = new google.maps.places.Autocomplete(document.getElementById('dropoff-input'), options);
-        
-        pickupAutocomplete.setFields(['formatted_address', 'geometry']);
         dropoffAutocomplete.setFields(['formatted_address', 'geometry']);
     }
 
     function useMyLocation() {
         if (navigator.geolocation) {
-            Swal.fire({ title: '定位中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
+            Swal.fire({ title: '定位中...', text: '正在鎖定您的上車位置', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
             navigator.geolocation.getCurrentPosition(
                 (position) => {
                     const lat = position.coords.latitude;
                     const lng = position.coords.longitude;
                     const geocoder = new google.maps.Geocoder();
                     geocoder.geocode({ location: { lat, lng } }, (results, status) => {
-                        Swal.close();
                         if (status === "OK" && results[0]) {
                             const addr = results[0].formatted_address.replace("台灣", "").replace(/[0-9]{3}/, "");
+                            
+                            // 🚀 防禦機制：強制檢查 GPS 位置是否在花蓮
+                            if (!addr.includes("花蓮")) {
+                                isPickupValid = false;
+                                document.getElementById('pickup-input').value = "您不在花蓮服務範圍內";
+                                document.getElementById('pickup-input').style.color = "#e74c3c";
+                                Swal.fire({ icon: 'error', title: '超出服務範圍', html: '本車隊上車地點僅限<b style="color:#e74c3c;">花蓮縣境內</b>。<br>您目前的 GPS 位置似乎不在花蓮喔！', confirmButtonColor: '#e74c3c' });
+                                return;
+                            }
+
+                            isPickupValid = true;
                             document.getElementById('pickup-input').value = addr;
-                            map.panTo({lat, lng});
-                            map.setZoom(16);
+                            document.getElementById('pickup-input').style.color = "#00C853";
+                            Swal.close();
+                            map.panTo({lat, lng}); map.setZoom(16);
+                        } else {
+                            isPickupValid = false;
+                            Swal.fire('定位失敗', '無法解析您的地址，請確認網路連線。', 'error');
                         }
                     });
                 },
-                () => { Swal.fire('錯誤', '無法取得您的位置，請確認是否開啟 GPS 權限。', 'error'); },
+                () => { 
+                    isPickupValid = false;
+                    Swal.fire({icon: 'error', title: '未授權定位', text: '您必須允許 LINE / 網頁取得 GPS 定位權限，才能鎖定上車地點。', confirmButtonColor: '#00C853'}); 
+                },
                 { enableHighAccuracy: true, timeout: 10000 }
             );
         } else {
@@ -255,60 +266,40 @@
 
     function calculateFare() {
         if (getRemainingQuota() <= 0) {
-            Swal.fire({
-                icon: 'warning', title: '額度用盡', 
-                text: '您今日的估算次數已達上限。請直接點擊「一鍵叫車」由司機為您服務！',
-                confirmButtonColor: '#00C853', confirmButtonText: '我知道了'
-            });
-            return;
+            Swal.fire({ icon: 'warning', title: '額度用盡', text: '您今日的估算次數已達上限。請直接點擊「一鍵叫車」由司機為您服務！', confirmButtonColor: '#00C853', confirmButtonText: '我知道了' }); return;
         }
 
         const pickup = document.getElementById('pickup-input').value;
         const dropoff = document.getElementById('dropoff-input').value;
 
-        if (!pickup || !dropoff) {
-            Swal.fire({ icon: 'warning', title: '請填寫完整', text: '上車與下車地點都必須填寫喔！', confirmButtonColor: '#00C853' });
-            return;
+        // 🚀 如果 GPS 定位失敗或不在花蓮，阻擋計算
+        if (!isPickupValid || !pickup || pickup === "自動定位目前位置..." || pickup === "您不在花蓮服務範圍內") {
+            Swal.fire({ icon: 'warning', title: '請先完成定位', text: '上車地點必須先透過 GPS 自動定位鎖定在花蓮境內！', confirmButtonColor: '#00C853' }); return;
         }
-
-        // 🚀 防護機制：花蓮縣專屬電子圍籬 (Geofence)
-        if (!pickup.includes('花蓮') || !dropoff.includes('花蓮')) {
-            Swal.fire({
-                icon: 'error',
-                title: '超出服務範圍',
-                html: '為確保服務品質，目前本車隊服務<br><b style="color:#e74c3c;">僅限花蓮縣境內</b>喔！',
-                confirmButtonColor: '#00C853'
-            });
-            return;
+        if (!dropoff) {
+            Swal.fire({ icon: 'warning', title: '請填寫下車地點', text: '請輸入您的目的地 (跨縣市包車亦可)！', confirmButtonColor: '#00C853' }); return;
         }
 
         Swal.fire({ title: '規劃路線中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
 
-        const request = {
-            origin: pickup,
-            destination: dropoff,
-            travelMode: 'DRIVING'
-        };
+        const request = { origin: pickup, destination: dropoff, travelMode: 'DRIVING' };
 
         directionsService.route(request, (result, status) => {
             Swal.close();
             if (status == 'OK') {
                 recordUsage();
-
                 directionsRenderer.setDirections(result);
                 const route = result.routes[0].legs[0];
                 
                 const distanceMeters = route.distance.value; 
                 const durationSeconds = route.duration.value; 
                 
-                // 判斷日夜間標籤
                 const currentHour = new Date().getHours();
                 const isNight = (currentHour >= 22 || currentHour < 6);
                 const modeTag = isNight ? '<span class="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded ml-2">夜間費率</span>' : '';
                 
                 document.getElementById('route-meta').innerHTML = `${route.distance.text} / ${route.duration.text} ${modeTag}`;
                 
-                // 🚀 執行公文版在地車資演算法
                 const yellowFare = calculateOfficialFare(distanceMeters, durationSeconds, isNight);
                 
                 document.getElementById('fare-yellow').innerText = `~NT$ ${yellowFare}`;
@@ -328,37 +319,20 @@
         });
     }
     
-    // 🚀 核心：花蓮縣政府計程車費率公告 (95年6月22日 府城商字第09500922090號)
     function calculateOfficialFare(meters, seconds, isNight) {
-        let fare = 100; // 基本起跳價 100 元
-        
-        // 預估延滯時間：保守估計約 20% 行車時間在停等紅綠燈或時速低於 5km
+        let fare = 100; 
         const idleSeconds = seconds * 0.2; 
-        
         if (isNight) {
-            // 【夜間加成 22:00 - 06:00】
-            // 1. 續程：起程 834m，續程每 192m 加 5元
-            if (meters > 834) {
-                fare += Math.ceil((meters - 834) / 192) * 5;
-            }
-            // 2. 延滯：每 1分40秒 (100秒) 加 5元
+            if (meters > 834) { fare += Math.ceil((meters - 834) / 192) * 5; }
             fare += Math.floor(idleSeconds / 100) * 5;
         } else {
-            // 【日間正常費率】
-            // 1. 續程：起程 1000m，續程每 230m 加 5元
-            if (meters > 1000) {
-                fare += Math.ceil((meters - 1000) / 230) * 5;
-            }
-            // 2. 延滯：每 2分鐘 (120秒) 加 5元
+            if (meters > 1000) { fare += Math.ceil((meters - 1000) / 230) * 5; }
             fare += Math.floor(idleSeconds / 120) * 5;
         }
-        
         return roundToTaxiStandard(fare);
     }
     
-    function roundToTaxiStandard(num) {
-        return Math.round(num / 5) * 5;
-    }
+    function roundToTaxiStandard(num) { return Math.round(num / 5) * 5; }
 
     function resetView() {
         document.getElementById('result-view').classList.add('hidden');
@@ -366,10 +340,7 @@
         centerMap(); 
     }
 
-    function centerMap(){
-        map.panTo({ lat: 23.991, lng: 121.601 });
-        map.setZoom(14);
-    }
+    function centerMap(){ map.panTo({ lat: 23.991, lng: 121.601 }); map.setZoom(14); }
   </script>
 </body>
 </html>
