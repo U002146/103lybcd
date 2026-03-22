@@ -22,7 +22,7 @@
     
     .header-overlay { position: absolute; top: 0; left: 0; width: 100%; padding: 25px 20px 50px; background: linear-gradient(180deg, rgba(15,23,42,0.85) 0%, rgba(15,23,42,0) 100%); z-index: 10; pointer-events: none; }
     
-    /* 🚀 底部抽屜 (Bottom Sheet) 強制視覺同高 */
+    /* 底部抽屜 (Bottom Sheet) 強制視覺同高 */
     #bottom-sheet { 
         position: absolute; bottom: 0; left: 0; width: 100%; 
         background: white; border-top-left-radius: 28px; border-top-right-radius: 28px; 
@@ -85,19 +85,19 @@
         
         <div id="input-view">
             <div class="text-xs text-slate-400 font-bold text-center tracking-wide flex items-center justify-center gap-1.5 bg-slate-50 py-2 rounded-lg border border-slate-100">
-                <i class="fa-solid fa-circle-info text-slate-300"></i> 預估車資僅供參考，實際收費以最終行駛為準
+                <i class="fa-solid fa-circle-info text-slate-300"></i> 預估車資僅供參考，實際收費以跳錶為準
             </div>
             
             <div class="my-auto space-y-3 w-full">
                 <div class="input-row">
                     <i class="fa-solid fa-circle-dot text-emerald-500 w-6 text-center mr-2 text-lg"></i>
-                    <input type="text" id="pickup-input" placeholder="請輸入上車地點">
+                    <input type="text" id="pickup-input" placeholder="請輸入上車地點 (限花蓮境內)">
                     <button onclick="useMyLocation()" class="text-blue-500 p-2 active:scale-90 bg-blue-50 rounded-xl ml-2"><i class="fa-solid fa-crosshairs"></i></button>
                 </div>
                 
                 <div class="input-row">
                     <i class="fa-solid fa-location-dot text-rose-500 w-6 text-center mr-2 text-lg"></i>
-                    <input type="text" id="dropoff-input" placeholder="請輸入下車地點">
+                    <input type="text" id="dropoff-input" placeholder="請輸入下車地點 (限花蓮境內)">
                 </div>
             </div>
             
@@ -137,8 +137,8 @@
   </div>
 
   <script>
-    const VERSION = "v2.5"; // 🚀 UI完美版 + 黑名單攔截 + 每日10次防刷機制
-    const LIFF_ID = "2008907691-Faf4aET8"; // 預估車資專屬 LIFF
+    const VERSION = "v2.6"; // 🚀 縣府公文演算法 + 花蓮專屬電子圍籬版
+    const LIFF_ID = "2008907691-Faf4aET8"; 
     const DAILY_LIMIT = 10;
     
     const firebaseConfig = { 
@@ -151,21 +151,17 @@
     let pickupAutocomplete, dropoffAutocomplete;
     let passengerId = "unknown";
 
-    // 🚀 初始化：同時啟動 LIFF 與 Google Maps
     window.onload = async function() {
         Swal.fire({ title: '系統載入中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
         
-        // 1. 初始化 Google Maps
         if(typeof google !== 'undefined') { initMap(); }
         
-        // 2. 初始化 LIFF 與防護機制
         try { 
             await liff.init({ liffId: LIFF_ID }); 
             if(!liff.isLoggedIn()) { liff.login(); return; }
             const profile = await liff.getProfile();
             passengerId = profile.userId;
 
-            // 🚀 防護機制一：黑名單攔截
             const blockDoc = await firestoreDb.collection('blacklists').doc(passengerId).get();
             if (blockDoc.exists) { 
                 document.body.innerHTML = ''; document.body.style.backgroundColor = '#f8d7da';
@@ -184,12 +180,10 @@
         } 
     };
 
-    // 🚀 防護機制二：每日次數控管 (Local Storage)
     function getRemainingQuota() {
-        const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+        const today = new Date().toISOString().split('T')[0]; 
         let usageData = JSON.parse(localStorage.getItem('fareCalcUsage')) || { date: today, count: 0 };
         
-        // 如果跨日，重新計算
         if (usageData.date !== today) {
             usageData = { date: today, count: 0 };
             localStorage.setItem('fareCalcUsage', JSON.stringify(usageData));
@@ -220,10 +214,11 @@
         directionsRenderer = new google.maps.DirectionsRenderer({
             map: map, 
             suppressMarkers: false,
-            preserveViewport: true, // 保留安全視角保護機制
+            preserveViewport: true, 
             polylineOptions: { strokeColor: '#00C853', strokeWeight: 6, strokeOpacity: 0.8 }
         });
 
+        // 🚀 自動完成限定台灣境內
         const options = { componentRestrictions: { country: "tw" } };
         pickupAutocomplete = new google.maps.places.Autocomplete(document.getElementById('pickup-input'), options);
         dropoffAutocomplete = new google.maps.places.Autocomplete(document.getElementById('dropoff-input'), options);
@@ -259,11 +254,10 @@
     }
 
     function calculateFare() {
-        // 🚀 執行防護檢查
         if (getRemainingQuota() <= 0) {
             Swal.fire({
                 icon: 'warning', title: '額度用盡', 
-                text: '您今日的估算次數已達上限 (10次)。請直接點擊「一鍵叫車」由司機為您服務！',
+                text: '您今日的估算次數已達上限。請直接點擊「一鍵叫車」由司機為您服務！',
                 confirmButtonColor: '#00C853', confirmButtonText: '我知道了'
             });
             return;
@@ -274,6 +268,17 @@
 
         if (!pickup || !dropoff) {
             Swal.fire({ icon: 'warning', title: '請填寫完整', text: '上車與下車地點都必須填寫喔！', confirmButtonColor: '#00C853' });
+            return;
+        }
+
+        // 🚀 防護機制：花蓮縣專屬電子圍籬 (Geofence)
+        if (!pickup.includes('花蓮') || !dropoff.includes('花蓮')) {
+            Swal.fire({
+                icon: 'error',
+                title: '超出服務範圍',
+                html: '為確保服務品質，目前本車隊服務<br><b style="color:#e74c3c;">僅限花蓮縣境內</b>喔！',
+                confirmButtonColor: '#00C853'
+            });
             return;
         }
 
@@ -288,7 +293,6 @@
         directionsService.route(request, (result, status) => {
             Swal.close();
             if (status == 'OK') {
-                // 🚀 扣除次數
                 recordUsage();
 
                 directionsRenderer.setDirections(result);
@@ -297,9 +301,15 @@
                 const distanceMeters = route.distance.value; 
                 const durationSeconds = route.duration.value; 
                 
-                document.getElementById('route-meta').innerText = `${route.distance.text} / ${route.duration.text}`;
+                // 判斷日夜間標籤
+                const currentHour = new Date().getHours();
+                const isNight = (currentHour >= 22 || currentHour < 6);
+                const modeTag = isNight ? '<span class="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded ml-2">夜間費率</span>' : '';
                 
-                const yellowFare = estimateHualienTaxiFare(distanceMeters, durationSeconds);
+                document.getElementById('route-meta').innerHTML = `${route.distance.text} / ${route.duration.text} ${modeTag}`;
+                
+                // 🚀 執行公文版在地車資演算法
+                const yellowFare = calculateOfficialFare(distanceMeters, durationSeconds, isNight);
                 
                 document.getElementById('fare-yellow').innerText = `~NT$ ${yellowFare}`;
                 document.getElementById('fare-m12').innerText = `~NT$ ${roundToTaxiStandard(yellowFare * 1.2)}`;
@@ -318,13 +328,32 @@
         });
     }
     
-    function estimateHualienTaxiFare(meters, seconds) {
-        let fare = 100; 
-        if (meters > 1000) {
-            fare += Math.ceil((meters - 1000) / 230) * 5;
+    // 🚀 核心：花蓮縣政府計程車費率公告 (95年6月22日 府城商字第09500922090號)
+    function calculateOfficialFare(meters, seconds, isNight) {
+        let fare = 100; // 基本起跳價 100 元
+        
+        // 預估延滯時間：保守估計約 20% 行車時間在停等紅綠燈或時速低於 5km
+        const idleSeconds = seconds * 0.2; 
+        
+        if (isNight) {
+            // 【夜間加成 22:00 - 06:00】
+            // 1. 續程：起程 834m，續程每 192m 加 5元
+            if (meters > 834) {
+                fare += Math.ceil((meters - 834) / 192) * 5;
+            }
+            // 2. 延滯：每 1分40秒 (100秒) 加 5元
+            fare += Math.floor(idleSeconds / 100) * 5;
+        } else {
+            // 【日間正常費率】
+            // 1. 續程：起程 1000m，續程每 230m 加 5元
+            if (meters > 1000) {
+                fare += Math.ceil((meters - 1000) / 230) * 5;
+            }
+            // 2. 延滯：每 2分鐘 (120秒) 加 5元
+            fare += Math.floor(idleSeconds / 120) * 5;
         }
-        fare = roundToTaxiStandard(fare * 1.1); 
-        return fare;
+        
+        return roundToTaxiStandard(fare);
     }
     
     function roundToTaxiStandard(num) {
