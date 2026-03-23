@@ -122,7 +122,7 @@
 
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script>
-    const VERSION = "v9.29"; // 🚀 正式更名統一為「一鍵叫車」
+    const VERSION = "v9.30"; // 🚀 修復無 GPS 幽靈訂單漏洞
     const LIFF_ID = "2008907691-CzDqd7mm"; 
     const GAS_URL = "https://script.google.com/macros/s/AKfycbzjWZ8j394jfKoMVbPWGvHJHqwF7RBCQxnxyju1ifWKoKdM7RE512F7qrhUsQqQGoWg/exec"; 
     
@@ -384,6 +384,18 @@
     }
 
     async function callDriver(driverId, phone, btn) {
+        // 🚀 核心防禦：檢查是否成功抓到 GPS，否則擋下幽靈訂單
+        if (!myLat || !myLng) {
+            Swal.fire({
+                icon: 'warning',
+                title: '⚠️ 無法取得位置',
+                html: '系統目前抓不到您的所在位置。<br><br>請前往手機設定，確認 LINE 或瀏覽器的<b>【位置資訊 (GPS)】</b>已設為<b>「使用期間允許」</b>，否則司機無法找到您喔！<br><br>設定完成後請重新整理網頁。',
+                confirmButtonColor: '#00C853',
+                confirmButtonText: '我知道了'
+            });
+            return;
+        }
+
         let passengerPhone = localStorage.getItem('passengerPhone');
         if (!passengerPhone) {
             const { value: formValues } = await Swal.fire({
@@ -391,7 +403,7 @@
                 focusConfirm: false, confirmButtonText: '確定綁定', confirmButtonColor: '#00C853', allowOutsideClick: false,
                 preConfirm: () => { const val = document.getElementById('swal-input-phone').value.replace(/\D/g, ''); if (!/^09\d{8}$/.test(val)) Swal.showValidationMessage('請輸入正確的手機號碼'); return val; }
             });
-            if (formValues) { passengerPhone = formValues; localStorage.setItem('passengerPhone', passengerPhone); Swal.fire({ icon: 'success', title: '綁定成功！', text: '即往往為您派車...', timer: 1500, showConfirmButton: false }); await new Promise(r => setTimeout(r, 1500)); } else return; 
+            if (formValues) { passengerPhone = formValues; localStorage.setItem('passengerPhone', passengerPhone); Swal.fire({ icon: 'success', title: '綁定成功！', text: '即將為您派車...', timer: 1500, showConfirmButton: false }); await new Promise(r => setTimeout(r, 1500)); } else return; 
         }
 
         const originalContent = btn.innerHTML; btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin" style="font-size:20px;"></i>'; btn.disabled = true;
@@ -403,7 +415,6 @@
             Swal.fire({ icon: 'success', title: '✅ 叫車成功！', text: '司機已收到通知，將為您切換至雷達追蹤。', timer: 2000, showConfirmButton: false });
         };
 
-        if (!myLat || !myLng) { makeCallAndTrack(); return; }
         try {
             const currentAddress = document.getElementById('loc-text').innerText;
             const writePromise = db.ref('drivers/' + driverId + '/request').set({ 
