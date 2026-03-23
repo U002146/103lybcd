@@ -21,6 +21,7 @@
         body { overflow: hidden; font-family: 'Noto Sans TC', -apple-system, sans-serif; background: #f0f2f5; } 
 
         .swal2-container { z-index: 99999 !important; }
+        .swal2-popup { border-radius: 24px !important; font-family: 'Noto Sans TC', sans-serif !important; }
 
         /* 動態通話按鈕基礎設定 */
         #btn-contact-fab {
@@ -121,7 +122,7 @@
 
     <script>
         // ========= CONFIG 設定區 =========
-        const VERSION = "v8.17"; // 🚀 閃電載入修復版
+        const VERSION = "v8.18"; // 🚀 優雅降級：無 GPS 時顯示教學彈窗
         const LIFF_ID = '2008907691-1mAjwojZ'; 
         
         // 老闆(總台)的 ID，用於判斷是否要切換成官方客服按鈕
@@ -245,7 +246,7 @@
                 updateDriverUI(snapshot.val());
             }, err => {
                 console.error("Sync Error:", err);
-                Swal.close(); // 發生錯誤也關閉轉圈圈
+                Swal.close(); 
             });
         }
 
@@ -300,7 +301,6 @@
                 }
             }
 
-            // 🚀 無論司機是否在線，只要資料庫有回應，就立刻關閉轉圈圈！
             if (isFirstFocus) {
                 isFirstFocus = false;
                 Swal.close(); 
@@ -315,11 +315,12 @@
             updateDistanceDisplay();
         }
 
-        // 單向距離計算 (僅在客戶端執行)
+        // 🚀 核心優化：單向距離計算加上教學引導
         function updateDistanceDisplay() {
             const distSpan = document.getElementById('dist-text');
             if (currentStatus === 'offline' || !carMarker.getPosition() || !passengerLatLng) {
-                distSpan.innerText = '---';
+                // 將冰冷的 --- 換成可點擊的教學提示
+                distSpan.innerHTML = '<span class="text-[13px] text-yellow-200 underline cursor-pointer" onclick="showGpsInstruction()">需開啟GPS</span>';
                 return;
             }
             const dist = google.maps.geometry.spherical.computeDistanceBetween(
@@ -329,6 +330,28 @@
             if (dist < 1000) { distSpan.innerText = Math.round(dist) + ' m'; } 
             else { distSpan.innerText = (dist / 1000).toFixed(1) + ' km'; }
         }
+
+        // 🚀 新增：百萬級 GPS 教學彈窗
+        window.showGpsInstruction = function() {
+            Swal.fire({
+                title: '📍 開啟定位權限',
+                html: `
+                    <div style="text-align: left; font-size: 15px; line-height: 1.6; color: #475569;">
+                        <p style="margin-bottom: 12px;">系統無法取得您的位置，因此無法計算您與車輛的距離。</p>
+                        <p style="font-weight: bold; color: #1e293b; margin-bottom: 6px;"><i class="fa-solid fa-wrench text-emerald-500 mr-1"></i> 如何開啟？</p>
+                        <ol style="padding-left: 20px; margin-bottom: 15px; color: #334155;">
+                            <li>前往手機的 <b>設定</b></li>
+                            <li>找到 <b>LINE</b> 或 <b>瀏覽器</b></li>
+                            <li>將 <b>位置資訊 (GPS)</b> 設為 <b style="color: #00C853;">使用期間允許</b></li>
+                        </ol>
+                        <p style="font-size: 13px; color: #94a3b8; border-top: 1px solid #f1f5f9; padding-top: 10px;">設定完成後，請重新整理此網頁即可生效。</p>
+                    </div>
+                `,
+                icon: 'info',
+                confirmButtonText: '我知道了',
+                confirmButtonColor: '#00C853'
+            });
+        };
 
         function updateStatusUI(status) {
             const bar = document.getElementById('status-bar');
