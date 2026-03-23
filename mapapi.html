@@ -156,7 +156,7 @@
     </div>
 
     <script>
-        const VERSION = "v4.10"; // 🚀 移除即時單上方贅字 (極簡卡片版)
+        const VERSION = "v4.11"; // 🚀 拔除所有醜陋原生 alert，升級為百萬級教學彈窗
         const API_KEY = 'AIzaSyAIxc6PEhHgUs_A9lyRUg8dNbmwOpSamY8'; 
         const LIFF_ID = '2008907691-MAdAtfyf'; 
         const PROJECT_B_URL = 'https://liff.line.me/2008907691-1mAjwojZ'; 
@@ -207,11 +207,13 @@
         }
 
         function loadGoogleMaps() {
-            if (API_KEY.includes('請在此填入') || API_KEY === '') { alert('請填入 API KEY'); forceRemoveLoading(); return; }
+            // 🚀 升級彈窗
+            if (API_KEY.includes('請在此填入') || API_KEY === '') { Swal.fire({ icon: 'error', title: '系統設定錯誤', text: '請填入 API KEY', confirmButtonColor: '#10b981' }); forceRemoveLoading(); return; }
             const mapScript = document.createElement('script');
             mapScript.src = `https://maps.googleapis.com/maps/api/js?key=${API_KEY}&language=zh-TW&callback=initMap`;
             mapScript.async = true; mapScript.defer = true;
-            mapScript.onerror = () => { alert('地圖載入失敗'); forceRemoveLoading(); };
+            // 🚀 升級彈窗
+            mapScript.onerror = () => { Swal.fire({ icon: 'error', title: '連線錯誤', text: '地圖載入失敗，請檢查網路連線', confirmButtonColor: '#10b981' }); forceRemoveLoading(); };
             document.head.appendChild(mapScript);
         }
 
@@ -237,6 +239,7 @@
             });
         }
 
+        // 🚀 核心升級：拔除 alert，加上詳細教學彈窗
         function panToCurrentLocation() {
             const icon = document.getElementById('icon-my-loc'); icon.classList.add('fa-spin-fast');
             if (navigator.geolocation) {
@@ -245,8 +248,20 @@
                     if(map) { map.panTo(newPos); map.setZoom(17); }
                     currentCenter = newPos;
                     icon.classList.remove('fa-spin-fast'); if (navigator.vibrate) navigator.vibrate([20, 50, 20]);
-                }, (e) => { alert("無法取得位置"); icon.classList.remove('fa-spin-fast'); }, { enableHighAccuracy: true, timeout: 5000 });
-            } else { alert("不支援 GPS"); icon.classList.remove('fa-spin-fast'); }
+                }, (e) => { 
+                    icon.classList.remove('fa-spin-fast');
+                    Swal.fire({
+                        icon: 'warning',
+                        title: '⚠️ 無法取得位置',
+                        html: '系統目前抓不到您的所在位置。<br><br>請前往手機設定，確認 LINE 或瀏覽器的<b>【位置資訊 (GPS)】</b>已設為<b>「使用期間允許」</b>，否則司機無法找到您喔！<br><br>設定完成後請重新整理網頁。',
+                        confirmButtonColor: '#10b981',
+                        confirmButtonText: '我知道了'
+                    });
+                }, { enableHighAccuracy: true, timeout: 5000 });
+            } else { 
+                icon.classList.remove('fa-spin-fast');
+                Swal.fire({ icon: 'error', title: '不支援 GPS', text: '您的裝置不支援 GPS 定位功能。', confirmButtonColor: '#10b981' }); 
+            }
         }
 
         async function initLiff() {
@@ -317,12 +332,12 @@
                             forceRemoveLoading();
                         } else {
                             forceRemoveLoading();
-                            Swal.fire('讀取失敗', '找不到該筆訂單或已被刪除', 'error').then(() => { if(liff.isInClient()) liff.closeWindow(); });
+                            Swal.fire({ icon: 'error', title: '讀取失敗', text: '找不到該筆訂單或已被刪除', confirmButtonColor: '#10b981' }).then(() => { if(liff.isInClient()) liff.closeWindow(); });
                         }
                     })
                     .catch(err => {
                         forceRemoveLoading();
-                        Swal.fire('連線錯誤', '無法讀取訂單資料', 'error').then(() => { if(liff.isInClient()) liff.closeWindow(); });
+                        Swal.fire({ icon: 'error', title: '連線錯誤', text: '無法讀取訂單資料', confirmButtonColor: '#10b981' }).then(() => { if(liff.isInClient()) liff.closeWindow(); });
                     });
             } else {
                 forceRemoveLoading();
@@ -421,7 +436,7 @@
 
         async function submitOrder() {
             if (!liff.isLoggedIn() && !liff.isInClient()) {
-                return Swal.fire('尚未連線', '請重新整理頁面或在 LINE 內部開啟', 'error');
+                return Swal.fire({ icon: 'error', title: '尚未連線', text: '請重新整理頁面或在 LINE 內部開啟', confirmButtonColor: '#10b981' });
             }
 
             const phone = document.getElementById('phone').value;
@@ -433,8 +448,18 @@
             const bookingMode = document.getElementById('booking-mode').value;
             const bookingTime = document.getElementById('booking-time-val').value;
 
-            if(!phone || phone.length < 8) return Swal.fire('請輸入電話', '請留下聯絡方式', 'warning');
-            if(pickup.includes('定位中')) return Swal.fire('請等待定位完成', '', 'warning');
+            if(!phone || phone.length < 8) return Swal.fire({ icon: 'warning', title: '請輸入電話', text: '請留下聯絡方式', confirmButtonColor: '#10b981' });
+            
+            // 🚀 核心防呆：卡在「定位中」按送出時，給予完整教學
+            if(pickup.includes('定位中')) {
+                return Swal.fire({
+                    icon: 'warning',
+                    title: '⚠️ 定位尚未完成',
+                    html: '系統尚未抓取到您的位置。<br><br>請確認手機的<b>【位置資訊 (GPS)】</b>權限已經開啟，或點擊右下角「準星按鈕」重新定位。',
+                    confirmButtonColor: '#10b981',
+                    confirmButtonText: '我知道了'
+                });
+            }
 
             localStorage.setItem('taxi_user_phone', phone);
             
@@ -456,7 +481,7 @@
 
             if (bookingMode === 'NOW') {
                 displayTime = `即時單 ${nowTimeStr}`;
-                headerTitle = null; // 🚀 移除即時單上方的小字
+                headerTitle = null; 
                 headerColor = "#000000";
                 
                 const nDate = new Date();
@@ -476,12 +501,10 @@
 
             let flexHeaderTextContents = [];
             
-            // 只有當 headerTitle 不為空時（即預約模式），才加入上方小字
             if (headerTitle) {
                 flexHeaderTextContents.push({ type: "text", text: headerTitle, weight: "bold", size: "sm", color: headerColor });
             }
             
-            // 永遠加入大字的 displayTime
             flexHeaderTextContents.push({ type: "text", text: displayTime, weight: "bold", size: "xl", color: "#111111", adjustMode: "shrink-to-fit" });
 
             let flexHeaderContents = [
