@@ -166,13 +166,13 @@
     </div>
 
     <script>
-        const VERSION = "v4.14"; // 🚀 座標精準打擊版：擷取 Autocomplete 絕對經緯度，杜絕文字亂導航
+        const VERSION = "v4.15"; // 🚀 視角鎖定修復版：解決地圖亂滑消失與縮放世界地圖問題
         const API_KEY = 'AIzaSyAIxc6PEhHgUs_A9lyRUg8dNbmwOpSamY8'; 
         const LIFF_ID = '2008907691-MAdAtfyf'; 
         const PROJECT_B_URL = 'https://liff.line.me/2008907691-1mAjwojZ'; 
         const BOOKING_GAS_URL = 'https://script.google.com/macros/s/AKfycbzVTtBzYxPy9g-WnaJPS_Q_8GnzmWDf4Kaw7nA8VeDfe6ykM5rV3C2MmMddMh3AG6c9/exec'; 
 
-        const FARE_DAILY_LIMIT = 3;
+        const FARE_DAILY_LIMIT = 10;
 
         const PRESET_LOCATIONS = [
             {name:'常用地址 A',icon:'⭐',value:'FAV_ADDR_A'},
@@ -191,8 +191,10 @@
         let directionsService, directionsRenderer, dropoffAutocomplete;
         let currentCenter = { lat: 23.991, lng: 121.601 };
         
-        // 🚀 核心變數：專門儲存自動完成的「絕對經緯度」
         let selectedDropoffLocation = null; 
+        
+        // 🚀 核心變數：追蹤路線是否正在顯示
+        let isRouteDisplayed = false;
 
         let pickerState = { dateIndex: 0, hour: null, minute: null, dates: [] };
         const MAP_STYLES = [{ "featureType": "poi", "elementType": "labels.icon", "stylers": [{ "visibility": "off" }] }, { "featureType": "poi", "elementType": "labels.text.fill", "stylers": [{ "color": "#757575" }] }, { "featureType": "road", "elementType": "geometry.fill", "stylers": [{ "color": "#ffffff" }] }, { "featureType": "road", "elementType": "geometry.stroke", "stylers": [{ "color": "#e0e0e0" }] }];
@@ -245,8 +247,9 @@
         window.initMap = function() {
             geocoder = new google.maps.Geocoder();
             directionsService = new google.maps.DirectionsService();
+            // 🚀 讓 Google 原生引擎接管縮放
             directionsRenderer = new google.maps.DirectionsRenderer({
-                map: map, suppressMarkers: false, preserveViewport: true,
+                map: map, suppressMarkers: false, preserveViewport: false,
                 polylineOptions: { strokeColor: '#00C853', strokeWeight: 5, strokeOpacity: 0.8 }
             });
 
@@ -258,7 +261,6 @@
             dropoffAutocomplete = new google.maps.places.Autocomplete(document.getElementById('dropoff'), options);
             dropoffAutocomplete.setFields(['formatted_address', 'geometry']);
 
-            // 🚀 核心監聽：如果客人選了下拉選單，立刻偷存絕對座標
             dropoffAutocomplete.addListener('place_changed', () => {
                 const place = dropoffAutocomplete.getPlace();
                 if (place.geometry && place.geometry.location) {
@@ -266,11 +268,13 @@
                 } else {
                     selectedDropoffLocation = null;
                 }
+                clearRoute(); // 🚀 只要選擇新地點，就清除舊路線
             });
 
-            // 如果客人又手動改了字，把偷存的座標清空，避免錯亂
+            // 如果客人又手動改了字，把偷存的座標清空，並清除路線
             document.getElementById('dropoff').addEventListener('input', () => {
                 selectedDropoffLocation = null;
+                clearRoute();
             });
 
             if (!editOrderId) {
@@ -278,9 +282,9 @@
             }
 
             map.addListener('dragstart', () => { 
-                if(directionsRenderer) directionsRenderer.set('directions', null);
-                document.getElementById('center-marker').style.display = 'flex';
+                if (isRouteDisplayed) return; // 🚀 如果正在顯示路線，允許客人自由滑動地圖，不清除路線！
                 
+                document.getElementById('center-marker').style.display = 'flex';
                 document.getElementById('center-marker').classList.add('lifting'); 
                 document.getElementById('marker-label').style.opacity = '0'; 
                 document.getElementById('address-text').innerHTML = '<span class="text-gray-400">定位中...</span>'; 
@@ -288,6 +292,8 @@
             });
             
             map.addListener('idle', () => { 
+                if (isRouteDisplayed) return; // 🚀 如果正在顯示路線，不更新上車點中心！
+
                 document.getElementById('center-marker').classList.remove('lifting'); 
                 document.getElementById('marker-label').style.opacity = '1'; 
                 if (navigator.vibrate) navigator.vibrate(10); 
@@ -296,6 +302,17 @@
                 geocodePosition(map.getCenter()); 
             });
         };
+
+        // 🚀 新增：清除路線，恢復上車定位模式
+        function clearRoute() {
+            if (isRouteDisplayed) {
+                isRouteDisplayed = false;
+                if(directionsRenderer) directionsRenderer.set('directions', null);
+                document.getElementById('center-marker').style.display = 'flex';
+                map.panTo(currentCenter); // 把地圖拉回原本的上車點
+                map.setZoom(17);
+            }
+        }
 
         function geocodePosition(pos) {
             geocoder.geocode({ location: pos }, (results, status) => {
@@ -307,12 +324,12 @@
         }
 
         function panToCurrentLocation() {
+            clearRoute(); // 🚀 點擊我的位置時，清除舊路線
             const icon = document.getElementById('icon-my-loc'); icon.classList.add('fa-spin-fast');
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition((pos) => {
                     const newPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
                     if(map) { 
-                        if(directionsRenderer) directionsRenderer.set('directions', null);
                         document.getElementById('center-marker').style.display = 'flex';
                         map.panTo(newPos); map.setZoom(17); 
                     }
@@ -457,7 +474,6 @@
 
             Swal.fire({ title: '路線繪製與計算中...', text: `今日剩餘 ${remaining} 次估算額度`, allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
 
-            // 🚀 核心邏輯：如果有抓到絕對經緯度，就餵絕對座標；否則才丟文字
             let finalDestination = dropoffStr;
             if (selectedDropoffLocation && dropoffStr !== "") {
                 finalDestination = selectedDropoffLocation;
@@ -469,12 +485,10 @@
                 if (status == 'OK') {
                     recordUsage(); 
                     
+                    isRouteDisplayed = true; // 🚀 開啟路線鎖定模式
+                    directionsRenderer.setOptions({ preserveViewport: false }); // 🚀 讓 Google 自動縮放回最完美的視野
                     directionsRenderer.setDirections(result);
                     document.getElementById('center-marker').style.display = 'none';
-
-                    // 手動縮放，使用更安全的 15px 間距，避免地圖太小導致爆衝回全台灣
-                    const bounds = result.routes[0].bounds;
-                    map.fitBounds(bounds, { top: 15, bottom: 15, left: 15, right: 15 });
 
                     const route = result.routes[0].legs[0];
                     const distanceMeters = route.distance.value; 
@@ -520,21 +534,21 @@
         
         window.selectPreset = function(val, label) { 
             const input = document.getElementById('dropoff'); 
-            selectedDropoffLocation = null; // 🚀 使用常用地址時，清空經緯度紀錄
+            selectedDropoffLocation = null; 
             if (val.includes('FAV')) { 
                 const key = val === 'FAV_ADDR_A' ? 'taxi_fav_a' : 'taxi_fav_b'; 
                 const savedAddr = localStorage.getItem(key); 
                 if (savedAddr) { 
                     Swal.fire({ title: `📍 使用${label}？`, text: savedAddr, showDenyButton: true, confirmButtonText: '填入', denyButtonText: '修改', confirmButtonColor: '#10b981', denyButtonColor: '#ef4444' }).then((r) => { 
-                        if (r.isConfirmed) { input.value = savedAddr; Swal.close(); } else if (r.isDenied) { promptSave(key, label, input); } 
+                        if (r.isConfirmed) { input.value = savedAddr; clearRoute(); Swal.close(); } else if (r.isDenied) { promptSave(key, label, input); } 
                     }); 
                 } else { promptSave(key, label, input); } 
             } else { 
-                input.value = val; Swal.close(); 
+                input.value = val; clearRoute(); Swal.close(); 
             } 
         };
         
-        function promptSave(key, label, input) { Swal.fire({ title: `設定${label}`, input: 'text', inputPlaceholder: '輸入地址...', showCancelButton: true, confirmButtonText: '儲存', confirmButtonColor: '#0f172a' }).then((r) => { if (r.isConfirmed && r.value) { localStorage.setItem(key, r.value); input.value = r.value; Swal.fire({ icon: 'success', title: '已記憶！', timer: 1000, showConfirmButton: false }); } }); }
+        function promptSave(key, label, input) { Swal.fire({ title: `設定${label}`, input: 'text', inputPlaceholder: '輸入地址...', showCancelButton: true, confirmButtonText: '儲存', confirmButtonColor: '#0f172a' }).then((r) => { if (r.isConfirmed && r.value) { localStorage.setItem(key, r.value); input.value = r.value; clearRoute(); Swal.fire({ icon: 'success', title: '已記憶！', timer: 1000, showConfirmButton: false }); } }); }
         
         function openPaymentPicker() { let html = '<div class="grid grid-cols-2 gap-3 mt-2 location-grid">'; const currentVal = document.getElementById('payment-value').value; PAYMENT_METHODS.forEach(m => { let activeClass = m.label === currentVal ? 'border-slate-800 bg-slate-900 text-white ring-2 ring-slate-200' : 'bg-white border-gray-200 text-slate-600 hover:bg-gray-50'; let iconColor = m.label === currentVal ? 'text-white' : m.color; html += `<button type="button" onclick="selectPaymentMethod('${m.label}', '${m.icon}', '${m.color}')" class="flex flex-col items-center justify-center p-3 border rounded-2xl transition-all active:scale-95 ${activeClass}"><i class="fa-solid ${m.icon} ${iconColor} text-xl mb-1"></i><span class="text-sm font-bold">${m.label}</span></button>`; }); html += '</div>'; Swal.fire({ title: '選擇付款方式', html: html, showConfirmButton: false, showCloseButton: true, customClass: {popup: 'rounded-[24px]'} }); }
         window.selectPaymentMethod = function(label, iconClass, colorClass) { updatePaymentUI(label, iconClass, colorClass); localStorage.setItem('taxi_selected_payment', label); Swal.close(); }
