@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>常用地址預約</title>
+    <title>常用地址</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
@@ -73,9 +73,6 @@
                         📍 行程設定
                         <div id="liff-status-dot" class="ml-2 w-2 h-2 rounded-full bg-red-500 transition-colors duration-300"></div>
                     </h2>
-                    <button onclick="estimateFare()" class="text-xs bg-amber-50 text-amber-600 border border-amber-200 px-3 py-1.5 rounded-full font-bold active:scale-95 transition-transform flex items-center gap-1 shadow-sm">
-                        <i class="fa-solid fa-calculator"></i> 預估車資
-                    </button>
                     <span id="order-id-display" class="text-xs text-slate-400 font-mono hidden"></span>
                 </div>
                 
@@ -192,22 +189,18 @@
 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAIxc6PEhHgUs_A9lyRUg8dNbmwOpSamY8&libraries=places,geometry"></script>
-
     <script>
-        const VERSION = "v4.8"; // 🚀 修復 API 定位漂移問題，強制寫入「花蓮」地址
+        const VERSION = "v4.6"; // 🚀 拔除司機位置按鈕 (精簡卡片版)
         const LIFF_ID = '2008907691-3P676tTN'; 
         const PROJECT_B_URL = 'https://liff.line.me/2008907691-1mAjwojZ'; 
+        
+        // 🚀 對接最新的 GAS 後端大腦
         const BOOKING_GAS_URL = 'https://script.google.com/macros/s/AKfycbzVTtBzYxPy9g-WnaJPS_Q_8GnzmWDf4Kaw7nA8VeDfe6ykM5rV3C2MmMddMh3AG6c9/exec'; 
 
-        const FARE_DAILY_LIMIT = 3;
-
-        // 🚀 核心修復：在 loc.value 裡面補上「花蓮」，避免 Google Maps 亂帶路到外縣市
         const PRESET_LOCATIONS = [
             {name:'我的最愛 A', icon:'⭐', value:'FAV_ADDR_A'}, {name:'我的最愛 B', icon:'⭐', value:'FAV_ADDR_B'},
-            {name:'花蓮前站', icon:'🚉', value:'花蓮火車站前站'}, {name:'花蓮後站', icon:'🚉', value:'花蓮火車站後站'}, 
-            {name:'慈濟醫院', icon:'🏥', value:'花蓮慈濟醫院'}, {name:'門諾醫院', icon:'🏥', value:'花蓮門諾醫院'}, 
-            {name:'遠東百貨', icon:'🛍️', value:'花蓮遠東百貨'}, {name:'東大門夜市', icon:'🌭', value:'花蓮東大門夜市'}
+            {name:'花蓮前站', icon:'🚉'}, {name:'花蓮後站', icon:'🚉'}, {name:'慈濟醫院', icon:'🏥'},
+            {name:'門諾醫院', icon:'🏥'}, {name:'遠東百貨', icon:'🛍️'}, {name:'東大門夜市', icon:'🌭'}
         ];
 
         const PAYMENT_METHODS = [
@@ -221,7 +214,6 @@
         let currentTargetInput = 'pickup';
         let userName = "乘客"; 
         let passengerId = "unknown";
-        let directionsService; 
 
         const urlParams = new URLSearchParams(window.location.search);
         const editOrderId = urlParams.get('orderId');
@@ -233,10 +225,6 @@
             if(savedPayment) { 
                 const method = PAYMENT_METHODS.find(m => m.label === savedPayment); 
                 if(method) updatePaymentUI(method.label, method.icon, method.color); 
-            }
-
-            if(typeof google !== 'undefined') {
-                directionsService = new google.maps.DirectionsService();
             }
 
             liff.init({ liffId: LIFF_ID }).then(() => {
@@ -362,10 +350,7 @@
                         if (r.isConfirmed) { input.value = savedAddr; Swal.close(); } else if (r.isDenied) { promptSave(key, label, input); } 
                     }); 
                 } else { promptSave(key, label, input); } 
-            } else { 
-                input.value = val; // 這裡會填入我們剛剛加上「花蓮」的精準地址
-                Swal.close(); 
-            } 
+            } else { input.value = val; Swal.close(); } 
         };
 
         function promptSave(key, label, input) { 
@@ -534,99 +519,6 @@
             });
         }
 
-        function getRemainingQuota() {
-            const today = new Date().toISOString().split('T')[0]; 
-            let usageData = JSON.parse(localStorage.getItem('fareCalcUsage_Preset')) || { date: today, count: 0 };
-            if (usageData.date !== today) { usageData = { date: today, count: 0 }; localStorage.setItem('fareCalcUsage_Preset', JSON.stringify(usageData)); }
-            return Math.max(0, FARE_DAILY_LIMIT - usageData.count);
-        }
-
-        function recordUsage() {
-            const today = new Date().toISOString().split('T')[0];
-            let usageData = JSON.parse(localStorage.getItem('fareCalcUsage_Preset')) || { date: today, count: 0 };
-            usageData.count++; localStorage.setItem('fareCalcUsage_Preset', JSON.stringify(usageData));
-        }
-
-        function calculateOfficialFare(meters, seconds, isNight) {
-            let fare = 100; 
-            const idleSeconds = seconds * 0.2; 
-            if (isNight) {
-                if (meters > 834) { fare += Math.ceil((meters - 834) / 192) * 5; }
-                fare += Math.floor(idleSeconds / 100) * 5;
-            } else {
-                if (meters > 1000) { fare += Math.ceil((meters - 1000) / 230) * 5; }
-                fare += Math.floor(idleSeconds / 120) * 5;
-            }
-            return Math.round(fare / 5) * 5;
-        }
-
-        function estimateFare() {
-            if (typeof google === 'undefined' || !directionsService) {
-                Swal.fire('系統載入中', '地圖服務尚未準備好，請稍後再試。', 'warning');
-                return;
-            }
-
-            const remaining = getRemainingQuota();
-            if (remaining <= 0) {
-                Swal.fire({ icon: 'warning', title: '今日額度用盡', text: `您今日的預估次數已達 ${FARE_DAILY_LIMIT} 次上限。請直接送出預約，司機將為您服務！`, confirmButtonColor: '#00C853' }); 
-                return;
-            }
-
-            const pickup = document.getElementById('pickup').value.trim();
-            const dropoff = document.getElementById('dropoff').value.trim();
-
-            if (!pickup || !dropoff) {
-                Swal.fire({ icon: 'warning', title: '缺少地址', text: '請同時填寫「上車點」與「下車點」才能計算車資喔！', confirmButtonColor: '#00C853' }); 
-                return;
-            }
-
-            Swal.fire({ title: '路線計算中...', text: `今日剩餘 ${remaining} 次估算額度`, allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
-
-            const request = { origin: pickup, destination: dropoff, travelMode: 'DRIVING' };
-
-            directionsService.route(request, (result, status) => {
-                if (status == 'OK') {
-                    recordUsage(); 
-                    const route = result.routes[0].legs[0];
-                    const distanceMeters = route.distance.value; 
-                    const durationSeconds = route.duration.value; 
-                    
-                    const currentHour = new Date().getHours();
-                    const isNight = (currentHour >= 22 || currentHour < 6);
-                    const modeTag = isNight ? '(夜間費率)' : '(日間費率)';
-                    
-                    const yellowFare = calculateOfficialFare(distanceMeters, durationSeconds, isNight);
-
-                    Swal.fire({
-                        title: '💰 預估車資結果',
-                        html: `
-                            <div style="text-align: left; background: #f8fafc; padding: 15px; border-radius: 12px; margin-top: 10px;">
-                                <div style="margin-bottom: 12px; color: #64748b; font-size: 14px; font-weight: bold;">
-                                    預估距離與時間<br>
-                                    <span style="color: #1e293b; font-size: 18px;">${route.distance.text} / ${route.duration.text}</span>
-                                </div>
-                                <div style="border-top: 1px solid #e2e8f0; padding-top: 12px;">
-                                    <div style="display: flex; justify-content: space-between; align-items: center; color: #d97706; font-weight: bold; font-size: 16px;">
-                                        <span><i class="fa-solid fa-taxi"></i> 標準小黃 ${modeTag}</span>
-                                        <span style="font-size: 22px;">~NT$ ${yellowFare}</span>
-                                    </div>
-                                </div>
-                                <div style="margin-top: 10px; font-size: 11px; color: #94a3b8; text-align: center;">
-                                    此為參考金額，實際收費以跳表為準<br>今日剩餘估算次數：${getRemainingQuota()} 次
-                                </div>
-                            </div>
-                        `,
-                        confirmButtonColor: '#0f172a',
-                        confirmButtonText: '確定',
-                        customClass: { popup: 'rounded-[24px]' }
-                    });
-
-                } else {
-                    Swal.fire('找不到路線', '無法計算此兩點間的距離，請嘗試輸入更完整的地址（例如加上縣市）。', 'error');
-                }
-            });
-        }
-
         async function submitOrder() {
             if (!liff.isLoggedIn() && !liff.isInClient()) {
                 return Swal.fire('尚未連線', '請重新整理頁面或在 LINE 內部開啟', 'error');
@@ -666,6 +558,7 @@
             
             const displayTimeNode = document.getElementById('time-display').innerText;
 
+            // 🚀 v4.6 拔除 footer (查看司機位置按鈕)
             const flexMsg = {
                 type: "flex",
                 altText: `預約通知：${displayTimeNode}`,
