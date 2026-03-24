@@ -166,7 +166,7 @@
     </div>
 
     <script>
-        const VERSION = "v4.13"; // 🚀 軌跡對焦修復版：解決世界地圖 Bug
+        const VERSION = "v4.14"; // 🚀 座標精準打擊版：擷取 Autocomplete 絕對經緯度，杜絕文字亂導航
         const API_KEY = 'AIzaSyAIxc6PEhHgUs_A9lyRUg8dNbmwOpSamY8'; 
         const LIFF_ID = '2008907691-MAdAtfyf'; 
         const PROJECT_B_URL = 'https://liff.line.me/2008907691-1mAjwojZ'; 
@@ -190,6 +190,10 @@
         let map, geocoder, cachedPosition = null;
         let directionsService, directionsRenderer, dropoffAutocomplete;
         let currentCenter = { lat: 23.991, lng: 121.601 };
+        
+        // 🚀 核心變數：專門儲存自動完成的「絕對經緯度」
+        let selectedDropoffLocation = null; 
+
         let pickerState = { dateIndex: 0, hour: null, minute: null, dates: [] };
         const MAP_STYLES = [{ "featureType": "poi", "elementType": "labels.icon", "stylers": [{ "visibility": "off" }] }, { "featureType": "poi", "elementType": "labels.text.fill", "stylers": [{ "color": "#757575" }] }, { "featureType": "road", "elementType": "geometry.fill", "stylers": [{ "color": "#ffffff" }] }, { "featureType": "road", "elementType": "geometry.stroke", "stylers": [{ "color": "#e0e0e0" }] }];
         
@@ -241,7 +245,6 @@
         window.initMap = function() {
             geocoder = new google.maps.Geocoder();
             directionsService = new google.maps.DirectionsService();
-            // 🚀 核心修復 1：preserveViewport 設為 true，禁止 Google 亂縮放
             directionsRenderer = new google.maps.DirectionsRenderer({
                 map: map, suppressMarkers: false, preserveViewport: true,
                 polylineOptions: { strokeColor: '#00C853', strokeWeight: 5, strokeOpacity: 0.8 }
@@ -254,6 +257,21 @@
             const options = { componentRestrictions: { country: "tw" } };
             dropoffAutocomplete = new google.maps.places.Autocomplete(document.getElementById('dropoff'), options);
             dropoffAutocomplete.setFields(['formatted_address', 'geometry']);
+
+            // 🚀 核心監聽：如果客人選了下拉選單，立刻偷存絕對座標
+            dropoffAutocomplete.addListener('place_changed', () => {
+                const place = dropoffAutocomplete.getPlace();
+                if (place.geometry && place.geometry.location) {
+                    selectedDropoffLocation = place.geometry.location;
+                } else {
+                    selectedDropoffLocation = null;
+                }
+            });
+
+            // 如果客人又手動改了字，把偷存的座標清空，避免錯亂
+            document.getElementById('dropoff').addEventListener('input', () => {
+                selectedDropoffLocation = null;
+            });
 
             if (!editOrderId) {
                 if (!cachedPosition) panToCurrentLocation(); else { geocodePosition(startPos); forceRemoveLoading(); }
@@ -431,15 +449,21 @@
                 return;
             }
 
-            const dropoff = document.getElementById('dropoff').value.trim();
-            if (!dropoff || dropoff === "上車告知 / 未指定") {
+            const dropoffStr = document.getElementById('dropoff').value.trim();
+            if (!dropoffStr || dropoffStr === "上車告知 / 未指定") {
                 Swal.fire({ icon: 'warning', title: '缺少下車點', text: '請輸入目的地才能計算路線與車資喔！', confirmButtonColor: '#10b981' }); 
                 return;
             }
 
             Swal.fire({ title: '路線繪製與計算中...', text: `今日剩餘 ${remaining} 次估算額度`, allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
 
-            const request = { origin: currentCenter, destination: dropoff, travelMode: 'DRIVING' };
+            // 🚀 核心邏輯：如果有抓到絕對經緯度，就餵絕對座標；否則才丟文字
+            let finalDestination = dropoffStr;
+            if (selectedDropoffLocation && dropoffStr !== "") {
+                finalDestination = selectedDropoffLocation;
+            }
+
+            const request = { origin: currentCenter, destination: finalDestination, travelMode: 'DRIVING' };
 
             directionsService.route(request, (result, status) => {
                 if (status == 'OK') {
@@ -448,9 +472,9 @@
                     directionsRenderer.setDirections(result);
                     document.getElementById('center-marker').style.display = 'none';
 
-                    // 🚀 核心修復 2：手動抓取路線邊界，並完美置中聚焦，上下左右各留 40px 的安全距離
+                    // 手動縮放，使用更安全的 15px 間距，避免地圖太小導致爆衝回全台灣
                     const bounds = result.routes[0].bounds;
-                    map.fitBounds(bounds, { top: 40, bottom: 40, left: 40, right: 40 });
+                    map.fitBounds(bounds, { top: 15, bottom: 15, left: 15, right: 15 });
 
                     const route = result.routes[0].legs[0];
                     const distanceMeters = route.distance.value; 
@@ -487,7 +511,7 @@
                     });
 
                 } else {
-                    Swal.fire('找不到路線', '無法計算此路線，請嘗試輸入更完整的目的地（例如加上縣市）。', 'error');
+                    Swal.fire('找不到路線', '無法計算此路線，請嘗試重新選擇目的地。', 'error');
                 }
             });
         }
@@ -496,6 +520,7 @@
         
         window.selectPreset = function(val, label) { 
             const input = document.getElementById('dropoff'); 
+            selectedDropoffLocation = null; // 🚀 使用常用地址時，清空經緯度紀錄
             if (val.includes('FAV')) { 
                 const key = val === 'FAV_ADDR_A' ? 'taxi_fav_a' : 'taxi_fav_b'; 
                 const savedAddr = localStorage.getItem(key); 
