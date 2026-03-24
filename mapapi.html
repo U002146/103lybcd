@@ -15,7 +15,6 @@
         
         #edit-mode-banner { display: none; background: #FEF3C7; color: #D97706; text-align: center; padding: 8px; font-size: 13px; font-weight: bold; border-bottom: 1px solid #FDE68A; z-index: 40; position: relative; }
 
-        /* 🚀 核心修復 1：加上 min-height: 250px，防止彈窗時地圖高度塌陷導致 Zoom: 0 */
         #map-container { height: 45%; min-height: 250px; width: 100%; position: relative; z-index: 10; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
         #map { width: 100%; height: 100%; }
 
@@ -165,13 +164,13 @@
     </div>
 
     <script>
-        const VERSION = "v4.16"; // 🚀 縮放崩潰終極修復版：雙重防禦彈窗造成的世界地圖 Bug
+        const VERSION = "v4.17"; // 🚀 完美路線對焦版：移除硬限制，等待彈窗完成後精準縮放
         const API_KEY = 'AIzaSyAIxc6PEhHgUs_A9lyRUg8dNbmwOpSamY8'; 
         const LIFF_ID = '2008907691-MAdAtfyf'; 
         const PROJECT_B_URL = 'https://liff.line.me/2008907691-1mAjwojZ'; 
         const BOOKING_GAS_URL = 'https://script.google.com/macros/s/AKfycbzVTtBzYxPy9g-WnaJPS_Q_8GnzmWDf4Kaw7nA8VeDfe6ykM5rV3C2MmMddMh3AG6c9/exec'; 
 
-        const FARE_DAILY_LIMIT = 10; // 測試用，調高額度
+        const FARE_DAILY_LIMIT = 10; 
 
         const PRESET_LOCATIONS = [
             {name:'常用地址 A',icon:'⭐',value:'FAV_ADDR_A'},
@@ -244,7 +243,7 @@
         window.initMap = function() {
             geocoder = new google.maps.Geocoder();
             directionsService = new google.maps.DirectionsService();
-            // 🚀 奪回縮放控制權
+            // 🚀 保持 preserveViewport: true，我們手動控制邊界
             directionsRenderer = new google.maps.DirectionsRenderer({
                 map: map, suppressMarkers: false, preserveViewport: true,
                 polylineOptions: { strokeColor: '#00C853', strokeWeight: 5, strokeOpacity: 0.8 }
@@ -484,17 +483,6 @@
                     directionsRenderer.setDirections(result);
                     document.getElementById('center-marker').style.display = 'none';
 
-                    // 🚀 核心修復 2：強制手動對齊，並加入防禦機制 (避免 Zoom < 10 的世界地圖)
-                    const bounds = result.routes[0].bounds;
-                    map.fitBounds(bounds, 30);
-
-                    setTimeout(() => {
-                        if (map.getZoom() < 10) {
-                            map.setCenter(bounds.getCenter());
-                            map.setZoom(14); // 強制拉回舒適視角
-                        }
-                    }, 300);
-
                     const route = result.routes[0].legs[0];
                     const distanceMeters = route.distance.value; 
                     const durationSeconds = route.duration.value; 
@@ -526,7 +514,14 @@
                         `,
                         confirmButtonColor: '#0f172a',
                         confirmButtonText: '確定',
-                        customClass: { popup: 'rounded-[24px]' }
+                        customClass: { popup: 'rounded-[24px]' },
+                        // 🚀 核心修復：等彈窗完全打開、畫面穩定後，再呼叫 fitBounds，徹底消滅世界地圖 Bug！
+                        didOpen: () => {
+                            setTimeout(() => {
+                                const bounds = result.routes[0].bounds;
+                                map.fitBounds(bounds, { top: 60, bottom: 60, left: 40, right: 40 });
+                            }, 150);
+                        }
                     });
 
                 } else {
