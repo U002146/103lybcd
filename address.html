@@ -195,20 +195,19 @@
     <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAIxc6PEhHgUs_A9lyRUg8dNbmwOpSamY8&libraries=places,geometry"></script>
 
     <script>
-        const VERSION = "v4.7"; // 🚀 整合預估車資模組
+        const VERSION = "v4.8"; // 🚀 修復 API 定位漂移問題，強制寫入「花蓮」地址
         const LIFF_ID = '2008907691-3P676tTN'; 
         const PROJECT_B_URL = 'https://liff.line.me/2008907691-1mAjwojZ'; 
-        
-        // 🚀 對接最新的 GAS 後端大腦
         const BOOKING_GAS_URL = 'https://script.google.com/macros/s/AKfycbzVTtBzYxPy9g-WnaJPS_Q_8GnzmWDf4Kaw7nA8VeDfe6ykM5rV3C2MmMddMh3AG6c9/exec'; 
 
-        // 預估車資每日限制
         const FARE_DAILY_LIMIT = 3;
 
+        // 🚀 核心修復：在 loc.value 裡面補上「花蓮」，避免 Google Maps 亂帶路到外縣市
         const PRESET_LOCATIONS = [
             {name:'我的最愛 A', icon:'⭐', value:'FAV_ADDR_A'}, {name:'我的最愛 B', icon:'⭐', value:'FAV_ADDR_B'},
-            {name:'花蓮前站', icon:'🚉'}, {name:'花蓮後站', icon:'🚉'}, {name:'慈濟醫院', icon:'🏥'},
-            {name:'門諾醫院', icon:'🏥'}, {name:'遠東百貨', icon:'🛍️'}, {name:'東大門夜市', icon:'🌭'}
+            {name:'花蓮前站', icon:'🚉', value:'花蓮火車站前站'}, {name:'花蓮後站', icon:'🚉', value:'花蓮火車站後站'}, 
+            {name:'慈濟醫院', icon:'🏥', value:'花蓮慈濟醫院'}, {name:'門諾醫院', icon:'🏥', value:'花蓮門諾醫院'}, 
+            {name:'遠東百貨', icon:'🛍️', value:'花蓮遠東百貨'}, {name:'東大門夜市', icon:'🌭', value:'花蓮東大門夜市'}
         ];
 
         const PAYMENT_METHODS = [
@@ -222,7 +221,7 @@
         let currentTargetInput = 'pickup';
         let userName = "乘客"; 
         let passengerId = "unknown";
-        let directionsService; // Google Maps 路徑規劃服務
+        let directionsService; 
 
         const urlParams = new URLSearchParams(window.location.search);
         const editOrderId = urlParams.get('orderId');
@@ -363,7 +362,10 @@
                         if (r.isConfirmed) { input.value = savedAddr; Swal.close(); } else if (r.isDenied) { promptSave(key, label, input); } 
                     }); 
                 } else { promptSave(key, label, input); } 
-            } else { input.value = val; Swal.close(); } 
+            } else { 
+                input.value = val; // 這裡會填入我們剛剛加上「花蓮」的精準地址
+                Swal.close(); 
+            } 
         };
 
         function promptSave(key, label, input) { 
@@ -532,9 +534,6 @@
             });
         }
 
-        // ==========================================
-        // 🚀 新增：輕量級預估車資模組
-        // ==========================================
         function getRemainingQuota() {
             const today = new Date().toISOString().split('T')[0]; 
             let usageData = JSON.parse(localStorage.getItem('fareCalcUsage_Preset')) || { date: today, count: 0 };
@@ -587,7 +586,7 @@
 
             directionsService.route(request, (result, status) => {
                 if (status == 'OK') {
-                    recordUsage(); // 成功才扣打
+                    recordUsage(); 
                     const route = result.routes[0].legs[0];
                     const distanceMeters = route.distance.value; 
                     const durationSeconds = route.duration.value; 
@@ -598,7 +597,6 @@
                     
                     const yellowFare = calculateOfficialFare(distanceMeters, durationSeconds, isNight);
 
-                    // 🚀 彈出極簡版結果 (SweetAlert2)
                     Swal.fire({
                         title: '💰 預估車資結果',
                         html: `
@@ -628,7 +626,6 @@
                 }
             });
         }
-        // ==========================================
 
         async function submitOrder() {
             if (!liff.isLoggedIn() && !liff.isInClient()) {
