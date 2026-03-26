@@ -289,16 +289,20 @@
                     }).catch(e => console.log("回報試算表失敗", e));
                 }
 
+                // 🚀 核心修改：植入真實 userId，並附上 source 暗號
                 database.ref(`drivers/${myDriverId}/request`).set({
-                    userId: "fleet_order", 
+                    userId: orderData.userId || "unknown_id", 
+                    source: "lobby", 
                     userName: orderData.passengerName || "系統任務",
                     userPhone: orderData.phone || "",
-                    lat: 0, lng: 0,
+                    lat: orderData.lat || 0, 
+                    lng: orderData.lng || 0,
+                    pickup: orderData.pickup || "指定地點",
+                    dropoff: orderData.dropoff || "依乘客指示",
                     timestamp: firebase.database.ServerValue.TIMESTAMP,
                     note: (orderData.pickup || "指定地點") + "｜任務單", 
                     fleetOrderId: orderId,
-                    time: orderData.time || "",            
-                    dropoff: orderData.dropoff || ""       
+                    time: orderData.time || ""         
                 });
                 database.ref(`drivers/${myDriverId}`).update({ workStatus: 'busy' });
             }
