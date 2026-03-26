@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>定期接送預約</title>
+    <title>預約接送</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
@@ -35,7 +35,11 @@
         .dow-btn { flex: 1; aspect-ratio: 1; border-radius: 12px; border: 1px solid #e2e8f0; background: #ffffff; color: #64748b; font-weight: bold; display: flex; align-items: center; justify-content: center; transition: all 0.2s; cursor: pointer; user-select: none; }
         .dow-btn.active { background: #3b82f6; border-color: #2563eb; color: #ffffff; box-shadow: 0 4px 10px rgba(59,130,246,0.3); transform: scale(1.05); }
         
-        input[type="time"]::-webkit-calendar-picker-indicator { background: transparent; bottom: 0; color: transparent; cursor: pointer; height: auto; left: 0; position: absolute; right: 0; top: 0; width: auto; }
+        input[type="time"]::-webkit-calendar-picker-indicator, input[type="date"]::-webkit-calendar-picker-indicator { background: transparent; bottom: 0; color: transparent; cursor: pointer; height: auto; left: 0; position: absolute; right: 0; top: 0; width: auto; }
+        
+        /* 雙模式切換 Tab 樣式 */
+        .tab-btn { flex: 1; text-align: center; padding: 10px 0; font-size: 14px; font-weight: bold; border-radius: 12px; transition: all 0.2s; color: #64748b; cursor: pointer; }
+        .tab-btn.active { background: #ffffff; color: #4f46e5; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
     </style>
 </head>
 <body>
@@ -49,14 +53,14 @@
     <div id="app" class="hidden flex-col min-h-screen">
         <div class="bg-slate-900 text-white p-4 pb-6 rounded-b-[32px] shadow-lg mb-2 relative overflow-hidden">
             <div class="absolute -right-10 -top-10 opacity-10 text-9xl"><i class="fa-solid fa-calendar-days"></i></div>
-            <h1 class="text-2xl font-black tracking-wide relative z-10"><i class="fa-solid fa-repeat mr-2 text-emerald-400"></i>定期接送預約</h1>
-            <p class="text-slate-300 text-sm mt-1 relative z-10 font-bold">一次設定，為您自動產生未來班表</p>
+            <h1 class="text-2xl font-black tracking-wide relative z-10"><i class="fa-solid fa-calendar-check mr-2 text-emerald-400"></i>預約專車</h1>
+            <p id="header-desc" class="text-slate-300 text-sm mt-1 relative z-10 font-bold">單趟或來回，給您最尊榮的接送</p>
         </div>
 
         <div class="main-container !pt-2">
             <div class="booking-card">
                 <div class="flex items-center justify-between mb-4">
-                    <h2 class="text-sm font-bold text-slate-500 uppercase tracking-widest flex items-center">📍 去程固定路線</h2>
+                    <h2 class="text-sm font-bold text-slate-500 uppercase tracking-widest flex items-center">📍 上下車路線</h2>
                 </div>
                 
                 <div class="location-inputs">
@@ -64,7 +68,7 @@
                         <i class="fa-solid fa-circle-dot text-emerald-500 text-lg mr-4 w-5 text-center"></i>
                         <div class="flex-1 mr-12">
                             <label class="block text-[10px] text-slate-400 font-bold uppercase mb-1">Pickup (去程上車點)</label>
-                            <input type="text" id="pickup" placeholder="輸入固定上車地址" class="w-full bg-transparent font-bold text-slate-800 outline-none text-lg">
+                            <input type="text" id="pickup" placeholder="輸入上車地址" class="w-full bg-transparent font-bold text-slate-800 outline-none text-lg">
                         </div>
                         <button onclick="openPresetLocations('pickup')" class="absolute right-4 p-3 -mr-3 text-yellow-400 active:scale-90 transition-transform"><i class="fa-solid fa-star text-xl drop-shadow-sm"></i></button>
                     </div>
@@ -74,40 +78,45 @@
                         <i class="fa-solid fa-location-dot text-rose-500 text-xl mr-4 w-5 text-center"></i>
                         <div class="flex-1 mr-12">
                             <label class="block text-[10px] text-slate-400 font-bold uppercase mb-1">Drop-off (去程下車點)</label>
-                            <input type="text" id="dropoff" placeholder="輸入固定下車地址" class="w-full bg-transparent font-bold text-slate-800 outline-none text-lg">
+                            <input type="text" id="dropoff" placeholder="輸入下車地址" class="w-full bg-transparent font-bold text-slate-800 outline-none text-lg">
                         </div>
                         <button onclick="openPresetLocations('dropoff')" class="absolute right-4 p-3 -mr-3 text-yellow-400 active:scale-90 transition-transform"><i class="fa-solid fa-star text-xl drop-shadow-sm"></i></button>
                     </div>
                 </div>
             </div>
 
-            <div class="booking-card !bg-blue-50/30 !border-blue-100 !mb-2">
-                <div class="flex items-center justify-between mb-4">
-                    <h2 class="text-sm font-bold text-blue-600 uppercase tracking-widest flex items-center">📅 頻率與時間</h2>
+            <div class="booking-card !bg-indigo-50/30 !border-indigo-100 !mb-2">
+                <div class="flex bg-slate-200/50 p-1 rounded-xl mb-5 border border-slate-200">
+                    <div id="tab-single" onclick="switchMode('single')" class="tab-btn active"><i class="fa-solid fa-calendar-day mr-1"></i>單日趟次</div>
+                    <div id="tab-sub" onclick="switchMode('sub')" class="tab-btn"><i class="fa-solid fa-repeat mr-1"></i>長期定期</div>
                 </div>
 
-                <div class="mb-5">
-                    <label class="block text-[10px] text-slate-400 font-bold uppercase mb-2">每週固定出發日 (可多選)</label>
-                    <div class="flex justify-between gap-2" id="dow-container">
-                        <div class="dow-btn" data-val="1">一</div>
-                        <div class="dow-btn" data-val="2">二</div>
-                        <div class="dow-btn" data-val="3">三</div>
-                        <div class="dow-btn" data-val="4">四</div>
-                        <div class="dow-btn" data-val="5">五</div>
-                        <div class="dow-btn" data-val="6">六</div>
-                        <div class="dow-btn text-rose-500" data-val="0">日</div>
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-sm font-bold text-indigo-600 uppercase tracking-widest flex items-center">📅 預約時間設定</h2>
+                </div>
+
+                <div id="single-date-container" class="input-group relative border-indigo-100">
+                    <i class="fa-solid fa-calendar-day input-icon text-indigo-500"></i>
+                    <div class="flex-1">
+                        <label class="block text-[10px] text-slate-400 font-bold uppercase">出發日期</label>
+                        <input type="date" id="single-date" class="w-full bg-transparent font-bold text-slate-800 outline-none text-lg mt-1" onchange="calculateTrips()">
                     </div>
                 </div>
 
-                <div class="flex gap-3 mb-3">
-                    <div class="input-group flex-1 !mb-0 relative">
-                        <i class="fa-solid fa-clock input-icon text-blue-500"></i>
-                        <div class="flex-1">
-                            <label class="block text-[10px] text-slate-400 font-bold uppercase">去程時間</label>
-                            <input type="time" id="sub-time" class="w-full bg-transparent font-bold text-slate-800 outline-none text-lg mt-1" onchange="calculateTrips()">
+                <div id="sub-settings-container" class="hidden flex-col">
+                    <div class="mb-5">
+                        <label class="block text-[10px] text-slate-400 font-bold uppercase mb-2">每週固定出發日 (可多選)</label>
+                        <div class="flex justify-between gap-2" id="dow-container">
+                            <div class="dow-btn" data-val="1">一</div>
+                            <div class="dow-btn" data-val="2">二</div>
+                            <div class="dow-btn" data-val="3">三</div>
+                            <div class="dow-btn" data-val="4">四</div>
+                            <div class="dow-btn" data-val="5">五</div>
+                            <div class="dow-btn" data-val="6">六</div>
+                            <div class="dow-btn text-rose-500" data-val="0">日</div>
                         </div>
                     </div>
-                    <div class="input-group flex-1 !mb-0">
+                    <div class="input-group !mb-4 border-indigo-100">
                         <i class="fa-solid fa-calendar-week input-icon text-indigo-500"></i>
                         <div class="flex-1">
                             <label class="block text-[10px] text-slate-400 font-bold uppercase">預約期間</label>
@@ -122,6 +131,14 @@
                     </div>
                 </div>
 
+                <div class="input-group relative border-indigo-100 mb-3">
+                    <i class="fa-solid fa-clock input-icon text-blue-500"></i>
+                    <div class="flex-1">
+                        <label class="block text-[10px] text-slate-400 font-bold uppercase">去程上車時間</label>
+                        <input type="time" id="sub-time" class="w-full bg-transparent font-bold text-slate-800 outline-none text-lg mt-1" onchange="calculateTrips()">
+                    </div>
+                </div>
+
                 <div class="flex items-center justify-between mb-3 bg-indigo-50 p-3 rounded-xl border border-indigo-100 cursor-pointer active:scale-95 transition-transform" onclick="toggleReturnTime()">
                     <div class="flex items-center text-indigo-700 font-bold text-sm">
                         <i class="fa-solid fa-repeat mr-2"></i> 增加返程時間 (來回趟)
@@ -133,7 +150,7 @@
                     </div>
                 </div>
 
-                <div id="return-time-container" class="hidden input-group !mb-0 relative border-indigo-200 bg-white">
+                <div id="return-time-container" class="hidden input-group !mb-0 relative border-indigo-200 bg-white shadow-sm">
                     <i class="fa-solid fa-clock-rotate-left input-icon text-indigo-500"></i>
                     <div class="flex-1">
                         <label class="block text-[10px] text-slate-400 font-bold uppercase">返程時間 (系統將自動對調上下車點)</label>
@@ -150,9 +167,8 @@
                     <span id="preview-count" class="text-xs font-bold bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full">0 趟</span>
                 </div>
                 <div id="trip-tags-container" class="flex flex-col gap-2 mb-2">
-                    <!-- 標籤動態產生於此 -->
-                </div>
-                <div class="text-[11px] text-slate-500 font-bold mt-3"><i class="fa-solid fa-circle-info text-indigo-400"></i> 點擊標籤上的 ❌ 可預先刪除不需要的日期或趟次</div>
+                    </div>
+                <div class="text-[11px] text-slate-500 font-bold mt-3"><i class="fa-solid fa-circle-info text-indigo-400"></i> 點擊標籤上的 ❌ 可預先刪除不需要的趟次</div>
             </div>
 
             <div class="booking-card mt-5">
@@ -185,7 +201,7 @@
         <div class="fixed bottom-0 left-0 right-0 p-5 bg-white/95 backdrop-blur-md border-t border-gray-100 z-30 max-w-[600px] mx-auto">
             <button id="submitBtn" onclick="submitSubscription()" class="w-full bg-slate-900 text-white font-bold py-4 rounded-2xl shadow-xl shadow-slate-300 active:scale-[0.98] transition-all text-xl flex items-center justify-center space-x-3 disabled:opacity-50 disabled:active:scale-100">
                 <i class="fa-solid fa-layer-group"></i>
-                <span id="submit-btn-text">確認送出 (請先選擇星期)</span>
+                <span id="submit-btn-text">確認送出 (資料未填齊)</span>
             </button>
         </div>
     </div>
@@ -193,7 +209,7 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script>
-        const VERSION = "v5.8"; // 🚀 語法除錯修復與防呆保險絲版
+        const VERSION = "v6.0 [雙模式來回預約版]"; 
         
         // ⚠️ 這裡填入你為這支 sub_booking.html 新申請的 LIFF ID
         const LIFF_ID = '2008907691-e4V07Yfr'; 
@@ -203,7 +219,7 @@
 
         const PRESET_LOCATIONS = [
             {name:'我的最愛 A', icon:'⭐', value:'FAV_ADDR_A'}, {name:'我的最愛 B', icon:'⭐', value:'FAV_ADDR_B'},
-            {name:'花蓮前站', icon:'🚉'}, {name:'花蓮後站', icon:'🚉'}, {name:'慈濟醫院', icon:'🏥'},
+            {name:'花蓮前站', icon:'🚉', value:'花蓮火車站前站'}, {name:'花蓮後站', icon:'🚉', value:'花蓮火車站後站'}, {name:'慈濟醫院', icon:'🏥'},
             {name:'門諾醫院', icon:'🏥'}, {name:'遠東百貨', icon:'🛍️'}, {name:'東大門夜市', icon:'🌭'}
         ];
 
@@ -218,13 +234,18 @@
         let passengerId = "unknown";
         let selectedDows = new Set(); 
         
-        // 陣列改為存物件： { type: 'go'|'back', dateStr: '3月12日', gasDateStr: '3/12', timeStr: '08:00' }
         let generatedTrips = []; 
-        let isRoundTrip = false; // 來回趟開關狀態
+        let isRoundTrip = false; 
+        
+        // 🚀 核心變數：雙模式切換 (預設為單趟)
+        let currentMode = 'single'; 
 
         window.onload = function() {
-            // 🚀 防呆保險絲：不管發生什麼事，5 秒後必定掀開白布
             setTimeout(unlockUI, 5000); 
+
+            // 預設日期為今天
+            const todayStr = new Date().toISOString().split('T')[0];
+            document.getElementById('single-date').value = todayStr;
 
             const savedPhone = localStorage.getItem('taxi_user_phone');
             if(savedPhone) document.getElementById('phone').value = savedPhone;
@@ -265,6 +286,28 @@
                     calculateTrips(); 
                 }, 300);
             }
+        }
+
+        // 🚀 雙模式切換 UI 邏輯
+        window.switchMode = function(mode) {
+            currentMode = mode;
+            document.getElementById('tab-single').classList.toggle('active', mode === 'single');
+            document.getElementById('tab-sub').classList.toggle('active', mode === 'sub');
+            
+            if (mode === 'single') {
+                document.getElementById('single-date-container').classList.remove('hidden');
+                document.getElementById('single-date-container').classList.add('flex');
+                document.getElementById('sub-settings-container').classList.add('hidden');
+                document.getElementById('sub-settings-container').classList.remove('flex');
+                document.getElementById('header-desc').innerText = "單趟或來回，給您最尊榮的接送";
+            } else {
+                document.getElementById('single-date-container').classList.add('hidden');
+                document.getElementById('single-date-container').classList.remove('flex');
+                document.getElementById('sub-settings-container').classList.remove('hidden');
+                document.getElementById('sub-settings-container').classList.add('flex');
+                document.getElementById('header-desc').innerText = "一次設定，為您自動產生未來班表";
+            }
+            calculateTrips();
         }
 
         function swapLocations() {
@@ -330,33 +373,55 @@
             generatedTrips = [];
             const timeVal = document.getElementById('sub-time').value;
             const returnTimeVal = document.getElementById('return-time').value;
-            const weeks = parseInt(document.getElementById('sub-weeks').value);
 
-            if (selectedDows.size === 0 || !timeVal || (isRoundTrip && !returnTimeVal)) {
-                renderTripTags(); 
-                return;
-            }
-
-            let currentDate = new Date();
-            currentDate.setDate(currentDate.getDate() + 1); 
-            let endLimit = new Date();
-            endLimit.setDate(endLimit.getDate() + (weeks * 7));
-
-            while (currentDate <= endLimit) {
-                if (selectedDows.has(currentDate.getDay())) {
-                    const m = currentDate.getMonth() + 1;
-                    const d = currentDate.getDate();
-                    
-                    const chineseDate = `${m}月${d}日`;
-                    const numDate = `${m}/${d}`;
-                    
-                    generatedTrips.push({ type: 'go', dateStr: chineseDate, gasDateStr: numDate, timeStr: timeVal });
-                    
-                    if (isRoundTrip && returnTimeVal) {
-                        generatedTrips.push({ type: 'back', dateStr: chineseDate, gasDateStr: numDate, timeStr: returnTimeVal });
-                    }
+            // 🚀 核心邏輯：依照模式分流產生趟次
+            if (currentMode === 'single') {
+                const singleDateVal = document.getElementById('single-date').value;
+                if (!singleDateVal || !timeVal || (isRoundTrip && !returnTimeVal)) {
+                    renderTripTags(); 
+                    return;
                 }
-                currentDate.setDate(currentDate.getDate() + 1);
+                
+                const dObj = new Date(singleDateVal);
+                const m = dObj.getMonth() + 1;
+                const d = dObj.getDate();
+                const chineseDate = `${m}月${d}日`;
+                const numDate = `${m}/${d}`;
+                
+                generatedTrips.push({ type: 'go', dateStr: chineseDate, gasDateStr: numDate, timeStr: timeVal });
+                if (isRoundTrip && returnTimeVal) {
+                    generatedTrips.push({ type: 'back', dateStr: chineseDate, gasDateStr: numDate, timeStr: returnTimeVal });
+                }
+                
+            } else {
+                // 模式 B：長期定期
+                const weeks = parseInt(document.getElementById('sub-weeks').value);
+                if (selectedDows.size === 0 || !timeVal || (isRoundTrip && !returnTimeVal)) {
+                    renderTripTags(); 
+                    return;
+                }
+
+                let currentDate = new Date();
+                currentDate.setDate(currentDate.getDate() + 1); 
+                let endLimit = new Date();
+                endLimit.setDate(endLimit.getDate() + (weeks * 7));
+
+                while (currentDate <= endLimit) {
+                    if (selectedDows.has(currentDate.getDay())) {
+                        const m = currentDate.getMonth() + 1;
+                        const d = currentDate.getDate();
+                        
+                        const chineseDate = `${m}月${d}日`;
+                        const numDate = `${m}/${d}`;
+                        
+                        generatedTrips.push({ type: 'go', dateStr: chineseDate, gasDateStr: numDate, timeStr: timeVal });
+                        
+                        if (isRoundTrip && returnTimeVal) {
+                            generatedTrips.push({ type: 'back', dateStr: chineseDate, gasDateStr: numDate, timeStr: returnTimeVal });
+                        }
+                    }
+                    currentDate.setDate(currentDate.getDate() + 1);
+                }
             }
 
             renderTripTags();
@@ -369,11 +434,20 @@
             const btn = document.getElementById('submitBtn');
             const btnText = document.getElementById('submit-btn-text');
 
-            if (selectedDows.size === 0 || !document.getElementById('sub-time').value || (isRoundTrip && !document.getElementById('return-time').value)) {
-                previewCard.classList.add('hidden');
-                btn.disabled = true;
-                btnText.innerText = "確認送出 (資料未填齊)";
-                return;
+            if (currentMode === 'single') {
+                if (!document.getElementById('single-date').value || !document.getElementById('sub-time').value || (isRoundTrip && !document.getElementById('return-time').value)) {
+                    previewCard.classList.add('hidden');
+                    btn.disabled = true;
+                    btnText.innerText = "確認送出 (時間未填齊)";
+                    return;
+                }
+            } else {
+                if (selectedDows.size === 0 || !document.getElementById('sub-time').value || (isRoundTrip && !document.getElementById('return-time').value)) {
+                    previewCard.classList.add('hidden');
+                    btn.disabled = true;
+                    btnText.innerText = "確認送出 (資料未填齊)";
+                    return;
+                }
             }
 
             previewCard.classList.remove('hidden');
@@ -434,7 +508,6 @@
             const pickup = document.getElementById('pickup').value.trim();
             const dropoff = document.getElementById('dropoff').value.trim();
             const payment = document.getElementById('payment-value').value;
-            const weeks = document.getElementById('sub-weeks').value;
 
             if(!pickup || !dropoff) return Swal.fire('請填寫完整地址', '起訖點為必填', 'warning');
             if(!phone || phone.length < 8) return Swal.fire('請輸入電話', '請留下聯絡方式', 'warning');
@@ -450,28 +523,43 @@
             const baseGo = baseOrderId + '-G';
             const baseBack = baseOrderId + '-B';
             
-            const dowNames = ['日','一','二','三','四','五','六'];
-            const sortedDows = Array.from(selectedDows).sort();
-            const dowString = sortedDows.map(d => dowNames[d]).join('、');
+            let freqText = "";
+            let cardTitleText = "";
+            let cardSubtitleText = "";
+            const hasMix = generatedTrips.some(t => t.type === 'go') && generatedTrips.some(t => t.type === 'back');
+            const routeText = hasMix ? `${pickup} ⇄ ${dropoff}` : `${pickup} ➔ ${dropoff}`;
+
+            // 🚀 依據模式調整收據顯示文字
+            if (currentMode === 'single') {
+                const dObj = new Date(document.getElementById('single-date').value);
+                const chineseDate = `${dObj.getMonth() + 1}月${dObj.getDate()}日`;
+                freqText = hasMix ? `單日來回 (${chineseDate})` : `單日單程 (${chineseDate})`;
+                cardTitleText = "📅 專車預約確認";
+                cardSubtitleText = `共 ${generatedTrips.length} 趟專車`;
+            } else {
+                const weeks = document.getElementById('sub-weeks').value;
+                const dowNames = ['日','一','二','三','四','五','六'];
+                const sortedDows = Array.from(selectedDows).sort();
+                const dowString = sortedDows.map(d => dowNames[d]).join('、');
+                freqText = hasMix ? `每週${dowString} (去回)` : (generatedTrips.some(t => t.type === 'go') ? `每週${dowString} (單程)` : `每週${dowString} (反向)`);
+                cardTitleText = "📅 定期接送合約確認";
+                cardSubtitleText = `為期 ${weeks} 週 / 共 ${generatedTrips.length} 趟`;
+            }
             
             const outTripsForGas = generatedTrips.filter(t => t.type === 'go').map(t => `${t.gasDateStr} ${t.timeStr}`);
             const backTripsForGas = generatedTrips.filter(t => t.type === 'back').map(t => `${t.gasDateStr} ${t.timeStr}`);
 
-            const hasMix = outTripsForGas.length > 0 && backTripsForGas.length > 0;
-            const freqText = hasMix ? `每週${dowString} (去回)` : (outTripsForGas.length > 0 ? `每週${dowString} (單程)` : `每週${dowString} (反向)`);
-            const routeText = hasMix ? `${pickup} ⇄ ${dropoff}` : `${pickup} ➔ ${dropoff}`;
-
             const summaryMsg = {
                 type: "flex",
-                altText: `📅 定期接送成立 (共 ${generatedTrips.length} 趟)`,
+                altText: `📅 預約單成立 (共 ${generatedTrips.length} 趟)`,
                 contents: {
                     type: "bubble",
                     styles: { header: { backgroundColor: "#0f172a" }, body: { backgroundColor: "#FFFFFF" } },
                     header: {
                         type: "box", layout: "vertical", spacing: "sm",
                         contents: [ 
-                            { type: "text", text: "📅 定期接送合約確認", weight: "bold", size: "md", color: "#38bdf8", align: "center" },
-                            { type: "text", text: `為期 ${weeks} 週 / 共 ${generatedTrips.length} 趟`, weight: "bold", size: "xl", color: "#ffffff", align: "center" } 
+                            { type: "text", text: cardTitleText, weight: "bold", size: "md", color: "#38bdf8", align: "center" },
+                            { type: "text", text: cardSubtitleText, weight: "bold", size: "xl", color: "#ffffff", align: "center" } 
                         ],
                         paddingAll: "15px"
                     },
@@ -499,7 +587,6 @@
                             },
                             { type: "separator", margin: "md", color: "#EEEEEE" },
                             {
-                                // 🚀 v5.8 修復：修正 syntax error (text: text: payment)
                                 type: "box", layout: "horizontal", margin: "md",
                                 contents: [ { type: "text", text: "💰 付款", flex: 2, color: "#888888", size: "sm" }, { type: "text", text: payment, flex: 5, color: "#111111", size: "sm", weight: "bold" } ]
                             }
@@ -566,7 +653,7 @@
                 const chunk = carouselBubbles.slice(i, i + CHUNK_SIZE);
                 messagesToSend.push({
                     type: "flex",
-                    altText: "定期接送單趟明細 (請左右滑動查看)",
+                    altText: "預約趟次明細 (請左右滑動查看)",
                     contents: {
                         type: "carousel",
                         contents: chunk
