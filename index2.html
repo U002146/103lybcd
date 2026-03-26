@@ -111,7 +111,7 @@
         </div>
       </div>
       <div class="action-buttons-container">
-        <a href="https://lin.ee/9Davl6e" target="_blank" class="btn-customer"><i class="fa-solid fa-headset"></i>客服</a>
+        <a href="https://lin.ee/9Davl6e" target="_blank" class="btn-customer"><i class="fa-solid fa-user-tie"></i>聯絡我</a>
         <div class="btn-share" onclick="shareToFriends()"><i class="fa-solid fa-gift"></i>分享</div>
       </div>
     </div>
@@ -122,7 +122,7 @@
 
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script>
-    const VERSION = "v9.30"; // 🚀 修復無 GPS 幽靈訂單漏洞
+    const VERSION = "v9.31"; // 🚀 VIP專車客製化版：移除車隊字眼，強化專屬服務感
     const LIFF_ID = "2008907691-CzDqd7mm"; 
     const GAS_URL = "https://script.google.com/macros/s/AKfycbzjWZ8j394jfKoMVbPWGvHJHqwF7RBCQxnxyju1ifWKoKdM7RE512F7qrhUsQqQGoWg/exec"; 
     
@@ -159,7 +159,8 @@
     };
 
     window.onload = async function() {
-        Swal.fire({ title: '連線中', text: '正在為您尋找附近空車...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
+        // 🚀 文案修改
+        Swal.fire({ title: '連線中', text: '正在為您連線專車位置...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
         initMap();
         await initLiffAndCheckBlacklist(); 
     };
@@ -190,7 +191,7 @@
                 document.body.innerHTML = ''; document.body.style.backgroundColor = '#f8d7da';
                 Swal.fire({
                     icon: 'error', title: '服務暫停', html: '您的帳號目前<b>無法使用叫車服務</b>。',
-                    confirmButtonText: '<i class="fa-solid fa-headset"></i> 聯繫客服', confirmButtonColor: '#e74c3c', allowOutsideClick: false
+                    confirmButtonText: '<i class="fa-solid fa-user-tie"></i> 聯繫專屬司機', confirmButtonColor: '#e74c3c', allowOutsideClick: false
                 }).then(() => { window.location.href = "https://lin.ee/9Davl6e"; });
                 return; 
             }
@@ -202,17 +203,18 @@
 
     async function shareToFriends() {
         if (!liff.isApiAvailable('shareTargetPicker')) return Swal.fire('無法分享', '不支援分享功能', 'warning');
+        // 🚀 分享文案尊榮化
         const flexMessage = {
-            "type": "flex", "altText": "🚕 您的好友推薦了優質接送服務！",
+            "type": "flex", "altText": "🚕 您的好友推薦了專屬接送服務！",
             "contents": {
                 "type": "bubble",
                 "hero": { "type": "image", "url": "https://u002146.github.io/103lybcd/photos/005.jpg", "size": "full", "aspectRatio": "20:13", "aspectMode": "cover" },
                 "body": { "type": "box", "layout": "vertical", "contents": [
-                    { "type": "text", "text": "一鍵叫車", "weight": "bold", "size": "xl", "color": "#111111" },
-                    { "type": "text", "text": "免報路名 ‧ 一鍵雙向定位", "size": "sm", "color": "#FF9800", "weight": "bold", "margin": "sm" },
-                    { "type": "text", "text": "最安心的接送神器！點擊下方按鈕，立即開啟叫車雷達，附近空車一目了然。", "size": "xs", "color": "#666666", "wrap": true, "margin": "md" }
+                    { "type": "text", "text": "VIP 專屬接送", "weight": "bold", "size": "xl", "color": "#111111" },
+                    { "type": "text", "text": "免報路名 ‧ 尊榮雙向定位", "size": "sm", "color": "#FF9800", "weight": "bold", "margin": "sm" },
+                    { "type": "text", "text": "最安心的專車服務！點擊下方按鈕，立即連線您的專屬司機位置。", "size": "xs", "color": "#666666", "wrap": true, "margin": "md" }
                 ]},
-                "footer": { "type": "box", "layout": "vertical", "contents": [{ "type": "button", "style": "primary", "color": "#00C853", "action": { "type": "uri", "label": "📍 點我開啟叫車雷達", "uri": "https://liff.line.me/2008907691-CzDqd7mm" } }] }
+                "footer": { "type": "box", "layout": "vertical", "contents": [{ "type": "button", "style": "primary", "color": "#00C853", "action": { "type": "uri", "label": "📍 點我呼叫專屬司機", "uri": "https://liff.line.me/2008907691-CzDqd7mm" } }] }
             }
         };
         try {
@@ -280,7 +282,8 @@
     function handleOrderRejected() {
         myTrackedDriverId = null; localStorage.removeItem('trackedDriverId'); localStorage.removeItem('wasBusy'); localStorage.removeItem('trackStep'); currentTrackStep = '1';
         lastGeocodePos = null; if (myLat && myLng) getAddress(myLat, myLng); updateStatusUI();
-        Swal.fire({ icon: 'warning', title: '⚠️ 司機無法承接', text: '該司機目前距離較遠或行程滿檔，請重新選擇其他附近空車。', confirmButtonColor: '#F97316', confirmButtonText: '重新叫車' });
+        // 🚀 拒絕文案修改
+        Swal.fire({ icon: 'warning', title: '⚠️ 司機無法承接', text: '專屬司機目前行程滿檔，請稍後再試或直接聯繫司機。', confirmButtonColor: '#F97316', confirmButtonText: '我知道了' });
         if (lastDriversData) processDriversData(lastDriversData); 
     }
 
@@ -350,8 +353,9 @@
         const container = document.getElementById('driver-carousel');
         const currentScroll = container.scrollLeft;
         
+        // 🚀 無空車狀態優化為「專屬司機聯絡模式」
         if (drivers.length === 0) {
-            container.innerHTML = `<div style="width:100%; text-align:center; padding:20px; background:white; border-radius:24px; box-shadow:0 10px 30px rgba(0,0,0,0.15); border:2px solid #ddd;"><div style="color:#666; font-size:18px; font-weight:bold; margin-bottom:15px;">目前附近暫無空車</div><button class="btn-call-full" onclick="window.location.href='https://lin.ee/9Davl6e'"><i class="fa-solid fa-headset"></i> 總台人工調車</button></div>`;
+            container.innerHTML = `<div style="width:100%; text-align:center; padding:20px; background:white; border-radius:24px; box-shadow:0 10px 30px rgba(0,0,0,0.15); border:2px solid #ddd;"><div style="color:#666; font-size:18px; font-weight:bold; margin-bottom:15px;">司機目前服務中或暫時離線</div><button class="btn-call-full" onclick="window.location.href='https://lin.ee/9Davl6e'"><i class="fa-brands fa-line"></i> 直接聯絡專屬司機</button></div>`;
             return;
         }
 
@@ -369,7 +373,8 @@
 
             const distText = d.distUser < 1 ? (d.distUser*1000).toFixed(0)+' 公尺' : d.distUser.toFixed(1)+' 公里';
             const avatar = d.photo || 'https://cdn-icons-png.flaticon.com/512/3237/3237472.png';
-            const displayCarNo = d.carNo || d.car || '花蓮計程車';
+            // 🚀 車輛預設名稱優化
+            const displayCarNo = d.carNo || d.car || '專屬座車';
             let ratingUI = d.ratingStr === "NEW" ? `<span class="tag tag-star">✨ 新手司機</span>` : `<span class="tag tag-star">⭐ ${d.ratingStr}</span>`;
             
             if (d.isTracked && currentTrackStep === '2') {
@@ -384,7 +389,6 @@
     }
 
     async function callDriver(driverId, phone, btn) {
-        // 🚀 核心防禦：檢查是否成功抓到 GPS，否則擋下幽靈訂單
         if (!myLat || !myLng) {
             Swal.fire({
                 icon: 'warning',
