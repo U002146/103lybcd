@@ -404,14 +404,15 @@
                 return;
             }
 
+            // 🚀 個人尊榮版 Flex Message：強調「專屬司機」與「四大亮點」
             const flexMsg = {
                 type: "flex",
-                altText: `🚕 推薦你【通話叫車】：${dynamicDriverInfo.name}`,
+                altText: `🚕 推薦您的專屬司機：${dynamicDriverInfo.name}`,
                 contents: {
                     type: "bubble",
                     hero: {
                         type: "image",
-                        url: dynamicDriverInfo.photo, 
+                        url: dynamicDriverInfo.photo, // ⚠️ 之後你可以把這裡換成專屬名片圖的 URL
                         size: "full",
                         aspectRatio: "20:13", 
                         aspectMode: "cover"
@@ -419,7 +420,7 @@
                     body: {
                         type: "box", layout: "vertical",
                         contents: [
-                            { type: "text", text: "🚕 花蓮在地：通話叫車", weight: "bold", size: "xl", color: "#1B5E20" },
+                            { type: "text", text: "🚕 花蓮在地專屬接送", weight: "bold", size: "xl", color: "#1B5E20" },
                             {
                                 type: "box", layout: "baseline", margin: "md",
                                 contents: [ 
@@ -427,7 +428,18 @@
                                     { type: "text", text: `${dynamicDriverInfo.name} ${dynamicDriverInfo.carNo}`, weight: "bold", size: "md", margin: "sm", color: "#333333" } 
                                 ]
                             },
-                            { type: "text", text: "點擊下方按鈕，不僅可以『一鍵通話叫車』，還能直接看到我的『車輛即時位置』，不用在路邊苦等喔！", size: "sm", color: "#666666", wrap: true, margin: "md" }
+                            { type: "separator", margin: "md" },
+                            { type: "text", text: "您的專屬司機，提供最高規格數位服務：", size: "sm", color: "#555555", weight: "bold", margin: "md", wrap: true },
+                            {
+                                type: "box", layout: "vertical", margin: "sm", spacing: "sm",
+                                contents: [
+                                    { type: "box", layout: "baseline", spacing: "sm", contents: [{ type: "text", text: "✔", color: "#00C853", size: "sm", flex: 0 }, { type: "text", text: "預估車資 (透明化不喊價)", size: "sm", color: "#333333", weight: "bold" }] },
+                                    { type: "box", layout: "baseline", spacing: "sm", contents: [{ type: "text", text: "✔", color: "#00C853", size: "sm", flex: 0 }, { type: "text", text: "行車軌跡 (安全把關有保障)", size: "sm", color: "#333333", weight: "bold" }] },
+                                    { type: "box", layout: "baseline", spacing: "sm", contents: [{ type: "text", text: "✔", color: "#00C853", size: "sm", flex: 0 }, { type: "text", text: "數位收據 (乘車報帳超方便)", size: "sm", color: "#333333", weight: "bold" }] },
+                                    { type: "box", layout: "baseline", spacing: "sm", contents: [{ type: "text", text: "✔", color: "#00C853", size: "sm", flex: 0 }, { type: "text", text: "乘車記錄 (評價與歷史查詢)", size: "sm", color: "#333333", weight: "bold" }] }
+                                ]
+                            },
+                            { type: "text", text: "點擊下方按鈕，查看我的即時營業狀態，一鍵呼叫專車！", size: "xs", color: "#999999", wrap: true, margin: "md" }
                         ]
                     },
                     footer: {
@@ -435,7 +447,7 @@
                         contents: [
                             {
                                 type: "button", style: "primary", color: "#00C853", height: "sm",
-                                action: { type: "uri", label: "📞 開啟通話叫車", uri: MY_LIFF_URL }
+                                action: { type: "uri", label: "📍 呼叫專屬司機", uri: MY_LIFF_URL }
                             }
                         ]
                     }
@@ -445,7 +457,7 @@
             try {
                 const res = await liff.shareTargetPicker([flexMsg]);
                 if (res) {
-                    Swal.fire({ icon: 'success', title: '分享成功！', text: '謝謝您的推薦，司機會更努力為大家服務！', timer: 2500, showConfirmButton: false });
+                    Swal.fire({ icon: 'success', title: '分享成功！', text: '謝謝您的推薦，我會繼續提供最優質的服務！', timer: 2500, showConfirmButton: false });
                 }
             } catch (error) {
                 console.error("分享發生錯誤", error);
