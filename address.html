@@ -11,13 +11,13 @@
         body { font-family: 'Noto Sans TC', sans-serif; background-color: #f8fafc; overflow-x: hidden; min-height: 100vh; display: flex; flex-direction: column; }
         input, select, textarea { font-size: 17px !important; }
         
-        .main-container { flex: 1; padding: 16px 20px 120px 20px; max-width: 600px; margin: 0 auto; width: 100%; }
+        .main-container { flex: 1; padding: 0 20px 120px 20px; max-width: 600px; margin: 0 auto; width: 100%; }
         
         .booking-card { background: white; border-radius: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.04); padding: 20px; margin-bottom: 20px; border: 1px solid #f1f5f9; }
         
         .location-inputs { position: relative; border: 1px solid #e2e8f0; border-radius: 20px; background: #f8fafc; }
         .loc-row { display: flex; align-items: center; padding: 16px; transition: all 0.2s; }
-        .loc-row:focus-within { background: #ffffff; box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2); border-radius: 20px; }
+        .loc-row:focus-within { background: #ffffff; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2); border-radius: 20px; }
         .loc-divider { height: 1px; background: #e2e8f0; margin: 0 16px; }
         
         .btn-swap { position: absolute; top: 50%; right: 16px; transform: translateY(-50%); width: 40px; height: 40px; background: white; border: 1px solid #e2e8f0; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #64748b; box-shadow: 0 4px 10px rgba(0,0,0,0.05); cursor: pointer; transition: all 0.2s; z-index: 10; }
@@ -27,7 +27,7 @@
         .input-group:focus-within { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
         .input-icon { width: 24px; text-align: center; margin-right: 12px; }
 
-        .loader { border: 3px solid #f3f3f3; border-top: 3px solid #10B981; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; }
+        .loader { border: 3px solid #f3f3f3; border-top: 3px solid #3b82f6; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         
         .swal2-popup { border-radius: 24px !important; font-family: 'Noto Sans TC', sans-serif !important; padding-bottom: 20px !important;}
@@ -59,15 +59,37 @@
 <body>
 
     <div id="loading-overlay" class="fixed inset-0 bg-white z-[9999] flex flex-col items-center justify-center">
-        <div class="loader mb-4 w-12 h-12 border-4 text-emerald-500"></div>
+        <div class="loader mb-4 w-12 h-12 border-4 text-blue-500"></div>
         <p id="loading-text" class="text-slate-600 font-bold text-lg tracking-widest animate-pulse">系統連線中...</p>
     </div>
 
     <div id="edit-mode-banner"><i class="fa-solid fa-pen-to-square"></i> 訂單修改模式</div>
 
     <div id="app" class="hidden flex-col min-h-screen">
-        <div class="main-container">
-            <div class="booking-card !mt-2">
+        
+        <div class="bg-slate-900 rounded-b-[32px] px-6 pt-8 pb-12 relative overflow-hidden flex-shrink-0 shadow-lg z-10 w-full max-w-[600px] mx-auto">
+            <div class="absolute right-0 top-0 opacity-10 pointer-events-none">
+                <svg width="140" height="140" viewBox="0 0 120 120">
+                    <rect x="60" y="0" width="60" height="60" fill="currentColor" class="text-blue-500"></rect>
+                    <rect x="0" y="60" width="60" height="60" fill="currentColor" class="text-blue-400"></rect>
+                </svg>
+            </div>
+            
+            <div class="relative z-10 flex items-center justify-between">
+                <div>
+                    <div class="flex items-center gap-3 mb-2">
+                        <div class="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center border border-blue-500/30 shadow-inner">
+                            <i class="fa-solid fa-calendar-days text-blue-400 text-lg"></i>
+                        </div>
+                        <h1 class="text-2xl font-black text-white tracking-wider">預約服務</h1>
+                    </div>
+                    <p class="text-[13px] font-medium text-slate-400 mt-2 tracking-wide">指定時間出發，給您最準時的專屬接送</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-container relative z-20 -mt-6">
+            <div class="booking-card">
                 <div class="flex items-center justify-between mb-4">
                     <h2 class="text-sm font-bold text-slate-500 uppercase tracking-widest flex items-center">
                         📍 行程設定
@@ -78,7 +100,7 @@
                 
                 <div class="location-inputs">
                     <div class="loc-row relative">
-                        <i class="fa-solid fa-circle-dot text-emerald-500 text-lg mr-4 w-5 text-center"></i>
+                        <i class="fa-solid fa-circle-dot text-blue-500 text-lg mr-4 w-5 text-center"></i>
                         <div class="flex-1 mr-12">
                             <label class="block text-[10px] text-slate-400 font-bold uppercase mb-1">Pickup (上車點)</label>
                             <input type="text" id="pickup" placeholder="請輸入或選擇上車地址" class="w-full bg-transparent font-bold text-slate-800 outline-none text-lg">
@@ -155,12 +177,12 @@
             
             <div id="hour-selection-view" class="flex-1 flex flex-col min-h-0 overflow-y-auto pr-1">
                 <div class="mb-5 flex-shrink-0">
-                    <div class="text-xs text-emerald-600 font-bold mb-2 uppercase tracking-wide flex items-center"><i class="fa-solid fa-calendar-day mr-1"></i> 1. 選擇日期</div>
+                    <div class="text-xs text-blue-600 font-bold mb-2 uppercase tracking-wide flex items-center"><i class="fa-solid fa-calendar-day mr-1"></i> 1. 選擇日期</div>
                     <div class="date-tabs-container" id="date-tabs-list"></div>
                 </div>
 
                 <div class="mb-5 flex-shrink-0">
-                    <div class="text-xs text-emerald-600 font-bold mb-2 uppercase tracking-wide flex items-center"><i class="fa-solid fa-clock mr-1"></i> 2. 選擇小時 (24H)</div>
+                    <div class="text-xs text-blue-600 font-bold mb-2 uppercase tracking-wide flex items-center"><i class="fa-solid fa-clock mr-1"></i> 2. 選擇小時 (24H)</div>
                     <div class="time-grid pb-10" id="hour-grid"></div>
                 </div>
             </div>
@@ -180,7 +202,7 @@
                 </div>
 
                 <div class="mb-4 flex-shrink-0">
-                    <div class="text-xs text-emerald-600 font-bold mb-2 uppercase tracking-wide flex items-center"><i class="fa-solid fa-stopwatch mr-1"></i> 3. 選擇出發分鐘</div>
+                    <div class="text-xs text-blue-600 font-bold mb-2 uppercase tracking-wide flex items-center"><i class="fa-solid fa-stopwatch mr-1"></i> 3. 選擇出發分鐘</div>
                     <div class="time-grid pb-10" id="minute-grid-container"></div>
                 </div>
             </div>
@@ -190,7 +212,7 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script>
-        const VERSION = "v4.6"; // 🚀 拔除司機位置按鈕 (精簡卡片版)
+        const VERSION = "v4.7"; 
         const LIFF_ID = '2008907691-3P676tTN'; 
         const PROJECT_B_URL = 'https://liff.line.me/2008907691-1mAjwojZ'; 
         
