@@ -404,7 +404,7 @@
                 return;
             }
 
-            // 🚀 個人尊榮版 Flex Message：強調「專屬司機」與「四大亮點」
+            // 🚀 個人尊榮版 Flex Message：已掛載專屬橫幅大圖
             const flexMsg = {
                 type: "flex",
                 altText: `🚕 推薦您的專屬司機：${dynamicDriverInfo.name}`,
@@ -412,7 +412,7 @@
                     type: "bubble",
                     hero: {
                         type: "image",
-                        url: dynamicDriverInfo.photo, // ⚠️ 之後你可以把這裡換成專屬名片圖的 URL
+                        url: "https://u002146.github.io/103lybcd/photos/TDP-1123.jpg", // 🎯 你的專屬名片橫幅
                         size: "full",
                         aspectRatio: "20:13", 
                         aspectMode: "cover"
@@ -424,7 +424,7 @@
                             {
                                 type: "box", layout: "baseline", margin: "md",
                                 contents: [ 
-                                    { type: "icon", size: "sm", url: dynamicDriverInfo.photo }, 
+                                    { type: "icon", size: "sm", url: dynamicDriverInfo.photo }, // 這裡保留司機個人大頭照
                                     { type: "text", text: `${dynamicDriverInfo.name} ${dynamicDriverInfo.carNo}`, weight: "bold", size: "md", margin: "sm", color: "#333333" } 
                                 ]
                             },
