@@ -1,3 +1,4 @@
+// v4.8 [旅遊專區升級：客製化清單一鍵回傳聊天室]
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
@@ -93,7 +94,7 @@
             <p class="text-[11px] text-gray-500 mb-3 line-clamp-2">掌握每日最新放行時段，帶您避開管制、走進最震撼的峽谷秘境。</p>
             <div class="mt-auto pt-2 border-t border-gray-50 flex justify-between items-center">
               <span class="text-green-600 font-black text-sm">$3,800<span class="text-[10px] text-gray-400 font-normal"> 起/5人座</span></span>
-              <button onclick="bookTour('太魯閣深度遊')" class="bg-green-50 hover:bg-green-100 text-green-600 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors">諮詢路線</button>
+              <button onclick="bookTour('太魯閣深度遊')" class="bg-green-50 hover:bg-green-100 text-green-600 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors">規劃清單</button>
             </div>
           </div>
         </div>
@@ -105,7 +106,7 @@
             <p class="text-[11px] text-gray-500 mb-3 line-clamp-2">台11線無敵海景，從山度空間到天空之鏡，最熱門打卡景點一次收集。</p>
             <div class="mt-auto pt-2 border-t border-gray-50 flex justify-between items-center">
               <span class="text-green-600 font-black text-sm">$3,800<span class="text-[10px] text-gray-400 font-normal"> 起/5人座</span></span>
-              <button onclick="bookTour('蔚藍東海岸網美線')" class="bg-green-50 hover:bg-green-100 text-green-600 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors">諮詢路線</button>
+              <button onclick="bookTour('蔚藍東海岸網美線')" class="bg-green-50 hover:bg-green-100 text-green-600 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors">規劃清單</button>
             </div>
           </div>
         </div>
@@ -117,7 +118,7 @@
             <p class="text-[11px] text-gray-500 mb-3 line-clamp-2">台9線田園風光，雲山水、瑞穗牧場，最適合全家大小的愜意旅程。</p>
             <div class="mt-auto pt-2 border-t border-gray-50 flex justify-between items-center">
               <span class="text-green-600 font-black text-sm">$4,000<span class="text-[10px] text-gray-400 font-normal"> 起/5人座</span></span>
-              <button onclick="bookTour('花東縱谷慢活行')" class="bg-green-50 hover:bg-green-100 text-green-600 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors">諮詢路線</button>
+              <button onclick="bookTour('花東縱谷慢活行')" class="bg-green-50 hover:bg-green-100 text-green-600 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors">規劃清單</button>
             </div>
           </div>
         </div>
@@ -202,27 +203,81 @@
       }
     }
 
-    // 旅遊包車預約觸發 (引導至 LINE 客服)
+    // 🚀 升級版：旅遊包車預約表單 (SweetAlert 內嵌 HTML)
     function bookTour(routeName) {
+      const formHtml = `
+        <div class="text-left text-sm text-gray-700 mt-2 font-bold space-y-4">
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">📅 預計出發日期</label>
+            <input type="date" id="tourDate" class="w-full border border-gray-300 rounded-xl p-2.5 text-gray-800 bg-gray-50 focus:border-green-500 focus:ring-1 focus:ring-green-500 outline-none">
+          </div>
+          
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">👥 乘車人數</label>
+            <select id="tourPax" class="w-full border border-gray-300 rounded-xl p-2.5 text-gray-800 bg-gray-50 outline-none">
+              <option value="1-4人 (安排五人座)">1~4人 (安排五人座)</option>
+              <option value="5-6人 (安排七人座)">5~6人 (安排七人座)</option>
+              <option value="7-8人 (安排九人座)">7~8人 (安排九人座)</option>
+            </select>
+          </div>
+          
+          <div>
+            <label class="block text-xs text-gray-500 mb-2">✨ 客製化需求 (可複選)</label>
+            <div class="grid grid-cols-2 gap-2 text-[13px]">
+              <label class="flex items-center gap-2 p-2.5 border rounded-xl bg-gray-50 active:bg-green-50 transition-colors cursor-pointer">
+                <input type="checkbox" class="tour-need w-4 h-4 text-green-500 accent-green-500" value="有長輩同行 (需少走路)"> 有長輩同行
+              </label>
+              <label class="flex items-center gap-2 p-2.5 border rounded-xl bg-gray-50 active:bg-green-50 transition-colors cursor-pointer">
+                <input type="checkbox" class="tour-need w-4 h-4 text-green-500 accent-green-500" value="需要兒童座椅"> 兒童座椅
+              </label>
+              <label class="flex items-center gap-2 p-2.5 border rounded-xl bg-gray-50 active:bg-green-50 transition-colors cursor-pointer">
+                <input type="checkbox" class="tour-need w-4 h-4 text-green-500 accent-green-500" value="攜帶大件行李/輪椅"> 大件行李/輪椅
+              </label>
+              <label class="flex items-center gap-2 p-2.5 border rounded-xl bg-gray-50 active:bg-green-50 transition-colors cursor-pointer">
+                <input type="checkbox" class="tour-need w-4 h-4 text-green-500 accent-green-500" value="行程微調/美食推薦"> 景點微調
+              </label>
+            </div>
+          </div>
+        </div>
+      `;
+
       Swal.fire({
         title: `預約 ${routeName}`,
-        html: `
-          <div class="text-left text-sm text-gray-600 leading-relaxed mt-2">
-            <p class="mb-2">包車旅遊服務需與您確認 <b class="text-gray-800">乘車人數、日期與客製化細節</b>，以提供最精準的報價。</p>
-            <p>點擊下方按鈕，將開啟我們的官方 LINE，請直接發送訊息與我們討論行程喔！</p>
-          </div>
-        `,
-        icon: 'info',
+        html: formHtml,
         showCancelButton: true,
-        confirmButtonText: '<i class="fa-brands fa-line text-lg mr-1"></i> 前往 LINE 諮詢',
-        cancelButtonText: '稍後再說',
+        confirmButtonText: '<i class="fa-solid fa-paper-plane mr-1"></i> 送出清單給老司機',
+        cancelButtonText: '取消',
         confirmButtonColor: '#00C853',
         cancelButtonColor: '#9ca3af',
-        customClass: { popup: 'rounded-2xl' }
+        customClass: { popup: 'rounded-[24px]' },
+        // 點擊確認前進行檢查
+        preConfirm: () => {
+          const date = document.getElementById('tourDate').value;
+          const pax = document.getElementById('tourPax').value;
+          // 抓取所有有打勾的 checkbox
+          const checkedNeeds = Array.from(document.querySelectorAll('.tour-need:checked')).map(cb => cb.value);
+          
+          if (!date) {
+            Swal.showValidationMessage('請先選擇預計出發日期喔！');
+            return false;
+          }
+          
+          return { date, pax, checkedNeeds };
+        }
       }).then((result) => {
         if (result.isConfirmed) {
-          // 導向你的官方 LINE 帳號
-          window.location.href = "https://lin.ee/9Davl6e";
+          const data = result.value;
+          const needsText = data.checkedNeeds.length > 0 ? data.checkedNeeds.join('、') : '無特別需求';
+          
+          // 組合要傳送到聊天室的文字
+          const message = `🚕 【包車諮詢】\n我想了解「${routeName}」\n📅 日期：${data.date}\n👥 人數：${data.pax}\n✨ 需求：${needsText}\n\n老闆您好，請幫我評估行程與報價！`;
+          
+          // 🚨 重點技術：使用 LINE oaMessage 協議，自動跳轉並預填文字 (替換為你的官方帳號 ID)
+          const lineOfficialAccountId = "@103lybcd"; 
+          const lineOaUrl = `https://line.me/R/oaMessage/${lineOfficialAccountId}/?${encodeURIComponent(message)}`;
+          
+          // 執行跳轉
+          window.location.href = lineOaUrl;
         }
       });
     }
