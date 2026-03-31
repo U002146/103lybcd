@@ -1,4 +1,4 @@
-// v1.6 [漏斗收斂與單一CTA優化]
+// v1.7 [三車型報價精準化 - KKday 行情校準]
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
@@ -71,7 +71,7 @@
           <p class="text-sm text-slate-500 mb-4 leading-relaxed">掌握每日最新放行時段，帶您避開管制、走進最震撼的峽谷秘境。</p>
           <div class="border-t border-gray-100 pt-4 mt-2">
             <div class="text-[10px] text-slate-400 font-bold mb-0.5">預估基準車資</div>
-            <div class="text-emerald-600 font-black text-xl">$2,500<span class="text-xs text-slate-400 font-normal"> 起/半日</span></div>
+            <div class="text-emerald-600 font-black text-xl">$2,000<span class="text-xs text-slate-400 font-normal"> 起/半日</span></div>
           </div>
         </div>
       </div>
@@ -86,7 +86,7 @@
           <p class="text-sm text-slate-500 mb-4 leading-relaxed">沿著台11線擁抱無敵海景。山度空間、天空之鏡一次收集。</p>
           <div class="border-t border-gray-100 pt-4 mt-2">
             <div class="text-[10px] text-slate-400 font-bold mb-0.5">預估基準車資</div>
-            <div class="text-blue-600 font-black text-xl">$2,500<span class="text-xs text-slate-400 font-normal"> 起/半日</span></div>
+            <div class="text-blue-600 font-black text-xl">$2,000<span class="text-xs text-slate-400 font-normal"> 起/半日</span></div>
           </div>
         </div>
       </div>
@@ -101,7 +101,7 @@
           <p class="text-sm text-slate-500 mb-4 leading-relaxed">漫步台9線綠色走廊。雲山水、光復糖廠，步調緩慢的放鬆之旅。</p>
           <div class="border-t border-gray-100 pt-4 mt-2">
             <div class="text-[10px] text-slate-400 font-bold mb-0.5">預估基準車資</div>
-            <div class="text-amber-600 font-black text-xl">$2,800<span class="text-xs text-slate-400 font-normal"> 起/半日</span></div>
+            <div class="text-amber-600 font-black text-xl">$2,200<span class="text-xs text-slate-400 font-normal"> 起/半日</span></div>
           </div>
         </div>
       </div>
@@ -110,7 +110,7 @@
 
     <div class="text-center py-8 bg-slate-900 text-slate-400 text-xs font-bold mt-4">
       <p>Copyright © 花蓮敬老愛心車隊 (劉學銘)</p>
-      <p class="mt-1 opacity-60">Tourism Charter System v1.6</p>
+      <p class="mt-1 opacity-60">Tourism Charter System v1.7</p>
     </div>
   </div>
 
@@ -144,9 +144,13 @@
       });
     };
 
+    // 🚀 v1.7 對齊 KKday 報價基準，新增七人座級距，南線微調增加防禦加給
     const TOUR_DATA = {
       'taroko': { 
-        name: '太魯閣峽谷深度遊', halfPrice5: 2500, fullPrice5: 3800, halfPrice9: 3500, fullPrice9: 5300, 
+        name: '太魯閣峽谷深度遊', 
+        half5: 2000, full5: 2880, 
+        half7: 2200, full7: 3295, 
+        half9: 2940, full9: 4680, 
         points: [
           { name: '清水斷崖', drive: 50, stay: 40 },
           { name: '砂卡礑步道 (依管制)', drive: 35, stay: 60 },
@@ -158,7 +162,10 @@
         ]
       },
       'coast': { 
-        name: '蔚藍東海岸網美線', halfPrice5: 2500, fullPrice5: 3800, halfPrice9: 3500, fullPrice9: 5300, 
+        name: '蔚藍東海岸網美線', 
+        half5: 2000, full5: 2880, 
+        half7: 2200, full7: 3295, 
+        half9: 2940, full9: 4680, 
         points: [
           { name: '遠雄海洋公園 (門口拍照)', drive: 20, stay: 20 },
           { name: '山度空間 / 海崖谷', drive: 25, stay: 60 },
@@ -170,7 +177,10 @@
         ]
       },
       'valley': { 
-        name: '花東縱谷慢活行', halfPrice5: 2800, fullPrice5: 4000, halfPrice9: 3800, fullPrice9: 5500, 
+        name: '花東縱谷慢活行', 
+        half5: 2200, full5: 3100, 
+        half7: 2400, full7: 3500, 
+        half9: 3100, full9: 4900, 
         points: [
           { name: '鯉魚潭風景區', drive: 30, stay: 60 },
           { name: '雲山水夢幻湖', drive: 40, stay: 60 },
@@ -195,7 +205,8 @@
               <label class="block text-[11px] text-slate-500 mb-1 uppercase tracking-wider">Car Type 乘車人數</label>
               <select id="tourCar" class="w-full border border-slate-300 rounded-xl p-2.5 bg-slate-50 focus:border-slate-800 outline-none">
                 <option value="5">1-4人 (五人座)</option>
-                <option value="9">5-8人 (九人座)</option>
+                <option value="7">5-6人 (七人座)</option>
+                <option value="9">7-8人 (九人座)</option>
               </select>
             </div>
           </div>
@@ -301,17 +312,17 @@
               
               let tierText = '';
               let calcPrice = 0;
-              const isFive = carSelect.value === '5';
+              const carType = carSelect.value; // '5', '7', or '9'
 
               if(totalHours <= 4.5) {
                  tierText = '<span class="text-blue-400">判定：半日遊 (4H)</span>';
-                 calcPrice = isFive ? data.halfPrice5 : data.halfPrice9;
+                 calcPrice = data['half' + carType];
               } else if (totalHours <= 8.5) {
                  tierText = '<span class="text-emerald-400">判定：一日遊 (8H)</span>';
-                 calcPrice = isFive ? data.fullPrice5 : data.fullPrice9;
+                 calcPrice = data['full' + carType];
               } else {
                  tierText = '<span class="text-rose-400"><i class="fa-solid fa-triangle-exclamation"></i> 行程過滿(超時風險)</span>';
-                 calcPrice = isFive ? data.fullPrice5 : data.fullPrice9;
+                 calcPrice = data['full' + carType];
               }
 
               document.getElementById('priceDisplay').innerText = `$${calcPrice.toLocaleString()}`;
@@ -342,11 +353,16 @@
           const routeVal = document.getElementById('tourRoute').value;
           const carVal = document.getElementById('tourCar').value;
           const calcData = window.currentCalcResult;
+          
+          let carText = '';
+          if(carVal === '5') carText = '五人座 (1-4人)';
+          else if(carVal === '7') carText = '七人座 (5-6人)';
+          else carText = '九人座 (7-8人)';
 
           return { 
             date, 
             routeName: TOUR_DATA[routeVal].name, 
-            carType: carVal === '5' ? '五人座 (1-4人)' : '九人座 (5-8人)', 
+            carType: carText, 
             price: calcData.calcPrice,
             tierText: calcData.tierText,
             totalMinutes: calcData.totalMinutes,
