@@ -168,8 +168,7 @@
     let isLiffReady = false;
 
     window.onload = function() {
-      // 若尚未申請，可先註解這段以網頁模式測試，上線時務必開啟
-      /*
+      // 🚀 正式解除封印，啟動真實 LIFF 引擎！
       liff.init({ liffId: TOUR_LIFF_ID }).then(() => {
         isLiffReady = true;
         document.getElementById('liff-status-text').innerHTML = '<i class="fa-solid fa-shield-check text-emerald-400"></i> 系統安全連線完畢';
@@ -178,11 +177,8 @@
         console.error('LIFF Init Error:', err);
         document.getElementById('liff-status-text').innerHTML = '<i class="fa-solid fa-triangle-exclamation text-rose-400"></i> 外部瀏覽器模式';
       });
-      */
       
-      // 測試用：假裝連線成功
-      isLiffReady = true; 
-      document.getElementById('liff-status-text').innerHTML = '<i class="fa-solid fa-shield-check text-emerald-400"></i> 系統安全連線完畢';
+      // ⚠️ (原本的測試用 isLiffReady = true 已經刪除)
     };
 
     function contactCS() {
