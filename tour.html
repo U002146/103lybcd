@@ -1,12 +1,13 @@
+// v1.1 [獨立旅遊大廳 - 修復 Flex Message 屬性錯誤 & 綁定新 LIFF]
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>花蓮深度包車旅遊</title>
+  <title>學銘專車：花蓮深度包車旅遊</title>
   
-  <meta name="description" content="花蓮旅遊包車 - 透明報價不喊價，給您最深度的專屬行程。">
-  <meta property="og:title" content="花蓮深度包車旅遊">
+  <meta name="description" content="花蓮旅遊包車 - 六年實戰老司機帶路，透明報價不喊價，給您最深度的專屬行程。">
+  <meta property="og:title" content="學銘專車：花蓮深度包車旅遊">
   <meta property="og:description" content="太魯閣、東海岸、花東縱谷。客製化景點路線，一鍵規劃您的專屬旅程！">
   
   <script src="https://cdn.tailwindcss.com"></script>
@@ -16,23 +17,16 @@
 
   <style>
     body { background-color: #f3f4f6; font-family: -apple-system, 'Noto Sans TC', Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
-    
     ::-webkit-scrollbar { width: 0px; height: 0px; background: transparent; }
     html { scroll-behavior: smooth; }
-    
     .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
-    
-    /* 圖片防破圖美化 */
     img { position: relative; }
     img::after {
       content: "圖片載入中..."; display: flex; justify-content: center; align-items: center;
       position: absolute; top: 0; left: 0; width: 100%; height: 100%;
       background-color: #f3f4f6; color: #9ca3af; font-weight: bold; font-size: 14px;
     }
-    
     .swal2-popup { border-radius: 24px !important; font-family: 'Noto Sans TC', sans-serif !important; padding-bottom: 20px !important;}
-    
-    /* 自訂 Checkbox 樣式 */
     .custom-checkbox input:checked + div { background-color: #dcfce7; border-color: #22c55e; color: #166534; }
     .custom-checkbox input:checked + div i { color: #16a34a; }
   </style>
@@ -54,7 +48,6 @@
     <div class="relative w-full h-64 bg-slate-800 flex flex-col justify-end p-6 overflow-hidden">
       <img src="https://images.unsplash.com/photo-1574676113645-562a210b38fa?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" class="absolute inset-0 w-full h-full object-cover opacity-50 mix-blend-overlay" alt="花蓮美景">
       <div class="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/60 to-transparent"></div>
-      
       <div class="relative z-10">
         <span class="inline-block px-2 py-1 bg-emerald-500 text-white text-[10px] font-bold tracking-widest rounded mb-2">在地資深車隊</span>
         <h2 class="text-3xl font-black text-white mb-1 leading-tight">六年實戰老司機<br>帶您看見真實花蓮</h2>
@@ -75,9 +68,7 @@
       <div class="bg-white rounded-[24px] shadow-lg overflow-hidden border border-gray-100">
         <div class="relative h-48 w-full">
           <img src="https://images.unsplash.com/photo-1574676113645-562a210b38fa?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" alt="太魯閣" class="w-full h-full object-cover">
-          <div class="absolute top-3 left-3 bg-black/60 backdrop-blur-sm text-white px-3 py-1 rounded-full text-xs font-bold tracking-wider">
-            北線行程
-          </div>
+          <div class="absolute top-3 left-3 bg-black/60 backdrop-blur-sm text-white px-3 py-1 rounded-full text-xs font-bold tracking-wider">北線行程</div>
         </div>
         <div class="p-5">
           <h3 class="text-xl font-black text-slate-800 mb-2">太魯閣峽谷深度遊</h3>
@@ -87,9 +78,7 @@
               <div class="text-[10px] text-slate-400 font-bold mb-0.5">預估基準車資</div>
               <div class="text-emerald-600 font-black text-xl">$3,800<span class="text-xs text-slate-400 font-normal"> 起/8H</span></div>
             </div>
-            <button onclick="openTourPlanner('taroko')" class="bg-slate-900 text-white px-5 py-2.5 rounded-xl font-bold active:scale-95 transition-transform shadow-md">
-              客製化路線
-            </button>
+            <button onclick="openTourPlanner('taroko')" class="bg-slate-900 text-white px-5 py-2.5 rounded-xl font-bold active:scale-95 transition-transform shadow-md">客製化路線</button>
           </div>
         </div>
       </div>
@@ -97,9 +86,7 @@
       <div class="bg-white rounded-[24px] shadow-lg overflow-hidden border border-gray-100">
         <div class="relative h-48 w-full">
           <img src="https://images.unsplash.com/photo-1549646875-9e6631df89cb?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" alt="東海岸" class="w-full h-full object-cover">
-          <div class="absolute top-3 left-3 bg-blue-600/80 backdrop-blur-sm text-white px-3 py-1 rounded-full text-xs font-bold tracking-wider">
-            海線行程
-          </div>
+          <div class="absolute top-3 left-3 bg-blue-600/80 backdrop-blur-sm text-white px-3 py-1 rounded-full text-xs font-bold tracking-wider">海線行程</div>
         </div>
         <div class="p-5">
           <h3 class="text-xl font-black text-slate-800 mb-2">蔚藍東海岸網美線</h3>
@@ -109,9 +96,7 @@
               <div class="text-[10px] text-slate-400 font-bold mb-0.5">預估基準車資</div>
               <div class="text-blue-600 font-black text-xl">$3,800<span class="text-xs text-slate-400 font-normal"> 起/8H</span></div>
             </div>
-            <button onclick="openTourPlanner('coast')" class="bg-blue-600 text-white px-5 py-2.5 rounded-xl font-bold active:scale-95 transition-transform shadow-md">
-              客製化路線
-            </button>
+            <button onclick="openTourPlanner('coast')" class="bg-blue-600 text-white px-5 py-2.5 rounded-xl font-bold active:scale-95 transition-transform shadow-md">客製化路線</button>
           </div>
         </div>
       </div>
@@ -119,9 +104,7 @@
       <div class="bg-white rounded-[24px] shadow-lg overflow-hidden border border-gray-100">
         <div class="relative h-48 w-full">
           <img src="https://images.unsplash.com/photo-1616766467332-9ecb1c0bf11e?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" alt="花東縱谷" class="w-full h-full object-cover">
-          <div class="absolute top-3 left-3 bg-amber-500/80 backdrop-blur-sm text-white px-3 py-1 rounded-full text-xs font-bold tracking-wider">
-            南線行程
-          </div>
+          <div class="absolute top-3 left-3 bg-amber-500/80 backdrop-blur-sm text-white px-3 py-1 rounded-full text-xs font-bold tracking-wider">南線行程</div>
         </div>
         <div class="p-5">
           <h3 class="text-xl font-black text-slate-800 mb-2">花東縱谷慢活行</h3>
@@ -131,9 +114,7 @@
               <div class="text-[10px] text-slate-400 font-bold mb-0.5">預估基準車資</div>
               <div class="text-amber-600 font-black text-xl">$4,000<span class="text-xs text-slate-400 font-normal"> 起/8H</span></div>
             </div>
-            <button onclick="openTourPlanner('valley')" class="bg-amber-500 text-white px-5 py-2.5 rounded-xl font-bold active:scale-95 transition-transform shadow-md">
-              客製化路線
-            </button>
+            <button onclick="openTourPlanner('valley')" class="bg-amber-500 text-white px-5 py-2.5 rounded-xl font-bold active:scale-95 transition-transform shadow-md">客製化路線</button>
           </div>
         </div>
       </div>
@@ -142,50 +123,46 @@
 
     <div class="text-center py-8 bg-slate-900 text-slate-400 text-xs font-bold mt-4">
       <p>Copyright © 花蓮敬老愛心車隊 (劉學銘)</p>
-      <p class="mt-1 opacity-60">Tourism Charter System v1.0</p>
+      <p class="mt-1 opacity-60">Tourism Charter System v1.1</p>
     </div>
   </div>
 
   <div class="fixed bottom-0 left-0 right-0 w-full z-50 bg-white/95 backdrop-blur-md border-t border-gray-200 shadow-[0_-10px_30px_rgba(0,0,0,0.1)] pb-safe">
     <div class="max-w-md mx-auto px-4 py-3 flex gap-3">
-      
       <a href="https://liff.line.me/2008907691-CzDqd7mm" class="flex-1 bg-gray-100 text-slate-600 flex flex-col items-center justify-center py-2.5 rounded-2xl font-bold active:scale-95 transition-transform border border-gray-200">
         <i class="fa-solid fa-taxi text-xl mb-1 text-slate-500"></i>
         <span class="text-xs">市區短程</span>
       </a>
-      
       <button onclick="contactCS()" class="flex-[2] bg-slate-900 text-white flex items-center justify-center py-2.5 rounded-2xl font-bold shadow-lg active:scale-95 transition-transform">
         <i class="fa-brands fa-line text-2xl text-green-400 mr-2"></i>
         <span class="text-lg tracking-wider">專人行程諮詢</span>
       </button>
-      
     </div>
   </div>
 
   <script>
-    // 🚀 LIFF 初始化 (請在此處填入你為「旅遊包車」申請的全新 LIFF ID)
-    const TOUR_LIFF_ID = '2008907691-pJN7Hp1A'; // <--- 老闆，記得換成新的 LIFF ID
+    // 🚀 已換上你的專屬新 LIFF ID
+    const TOUR_LIFF_ID = '2008907691-pJN7Hp1A'; 
     let isLiffReady = false;
 
     window.onload = function() {
-      // 🚀 正式解除封印，啟動真實 LIFF 引擎！
+      // 🚀 正式啟動 LIFF 引擎
       liff.init({ liffId: TOUR_LIFF_ID }).then(() => {
         isLiffReady = true;
         document.getElementById('liff-status-text').innerHTML = '<i class="fa-solid fa-shield-check text-emerald-400"></i> 系統安全連線完畢';
-        if (!liff.isLoggedIn()) { liff.login({ redirectUri: window.location.href }); }
+        if (!liff.isLoggedIn()) { 
+           liff.login({ redirectUri: window.location.href }); 
+        }
       }).catch(err => {
         console.error('LIFF Init Error:', err);
         document.getElementById('liff-status-text').innerHTML = '<i class="fa-solid fa-triangle-exclamation text-rose-400"></i> 外部瀏覽器模式';
       });
-      
-      // ⚠️ (原本的測試用 isLiffReady = true 已經刪除)
     };
 
     function contactCS() {
        window.location.href = "https://lin.ee/9Davl6e";
     }
 
-    // 🗺️ 專業估價與路線防呆大腦 (核心邏輯)
     const TOUR_DATA = {
       'taroko': { 
         name: '太魯閣峽谷深度遊', 
@@ -207,7 +184,6 @@
     function openTourPlanner(defaultRouteId) {
       const formHtml = `
         <div class="text-left text-sm text-gray-700 mt-2 font-bold space-y-4">
-          
           <div class="grid grid-cols-2 gap-3">
             <div>
               <label class="block text-[11px] text-slate-500 mb-1 uppercase tracking-wider">Date 出發日期</label>
@@ -237,8 +213,7 @@
               <span>Points 自選景點清單</span>
               <span id="poiCount" class="text-emerald-600 font-black">已選 0 個</span>
             </label>
-            <div id="poiContainer" class="grid grid-cols-2 gap-2 text-[12px]">
-              </div>
+            <div id="poiContainer" class="grid grid-cols-2 gap-2 text-[12px]"></div>
             <p id="poiWarning" class="text-[10px] text-orange-500 mt-1 hidden"><i class="fa-solid fa-triangle-exclamation"></i> 景點超過 5 個可能會走馬看花，建議刪減或與客服討論加時。</p>
           </div>
 
@@ -261,7 +236,7 @@
         showCancelButton: true,
         confirmButtonText: '<i class="fa-solid fa-paper-plane mr-1"></i> 立即傳送給老司機',
         cancelButtonText: '取消',
-        confirmButtonColor: '#0f172a', /* slate-900 */
+        confirmButtonColor: '#0f172a',
         cancelButtonColor: '#94a3b8',
         customClass: { popup: 'rounded-[24px]', confirmButton: 'w-full text-lg shadow-lg' },
         didOpen: () => {
@@ -282,7 +257,6 @@
             const price = currentCar === '5' ? data.price5 : data.price9;
             priceDisplay.innerText = `$${price.toLocaleString()}`;
 
-            // 重繪景點
             container.innerHTML = data.points.map((pt) => `
               <label class="custom-checkbox block cursor-pointer active:scale-95 transition-transform">
                 <input type="checkbox" class="poi-check hidden" value="${pt}" onchange="updatePoiCount()">
@@ -331,14 +305,15 @@
       });
     }
 
-    // 🚀 發送專業 Flex Message 訂單
+    // 🚀 核心：發送修復格式後的 Flex Message 訂單
     async function sendFlexMessage(data) {
-      if (!isLiffReady || (liff.id && !liff.isLoggedIn())) {
-        Swal.fire('環境錯誤', '請在 LINE 內部開啟此頁面以傳送清單。', 'warning');
+      // 檢查是否在 LINE App 內開啟，外部瀏覽器無法傳送訊息
+      if (!liff.isInClient()) {
+        Swal.fire('環境錯誤', '為了確保您的預約安全，請在 LINE 聊天室內部開啟此頁面，才能自動傳送清單喔！', 'warning');
         return;
       }
 
-      Swal.fire({ title: '發送中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
+      Swal.fire({ title: '清單彙整發送中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
 
       const flexMessage = {
         type: "flex",
@@ -350,7 +325,8 @@
             type: "box", layout: "vertical", backgroundColor: "#0f172a", paddingAll: "16px",
             contents: [
               { type: "text", text: "📅 客製化包車諮詢", weight: "bold", color: "#ffffff", size: "xl" },
-              { type: "text", text: "旅遊大廳系統自動彙整", color: "#94a3b8", size: "xs", mt: "sm" }
+              // ⚠️ 修正點：將錯誤的 mt 屬性改為正確的 margin 屬性
+              { type: "text", text: "旅遊大廳系統自動彙整", color: "#94a3b8", size: "xs", margin: "sm" }
             ]
           },
           body: {
@@ -377,17 +353,11 @@
       };
 
       try {
-        if (liff.id) {
-            await liff.sendMessages([flexMessage]);
-            Swal.fire({ icon: 'success', title: '傳送成功！', text: '已將清單發送至聊天室，我會盡快為您確認行程。', confirmButtonColor: '#0f172a' }).then(() => liff.closeWindow());
-        } else {
-            // 網頁版測試用
-            console.log("Flex Message Payload:", flexMessage);
-            Swal.fire({ icon: 'success', title: '測試模式', text: '這是在瀏覽器測試，實際必須綁定 LIFF ID 才能發送至 LINE。', confirmButtonColor: '#0f172a' });
-        }
+        await liff.sendMessages([flexMessage]);
+        Swal.fire({ icon: 'success', title: '傳送成功！', text: '已將清單發送至聊天室，我會盡快為您確認行程。', confirmButtonColor: '#0f172a' }).then(() => liff.closeWindow());
       } catch (err) {
         console.error("發送失敗", err);
-        Swal.fire('發送失敗', '無法傳送訊息，請確認網路狀態。', 'error');
+        Swal.fire('發送失敗', '無法傳送訊息，請檢查您的網路狀態或 LINE 開關設定。', 'error');
       }
     }
   </script>
