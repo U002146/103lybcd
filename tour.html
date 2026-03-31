@@ -1,13 +1,10 @@
+// v1.2 [獨立旅遊大廳 - 終極除錯防呆版]
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>學銘專車：花蓮深度包車旅遊</title>
-  
-  <meta name="description" content="花蓮旅遊包車 - 六年實戰老司機帶路，透明報價不喊價，給您最深度的專屬行程。">
-  <meta property="og:title" content="學銘專車：花蓮深度包車旅遊">
-  <meta property="og:description" content="太魯閣、東海岸、花東縱谷。客製化景點路線，一鍵規劃您的專屬旅程！">
   
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -71,7 +68,7 @@
         </div>
         <div class="p-5">
           <h3 class="text-xl font-black text-slate-800 mb-2">太魯閣峽谷深度遊</h3>
-          <p class="text-sm text-slate-500 mb-4 leading-relaxed">掌握每日最新放行時段，帶您避開管制、走進最震撼的峽谷秘境。老司機專屬私房取景點，讓您的照片與眾不同。</p>
+          <p class="text-sm text-slate-500 mb-4 leading-relaxed">掌握每日最新放行時段，帶您避開管制、走進最震撼的峽谷秘境。</p>
           <div class="flex justify-between items-end border-t border-gray-100 pt-4">
             <div>
               <div class="text-[10px] text-slate-400 font-bold mb-0.5">預估基準車資</div>
@@ -89,7 +86,7 @@
         </div>
         <div class="p-5">
           <h3 class="text-xl font-black text-slate-800 mb-2">蔚藍東海岸網美線</h3>
-          <p class="text-sm text-slate-500 mb-4 leading-relaxed">沿著台11線擁抱無敵海景。從山度空間、天空之鏡到石梯坪，將花蓮最熱門的打卡景點一次收集，吹海風最愜意。</p>
+          <p class="text-sm text-slate-500 mb-4 leading-relaxed">沿著台11線擁抱無敵海景。山度空間、天空之鏡一次收集。</p>
           <div class="flex justify-between items-end border-t border-gray-100 pt-4">
             <div>
               <div class="text-[10px] text-slate-400 font-bold mb-0.5">預估基準車資</div>
@@ -107,7 +104,7 @@
         </div>
         <div class="p-5">
           <h3 class="text-xl font-black text-slate-800 mb-2">花東縱谷慢活行</h3>
-          <p class="text-sm text-slate-500 mb-4 leading-relaxed">漫步台9線綠色走廊。雲山水夢幻湖、光復糖廠吃冰、瑞穗牧場餵牛，最適合全家大小、步調緩慢的田園放鬆之旅。</p>
+          <p class="text-sm text-slate-500 mb-4 leading-relaxed">漫步台9線綠色走廊。雲山水、光復糖廠，步調緩慢的放鬆之旅。</p>
           <div class="flex justify-between items-end border-t border-gray-100 pt-4">
             <div>
               <div class="text-[10px] text-slate-400 font-bold mb-0.5">預估基準車資</div>
@@ -122,7 +119,7 @@
 
     <div class="text-center py-8 bg-slate-900 text-slate-400 text-xs font-bold mt-4">
       <p>Copyright © 花蓮敬老愛心車隊 (劉學銘)</p>
-      <p class="mt-1 opacity-60">Tourism Charter System v1.1</p>
+      <p class="mt-1 opacity-60">Tourism Charter System v1.2</p>
     </div>
   </div>
 
@@ -140,12 +137,11 @@
   </div>
 
   <script>
-    // 🚀 已換上你的專屬新 LIFF ID
+    // 🚀 綁定你給的最新 LIFF ID，請確保聊天室點的網址就是這個！
     const TOUR_LIFF_ID = '2008907691-pJN7Hp1A'; 
     let isLiffReady = false;
 
     window.onload = function() {
-      // 🚀 正式啟動 LIFF 引擎
       liff.init({ liffId: TOUR_LIFF_ID }).then(() => {
         isLiffReady = true;
         document.getElementById('liff-status-text').innerHTML = '<i class="fa-solid fa-shield-check text-emerald-400"></i> 系統安全連線完畢';
@@ -164,18 +160,15 @@
 
     const TOUR_DATA = {
       'taroko': { 
-        name: '太魯閣峽谷深度遊', 
-        price5: 3800, price9: 5300, 
+        name: '太魯閣峽谷深度遊', price5: 3800, price9: 5300, 
         points: ['清水斷崖', '砂卡礑步道 (依管制)', '燕子口 (依管制)', '九曲洞', '天祥/祥德寺', '長春祠', '七星潭風景區']
       },
       'coast': { 
-        name: '蔚藍東海岸網美線', 
-        price5: 3800, price9: 5300, 
+        name: '蔚藍東海岸網美線', price5: 3800, price9: 5300, 
         points: ['遠雄海洋公園 (門口拍照)', '山度空間 / 海崖谷', '貨櫃星巴克 (洄瀾門市)', '牛山呼庭', '大石鼻山步道', '石梯坪風景區', '新社梯田']
       },
       'valley': { 
-        name: '花東縱谷慢活行', 
-        price5: 4000, price9: 5500, 
+        name: '花東縱谷慢活行', price5: 4000, price9: 5500, 
         points: ['鯉魚潭風景區', '雲山水夢幻湖', '山姆先生咖啡館', '林田山林業文化園區', '光復糖廠', '瑞穗牧場 / 吉蒸牧場', '大農大富平地森林']
       }
     };
@@ -204,7 +197,6 @@
               <option value="coast">蔚藍東海岸網美線 (海線)</option>
               <option value="valley">花東縱谷慢活行 (南線)</option>
             </select>
-            <p class="text-[10px] text-rose-500 mt-1">*包車路線無法南北跨線混合，以確保司機服務品質與您的旅遊體驗。</p>
           </div>
           
           <div>
@@ -213,7 +205,6 @@
               <span id="poiCount" class="text-emerald-600 font-black">已選 0 個</span>
             </label>
             <div id="poiContainer" class="grid grid-cols-2 gap-2 text-[12px]"></div>
-            <p id="poiWarning" class="text-[10px] text-orange-500 mt-1 hidden"><i class="fa-solid fa-triangle-exclamation"></i> 景點超過 5 個可能會走馬看花，建議刪減或與客服討論加時。</p>
           </div>
 
           <div class="bg-slate-900 rounded-xl p-4 text-white shadow-inner flex justify-between items-center mt-4 border-l-4 border-emerald-500">
@@ -244,16 +235,12 @@
           const container = document.getElementById('poiContainer');
           const priceDisplay = document.getElementById('priceDisplay');
           const countDisplay = document.getElementById('poiCount');
-          const warning = document.getElementById('poiWarning');
 
           routeSelect.value = defaultRouteId;
 
           const updateUI = () => {
-            const currentRoute = routeSelect.value;
-            const currentCar = carSelect.value;
-            const data = TOUR_DATA[currentRoute];
-            
-            const price = currentCar === '5' ? data.price5 : data.price9;
+            const data = TOUR_DATA[routeSelect.value];
+            const price = carSelect.value === '5' ? data.price5 : data.price9;
             priceDisplay.innerText = `$${price.toLocaleString()}`;
 
             container.innerHTML = data.points.map((pt) => `
@@ -270,7 +257,6 @@
               const checked = document.querySelectorAll('.poi-check:checked').length;
               countDisplay.innerText = `已選 ${checked} 個`;
               countDisplay.className = checked > 5 ? 'text-orange-500 font-black' : 'text-emerald-600 font-black';
-              warning.style.display = checked > 5 ? 'block' : 'none';
             };
             window.updatePoiCount();
           };
@@ -282,13 +268,11 @@
         preConfirm: () => {
           const date = document.getElementById('tourDate').value;
           if (!date) { Swal.showValidationMessage('請選擇出發日期！'); return false; }
-          
-          const routeVal = document.getElementById('tourRoute').value;
-          const carVal = document.getElementById('tourCar').value;
           const checkedPois = Array.from(document.querySelectorAll('.poi-check:checked')).map(cb => cb.value);
-          
           if(checkedPois.length === 0) { Swal.showValidationMessage('請至少選擇 1 個想去的景點！'); return false; }
 
+          const routeVal = document.getElementById('tourRoute').value;
+          const carVal = document.getElementById('tourCar').value;
           return { 
             date, 
             routeName: TOUR_DATA[routeVal].name, 
@@ -304,11 +288,10 @@
       });
     }
 
-    // 🚀 核心：發送修復格式後的 Flex Message 訂單
+    // 🚀 核心：自帶「抓漏雷達」的發送引擎
     async function sendFlexMessage(data) {
-      // 檢查是否在 LINE App 內開啟，外部瀏覽器無法傳送訊息
       if (!liff.isInClient()) {
-        Swal.fire('環境錯誤', '為了確保您的預約安全，請在 LINE 聊天室內部開啟此頁面，才能自動傳送清單喔！', 'warning');
+        Swal.fire('環境錯誤', '請在 LINE 聊天室內部點擊網址開啟，才能傳送清單喔！', 'warning');
         return;
       }
 
@@ -324,7 +307,6 @@
             type: "box", layout: "vertical", backgroundColor: "#0f172a", paddingAll: "16px",
             contents: [
               { type: "text", text: "📅 客製化包車諮詢", weight: "bold", color: "#ffffff", size: "xl" },
-              // ⚠️ 修正點：將錯誤的 mt 屬性改為正確的 margin 屬性
               { type: "text", text: "旅遊大廳系統自動彙整", color: "#94a3b8", size: "xs", margin: "sm" }
             ]
           },
@@ -353,10 +335,30 @@
 
       try {
         await liff.sendMessages([flexMessage]);
-        Swal.fire({ icon: 'success', title: '傳送成功！', text: '已將清單發送至聊天室，我會盡快為您確認行程。', confirmButtonColor: '#0f172a' }).then(() => liff.closeWindow());
+        Swal.fire({ icon: 'success', title: '傳送成功！', text: '已發送至聊天室。', confirmButtonColor: '#0f172a' }).then(() => liff.closeWindow());
       } catch (err) {
         console.error("發送失敗", err);
-        Swal.fire('發送失敗', '無法傳送訊息，請檢查您的網路狀態或 LINE 開關設定。', 'error');
+        let errorMsg = err.message || JSON.stringify(err);
+        
+        // 🚨 抓漏雷達啟動：解析錯誤原因
+        if (errorMsg.includes("chat_message.write") || errorMsg.includes("permission")) {
+           Swal.fire({
+              icon: 'warning',
+              title: '權限被鎖死啦！',
+              html: 'LINE 還記著舊的權限，沒把 <b>chat_message.write</b> 開起來。<br><br>請點擊下方按鈕【重新登入授權】，讓 LINE 抓取最新權限！',
+              confirmButtonText: '<i class="fa-solid fa-rotate-right"></i> 重新登入授權',
+              confirmButtonColor: '#0f172a',
+              allowOutsideClick: false
+           }).then((res) => {
+              if (res.isConfirmed) {
+                 liff.logout(); // 清除舊暫存
+                 window.location.reload(); // 重新整理畫面觸發新登入
+              }
+           });
+        } else {
+           // 印出最原始的錯誤代碼給工程師看
+           Swal.fire('發送失敗 (請截圖)', '錯誤碼：' + errorMsg, 'error');
+        }
       }
     }
   </script>
