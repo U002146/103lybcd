@@ -1,4 +1,4 @@
-// v1.5 [客製化許願池與動態權重模組]
+// v1.6 [漏斗收斂與單一CTA優化]
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
@@ -69,12 +69,9 @@
         <div class="p-5">
           <h3 class="text-xl font-black text-slate-800 mb-2">太魯閣峽谷深度遊</h3>
           <p class="text-sm text-slate-500 mb-4 leading-relaxed">掌握每日最新放行時段，帶您避開管制、走進最震撼的峽谷秘境。</p>
-          <div class="flex justify-between items-end border-t border-gray-100 pt-4">
-            <div>
-              <div class="text-[10px] text-slate-400 font-bold mb-0.5">預估基準車資</div>
-              <div class="text-emerald-600 font-black text-xl">$2,500<span class="text-xs text-slate-400 font-normal"> 起/半日</span></div>
-            </div>
-            <button onclick="openTourPlanner('taroko')" class="bg-slate-900 text-white px-5 py-2.5 rounded-xl font-bold active:scale-95 transition-transform shadow-md">客製化路線</button>
+          <div class="border-t border-gray-100 pt-4 mt-2">
+            <div class="text-[10px] text-slate-400 font-bold mb-0.5">預估基準車資</div>
+            <div class="text-emerald-600 font-black text-xl">$2,500<span class="text-xs text-slate-400 font-normal"> 起/半日</span></div>
           </div>
         </div>
       </div>
@@ -87,12 +84,9 @@
         <div class="p-5">
           <h3 class="text-xl font-black text-slate-800 mb-2">蔚藍東海岸網美線</h3>
           <p class="text-sm text-slate-500 mb-4 leading-relaxed">沿著台11線擁抱無敵海景。山度空間、天空之鏡一次收集。</p>
-          <div class="flex justify-between items-end border-t border-gray-100 pt-4">
-            <div>
-              <div class="text-[10px] text-slate-400 font-bold mb-0.5">預估基準車資</div>
-              <div class="text-blue-600 font-black text-xl">$2,500<span class="text-xs text-slate-400 font-normal"> 起/半日</span></div>
-            </div>
-            <button onclick="openTourPlanner('coast')" class="bg-blue-600 text-white px-5 py-2.5 rounded-xl font-bold active:scale-95 transition-transform shadow-md">客製化路線</button>
+          <div class="border-t border-gray-100 pt-4 mt-2">
+            <div class="text-[10px] text-slate-400 font-bold mb-0.5">預估基準車資</div>
+            <div class="text-blue-600 font-black text-xl">$2,500<span class="text-xs text-slate-400 font-normal"> 起/半日</span></div>
           </div>
         </div>
       </div>
@@ -105,12 +99,9 @@
         <div class="p-5">
           <h3 class="text-xl font-black text-slate-800 mb-2">花東縱谷慢活行</h3>
           <p class="text-sm text-slate-500 mb-4 leading-relaxed">漫步台9線綠色走廊。雲山水、光復糖廠，步調緩慢的放鬆之旅。</p>
-          <div class="flex justify-between items-end border-t border-gray-100 pt-4">
-            <div>
-              <div class="text-[10px] text-slate-400 font-bold mb-0.5">預估基準車資</div>
-              <div class="text-amber-600 font-black text-xl">$2,800<span class="text-xs text-slate-400 font-normal"> 起/半日</span></div>
-            </div>
-            <button onclick="openTourPlanner('valley')" class="bg-amber-500 text-white px-5 py-2.5 rounded-xl font-bold active:scale-95 transition-transform shadow-md">客製化路線</button>
+          <div class="border-t border-gray-100 pt-4 mt-2">
+            <div class="text-[10px] text-slate-400 font-bold mb-0.5">預估基準車資</div>
+            <div class="text-amber-600 font-black text-xl">$2,800<span class="text-xs text-slate-400 font-normal"> 起/半日</span></div>
           </div>
         </div>
       </div>
@@ -119,7 +110,7 @@
 
     <div class="text-center py-8 bg-slate-900 text-slate-400 text-xs font-bold mt-4">
       <p>Copyright © 花蓮敬老愛心車隊 (劉學銘)</p>
-      <p class="mt-1 opacity-60">Tourism Charter System v1.5</p>
+      <p class="mt-1 opacity-60">Tourism Charter System v1.6</p>
     </div>
   </div>
 
@@ -129,9 +120,9 @@
         <i class="fa-solid fa-taxi text-xl mb-1 text-slate-500"></i>
         <span class="text-xs">市區短程</span>
       </a>
-      <button onclick="contactCS()" class="flex-[2] bg-slate-900 text-white flex items-center justify-center py-2.5 rounded-2xl font-bold shadow-lg active:scale-95 transition-transform">
-        <i class="fa-brands fa-line text-2xl text-green-400 mr-2"></i>
-        <span class="text-lg tracking-wider">專人行程諮詢</span>
+      <button onclick="openTourPlanner('taroko')" class="flex-[2] bg-slate-900 text-white flex items-center justify-center py-2.5 rounded-2xl font-bold shadow-lg active:scale-95 transition-transform">
+        <i class="fa-solid fa-map-location-dot text-2xl text-emerald-400 mr-2"></i>
+        <span class="text-lg tracking-wider">開始客製化規劃</span>
       </button>
     </div>
   </div>
@@ -152,10 +143,6 @@
         document.getElementById('liff-status-text').innerHTML = '<i class="fa-solid fa-triangle-exclamation text-rose-400"></i> 外部瀏覽器模式';
       });
     };
-
-    function contactCS() {
-       window.location.href = "https://lin.ee/9Davl6e";
-    }
 
     const TOUR_DATA = {
       'taroko': { 
@@ -280,7 +267,6 @@
               </label>
             `).join('');
             
-            // 🚀 v1.5 動態防呆運算：納入許願池虛擬權重
             window.updatePoiCount = () => {
               const checkedBoxes = Array.from(document.querySelectorAll('.poi-check:checked'));
               const count = checkedBoxes.length;
@@ -305,7 +291,6 @@
                  totalStay += s;
               });
 
-              // 許願池虛擬權重：單趟預設40分、停留50分 (共佔用1.5H)
               if (customVal !== '') {
                  if (40 > maxDrive) maxDrive = 40;
                  totalStay += 50;
@@ -400,7 +385,6 @@
         contentsBody.push({ type: "text", text: data.pois.map(p => "・" + p).join("\n"), wrap: true, size: "sm", color: "#475569", margin: "md" });
       }
 
-      // 🚀 v1.5 若有許願池內容，獨立紅色標註
       if (data.customPoi) {
         contentsBody.push({ type: "box", layout: "horizontal", margin: "md", contents: [ { type: "text", text: "⭐ 許願池", color: "#64748b", size: "sm", flex: 2 }, { type: "text", text: data.customPoi, weight: "bold", size: "sm", flex: 5, color: "#f43f5e", wrap: true } ] });
       }
@@ -432,7 +416,6 @@
           footer: {
             type: "box", layout: "vertical", paddingAll: "16px", backgroundColor: "#f8fafc",
             contents: [
-              // 🚀 v1.5 法規防禦免責聲明更新
               { type: "text", text: "老闆您好，以上為系統初估報價。包含客製化許願景點，實際路線順暢度與最終報價以您確認為準，謝謝！", wrap: true, size: "xs", color: "#64748b" }
             ]
           }
