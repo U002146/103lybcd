@@ -1,4 +1,4 @@
-// v1.4 [老司機極值演算法報價模組]
+// v1.5 [客製化許願池與動態權重模組]
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
@@ -119,7 +119,7 @@
 
     <div class="text-center py-8 bg-slate-900 text-slate-400 text-xs font-bold mt-4">
       <p>Copyright © 花蓮敬老愛心車隊 (劉學銘)</p>
-      <p class="mt-1 opacity-60">Tourism Charter System v1.4</p>
+      <p class="mt-1 opacity-60">Tourism Charter System v1.5</p>
     </div>
   </div>
 
@@ -157,7 +157,6 @@
        window.location.href = "https://lin.ee/9Davl6e";
     }
 
-    // 🚀 [老司機極值演算法報價模組] 資料庫重構：加入單趟車程(drive)與停留時間(stay)，單位為分鐘
     const TOUR_DATA = {
       'taroko': { 
         name: '太魯閣峽谷深度遊', halfPrice5: 2500, fullPrice5: 3800, halfPrice9: 3500, fullPrice9: 5300, 
@@ -229,6 +228,12 @@
               <span id="poiCount" class="text-emerald-600 font-black">已選 0 個</span>
             </label>
             <div id="poiContainer" class="grid grid-cols-2 gap-2 text-[12px]"></div>
+            
+            <div class="mt-3 border-t border-gray-100 pt-3">
+              <label class="block text-[11px] text-slate-500 mb-1 uppercase tracking-wider"><i class="fa-solid fa-wand-magic-sparkles text-amber-500 mr-1"></i>Custom 客製化許願池</label>
+              <input type="text" id="customPoi" placeholder="想去清單外的秘境？請填寫於此" class="w-full border border-slate-300 rounded-xl p-2.5 bg-white focus:border-emerald-500 outline-none text-sm transition-colors" oninput="updatePoiCount()">
+              <p class="text-[10px] text-slate-400 mt-1 font-normal">*客製景點將動態增加系統預估車程耗時</p>
+            </div>
           </div>
 
           <div class="bg-slate-900 rounded-xl p-4 text-white shadow-inner flex justify-between items-center mt-4 border-l-4 border-emerald-500">
@@ -258,13 +263,13 @@
           const carSelect = document.getElementById('tourCar');
           const container = document.getElementById('poiContainer');
           const countDisplay = document.getElementById('poiCount');
+          const customInput = document.getElementById('customPoi');
 
           routeSelect.value = defaultRouteId;
 
           const updateUI = () => {
             const data = TOUR_DATA[routeSelect.value];
             
-            // 渲染景點選項，將車程與停留時間埋入 dataset
             container.innerHTML = data.points.map((pt) => `
               <label class="custom-checkbox block cursor-pointer active:scale-95 transition-transform">
                 <input type="checkbox" class="poi-check hidden" value="${pt.name}" data-drive="${pt.drive}" data-stay="${pt.stay}" onchange="updatePoiCount()">
@@ -275,14 +280,16 @@
               </label>
             `).join('');
             
-            // 🚀 核心：動態極值計價與防呆運算
+            // 🚀 v1.5 動態防呆運算：納入許願池虛擬權重
             window.updatePoiCount = () => {
               const checkedBoxes = Array.from(document.querySelectorAll('.poi-check:checked'));
               const count = checkedBoxes.length;
-              countDisplay.innerText = `已選 ${count} 個`;
-              countDisplay.className = count > 5 ? 'text-orange-500 font-black' : 'text-emerald-600 font-black';
+              const customVal = customInput.value.trim();
+              
+              countDisplay.innerText = `已選 ${count} 個` + (customVal ? ' + 許願' : '');
+              countDisplay.className = (count > 5 || customVal) ? 'text-orange-500 font-black' : 'text-emerald-600 font-black';
 
-              if(count === 0) {
+              if(count === 0 && !customVal) {
                  document.getElementById('priceDisplay').innerText = '$0';
                  document.getElementById('timeDisplay').innerHTML = '<i class="fa-regular fa-clock text-emerald-400 mr-1"></i>請選擇景點';
                  return;
@@ -290,6 +297,7 @@
 
               let maxDrive = 0;
               let totalStay = 0;
+              
               checkedBoxes.forEach(cb => {
                  const d = parseInt(cb.dataset.drive);
                  const s = parseInt(cb.dataset.stay);
@@ -297,7 +305,12 @@
                  totalStay += s;
               });
 
-              // 極值運算：最遠單趟*2 + 停留總和
+              // 許願池虛擬權重：單趟預設40分、停留50分 (共佔用1.5H)
+              if (customVal !== '') {
+                 if (40 > maxDrive) maxDrive = 40;
+                 totalStay += 50;
+              }
+
               const totalMinutes = (maxDrive * 2) + totalStay;
               const totalHours = totalMinutes / 60;
               
@@ -319,7 +332,6 @@
               document.getElementById('priceDisplay').innerText = `$${calcPrice.toLocaleString()}`;
               document.getElementById('timeDisplay').innerHTML = tierText;
               
-              // 記錄給送出階段使用
               window.currentCalcResult = { totalMinutes, calcPrice, tierText: tierText.replace(/<[^>]*>?/gm, '') };
             };
             
@@ -333,8 +345,14 @@
         preConfirm: () => {
           const date = document.getElementById('tourDate').value;
           if (!date) { Swal.showValidationMessage('請選擇出發日期！'); return false; }
+          
           const checkedPois = Array.from(document.querySelectorAll('.poi-check:checked')).map(cb => cb.value);
-          if(checkedPois.length === 0) { Swal.showValidationMessage('請至少選擇 1 個想去的景點！'); return false; }
+          const customVal = document.getElementById('customPoi').value.trim();
+          
+          if(checkedPois.length === 0 && !customVal) { 
+            Swal.showValidationMessage('請至少選擇 1 個景點或填寫許願池！'); 
+            return false; 
+          }
 
           const routeVal = document.getElementById('tourRoute').value;
           const carVal = document.getElementById('tourCar').value;
@@ -347,7 +365,8 @@
             price: calcData.calcPrice,
             tierText: calcData.tierText,
             totalMinutes: calcData.totalMinutes,
-            pois: checkedPois 
+            pois: checkedPois,
+            customPoi: customVal
           };
         }
       }).then((result) => {
@@ -369,6 +388,30 @@
       const mins = data.totalMinutes % 60;
       const timeStr = `${hours} 小時 ${mins} 分鐘`;
 
+      const contentsBody = [
+        { type: "box", layout: "horizontal", contents: [ { type: "text", text: "出發日期", color: "#64748b", size: "sm", flex: 2 }, { type: "text", text: data.date, weight: "bold", size: "sm", flex: 5, color: "#0f172a" } ] },
+        { type: "box", layout: "horizontal", contents: [ { type: "text", text: "選擇路線", color: "#64748b", size: "sm", flex: 2 }, { type: "text", text: data.routeName, weight: "bold", size: "sm", flex: 5, color: "#0f172a" } ] },
+        { type: "box", layout: "horizontal", contents: [ { type: "text", text: "需求車型", color: "#64748b", size: "sm", flex: 2 }, { type: "text", text: data.carType, weight: "bold", size: "sm", flex: 5, color: "#0f172a" } ] },
+        { type: "separator", margin: "lg", color: "#e2e8f0" }
+      ];
+
+      if (data.pois.length > 0) {
+        contentsBody.push({ type: "text", text: "📍 旅客自選景點清單", weight: "bold", size: "sm", color: "#0f172a", margin: "lg" });
+        contentsBody.push({ type: "text", text: data.pois.map(p => "・" + p).join("\n"), wrap: true, size: "sm", color: "#475569", margin: "md" });
+      }
+
+      // 🚀 v1.5 若有許願池內容，獨立紅色標註
+      if (data.customPoi) {
+        contentsBody.push({ type: "box", layout: "horizontal", margin: "md", contents: [ { type: "text", text: "⭐ 許願池", color: "#64748b", size: "sm", flex: 2 }, { type: "text", text: data.customPoi, weight: "bold", size: "sm", flex: 5, color: "#f43f5e", wrap: true } ] });
+      }
+
+      contentsBody.push(
+        { type: "separator", margin: "lg", color: "#e2e8f0" },
+        { type: "box", layout: "horizontal", margin: "lg", contents: [ { type: "text", text: "運算時數", color: "#64748b", size: "sm", flex: 2 }, { type: "text", text: timeStr, weight: "bold", size: "sm", flex: 5, color: "#0f172a" } ] },
+        { type: "box", layout: "horizontal", margin: "sm", contents: [ { type: "text", text: "行程級別", color: "#64748b", size: "sm", flex: 2 }, { type: "text", text: data.tierText, weight: "bold", size: "sm", flex: 5, color: data.tierText.includes("超時") ? "#f43f5e" : "#0284c7" } ] },
+        { type: "box", layout: "horizontal", margin: "sm", contents: [ { type: "text", text: "系統初估", color: "#64748b", size: "sm", flex: 2 }, { type: "text", text: `$${data.price.toLocaleString()} 起`, weight: "bold", size: "lg", flex: 5, color: "#10b981" } ] }
+      );
+
       const flexMessage = {
         type: "flex",
         altText: `📅 收到新的包車諮詢：${data.routeName}`,
@@ -384,23 +427,13 @@
           },
           body: {
             type: "box", layout: "vertical", spacing: "md", paddingAll: "20px",
-            contents: [
-              { type: "box", layout: "horizontal", contents: [ { type: "text", text: "出發日期", color: "#64748b", size: "sm", flex: 2 }, { type: "text", text: data.date, weight: "bold", size: "sm", flex: 5, color: "#0f172a" } ] },
-              { type: "box", layout: "horizontal", contents: [ { type: "text", text: "選擇路線", color: "#64748b", size: "sm", flex: 2 }, { type: "text", text: data.routeName, weight: "bold", size: "sm", flex: 5, color: "#0f172a" } ] },
-              { type: "box", layout: "horizontal", contents: [ { type: "text", text: "需求車型", color: "#64748b", size: "sm", flex: 2 }, { type: "text", text: data.carType, weight: "bold", size: "sm", flex: 5, color: "#0f172a" } ] },
-              { type: "separator", margin: "lg", color: "#e2e8f0" },
-              { type: "text", text: "📍 旅客自選景點清單", weight: "bold", size: "sm", color: "#0f172a", margin: "lg" },
-              { type: "text", text: data.pois.map(p => "・" + p).join("\n"), wrap: true, size: "sm", color: "#475569", margin: "md" },
-              { type: "separator", margin: "lg", color: "#e2e8f0" },
-              { type: "box", layout: "horizontal", margin: "lg", contents: [ { type: "text", text: "運算時數", color: "#64748b", size: "sm", flex: 2 }, { type: "text", text: timeStr, weight: "bold", size: "sm", flex: 5, color: "#0f172a" } ] },
-              { type: "box", layout: "horizontal", margin: "sm", contents: [ { type: "text", text: "行程級別", color: "#64748b", size: "sm", flex: 2 }, { type: "text", text: data.tierText, weight: "bold", size: "sm", flex: 5, color: data.tierText.includes("超時") ? "#f43f5e" : "#0284c7" } ] },
-              { type: "box", layout: "horizontal", margin: "sm", contents: [ { type: "text", text: "系統初估", color: "#64748b", size: "sm", flex: 2 }, { type: "text", text: `$${data.price.toLocaleString()} 起`, weight: "bold", size: "lg", flex: 5, color: "#10b981" } ] }
-            ]
+            contents: contentsBody
           },
           footer: {
             type: "box", layout: "vertical", paddingAll: "16px", backgroundColor: "#f8fafc",
             contents: [
-              { type: "text", text: "老闆您好，以上為系統依據極值演算法初估之報價，請協助確認最終行程細節，謝謝！", wrap: true, size: "xs", color: "#64748b" }
+              // 🚀 v1.5 法規防禦免責聲明更新
+              { type: "text", text: "老闆您好，以上為系統初估報價。包含客製化許願景點，實際路線順暢度與最終報價以您確認為準，謝謝！", wrap: true, size: "xs", color: "#64748b" }
             ]
           }
         }
