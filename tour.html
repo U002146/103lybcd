@@ -1,3 +1,4 @@
+// v1.4 [老司機極值演算法報價模組]
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
@@ -71,7 +72,7 @@
           <div class="flex justify-between items-end border-t border-gray-100 pt-4">
             <div>
               <div class="text-[10px] text-slate-400 font-bold mb-0.5">預估基準車資</div>
-              <div class="text-emerald-600 font-black text-xl">$3,800<span class="text-xs text-slate-400 font-normal"> 起/8H</span></div>
+              <div class="text-emerald-600 font-black text-xl">$2,500<span class="text-xs text-slate-400 font-normal"> 起/半日</span></div>
             </div>
             <button onclick="openTourPlanner('taroko')" class="bg-slate-900 text-white px-5 py-2.5 rounded-xl font-bold active:scale-95 transition-transform shadow-md">客製化路線</button>
           </div>
@@ -89,7 +90,7 @@
           <div class="flex justify-between items-end border-t border-gray-100 pt-4">
             <div>
               <div class="text-[10px] text-slate-400 font-bold mb-0.5">預估基準車資</div>
-              <div class="text-blue-600 font-black text-xl">$3,800<span class="text-xs text-slate-400 font-normal"> 起/8H</span></div>
+              <div class="text-blue-600 font-black text-xl">$2,500<span class="text-xs text-slate-400 font-normal"> 起/半日</span></div>
             </div>
             <button onclick="openTourPlanner('coast')" class="bg-blue-600 text-white px-5 py-2.5 rounded-xl font-bold active:scale-95 transition-transform shadow-md">客製化路線</button>
           </div>
@@ -107,7 +108,7 @@
           <div class="flex justify-between items-end border-t border-gray-100 pt-4">
             <div>
               <div class="text-[10px] text-slate-400 font-bold mb-0.5">預估基準車資</div>
-              <div class="text-amber-600 font-black text-xl">$4,000<span class="text-xs text-slate-400 font-normal"> 起/8H</span></div>
+              <div class="text-amber-600 font-black text-xl">$2,800<span class="text-xs text-slate-400 font-normal"> 起/半日</span></div>
             </div>
             <button onclick="openTourPlanner('valley')" class="bg-amber-500 text-white px-5 py-2.5 rounded-xl font-bold active:scale-95 transition-transform shadow-md">客製化路線</button>
           </div>
@@ -118,7 +119,7 @@
 
     <div class="text-center py-8 bg-slate-900 text-slate-400 text-xs font-bold mt-4">
       <p>Copyright © 花蓮敬老愛心車隊 (劉學銘)</p>
-      <p class="mt-1 opacity-60">Tourism Charter System v1.3</p>
+      <p class="mt-1 opacity-60">Tourism Charter System v1.4</p>
     </div>
   </div>
 
@@ -136,7 +137,6 @@
   </div>
 
   <script>
-    // 🚀 綁定最新 LIFF ID
     const TOUR_LIFF_ID = '2008907691-zTgIQ9Oa'; 
     let isLiffReady = false;
 
@@ -157,18 +157,43 @@
        window.location.href = "https://lin.ee/9Davl6e";
     }
 
+    // 🚀 [老司機極值演算法報價模組] 資料庫重構：加入單趟車程(drive)與停留時間(stay)，單位為分鐘
     const TOUR_DATA = {
       'taroko': { 
-        name: '太魯閣峽谷深度遊', price5: 3800, price9: 5300, 
-        points: ['清水斷崖', '砂卡礑步道 (依管制)', '燕子口 (依管制)', '九曲洞', '天祥/祥德寺', '長春祠', '七星潭風景區']
+        name: '太魯閣峽谷深度遊', halfPrice5: 2500, fullPrice5: 3800, halfPrice9: 3500, fullPrice9: 5300, 
+        points: [
+          { name: '清水斷崖', drive: 50, stay: 40 },
+          { name: '砂卡礑步道 (依管制)', drive: 35, stay: 60 },
+          { name: '燕子口 (依管制)', drive: 45, stay: 40 },
+          { name: '九曲洞', drive: 50, stay: 40 },
+          { name: '天祥/祥德寺', drive: 60, stay: 60 },
+          { name: '長春祠', drive: 30, stay: 30 },
+          { name: '七星潭風景區', drive: 15, stay: 40 }
+        ]
       },
       'coast': { 
-        name: '蔚藍東海岸網美線', price5: 3800, price9: 5300, 
-        points: ['遠雄海洋公園 (門口拍照)', '山度空間 / 海崖谷', '貨櫃星巴克 (洄瀾門市)', '牛山呼庭', '大石鼻山步道', '石梯坪風景區', '新社梯田']
+        name: '蔚藍東海岸網美線', halfPrice5: 2500, fullPrice5: 3800, halfPrice9: 3500, fullPrice9: 5300, 
+        points: [
+          { name: '遠雄海洋公園 (門口拍照)', drive: 20, stay: 20 },
+          { name: '山度空間 / 海崖谷', drive: 25, stay: 60 },
+          { name: '貨櫃星巴克 (洄瀾門市)', drive: 15, stay: 40 },
+          { name: '牛山呼庭', drive: 45, stay: 60 },
+          { name: '大石鼻山步道', drive: 60, stay: 50 },
+          { name: '石梯坪風景區', drive: 90, stay: 60 },
+          { name: '新社梯田', drive: 70, stay: 30 }
+        ]
       },
       'valley': { 
-        name: '花東縱谷慢活行', price5: 4000, price9: 5500, 
-        points: ['鯉魚潭風景區', '雲山水夢幻湖', '山姆先生咖啡館', '林田山林業文化園區', '光復糖廠', '瑞穗牧場 / 吉蒸牧場', '大農大富平地森林']
+        name: '花東縱谷慢活行', halfPrice5: 2800, fullPrice5: 4000, halfPrice9: 3800, fullPrice9: 5500, 
+        points: [
+          { name: '鯉魚潭風景區', drive: 30, stay: 60 },
+          { name: '雲山水夢幻湖', drive: 40, stay: 60 },
+          { name: '山姆先生咖啡館', drive: 45, stay: 40 },
+          { name: '林田山林業文化園區', drive: 60, stay: 60 },
+          { name: '光復糖廠', drive: 70, stay: 40 },
+          { name: '瑞穗牧場 / 吉蒸牧場', drive: 90, stay: 60 },
+          { name: '大農大富平地森林', drive: 80, stay: 60 }
+        ]
       }
     };
 
@@ -208,8 +233,8 @@
 
           <div class="bg-slate-900 rounded-xl p-4 text-white shadow-inner flex justify-between items-center mt-4 border-l-4 border-emerald-500">
             <div>
-              <div class="text-[10px] text-slate-400 uppercase tracking-widest mb-1">Estimated 系統預估</div>
-              <div class="font-bold text-sm"><i class="fa-regular fa-clock text-emerald-400 mr-1"></i>包車時數：8 小時</div>
+              <div class="text-[10px] text-slate-400 uppercase tracking-widest mb-1">Estimated 預估明細</div>
+              <div class="font-bold text-sm" id="timeDisplay"><i class="fa-regular fa-clock text-emerald-400 mr-1"></i>請選擇景點</div>
             </div>
             <div class="text-right">
               <div class="text-2xl font-black text-white" id="priceDisplay">$0</div>
@@ -232,31 +257,72 @@
           const routeSelect = document.getElementById('tourRoute');
           const carSelect = document.getElementById('tourCar');
           const container = document.getElementById('poiContainer');
-          const priceDisplay = document.getElementById('priceDisplay');
           const countDisplay = document.getElementById('poiCount');
 
           routeSelect.value = defaultRouteId;
 
           const updateUI = () => {
             const data = TOUR_DATA[routeSelect.value];
-            const price = carSelect.value === '5' ? data.price5 : data.price9;
-            priceDisplay.innerText = `$${price.toLocaleString()}`;
-
+            
+            // 渲染景點選項，將車程與停留時間埋入 dataset
             container.innerHTML = data.points.map((pt) => `
               <label class="custom-checkbox block cursor-pointer active:scale-95 transition-transform">
-                <input type="checkbox" class="poi-check hidden" value="${pt}" onchange="updatePoiCount()">
+                <input type="checkbox" class="poi-check hidden" value="${pt.name}" data-drive="${pt.drive}" data-stay="${pt.stay}" onchange="updatePoiCount()">
                 <div class="border border-slate-200 rounded-lg p-2 flex items-center gap-2 transition-colors bg-white">
                   <i class="fa-solid fa-map-pin text-slate-300"></i>
-                  <span class="truncate leading-tight">${pt}</span>
+                  <span class="truncate leading-tight">${pt.name}</span>
                 </div>
               </label>
             `).join('');
             
+            // 🚀 核心：動態極值計價與防呆運算
             window.updatePoiCount = () => {
-              const checked = document.querySelectorAll('.poi-check:checked').length;
-              countDisplay.innerText = `已選 ${checked} 個`;
-              countDisplay.className = checked > 5 ? 'text-orange-500 font-black' : 'text-emerald-600 font-black';
+              const checkedBoxes = Array.from(document.querySelectorAll('.poi-check:checked'));
+              const count = checkedBoxes.length;
+              countDisplay.innerText = `已選 ${count} 個`;
+              countDisplay.className = count > 5 ? 'text-orange-500 font-black' : 'text-emerald-600 font-black';
+
+              if(count === 0) {
+                 document.getElementById('priceDisplay').innerText = '$0';
+                 document.getElementById('timeDisplay').innerHTML = '<i class="fa-regular fa-clock text-emerald-400 mr-1"></i>請選擇景點';
+                 return;
+              }
+
+              let maxDrive = 0;
+              let totalStay = 0;
+              checkedBoxes.forEach(cb => {
+                 const d = parseInt(cb.dataset.drive);
+                 const s = parseInt(cb.dataset.stay);
+                 if(d > maxDrive) maxDrive = d;
+                 totalStay += s;
+              });
+
+              // 極值運算：最遠單趟*2 + 停留總和
+              const totalMinutes = (maxDrive * 2) + totalStay;
+              const totalHours = totalMinutes / 60;
+              
+              let tierText = '';
+              let calcPrice = 0;
+              const isFive = carSelect.value === '5';
+
+              if(totalHours <= 4.5) {
+                 tierText = '<span class="text-blue-400">判定：半日遊 (4H)</span>';
+                 calcPrice = isFive ? data.halfPrice5 : data.halfPrice9;
+              } else if (totalHours <= 8.5) {
+                 tierText = '<span class="text-emerald-400">判定：一日遊 (8H)</span>';
+                 calcPrice = isFive ? data.fullPrice5 : data.fullPrice9;
+              } else {
+                 tierText = '<span class="text-rose-400"><i class="fa-solid fa-triangle-exclamation"></i> 行程過滿(超時風險)</span>';
+                 calcPrice = isFive ? data.fullPrice5 : data.fullPrice9;
+              }
+
+              document.getElementById('priceDisplay').innerText = `$${calcPrice.toLocaleString()}`;
+              document.getElementById('timeDisplay').innerHTML = tierText;
+              
+              // 記錄給送出階段使用
+              window.currentCalcResult = { totalMinutes, calcPrice, tierText: tierText.replace(/<[^>]*>?/gm, '') };
             };
+            
             window.updatePoiCount();
           };
 
@@ -272,11 +338,15 @@
 
           const routeVal = document.getElementById('tourRoute').value;
           const carVal = document.getElementById('tourCar').value;
+          const calcData = window.currentCalcResult;
+
           return { 
             date, 
             routeName: TOUR_DATA[routeVal].name, 
             carType: carVal === '5' ? '五人座 (1-4人)' : '九人座 (5-8人)', 
-            price: carVal === '5' ? TOUR_DATA[routeVal].price5 : TOUR_DATA[routeVal].price9,
+            price: calcData.calcPrice,
+            tierText: calcData.tierText,
+            totalMinutes: calcData.totalMinutes,
             pois: checkedPois 
           };
         }
@@ -287,7 +357,6 @@
       });
     }
 
-    // 🚀 核心：自帶「抓漏雷達」的發送引擎
     async function sendFlexMessage(data) {
       if (!liff.isInClient()) {
         Swal.fire('環境錯誤', '請在 LINE 聊天室內部點擊網址開啟，才能傳送清單喔！', 'warning');
@@ -295,6 +364,10 @@
       }
 
       Swal.fire({ title: '清單彙整發送中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
+
+      const hours = Math.floor(data.totalMinutes / 60);
+      const mins = data.totalMinutes % 60;
+      const timeStr = `${hours} 小時 ${mins} 分鐘`;
 
       const flexMessage = {
         type: "flex",
@@ -319,14 +392,15 @@
               { type: "text", text: "📍 旅客自選景點清單", weight: "bold", size: "sm", color: "#0f172a", margin: "lg" },
               { type: "text", text: data.pois.map(p => "・" + p).join("\n"), wrap: true, size: "sm", color: "#475569", margin: "md" },
               { type: "separator", margin: "lg", color: "#e2e8f0" },
-              { type: "box", layout: "horizontal", margin: "lg", contents: [ { type: "text", text: "預估時數", color: "#64748b", size: "sm", flex: 2 }, { type: "text", text: "約 8 小時", weight: "bold", size: "sm", flex: 5, color: "#0f172a" } ] },
+              { type: "box", layout: "horizontal", margin: "lg", contents: [ { type: "text", text: "運算時數", color: "#64748b", size: "sm", flex: 2 }, { type: "text", text: timeStr, weight: "bold", size: "sm", flex: 5, color: "#0f172a" } ] },
+              { type: "box", layout: "horizontal", margin: "sm", contents: [ { type: "text", text: "行程級別", color: "#64748b", size: "sm", flex: 2 }, { type: "text", text: data.tierText, weight: "bold", size: "sm", flex: 5, color: data.tierText.includes("超時") ? "#f43f5e" : "#0284c7" } ] },
               { type: "box", layout: "horizontal", margin: "sm", contents: [ { type: "text", text: "系統初估", color: "#64748b", size: "sm", flex: 2 }, { type: "text", text: `$${data.price.toLocaleString()} 起`, weight: "bold", size: "lg", flex: 5, color: "#10b981" } ] }
             ]
           },
           footer: {
             type: "box", layout: "vertical", paddingAll: "16px", backgroundColor: "#f8fafc",
             contents: [
-              { type: "text", text: "老闆您好，以上為我的初步規劃，請協助確認行程順暢度與最終報價，謝謝！", wrap: true, size: "xs", color: "#64748b" }
+              { type: "text", text: "老闆您好，以上為系統依據極值演算法初估之報價，請協助確認最終行程細節，謝謝！", wrap: true, size: "xs", color: "#64748b" }
             ]
           }
         }
@@ -339,7 +413,6 @@
         console.error("發送失敗", err);
         let errorMsg = err.message || JSON.stringify(err);
         
-        // 🚨 抓漏雷達啟動：解析錯誤原因
         if (errorMsg.includes("chat_message.write") || errorMsg.includes("permission")) {
            Swal.fire({
               icon: 'warning',
@@ -350,12 +423,11 @@
               allowOutsideClick: false
            }).then((res) => {
               if (res.isConfirmed) {
-                 liff.logout(); // 清除舊暫存
-                 window.location.reload(); // 重新整理畫面觸發新登入
+                 liff.logout(); 
+                 window.location.reload(); 
               }
            });
         } else {
-           // 印出最原始的錯誤代碼給工程師看
            Swal.fire('發送失敗 (請截圖)', '錯誤碼：' + errorMsg, 'error');
         }
       }
