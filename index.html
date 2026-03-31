@@ -5,12 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>學銘專車：花蓮敬老愛心接送</title>
   
-  <!-- SEO 與分享標籤 -->
-  <meta name="description" content="花蓮敬老愛心車隊 - 免報路名、一鍵定位、在地長輩最安心的選擇！提供即時叫車與預約接送服務。">
+  <meta name="description" content="花蓮敬老愛心車隊 - 免報路名、一鍵定位、在地長輩最安心的選擇！提供即時叫車與旅遊包車服務。">
   <meta property="og:title" content="學銘專車：花蓮敬老愛心接送">
-  <meta property="og:description" content="給長輩最安心的乘車體驗！一鍵叫車、免報路名，立刻點擊開啟雷達！">
+  <meta property="og:description" content="給長輩最安心的乘車體驗！一鍵叫車、免報路名，在地老司機專屬包車旅遊。">
   
-  <!-- UI 套件 -->
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -19,8 +17,10 @@
     body { background-color: #f3f4f6; font-family: -apple-system, 'Noto Sans TC', Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
     
     /* 隱藏捲軸但保持順滑滾動 */
-    ::-webkit-scrollbar { width: 0px; background: transparent; }
+    ::-webkit-scrollbar { width: 0px; height: 0px; background: transparent; }
     html { scroll-behavior: smooth; }
+    .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .hide-scrollbar::-webkit-scrollbar { display: none; }
     
     /* 底部安全區 (iOS) */
     .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
@@ -32,6 +32,13 @@
       100% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0); }
     }
     .btn-pulse { animation: pulse-shadow 2s infinite; }
+
+    /* 左右滑動提示動畫 */
+    @keyframes slide-hint {
+      0%, 100% { transform: translateX(0); }
+      50% { transform: translateX(5px); }
+    }
+    .animate-slide-hint { animation: slide-hint 1.5s ease-in-out infinite; }
     
     /* 圖片防破圖美化 */
     img { position: relative; }
@@ -46,10 +53,8 @@
 </head>
 <body class="bg-gray-100 pb-28">
 
-  <!-- 📱 手機版面容器 (維持 App 體驗感) -->
   <div class="max-w-md mx-auto bg-white min-h-screen shadow-2xl relative overflow-hidden">
     
-    <!-- 🟢 頂部導航列 -->
     <header class="bg-green-600 text-white p-4 sticky top-0 z-40 shadow-md flex justify-between items-center">
       <div class="flex items-center gap-2">
         <i class="fa-solid fa-taxi text-2xl"></i>
@@ -60,28 +65,74 @@
       </button>
     </header>
 
-    <!-- 🎯 Hero 區塊：第一眼行銷轉換 -->
-    <div class="p-6 text-center bg-gradient-to-b from-green-50 to-white">
+    <div class="p-6 text-center bg-gradient-to-b from-green-50 to-white pb-8">
       <h2 class="text-2xl font-black text-gray-800 mb-2 leading-snug">花蓮敬老愛心接送服務</h2>
       <p class="text-gray-600 font-bold mb-5 text-sm">免報路名 ‧ 一鍵定位 ‧ 長輩最安心</p>
       
-      <!-- 主力轉換按鈕 -->
-      <a href="https://liff.line.me/2008907691-CzDqd7mm" class="inline-flex items-center justify-center w-full bg-green-500 text-white font-black text-xl py-4 rounded-2xl shadow-lg border-2 border-green-400 active:scale-95 transition-transform btn-pulse">
+      <a href="https://liff.line.me/2008907691-CzDqd7mm" class="inline-flex items-center justify-center w-full bg-green-500 text-white font-black text-xl py-4 rounded-2xl shadow-lg border-2 border-green-400 active:scale-95 transition-transform btn-pulse mb-3">
         <i class="fa-solid fa-location-crosshairs mr-2 text-2xl"></i> 立即開啟叫車雷達
       </a>
-      <p class="text-xs text-gray-400 mt-3 font-bold"><i class="fa-solid fa-shield-halved"></i> 系統將透過 LINE 安全登入</p>
+      <p class="text-xs text-gray-400 font-bold"><i class="fa-solid fa-shield-halved"></i> 系統將透過 LINE 安全登入</p>
     </div>
 
-    <!-- 📖 圖文型錄展示區 (000.jpg ~ 005.jpg 精華 6 圖) -->
-    <div class="px-4 pb-6 space-y-5">
+    <div class="px-4 py-6 bg-slate-50 border-y border-gray-100">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="text-lg font-black text-gray-800 flex items-center gap-2">
+          <i class="fa-solid fa-mountain-sun text-green-600"></i> 花蓮包車旅遊
+        </h3>
+        <span class="text-[10px] text-green-600 font-bold bg-green-100 px-2 py-1 rounded-full animate-slide-hint">左右滑動看更多 👉</span>
+      </div>
+      <p class="text-xs text-gray-500 mb-4 font-bold">在地老司機帶路，透明報價不喊價，給您最深度的專屬行程。</p>
+
+      <div class="flex overflow-x-auto gap-4 pb-4 snap-x hide-scrollbar">
+        
+        <div class="min-w-[240px] bg-white border border-gray-100 rounded-2xl shadow-sm snap-center overflow-hidden flex flex-col transition-transform active:scale-95">
+          <img src="https://images.unsplash.com/photo-1574676113645-562a210b38fa?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80" alt="太魯閣" class="w-full h-32 object-cover">
+          <div class="p-3 flex-1 flex flex-col">
+            <h4 class="font-bold text-gray-800 mb-1 text-sm">太魯閣峽谷深度遊</h4>
+            <p class="text-[11px] text-gray-500 mb-3 line-clamp-2">掌握每日最新放行時段，帶您避開管制、走進最震撼的峽谷秘境。</p>
+            <div class="mt-auto pt-2 border-t border-gray-50 flex justify-between items-center">
+              <span class="text-green-600 font-black text-sm">$3,800<span class="text-[10px] text-gray-400 font-normal"> 起/5人座</span></span>
+              <button onclick="bookTour('太魯閣深度遊')" class="bg-green-50 hover:bg-green-100 text-green-600 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors">諮詢路線</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="min-w-[240px] bg-white border border-gray-100 rounded-2xl shadow-sm snap-center overflow-hidden flex flex-col transition-transform active:scale-95">
+          <img src="https://images.unsplash.com/photo-1549646875-9e6631df89cb?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80" alt="東海岸" class="w-full h-32 object-cover">
+          <div class="p-3 flex-1 flex flex-col">
+            <h4 class="font-bold text-gray-800 mb-1 text-sm">蔚藍東海岸網美線</h4>
+            <p class="text-[11px] text-gray-500 mb-3 line-clamp-2">台11線無敵海景，從山度空間到天空之鏡，最熱門打卡景點一次收集。</p>
+            <div class="mt-auto pt-2 border-t border-gray-50 flex justify-between items-center">
+              <span class="text-green-600 font-black text-sm">$3,800<span class="text-[10px] text-gray-400 font-normal"> 起/5人座</span></span>
+              <button onclick="bookTour('蔚藍東海岸網美線')" class="bg-green-50 hover:bg-green-100 text-green-600 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors">諮詢路線</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="min-w-[240px] bg-white border border-gray-100 rounded-2xl shadow-sm snap-center overflow-hidden flex flex-col transition-transform active:scale-95">
+          <img src="https://images.unsplash.com/photo-1616766467332-9ecb1c0bf11e?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80" alt="花東縱谷" class="w-full h-32 object-cover">
+          <div class="p-3 flex-1 flex flex-col">
+            <h4 class="font-bold text-gray-800 mb-1 text-sm">花東縱谷慢活行</h4>
+            <p class="text-[11px] text-gray-500 mb-3 line-clamp-2">台9線田園風光，雲山水、瑞穗牧場，最適合全家大小的愜意旅程。</p>
+            <div class="mt-auto pt-2 border-t border-gray-50 flex justify-between items-center">
+              <span class="text-green-600 font-black text-sm">$4,000<span class="text-[10px] text-gray-400 font-normal"> 起/5人座</span></span>
+              <button onclick="bookTour('花東縱谷慢活行')" class="bg-green-50 hover:bg-green-100 text-green-600 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors">諮詢路線</button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="px-4 pb-6 pt-4 space-y-5 bg-white">
       
       <div class="flex items-center justify-center gap-3 mb-6 mt-2">
         <div class="h-1 w-12 bg-gray-200 rounded-full"></div>
-        <div class="text-gray-400 font-black text-sm tracking-widest">服務亮點介紹</div>
+        <div class="text-gray-400 font-black text-sm tracking-widest">系統操作指南</div>
         <div class="h-1 w-12 bg-gray-200 rounded-full"></div>
       </div>
 
-      <!-- 圖片容器 (加入圓角與陰影，提升質感) -->
       <img src="https://u002146.github.io/103lybcd/photos/000.jpg" alt="智慧預約與定位服務" class="w-full rounded-2xl shadow-[0_8px_20px_rgba(0,0,0,0.1)] border border-gray-100 object-cover" onerror="imgError(this)">
       <img src="https://u002146.github.io/103lybcd/photos/001.jpg" alt="規劃行程與確認送出" class="w-full rounded-2xl shadow-[0_8px_20px_rgba(0,0,0,0.1)] border border-gray-100 object-cover" onerror="imgError(this)">
       <img src="https://u002146.github.io/103lybcd/photos/002.jpg" alt="輕鬆預約指南" class="w-full rounded-2xl shadow-[0_8px_20px_rgba(0,0,0,0.1)] border border-gray-100 object-cover" onerror="imgError(this)">
@@ -91,7 +142,6 @@
       
     </div>
 
-    <!-- 底部品牌宣告 -->
     <div class="text-center py-6 bg-gray-50 text-gray-400 text-xs font-bold border-t border-gray-100">
       <p>Copyright © 花蓮敬老愛心車隊 (劉學銘)</p>
       <p class="mt-1">Designed for AgeTech & Easy Booking</p>
@@ -99,17 +149,14 @@
 
   </div>
 
-  <!-- 🚨 黏性轉換區 (Sticky CTA) - 永遠浮動在畫面最下方 -->
   <div class="fixed bottom-0 left-0 right-0 w-full z-50 bg-white/95 backdrop-blur-md border-t border-gray-200 shadow-[0_-10px_30px_rgba(0,0,0,0.1)] pb-safe">
     <div class="max-w-md mx-auto px-4 py-3 flex gap-3">
       
-      <!-- 客服按鈕 (左側，佔比 1) -->
       <a href="https://lin.ee/9Davl6e" class="flex-1 bg-gradient-to-br from-orange-400 to-orange-500 text-white flex flex-col items-center justify-center py-2.5 rounded-2xl font-bold shadow-md active:scale-95 transition-transform border border-orange-300">
         <i class="fa-solid fa-headset text-xl mb-1"></i>
         <span class="text-xs">線上客服</span>
       </a>
       
-      <!-- 叫車按鈕 (右側，佔比 2，最具吸引力) -->
       <a href="https://liff.line.me/2008907691-CzDqd7mm" class="flex-[2.5] bg-gradient-to-br from-green-500 to-green-600 text-white flex flex-col items-center justify-center py-2.5 rounded-2xl font-black shadow-[0_4px_15px_rgba(22,163,74,0.4)] border-2 border-green-400 active:scale-95 transition-transform btn-pulse">
         <div class="flex items-center gap-2">
           <i class="fa-solid fa-bolt text-2xl text-yellow-300"></i>
@@ -132,7 +179,7 @@
     function shareWebsite() {
       const shareData = {
         title: '學銘專車：花蓮敬老愛心接送',
-        text: '給長輩最安心的乘車體驗！免報路名、一鍵定位，點擊網址立即叫車🚕',
+        text: '給長輩最安心的乘車體驗！免報路名、一鍵定位，更有在地老司機包車旅遊🚕',
         url: window.location.href
       }
 
@@ -140,7 +187,6 @@
         navigator.share(shareData)
           .catch((error) => console.log('分享取消或失敗', error));
       } else {
-        // 若瀏覽器不支援，使用 SweetAlert 提示複製網址
         Swal.fire({
           title: '分享給親朋好友',
           text: '請點擊下方按鈕複製本站網址',
@@ -154,6 +200,31 @@
           }
         });
       }
+    }
+
+    // 旅遊包車預約觸發 (引導至 LINE 客服)
+    function bookTour(routeName) {
+      Swal.fire({
+        title: `預約 ${routeName}`,
+        html: `
+          <div class="text-left text-sm text-gray-600 leading-relaxed mt-2">
+            <p class="mb-2">包車旅遊服務需與您確認 <b class="text-gray-800">乘車人數、日期與客製化細節</b>，以提供最精準的報價。</p>
+            <p>點擊下方按鈕，將開啟我們的官方 LINE，請直接發送訊息與我們討論行程喔！</p>
+          </div>
+        `,
+        icon: 'info',
+        showCancelButton: true,
+        confirmButtonText: '<i class="fa-brands fa-line text-lg mr-1"></i> 前往 LINE 諮詢',
+        cancelButtonText: '稍後再說',
+        confirmButtonColor: '#00C853',
+        cancelButtonColor: '#9ca3af',
+        customClass: { popup: 'rounded-2xl' }
+      }).then((result) => {
+        if (result.isConfirmed) {
+          // 導向你的官方 LINE 帳號
+          window.location.href = "https://lin.ee/9Davl6e";
+        }
+      });
     }
 
     // 進站歡迎提示 (非侵入式，滑動一段距離後才顯示)
