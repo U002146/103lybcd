@@ -122,7 +122,7 @@
   </div>
 
   <script>
-    const VERSION = "v6.7"; // 🚀 雙軌監控版：去車隊字眼＋新增多元小黃標籤
+    const VERSION = "v6.8"; // 🚀 雙軌監控版：加入 24 小時自動清道夫
     const firebaseConfig = { databaseURL: "https://hualientaxi-bb32f-default-rtdb.asia-southeast1.firebasedatabase.app/" };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
@@ -213,6 +213,10 @@
         startRealtimeRadar(); 
         startChatListener();
         setInterval(() => document.getElementById('clock').innerText = new Date().toLocaleString(), 1000);
+        
+        // 🚀 新增：啟動時清一次，且每小時自動在背景清一次
+        cleanupOldMessages();
+        setInterval(cleanupOldMessages, 60 * 60 * 1000); 
     };
 
     function initMap() {
@@ -340,7 +344,7 @@
     }
 
     // ==========================================
-    // 2. 💬 內部對講機系統 (v6.7 雙向顯示名稱與照片)
+    // 2. 💬 內部對講機系統 (v6.8 雙向顯示名稱與照片)
     // ==========================================
     let isChatOpen = false;
     let unreadCount = 0;
@@ -511,6 +515,29 @@
         const list = document.getElementById(`list-${id}`);
         if(list) list.classList.toggle('active');
     };
+
+    // ==========================================
+    // 4. 🧹 24小時自動清道夫 (寄生型清理引擎)
+    // ==========================================
+    function cleanupOldMessages() {
+        // 取得 24 小時前的時間戳 (毫秒)
+        const cutoffTime = Date.now() - (24 * 60 * 60 * 1000); 
+        
+        db.ref('chat/messages').orderByChild('timestamp').endAt(cutoffTime).once('value', snapshot => {
+            if (snapshot.exists()) {
+                const updates = {};
+                // 把所有早於 cutoffTime 的舊訊息標記為 null (刪除)
+                snapshot.forEach(child => {
+                    updates[child.key] = null; 
+                });
+                
+                // 一次性批次刪除，節省效能
+                db.ref('chat/messages').update(updates)
+                  .then(() => console.log("✅ 雲端戰情室：已自動清空 24 小時前的舊訊息"))
+                  .catch(err => console.error("清理失敗:", err));
+            }
+        });
+    }
   </script>
 </body>
 </html>
