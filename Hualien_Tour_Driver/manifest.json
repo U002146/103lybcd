@@ -1,0 +1,23 @@
+{
+  "name": "花蓮包車多國語智能導覽系統",
+  "short_name": "智能導覽",
+  "description": "提供高齡運將防呆操作、純離線、四國語音行銷的太魯閣導航儀",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#121212",
+  "theme_color": "#121212",
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

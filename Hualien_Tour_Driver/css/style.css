@@ -1,0 +1,150 @@
+/* v1.3 高齡友善 UI 擴充：多國語系切換列 */
+:root {
+    --bg-color: #121212;
+    --text-color: #FFFFFF;
+    --btn-sync-bg: #4CAF50;
+    --btn-sync-color: #FFFFFF;
+    --btn-play-bg: #2196F3;
+    --btn-stop-bg: #F44336;
+    --btn-loc-bg: #FF9800;
+    --card-bg: #2C2C2C;
+    --highlight-color: #FFEB3B;
+    --nearest-border: #FFD700;
+    --lang-bg: #333333;
+    --lang-active-bg: #E91E63;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+    font-family: "Helvetica Neue", Helvetica, Arial, "PingFang TC", "Heiti TC", "Microsoft JhengHei", sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    -webkit-font-smoothing: antialiased;
+}
+
+/* 頂部導覽列 */
+.top-nav {
+    position: sticky;
+    top: 0;
+    background-color: var(--bg-color);
+    padding: 10px;
+    z-index: 100;
+    border-bottom: 2px solid #444;
+}
+
+.sys-btn-group {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* 多國語系選擇器 */
+.lang-selector {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 15px;
+    gap: 5px;
+}
+
+.lang-btn {
+    flex: 1;
+    min-height: 60px;
+    font-size: 1.4rem;
+    font-weight: bold;
+    border: 2px solid #555;
+    border-radius: 8px;
+    background-color: var(--lang-bg);
+    color: #AAA;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.lang-btn.active {
+    background-color: var(--lang-active-bg);
+    color: #FFF;
+    border-color: #FFF;
+    box-shadow: 0 0 10px rgba(233, 30, 99, 0.5);
+    transform: scale(1.02);
+}
+
+/* 狀態列 */
+#status-bar {
+    text-align: center;
+    font-size: 1.2rem;
+    font-weight: bold;
+    padding: 10px 0;
+    margin-top: 5px;
+}
+.status-online { color: #4CAF50; }
+.status-offline { color: #F44336; }
+
+/* 巨型按鈕 (AgeTech 核心) */
+.btn-massive {
+    width: 100%;
+    min-height: 80px;
+    font-size: 1.8rem;
+    font-weight: bold;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    transition: transform 0.1s, background-color 0.2s;
+}
+.btn-massive:active { transform: scale(0.98); }
+
+.btn-sync { background-color: var(--btn-sync-bg); color: var(--btn-sync-color); }
+.btn-location { background-color: var(--btn-loc-bg); color: #FFFFFF; }
+.btn-play { background-color: var(--btn-play-bg); color: #FFFFFF; margin-top: 15px; }
+.btn-stop { background-color: var(--btn-stop-bg); color: #FFFFFF; margin-top: 15px; }
+
+.container { padding: 15px; padding-bottom: 100px; }
+
+/* 景點卡片基本設定 */
+.spot-card {
+    background-color: var(--card-bg);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+    border-left: 8px solid var(--highlight-color);
+    transition: box-shadow 0.3s ease;
+}
+
+.card-nearest {
+    border-color: var(--nearest-border);
+    border-width: 8px;
+    border-style: solid;
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.6);
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { box-shadow: 0 0 10px rgba(255, 215, 0, 0.4); }
+    50% { box-shadow: 0 0 30px rgba(255, 215, 0, 0.9); }
+    100% { box-shadow: 0 0 10px rgba(255, 215, 0, 0.4); }
+}
+
+.spot-card h2 {
+    font-size: 2rem;
+    margin-bottom: 10px;
+    color: var(--highlight-color);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+}
+
+.distance-badge {
+    background-color: #F44336;
+    color: #FFFFFF;
+    font-size: 1.2rem;
+    padding: 4px 10px;
+    border-radius: 8px;
+    font-weight: bold;
+}
+
+.spot-card p {
+    font-size: 1.4rem;
+    line-height: 1.5;
+    margin-bottom: 15px;
+}

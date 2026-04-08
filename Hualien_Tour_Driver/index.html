@@ -1,0 +1,67 @@
+<!-- v1.4 PWA 實體封裝架構 (新增 Manifest 與 SW 掛載) -->
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    
+    <!-- PWA 宣告檔案與系統配置 -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#121212">
+    <!-- 強迫 iOS Safari 也能吃得到全螢幕與圖標 -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="智能導覽">
+    <link rel="apple-touch-icon" href="icon.png">
+
+    <title>花蓮包車導覽系統 (離線版)</title>
+    
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <header class="top-nav">
+        <!-- 系統管理按鈕區 -->
+        <div class="sys-btn-group">
+            <button id="btn-sync" class="btn-massive btn-sync" onclick="forceSync()">
+                🔄 下載最新景點 (需網路)
+            </button>
+            <button id="btn-location" class="btn-massive btn-location" onclick="getLocationAndSort()">
+                📍 GPS 重新定位與排序
+            </button>
+        </div>
+        
+        <!-- 多國語系全域切換列 -->
+        <div class="lang-selector">
+            <button class="lang-btn active" onclick="switchLanguage('TW', this)">🇹🇼 中</button>
+            <button class="lang-btn" onclick="switchLanguage('EN', this)">🇺🇸 英</button>
+            <button class="lang-btn" onclick="switchLanguage('JP', this)">🇯🇵 日</button>
+            <button class="lang-btn" onclick="switchLanguage('KR', this)">🇰🇷 韓</button>
+        </div>
+
+        <div id="status-bar" class="status-offline">目前狀態：檢查中...</div>
+    </header>
+
+    <main id="app-container" class="container">
+        <!-- 景點卡片將透過 JS 渲染於此 -->
+    </main>
+
+    <script src="js/app.js"></script>
+    
+    <!-- 負責註冊 Service Worker 的核心防護腳本 -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then(registration => {
+                        console.log('SW (Service Worker) 真斷網防線註冊成功，監視範圍：', registration.scope);
+                    })
+                    .catch(err => {
+                        console.log('SW (Service Worker) 註冊失敗，請確認是否透過 HTTPS 或 localhost 運行：', err);
+                    });
+            });
+        }
+    </script>
+</body>
+</html>
