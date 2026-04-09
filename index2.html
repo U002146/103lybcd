@@ -122,7 +122,7 @@
 
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script>
-    const VERSION = "v9.31"; // 🚀 VIP專車客製化版：移除車隊字眼，強化專屬服務感
+    const VERSION = "v9.32"; 
     const LIFF_ID = "2008907691-CzDqd7mm"; 
     const GAS_URL = "https://script.google.com/macros/s/AKfycbzjWZ8j394jfKoMVbPWGvHJHqwF7RBCQxnxyju1ifWKoKdM7RE512F7qrhUsQqQGoWg/exec"; 
     
@@ -159,7 +159,6 @@
     };
 
     window.onload = async function() {
-        // 🚀 文案修改
         Swal.fire({ title: '連線中', text: '正在為您連線專車位置...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
         initMap();
         await initLiffAndCheckBlacklist(); 
@@ -203,7 +202,6 @@
 
     async function shareToFriends() {
         if (!liff.isApiAvailable('shareTargetPicker')) return Swal.fire('無法分享', '不支援分享功能', 'warning');
-        // 🚀 分享文案尊榮化
         const flexMessage = {
             "type": "flex", "altText": "🚕 您的好友推薦了專屬接送服務！",
             "contents": {
@@ -282,7 +280,6 @@
     function handleOrderRejected() {
         myTrackedDriverId = null; localStorage.removeItem('trackedDriverId'); localStorage.removeItem('wasBusy'); localStorage.removeItem('trackStep'); currentTrackStep = '1';
         lastGeocodePos = null; if (myLat && myLng) getAddress(myLat, myLng); updateStatusUI();
-        // 🚀 拒絕文案修改
         Swal.fire({ icon: 'warning', title: '⚠️ 司機無法承接', text: '專屬司機目前行程滿檔，請稍後再試或直接聯繫司機。', confirmButtonColor: '#F97316', confirmButtonText: '我知道了' });
         if (lastDriversData) processDriversData(lastDriversData); 
     }
@@ -353,7 +350,6 @@
         const container = document.getElementById('driver-carousel');
         const currentScroll = container.scrollLeft;
         
-        // 🚀 無空車狀態優化為「專屬司機聯絡模式」
         if (drivers.length === 0) {
             container.innerHTML = `<div style="width:100%; text-align:center; padding:20px; background:white; border-radius:24px; box-shadow:0 10px 30px rgba(0,0,0,0.15); border:2px solid #ddd;"><div style="color:#666; font-size:18px; font-weight:bold; margin-bottom:15px;">司機目前服務中或暫時離線</div><button class="btn-call-full" onclick="window.location.href='https://lin.ee/9Davl6e'"><i class="fa-brands fa-line"></i> 直接聯絡專屬司機</button></div>`;
             return;
@@ -373,7 +369,6 @@
 
             const distText = d.distUser < 1 ? (d.distUser*1000).toFixed(0)+' 公尺' : d.distUser.toFixed(1)+' 公里';
             const avatar = d.photo || 'https://cdn-icons-png.flaticon.com/512/3237/3237472.png';
-            // 🚀 車輛預設名稱優化
             const displayCarNo = d.carNo || d.car || '專屬座車';
             let ratingUI = d.ratingStr === "NEW" ? `<span class="tag tag-star">✨ 新手司機</span>` : `<span class="tag tag-star">⭐ ${d.ratingStr}</span>`;
             
@@ -412,15 +407,62 @@
 
         const originalContent = btn.innerHTML; btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin" style="font-size:20px;"></i>'; btn.disabled = true;
 
+        const currentAddress = document.getElementById('loc-text').innerText;
+
         const makeCallAndTrack = () => {
             myTrackedDriverId = driverId; localStorage.setItem('trackedDriverId', driverId); localStorage.setItem('wasBusy', 'false'); localStorage.setItem('trackStep', '1'); currentTrackStep = '1';
             updateStatusUI(); if (lastDriversData) processDriversData(lastDriversData); 
             btn.innerHTML = originalContent; btn.disabled = false;
             Swal.fire({ icon: 'success', title: '✅ 叫車成功！', text: '司機已收到通知，將為您切換至雷達追蹤。', timer: 2000, showConfirmButton: false });
+
+            // 🚀 核心更新：透過 LIFF 發送精美訂單卡片回聊天室，強制置頂！
+            if (liff.isInClient()) {
+                const targetDriver = lastDriversData ? lastDriversData[driverId] : null;
+                const dName = targetDriver ? targetDriver.name : "專屬司機";
+                const dCar = targetDriver ? (targetDriver.carNo || targetDriver.car || "專屬座車") : "專屬座車";
+                
+                const orderFlexMessage = {
+                    "type": "flex",
+                    "altText": "🚕 已收到您的派車需求",
+                    "contents": {
+                        "type": "bubble",
+                        "size": "mega",
+                        "header": {
+                            "type": "box",
+                            "layout": "vertical",
+                            "contents": [
+                                { "type": "text", "text": "🚕 派車需求已送出", "weight": "bold", "color": "#ffffff", "size": "lg" }
+                            ],
+                            "backgroundColor": "#00C853"
+                        },
+                        "body": {
+                            "type": "box",
+                            "layout": "vertical",
+                            "spacing": "md",
+                            "contents": [
+                                { "type": "text", "text": "已通知專屬司機，請留意抵達通知", "weight": "bold", "size": "md", "color": "#111111", "wrap": true },
+                                { "type": "separator" },
+                                { "type": "box", "layout": "horizontal", "contents": [
+                                    { "type": "text", "text": "指派司機", "color": "#888888", "size": "sm", "flex": 2 },
+                                    { "type": "text", "text": dName, "color": "#111111", "size": "sm", "flex": 5, "weight": "bold" }
+                                ]},
+                                { "type": "box", "layout": "horizontal", "contents": [
+                                    { "type": "text", "text": "專屬座車", "color": "#888888", "size": "sm", "flex": 2 },
+                                    { "type": "text", "text": dCar, "color": "#111111", "size": "sm", "flex": 5, "weight": "bold" }
+                                ]},
+                                { "type": "box", "layout": "horizontal", "contents": [
+                                    { "type": "text", "text": "上車地點", "color": "#888888", "size": "sm", "flex": 2 },
+                                    { "type": "text", "text": currentAddress, "color": "#111111", "size": "sm", "flex": 5, "wrap": true, "weight": "bold" }
+                                ]}
+                            ]
+                        }
+                    }
+                };
+                liff.sendMessages([orderFlexMessage]).catch(err => console.log('LIFF 置頂訊息發送失敗', err));
+            }
         };
 
         try {
-            const currentAddress = document.getElementById('loc-text').innerText;
             const writePromise = db.ref('drivers/' + driverId + '/request').set({ 
                 lat: myLat, lng: myLng, userId: passengerId, userName: passengerName, userPhone: passengerPhone, 
                 pickup: currentAddress, dropoff: "依乘客指示", timestamp: firebase.database.ServerValue.TIMESTAMP 
