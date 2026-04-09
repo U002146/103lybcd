@@ -293,7 +293,7 @@
     function handleOrderRejected() {
         myTrackedDriverId = null; localStorage.removeItem('trackedDriverId'); localStorage.removeItem('wasBusy'); localStorage.removeItem('trackStep'); currentTrackStep = '1';
         lastGeocodePos = null; if (myLat && myLng) getAddress(myLat, myLng); updateStatusUI();
-        Swal.fire({ icon: 'warning', title: '⚠️ 司機無法承接', text: '專屬司機目前行程滿檔，請稍後再試或直接聯繫司機。', confirmButtonColor: '#F97316', confirmButtonText: '我知道了' });
+        Swal.fire({ icon: 'warning', title: '⚠️ 司機無法承接', text: '司機目前行程滿檔，請稍後再試。', confirmButtonColor: '#F97316', confirmButtonText: '我知道了' });
         if (lastDriversData) processDriversData(lastDriversData); 
     }
 
@@ -382,7 +382,7 @@
 
             const distText = d.distUser < 1 ? (d.distUser*1000).toFixed(0)+' 公尺' : d.distUser.toFixed(1)+' 公里';
             const avatar = d.photo || 'https://cdn-icons-png.flaticon.com/512/3237/3237472.png';
-            const displayCarNo = d.carNo || d.car || '專屬座車';
+            const displayCarNo = d.carNo || d.car || '車輛';
             let ratingUI = d.ratingStr === "NEW" ? `<span class="tag tag-star">✨ 新手司機</span>` : `<span class="tag tag-star">⭐ ${d.ratingStr}</span>`;
             
             if (d.isTracked && currentTrackStep === '2') {
@@ -421,6 +421,8 @@
         const originalContent = btn.innerHTML; btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin" style="font-size:20px;"></i>'; btn.disabled = true;
 
         const currentAddress = document.getElementById('loc-text').innerText;
+        // 🚀 核心變數鎖定：記錄叫車當下的真實地址，防呆取消時抓到定位中
+        localStorage.setItem('lastPickupAddress', currentAddress);
         const timeObj = getTaipeiTime();
 
         const makeCallAndTrack = () => {
@@ -518,13 +520,13 @@
             if (!confirm.isConfirmed) return; 
             try { await db.ref('drivers/' + myTrackedDriverId + '/request').remove(); } catch (e) {}
             
-            // 🚀 核心更新：極簡純文字取消訊息，保留當下時間與地點資訊
+            // 🚀 核心更新：提取鎖定的變數地址，確保文字訊息正確
             if (liff.isInClient()) {
-                const currentAddress = document.getElementById('loc-text').innerText;
+                const lockedAddress = localStorage.getItem('lastPickupAddress') || document.getElementById('loc-text').innerText;
                 const timeObj = getTaipeiTime();
                 const cancelTextMsg = {
                     "type": "text",
-                    "text": `❌ 已取消叫車\n(時間：${timeObj.short})\n📍 上車點：${currentAddress}`
+                    "text": `❌ 已取消叫車\n(時間：${timeObj.short})\n📍 上車點：${lockedAddress}`
                 };
                 liff.sendMessages([cancelTextMsg]).catch(err => console.log('LIFF 取消訊息發送失敗', err));
             }
