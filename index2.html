@@ -122,7 +122,7 @@
 
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script>
-    const VERSION = "v9.33"; 
+    const VERSION = "v9.35"; 
     const LIFF_ID = "2008907691-CzDqd7mm"; 
     const GAS_URL = "https://script.google.com/macros/s/AKfycbzjWZ8j394jfKoMVbPWGvHJHqwF7RBCQxnxyju1ifWKoKdM7RE512F7qrhUsQqQGoWg/exec"; 
     
@@ -145,6 +145,19 @@
 
     let driverRatingsCache = {};
     let isAppJustLoaded = true;
+
+    // 🚀 核心更新：取得台灣時區時間 (強制轉換)
+    function getTaipeiTime() {
+        const d = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Taipei"}));
+        const month = d.getMonth() + 1;
+        const date = d.getDate();
+        const hours = d.getHours().toString().padStart(2, '0');
+        const minutes = d.getMinutes().toString().padStart(2, '0');
+        return {
+            full: `${month}月${date}日 ${hours}:${minutes}`,
+            short: `${month}/${date} ${hours}:${minutes}`
+        };
+    }
 
     const getPinIcon = (type, isTracked, workStatus, trackStep) => {
         if (isTracked) {
@@ -408,6 +421,7 @@
         const originalContent = btn.innerHTML; btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin" style="font-size:20px;"></i>'; btn.disabled = true;
 
         const currentAddress = document.getElementById('loc-text').innerText;
+        const timeObj = getTaipeiTime();
 
         const makeCallAndTrack = () => {
             myTrackedDriverId = driverId; localStorage.setItem('trackedDriverId', driverId); localStorage.setItem('wasBusy', 'false'); localStorage.setItem('trackStep', '1'); currentTrackStep = '1';
@@ -415,44 +429,71 @@
             btn.innerHTML = originalContent; btn.disabled = false;
             Swal.fire({ icon: 'success', title: '✅ 叫車成功！', text: '司機已收到通知，將為您切換至雷達追蹤。', timer: 2000, showConfirmButton: false });
 
+            // 🚀 核心更新：極簡版同款白色卡片，無右上角按鈕，去除付款與下車點
             if (liff.isInClient()) {
-                const targetDriver = lastDriversData ? lastDriversData[driverId] : null;
-                const dName = targetDriver ? targetDriver.name : "專屬司機";
-                const dCar = targetDriver ? (targetDriver.carNo || targetDriver.car || "專屬座車") : "專屬座車";
-                
                 const orderFlexMessage = {
                     "type": "flex",
-                    "altText": "🚕 已收到您的派車需求",
+                    "altText": "🚕 一鍵叫車確認",
                     "contents": {
                         "type": "bubble",
-                        "size": "mega",
-                        "header": {
-                            "type": "box",
-                            "layout": "vertical",
-                            "contents": [
-                                { "type": "text", "text": "🚕 派車需求已送出", "weight": "bold", "color": "#ffffff", "size": "lg" }
-                            ],
-                            "backgroundColor": "#00C853"
-                        },
+                        "size": "kilo",
                         "body": {
                             "type": "box",
                             "layout": "vertical",
-                            "spacing": "md",
                             "contents": [
-                                { "type": "text", "text": "已通知專屬司機，請留意抵達通知", "weight": "bold", "size": "md", "color": "#111111", "wrap": true },
-                                { "type": "separator" },
-                                { "type": "box", "layout": "horizontal", "contents": [
-                                    { "type": "text", "text": "指派司機", "color": "#888888", "size": "sm", "flex": 2 },
-                                    { "type": "text", "text": dName, "color": "#111111", "size": "sm", "flex": 5, "weight": "bold" }
-                                ]},
-                                { "type": "box", "layout": "horizontal", "contents": [
-                                    { "type": "text", "text": "專屬座車", "color": "#888888", "size": "sm", "flex": 2 },
-                                    { "type": "text", "text": dCar, "color": "#111111", "size": "sm", "flex": 5, "weight": "bold" }
-                                ]},
-                                { "type": "box", "layout": "horizontal", "contents": [
-                                    { "type": "text", "text": "上車地點", "color": "#888888", "size": "sm", "flex": 2 },
-                                    { "type": "text", "text": currentAddress, "color": "#111111", "size": "sm", "flex": 5, "wrap": true, "weight": "bold" }
-                                ]}
+                                {
+                                    "type": "text",
+                                    "text": "🚕 一鍵叫車",
+                                    "weight": "bold",
+                                    "color": "#1976D2",
+                                    "size": "sm"
+                                },
+                                {
+                                    "type": "text",
+                                    "text": timeObj.full,
+                                    "weight": "bold",
+                                    "size": "xl",
+                                    "margin": "sm"
+                                },
+                                {
+                                    "type": "separator",
+                                    "margin": "md"
+                                },
+                                {
+                                    "type": "box",
+                                    "layout": "vertical",
+                                    "margin": "md",
+                                    "spacing": "sm",
+                                    "contents": [
+                                        {
+                                            "type": "box",
+                                            "layout": "horizontal",
+                                            "spacing": "md",
+                                            "contents": [
+                                                { "type": "text", "text": "👤 乘客", "color": "#888888", "size": "sm", "flex": 3 },
+                                                { "type": "text", "text": passengerName, "color": "#111111", "size": "sm", "flex": 7, "weight": "bold" }
+                                            ]
+                                        },
+                                        {
+                                            "type": "box",
+                                            "layout": "horizontal",
+                                            "spacing": "md",
+                                            "contents": [
+                                                { "type": "text", "text": "🟢 上車", "color": "#888888", "size": "sm", "flex": 3 },
+                                                { "type": "text", "text": currentAddress, "color": "#111111", "size": "sm", "flex": 7, "weight": "bold", "wrap": true }
+                                            ]
+                                        },
+                                        {
+                                            "type": "box",
+                                            "layout": "horizontal",
+                                            "spacing": "md",
+                                            "contents": [
+                                                { "type": "text", "text": "📞 電話", "color": "#888888", "size": "sm", "flex": 3 },
+                                                { "type": "text", "text": passengerPhone, "color": "#111111", "size": "sm", "flex": 7, "weight": "bold" }
+                                            ]
+                                        }
+                                    ]
+                                }
                             ]
                         }
                     }
@@ -477,49 +518,20 @@
             if (!confirm.isConfirmed) return; 
             try { await db.ref('drivers/' + myTrackedDriverId + '/request').remove(); } catch (e) {}
             
-            // 🚀 核心更新：透過 LIFF 發送「紅色取消卡片」回聊天室
+            // 🚀 核心更新：極簡純文字取消訊息，保留當下時間與地點資訊
             if (liff.isInClient()) {
                 const currentAddress = document.getElementById('loc-text').innerText;
-                const cancelFlexMessage = {
-                    "type": "flex",
-                    "altText": "❌ 已取消您的派車需求",
-                    "contents": {
-                        "type": "bubble",
-                        "size": "mega",
-                        "header": {
-                            "type": "box",
-                            "layout": "vertical",
-                            "contents": [
-                                { "type": "text", "text": "❌ 叫車已取消", "weight": "bold", "color": "#ffffff", "size": "lg" }
-                            ],
-                            "backgroundColor": "#E53935"
-                        },
-                        "body": {
-                            "type": "box",
-                            "layout": "vertical",
-                            "spacing": "md",
-                            "contents": [
-                                { "type": "text", "text": "您的派車需求已安全取消", "weight": "bold", "size": "md", "color": "#111111" },
-                                { "type": "separator" },
-                                { "type": "box", "layout": "horizontal", "contents": [
-                                    { "type": "text", "text": "乘客", "color": "#888888", "size": "sm", "flex": 2 },
-                                    { "type": "text", "text": passengerName, "color": "#111111", "size": "sm", "flex": 5, "weight": "bold" }
-                                ]},
-                                { "type": "box", "layout": "horizontal", "contents": [
-                                    { "type": "text", "text": "原本上車", "color": "#888888", "size": "sm", "flex": 2 },
-                                    { "type": "text", "text": currentAddress, "color": "#111111", "size": "sm", "flex": 5, "wrap": true, "weight": "bold" }
-                                ]}
-                            ]
-                        }
-                    }
+                const timeObj = getTaipeiTime();
+                const cancelTextMsg = {
+                    "type": "text",
+                    "text": `❌ 已取消叫車\n(時間：${timeObj.short})\n📍 上車點：${currentAddress}`
                 };
-                liff.sendMessages([cancelFlexMessage]).catch(err => console.log('LIFF 取消訊息發送失敗', err));
+                liff.sendMessages([cancelTextMsg]).catch(err => console.log('LIFF 取消訊息發送失敗', err));
             }
 
             resetTrackingState();
             Swal.fire({ icon: 'info', title: '已取消叫車', text: '已同步通知司機', timer: 2000, showConfirmButton: false });
             
-            // 🚀 UX 極致化：發送卡片後，延遲關閉 LIFF 視窗讓客人看到聊天室
             if (liff.isInClient()) {
                 setTimeout(() => { liff.closeWindow(); }, 1500);
             }
