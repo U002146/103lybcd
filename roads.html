@@ -4,12 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>花蓮路名對照表</title>
-    <!-- v1.3 新增動態字首快選列 -->
+    <!-- v1.5 介面優化與雙效按鈕（語音＋複製） -->
     
-    <!-- 引入 Tailwind CSS 進行快速且適應性排版 -->
+    <!-- 引入 Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- 引入 SweetAlert2 負責巨大化高對比提示 -->
+    <!-- 引入 SweetAlert2 -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <style>
@@ -19,22 +19,18 @@
             -moz-user-select: none;
             -ms-user-select: none;
             user-select: none;
-            /* 淺灰色背景減少視覺疲勞 */
             background-color: #f3f4f6; 
         }
 
-        /* 隱藏捲軸但保留捲動功能，使畫面更乾淨 */
-        ::-webkit-scrollbar {
+        /* 隱藏捲軸但保留捲動功能 */
+        .hide-scrollbar::-webkit-scrollbar {
             display: none;
         }
-
-        /* 確保點擊區域有明顯的反饋 */
-        .road-card:active {
-            transform: scale(0.98);
-            background-color: #e5e7eb;
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
         }
-        
-        /* 字首過濾列的平滑滾動 */
+
         .scroll-smooth {
             scroll-behavior: smooth;
         }
@@ -42,51 +38,51 @@
 </head>
 <body class="font-sans text-gray-800 antialiased h-screen flex flex-col">
 
-    <!-- 頂部固定搜尋區 (Sticky Header) -->
-    <header class="bg-white shadow-sm z-10 sticky top-0 px-4 pt-4 pb-2 border-b-2 border-blue-500">
+    <!-- 頂部固定搜尋區 (瘦身版) -->
+    <header class="bg-white shadow-sm z-10 sticky top-0 px-4 pt-3 pb-2 border-b-2 border-blue-500">
         <div class="max-w-3xl mx-auto">
-            <h1 class="text-[22px] font-bold text-center text-blue-800 mb-3 tracking-wide flex items-center justify-center gap-1">
+            <h1 class="text-[20px] font-bold text-center text-blue-800 mb-2 tracking-wide flex items-center justify-center gap-1">
                 🚕 花蓮路名快速翻譯
             </h1>
             <div class="relative">
                 <input 
                     type="text" 
                     id="searchInput" 
-                    class="w-full pl-10 pr-10 py-3 text-lg border-2 border-gray-300 rounded-xl focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100 transition-all"
+                    class="w-full pl-10 pr-10 py-3 text-lg border-2 border-gray-300 rounded-xl focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100 transition-all shadow-sm"
                     placeholder="輸入英文或中文路名..."
                     autocomplete="off"
                 >
-                <!-- 放大鏡 Icon -->
                 <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <svg class="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                     </svg>
                 </div>
-                <!-- 清除按鈕 -->
                 <button id="clearBtn" class="absolute inset-y-0 right-0 pr-3 flex items-center hidden text-gray-400 hover:text-gray-600">
                      <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                     </svg>
                 </button>
             </div>
-            <p class="text-center text-gray-500 text-[13px] mt-2 mb-1">💡 點擊路名即可複製中文</p>
 
-            <!-- 新增：橫向字首快選列 (AgeTech 大按鈕設計) -->
-            <nav class="mt-2 -mx-4 px-4 overflow-x-auto scroll-smooth">
-                <div id="alphabetFilter" class="flex gap-2 pb-2 min-w-max">
-                    <!-- JS 動態生成字首按鈕 -->
-                </div>
-            </nav>
+            <!-- 橫向字首快選列 (含右側漸層暗示) -->
+            <div class="relative mt-2 -mx-4 px-4">
+                <nav class="overflow-x-auto scroll-smooth hide-scrollbar">
+                    <div id="alphabetFilter" class="flex gap-2 pb-2 min-w-max pr-8">
+                        <!-- JS 動態生成字首按鈕 -->
+                    </div>
+                </nav>
+                <!-- 漸層遮罩，提示右側還有內容 -->
+                <div class="absolute right-0 top-0 bottom-2 w-8 bg-gradient-to-l from-white to-transparent pointer-events-none"></div>
+            </div>
         </div>
     </header>
 
-    <!-- 列表顯示區 (Scrollable List) -->
-    <main class="flex-1 overflow-y-auto p-4">
+    <!-- 列表顯示區 -->
+    <main class="flex-1 overflow-y-auto p-4 hide-scrollbar">
         <div id="roadList" class="max-w-3xl mx-auto space-y-3 pb-8">
             <!-- 道路卡片將由 JavaScript 動態生成於此 -->
         </div>
         
-        <!-- 無結果提示 -->
         <div id="noResult" class="hidden text-center py-10">
             <p class="text-xl text-gray-500 font-bold">找不到符合的路名 😢</p>
             <p class="text-base text-gray-400 mt-2">請嘗試輸入其他拼音或中文</p>
@@ -94,7 +90,7 @@
     </main>
 
     <script>
-        // 1. 資料清洗與建構 (將原始中英混和字串轉為 JSON 物件陣列)
+        // 1. 資料庫 (v1.2 擴充版)
         const rawData = [
             "Beibu北埔", "Beian北安", "Bo’ai博愛", "Beichang北昌", "Beixing北興",
             "Chang’an長安", "Cihui慈惠", "Ciyun慈雲", "Chenghong城中", "Dade大德",
@@ -122,7 +118,6 @@
             "Jiali嘉里", "Jialin佳林", "Xincheng新城", "Suhua蘇花"
         ];
 
-        // 使用正規表達式分離英文與中文
         const roads = rawData.map(item => {
             const cleanItem = item.trim().replace(/\s/g, ''); 
             const match = cleanItem.match(/^([a-zA-Z’]+)([\u4e00-\u9fa5]+)$/);
@@ -135,10 +130,9 @@
             }
         });
 
-        // 按英文字母順序預設排序
         roads.sort((a, b) => a.pinyin.localeCompare(b.pinyin));
 
-        // 2. DOM 元素綁定與狀態
+        // 2. DOM 綁定
         const searchInput = document.getElementById('searchInput');
         const clearBtn = document.getElementById('clearBtn');
         const roadList = document.getElementById('roadList');
@@ -146,21 +140,18 @@
         const alphabetFilterContainer = document.getElementById('alphabetFilter');
         
         let currentAlphabet = 'ALL';
-
-        // 3. 提取存在的字首並渲染快選列
         const alphabets = [...new Set(roads.map(r => r.pinyin.charAt(0).toUpperCase()))].sort();
 
+        // 3. 渲染字首列
         function renderAlphabets() {
             alphabetFilterContainer.innerHTML = '';
             
-            // "全部" 按鈕
             const allBtn = document.createElement('button');
             allBtn.textContent = '全部';
             allBtn.className = getAlphabetBtnClass('ALL');
             allBtn.onclick = () => filterByAlphabet('ALL');
             alphabetFilterContainer.appendChild(allBtn);
 
-            // 動態字母按鈕
             alphabets.forEach(letter => {
                 const btn = document.createElement('button');
                 btn.textContent = letter;
@@ -170,22 +161,20 @@
             });
         }
 
-        // 快選按鈕樣式 (高齡友善：大尺寸、高對比)
         function getAlphabetBtnClass(letter) {
             const baseClass = "px-5 py-2 rounded-xl text-xl font-bold transition-colors flex-shrink-0 border-2 ";
             if (currentAlphabet === letter) {
                 return baseClass + "bg-blue-600 text-white border-blue-600 shadow-md";
             } else {
-                return baseClass + "bg-white text-gray-500 border-gray-300 hover:bg-gray-100";
+                return baseClass + "bg-white text-gray-500 border-gray-300 active:bg-gray-200";
             }
         }
 
-        // 快選過濾邏輯
         function filterByAlphabet(letter) {
             currentAlphabet = letter;
-            searchInput.value = ''; // 點擊字母時清空文字搜尋
+            searchInput.value = ''; 
             clearBtn.classList.add('hidden');
-            renderAlphabets(); // 重新渲染更新選中樣式
+            renderAlphabets(); 
 
             if (letter === 'ALL') {
                 renderList(roads);
@@ -195,7 +184,7 @@
             }
         }
 
-        // 4. 渲染列表函數
+        // 4. 渲染列表 (AgeTech 雙按鈕設計)
         function renderList(dataToRender) {
             roadList.innerHTML = ''; 
 
@@ -206,51 +195,53 @@
                 
                 dataToRender.forEach(road => {
                     const card = document.createElement('div');
-                    card.className = "road-card bg-white rounded-2xl p-4 shadow-sm border border-gray-200 flex justify-between items-center cursor-pointer transition-colors";
+                    // 移除整張卡片的 onclick，改為按鈕獨立觸發防誤觸
+                    card.className = "road-card bg-white rounded-2xl p-4 shadow-sm border border-gray-200 flex justify-between items-center transition-colors";
                     
                     card.innerHTML = `
-                        <div class="flex-1">
+                        <div class="flex-1 pr-2">
                             <div class="text-[26px] font-black text-blue-900 tracking-wide leading-tight">${road.pinyin}</div>
-                            <div class="text-[18px] font-bold text-gray-700 mt-1">${road.zh} 街/路</div>
+                            <!-- 移除「街/路」贅字，利於複製後無縫導航 -->
+                            <div class="text-[20px] font-bold text-gray-700 mt-1">${road.zh}</div>
                         </div>
-                        <div class="w-12 h-12 rounded-full border-[2px] border-blue-100 bg-blue-50 flex items-center justify-center text-blue-600 flex-shrink-0">
-                            <svg class="w-6 h-6 ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
-                            </svg>
+                        <div class="flex gap-3">
+                            <!-- 語音按鈕 (綠色) -->
+                            <button class="w-12 h-12 rounded-full border-[2px] border-green-200 bg-green-50 flex items-center justify-center text-green-600 flex-shrink-0 active:bg-green-200 transition-colors" onclick="speakText('${road.zh}', event)">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"></path>
+                                </svg>
+                            </button>
+                            <!-- 複製按鈕 (藍色) -->
+                            <button class="w-12 h-12 rounded-full border-[2px] border-blue-200 bg-blue-50 flex items-center justify-center text-blue-600 flex-shrink-0 active:bg-blue-200 transition-colors" onclick="copyToClipboard('${road.zh}', event)">
+                                <svg class="w-6 h-6 ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+                                </svg>
+                            </button>
                         </div>
                     `;
-
-                    card.onclick = () => copyToClipboard(road.zh);
                     roadList.appendChild(card);
                 });
             }
         }
 
-        // 5. 文字搜尋與過濾邏輯
-        function handleSearch() {
-            const query = searchInput.value.toLowerCase().trim();
-            
-            if (query.length > 0) {
-                clearBtn.classList.remove('hidden');
-                // 手動輸入搜尋時，自動解除上方字母過濾
-                if (currentAlphabet !== 'ALL') {
-                    currentAlphabet = 'ALL';
-                    renderAlphabets();
-                }
+        // 5. 語音播報功能 (原生 Web Speech API)
+        function speakText(text, event) {
+            event.stopPropagation(); // 阻擋事件冒泡
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel(); // 停止先前的語音
+                // 為了聽覺自然，自動加上「路」
+                const utterance = new SpeechSynthesisUtterance(text + '路');
+                utterance.lang = 'zh-TW';
+                utterance.rate = 0.9; // 放慢語速，高齡與外國客更易懂
+                window.speechSynthesis.speak(utterance);
             } else {
-                clearBtn.classList.add('hidden');
+                Swal.fire('系統提示', '您的裝置不支援語音功能', 'warning');
             }
-
-            const filteredRoads = roads.filter(road => {
-                return road.pinyin.toLowerCase().includes(query) || 
-                       road.zh.includes(query);
-            });
-
-            renderList(filteredRoads);
         }
 
-        // 6. 複製到剪貼簿功能 (含高齡友善提示)
-        function copyToClipboard(text) {
+        // 6. 複製到剪貼簿功能
+        function copyToClipboard(text, event) {
+            event.stopPropagation(); // 阻擋事件冒泡
             const textArea = document.createElement("textarea");
             textArea.value = text;
             document.body.appendChild(textArea);
@@ -260,7 +251,7 @@
                 document.execCommand('copy');
                 Swal.fire({
                     title: '已複製',
-                    text: text,
+                    text: text, // 複製純路名，丟導航最準
                     icon: 'success',
                     timer: 1500,
                     showConfirmButton: false,
@@ -288,7 +279,28 @@
             }
         }
 
-        // 7. 事件監聽設定
+        // 7. 搜尋邏輯
+        function handleSearch() {
+            const query = searchInput.value.toLowerCase().trim();
+            
+            if (query.length > 0) {
+                clearBtn.classList.remove('hidden');
+                if (currentAlphabet !== 'ALL') {
+                    currentAlphabet = 'ALL';
+                    renderAlphabets();
+                }
+            } else {
+                clearBtn.classList.add('hidden');
+            }
+
+            const filteredRoads = roads.filter(road => {
+                return road.pinyin.toLowerCase().includes(query) || 
+                       road.zh.includes(query);
+            });
+
+            renderList(filteredRoads);
+        }
+
         searchInput.addEventListener('input', handleSearch);
         
         clearBtn.addEventListener('click', () => {
@@ -304,7 +316,7 @@
             }
         });
 
-        // 8. 初始渲染
+        // 8. 初始化
         renderAlphabets();
         renderList(roads);
 
