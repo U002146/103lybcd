@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>花蓮路名對照表</title>
-    <!-- v1.5 介面優化與雙效按鈕（語音＋複製） -->
+    <!-- v1.6 移除語音預設字尾 -->
     
     <!-- 引入 Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -229,8 +229,8 @@
             event.stopPropagation(); // 阻擋事件冒泡
             if ('speechSynthesis' in window) {
                 window.speechSynthesis.cancel(); // 停止先前的語音
-                // 為了聽覺自然，自動加上「路」
-                const utterance = new SpeechSynthesisUtterance(text + '路');
+                // 移除強制添加的「路」，還原原始字眼
+                const utterance = new SpeechSynthesisUtterance(text);
                 utterance.lang = 'zh-TW';
                 utterance.rate = 0.9; // 放慢語速，高齡與外國客更易懂
                 window.speechSynthesis.speak(utterance);
