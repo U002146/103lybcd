@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>花蓮路名對照表</title>
-    <!-- v1.2 擴充核心路網與校正拼音字典 -->
+    <!-- v1.3 新增動態字首快選列 -->
     
     <!-- 引入 Tailwind CSS 進行快速且適應性排版 -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -32,6 +32,11 @@
         .road-card:active {
             transform: scale(0.98);
             background-color: #e5e7eb;
+        }
+        
+        /* 字首過濾列的平滑滾動 */
+        .scroll-smooth {
+            scroll-behavior: smooth;
         }
     </style>
 </head>
@@ -65,6 +70,13 @@
                 </button>
             </div>
             <p class="text-center text-gray-500 text-[13px] mt-2 mb-1">💡 點擊路名即可複製中文</p>
+
+            <!-- 新增：橫向字首快選列 (AgeTech 大按鈕設計) -->
+            <nav class="mt-2 -mx-4 px-4 overflow-x-auto scroll-smooth">
+                <div id="alphabetFilter" class="flex gap-2 pb-2 min-w-max">
+                    <!-- JS 動態生成字首按鈕 -->
+                </div>
+            </nav>
         </div>
     </header>
 
@@ -104,7 +116,6 @@
             "Xingang新港", "Xinyi信義", "Zhongshan中山", "Zhongyang中央", "Zhongfu中福",
             "Zhonghe中和", "Zhongqiang中強", "Zhongyuan中原", "Zhongshun中順", "Zhongmei中美",
             "Ziyou自由", "Changchun長春", "Zuocang佐倉",
-            // v1.2 新增核心路網
             "Zhongzheng中正", "Zhonghua中華", "Linsen林森", "Chongqing重慶", "Nanbin南濱",
             "Beibin北濱", "Haibin海濱", "Datong大同", "Jinfeng進豐", "Xuanyuan軒轅",
             "Ziqiang自強", "Zili自立", "Taichang太昌", "Zhijiaxuan知卡宣", "Nanshan南山",
@@ -127,13 +138,64 @@
         // 按英文字母順序預設排序
         roads.sort((a, b) => a.pinyin.localeCompare(b.pinyin));
 
-        // 2. DOM 元素綁定
+        // 2. DOM 元素綁定與狀態
         const searchInput = document.getElementById('searchInput');
         const clearBtn = document.getElementById('clearBtn');
         const roadList = document.getElementById('roadList');
         const noResult = document.getElementById('noResult');
+        const alphabetFilterContainer = document.getElementById('alphabetFilter');
+        
+        let currentAlphabet = 'ALL';
 
-        // 3. 渲染列表函數 (樣式已對齊完成圖)
+        // 3. 提取存在的字首並渲染快選列
+        const alphabets = [...new Set(roads.map(r => r.pinyin.charAt(0).toUpperCase()))].sort();
+
+        function renderAlphabets() {
+            alphabetFilterContainer.innerHTML = '';
+            
+            // "全部" 按鈕
+            const allBtn = document.createElement('button');
+            allBtn.textContent = '全部';
+            allBtn.className = getAlphabetBtnClass('ALL');
+            allBtn.onclick = () => filterByAlphabet('ALL');
+            alphabetFilterContainer.appendChild(allBtn);
+
+            // 動態字母按鈕
+            alphabets.forEach(letter => {
+                const btn = document.createElement('button');
+                btn.textContent = letter;
+                btn.className = getAlphabetBtnClass(letter);
+                btn.onclick = () => filterByAlphabet(letter);
+                alphabetFilterContainer.appendChild(btn);
+            });
+        }
+
+        // 快選按鈕樣式 (高齡友善：大尺寸、高對比)
+        function getAlphabetBtnClass(letter) {
+            const baseClass = "px-5 py-2 rounded-xl text-xl font-bold transition-colors flex-shrink-0 border-2 ";
+            if (currentAlphabet === letter) {
+                return baseClass + "bg-blue-600 text-white border-blue-600 shadow-md";
+            } else {
+                return baseClass + "bg-white text-gray-500 border-gray-300 hover:bg-gray-100";
+            }
+        }
+
+        // 快選過濾邏輯
+        function filterByAlphabet(letter) {
+            currentAlphabet = letter;
+            searchInput.value = ''; // 點擊字母時清空文字搜尋
+            clearBtn.classList.add('hidden');
+            renderAlphabets(); // 重新渲染更新選中樣式
+
+            if (letter === 'ALL') {
+                renderList(roads);
+            } else {
+                const filtered = roads.filter(r => r.pinyin.toUpperCase().startsWith(letter));
+                renderList(filtered);
+            }
+        }
+
+        // 4. 渲染列表函數
         function renderList(dataToRender) {
             roadList.innerHTML = ''; 
 
@@ -146,7 +208,6 @@
                     const card = document.createElement('div');
                     card.className = "road-card bg-white rounded-2xl p-4 shadow-sm border border-gray-200 flex justify-between items-center cursor-pointer transition-colors";
                     
-                    // 內容 HTML：深藍粗體英文、深灰中文、特製外連箭頭圖示
                     card.innerHTML = `
                         <div class="flex-1">
                             <div class="text-[26px] font-black text-blue-900 tracking-wide leading-tight">${road.pinyin}</div>
@@ -159,20 +220,23 @@
                         </div>
                     `;
 
-                    // 綁定點擊複製事件
                     card.onclick = () => copyToClipboard(road.zh);
-                    
                     roadList.appendChild(card);
                 });
             }
         }
 
-        // 4. 搜尋與過濾邏輯
+        // 5. 文字搜尋與過濾邏輯
         function handleSearch() {
             const query = searchInput.value.toLowerCase().trim();
             
             if (query.length > 0) {
                 clearBtn.classList.remove('hidden');
+                // 手動輸入搜尋時，自動解除上方字母過濾
+                if (currentAlphabet !== 'ALL') {
+                    currentAlphabet = 'ALL';
+                    renderAlphabets();
+                }
             } else {
                 clearBtn.classList.add('hidden');
             }
@@ -185,7 +249,7 @@
             renderList(filteredRoads);
         }
 
-        // 5. 複製到剪貼簿功能 (含高齡友善提示)
+        // 6. 複製到剪貼簿功能 (含高齡友善提示)
         function copyToClipboard(text) {
             const textArea = document.createElement("textarea");
             textArea.value = text;
@@ -224,7 +288,7 @@
             }
         }
 
-        // 6. 事件監聽設定
+        // 7. 事件監聽設定
         searchInput.addEventListener('input', handleSearch);
         
         clearBtn.addEventListener('click', () => {
@@ -240,7 +304,8 @@
             }
         });
 
-        // 7. 初始渲染
+        // 8. 初始渲染
+        renderAlphabets();
         renderList(roads);
 
     </script>
