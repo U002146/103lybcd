@@ -1,4 +1,4 @@
-// v3.6 [路線標記同步版] 同步 Google Maps A-Z 標記，升級時間軸 UI 與純淨文字流
+// v3.7 [無限許願池版] 升級動態新增/刪除客製化景點，完美融合 Google 最佳化排序引擎
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
@@ -170,8 +170,17 @@
         <span id="poiCount" class="text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md">已選 0 個</span>
       </div>
       <div id="poiContainer" class="grid grid-cols-2 gap-2 text-[13px]"></div>
+      
       <div class="mt-4 border-t border-slate-100 pt-4">
-        <input type="text" id="customPoi" placeholder="想去清單外的秘境？請填寫於此" class="w-full border-0 bg-slate-50 rounded-xl p-3 text-slate-800 outline-none font-bold" oninput="resetFormCalculation()">
+        <label class="block text-[11px] text-slate-500 mb-2 uppercase tracking-wider font-bold">
+          <i class="fa-solid fa-wand-magic-sparkles text-amber-500 mr-1"></i> 許願池 (自訂其他秘境)
+        </label>
+        <div id="customPoiContainer" class="space-y-2">
+          <div class="flex gap-2">
+            <input type="text" class="custom-poi-input flex-1 border-0 bg-slate-50 rounded-xl p-3 text-slate-800 outline-none font-bold shadow-inner" placeholder="請輸入景點名稱..." oninput="resetFormCalculation()">
+            <button onclick="addCustomPoiInput()" class="bg-emerald-100 text-emerald-600 w-12 rounded-xl active:scale-95 transition-transform flex items-center justify-center shadow-sm" title="新增景點"><i class="fa-solid fa-plus"></i></button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -199,6 +208,19 @@
       updateQuotaDisplay();
       renderPOIs();
     };
+
+    // 🚀 無限許願池：動態新增輸入框
+    function addCustomPoiInput() {
+      const container = document.getElementById('customPoiContainer');
+      const div = document.createElement('div');
+      div.className = 'flex gap-2 mt-2';
+      div.innerHTML = `
+        <input type="text" class="custom-poi-input flex-1 border-0 bg-slate-50 rounded-xl p-3 text-slate-800 outline-none font-bold shadow-inner" placeholder="請輸入景點名稱..." oninput="resetFormCalculation()">
+        <button onclick="this.parentElement.remove(); resetFormCalculation();" class="bg-rose-100 text-rose-600 w-12 rounded-xl active:scale-95 transition-transform flex items-center justify-center shadow-sm" title="刪除"><i class="fa-solid fa-minus"></i></button>
+      `;
+      container.appendChild(div);
+      resetFormCalculation();
+    }
 
     function setSameAsPickup() {
       const pickupVal = document.getElementById('pickup-input').value.trim();
@@ -281,8 +303,11 @@
 
     function resetFormCalculation() {
       currentCalcResult = null;
-      const count = document.querySelectorAll('.poi-check:checked').length;
-      document.getElementById('poiCount').innerText = `已選 ${count} 個`;
+      // 計算原有景點加上自訂景點的總數
+      let count = document.querySelectorAll('.poi-check:checked').length;
+      const customInputs = document.querySelectorAll('.custom-poi-input');
+      customInputs.forEach(input => { if(input.value.trim() !== '') count++; });
+      document.getElementById('poiCount').innerText = `已排 ${count} 個景點`;
     }
 
     function resetCalculation() {
@@ -298,8 +323,12 @@
       const dropoff = document.getElementById('dropoff-input').value.trim();
       const date = document.getElementById('tourDate').value;
       const checkedBoxes = document.querySelectorAll('.poi-check:checked');
+      const customInputs = document.querySelectorAll('.custom-poi-input');
 
-      if (!date || !pickup || !dropoff || checkedBoxes.length === 0) {
+      let hasValidPoi = (checkedBoxes.length > 0);
+      customInputs.forEach(input => { if(input.value.trim() !== '') hasValidPoi = true; });
+
+      if (!date || !pickup || !dropoff || !hasValidPoi) {
         Swal.fire('資訊未填齊', '請確認日期、上下車點與景點皆已填寫', 'warning'); return;
       }
 
@@ -315,12 +344,15 @@
         totalStay += parseInt(cb.dataset.stay);
       });
 
-      const customVal = document.getElementById('customPoi').value.trim();
-      if (customVal) {
-        waypoints.push({ location: customVal, stopover: true });
-        originalPois.push({ name: customVal, stay: 50 });
-        totalStay += 50;
-      }
+      // 🚀 將所有填寫的許願池景點推入引擎
+      customInputs.forEach(input => {
+        const val = input.value.trim();
+        if (val) {
+          waypoints.push({ location: val, stopover: true });
+          originalPois.push({ name: val, stay: 50 }); // 預設每個自訂景點停50分鐘
+          totalStay += 50;
+        }
+      });
 
       directionsService.route({
         origin: pickup, destination: dropoff, waypoints: waypoints, optimizeWaypoints: true, travelMode: 'DRIVING'
@@ -333,7 +365,6 @@
           let driveMins = Math.floor(res.routes[0].legs.reduce((acc, leg) => acc + leg.duration.value, 0) / 60);
           let totalKm = Math.floor(res.routes[0].legs.reduce((acc, leg) => acc + leg.distance.value, 0) / 1000);
           
-          // 🚀 完美同步 A-Z 標記與時間軸 UI
           const optimizedOrder = res.routes[0].waypoint_order;
           let currentLabelCode = 65; // A
           const originLabel = String.fromCharCode(currentLabelCode++); 
@@ -385,7 +416,7 @@
           }, 300);
 
         } else {
-          Swal.fire('規劃失敗', '地址可能過於模糊，請修改後再試。', 'error');
+          Swal.fire('規劃失敗', '地址無法連接，可能是自訂景點過於偏僻，請嘗試簡化地名再試。', 'error');
         }
       });
     }
