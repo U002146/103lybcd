@@ -1,4 +1,4 @@
-// v4.4 [導航校正版] 竄改清水斷崖底層座標，防禦 Google 迴轉繞路 Bug
+// v4.5 [極簡主線與動態解鎖版] 實裝長程路線滑動開關、雙層資料庫疊加與多國語系動態渲染
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
@@ -100,21 +100,30 @@
       </div>
     </div>
 
-    <div class="grid grid-cols-2 gap-3 mb-6">
+    <div class="grid grid-cols-2 gap-3 mb-3">
       <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
         <label class="block text-[10px] text-slate-400 mb-1 uppercase tracking-wider font-bold" data-i18n="date">出發日期</label>
         <input type="date" id="tourDate" class="w-full text-base font-black border-0 bg-transparent text-slate-800 outline-none">
       </div>
       <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
         <label class="block text-[10px] text-slate-400 mb-1 uppercase tracking-wider font-bold" data-i18n="route">主題路線</label>
-        <select id="tourRoute" class="w-full text-xs font-black border-0 bg-transparent text-slate-800 outline-none appearance-none" onchange="renderPOIs()">
-          <option value="taroko" data-i18n-opt="r_taroko">太魯閣與山海網美線</option>
-          <option value="kenting_valley" data-i18n-opt="r_kenting_v">【長程】墾丁 (縱谷線)</option>
-          <option value="kenting_coast" data-i18n-opt="r_kenting_c">【長程】墾丁 (海岸線)</option>
+        <select id="tourRoute" class="w-full text-xs font-black border-0 bg-transparent text-slate-800 outline-none appearance-none" onchange="handleRouteSelection()">
+          <option value="taroko" data-i18n-opt="r_taroko">太魯閣與北花蓮</option>
           <option value="coast" data-i18n-opt="r_coast">花蓮東海岸線</option>
           <option value="valley" data-i18n-opt="r_valley">花東縱谷慢活</option>
         </select>
       </div>
+    </div>
+
+    <div class="mb-6 flex items-center justify-between bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
+      <div class="text-xs font-bold text-slate-700 flex items-center gap-2">
+        <i class="fa-solid fa-unlock-keyhole text-amber-500"></i>
+        <span id="extendRouteText">解鎖長程路線</span>
+      </div>
+      <label class="relative inline-flex items-center cursor-pointer">
+        <input type="checkbox" id="extendToggle" class="sr-only peer" onchange="renderPOIs()">
+        <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500 shadow-inner"></div>
+      </label>
     </div>
 
     <div class="mb-6">
@@ -181,7 +190,7 @@
         poiAdj: '行程景點微調', wish: '許願池 (自訂秘境)', wishPlace: '輸入景點名稱...',
         calcBtn: '精算路徑與車資', drive: '行車', stay: '停留', totalSys: '系統總時數', hour: '小時',
         limit: '上限', baseFare: '基準車資 / 超時另計', sendBtn: '發送客製需求單', selected: '已排',
-        r_taroko: '太魯閣與山海網美線', r_coast: '花蓮東海岸', r_valley: '花東縱谷慢活', r_kenting_v: '【長程】墾丁 (縱谷)', r_kenting_c: '【長程】墾丁 (海岸)',
+        r_taroko: '太魯閣與北花蓮', r_coast: '花蓮東海岸', r_valley: '花東縱谷慢活',
         min: '分', statusClosed: '封閉中', statusPartial: '部分開放'
       },
       en: {
@@ -190,7 +199,7 @@
         poiAdj: 'Adjust Stops', wish: 'Custom Wishlist', wishPlace: 'Place name...',
         calcBtn: 'Calculate Price', drive: 'Drive', stay: 'Stay', totalSys: 'Total Est. Hours', hour: 'hrs',
         limit: 'Limit', baseFare: 'Base Fare / Extra TBD', sendBtn: 'Send Request', selected: 'Selected',
-        r_taroko: 'Taroko & Coastal Beauty', r_coast: 'Hualien Coast', r_valley: 'Rift Valley', r_kenting_v: 'Kenting (Valley)', r_kenting_c: 'Kenting (Coast)',
+        r_taroko: 'Taroko & North', r_coast: 'Hualien Coast', r_valley: 'Rift Valley',
         min: 'm', statusClosed: 'Closed', statusPartial: 'Partial'
       },
       ja: {
@@ -199,7 +208,7 @@
         poiAdj: '観光地の調整', wish: '希望観光地', wishPlace: '観光地名...',
         calcBtn: '料金を計算', drive: '運転', stay: '滞在', totalSys: '合計所要時間', hour: '時間',
         limit: '上限', baseFare: '基本料金 / 延長別途', sendBtn: 'リクエスト送信', selected: '選択済',
-        r_taroko: 'タロコ入口・山海絶景', r_coast: '花蓮東海岸', r_valley: '花東縦谷', r_kenting_v: '墾丁 (縦谷線)', r_kenting_c: '墾丁 (海岸線)',
+        r_taroko: 'タロコと北線', r_coast: '花蓮東海岸', r_valley: '花東縦谷',
         min: '分', statusClosed: '閉鎖中', statusPartial: '一部開放'
       },
       ko: {
@@ -208,41 +217,48 @@
         poiAdj: '관광지 조정', wish: '추가 희망지', wishPlace: '장소 이름...',
         calcBtn: '요금 계산', drive: '이동', stay: '체류', totalSys: '총 예상 시간', hour: '시간',
         limit: '제한', baseFare: '기본 요금 / 초과시 별도', sendBtn: '요청 보내기', selected: '선택됨',
-        r_taroko: '타이루거 입구 & 해안 절경', r_coast: '화롄 동해안', r_valley: '화동종구', r_kenting_v: '컨딩 (종구)', r_kenting_c: '컨딩 (해안)',
+        r_taroko: '타이루거 및 북부', r_coast: '화롄 동해안', r_valley: '화동종구',
         min: '분', statusClosed: '폐쇄됨', statusPartial: '부분 개방'
       }
     };
 
-    // 🚀 底層導航錨點偷換：query 傳送崇德遊憩區供合法迴轉，zh/en/ja/ko 仍顯示清水斷崖
+    // 🚀 雙層資料庫架構 (base 基礎線 + extend 長程延伸)
     const TOUR_DATA = {
       'taroko': { 
-        name: { zh: '太魯閣與山海網美線', en: 'Taroko & Coastal Beauty', ja: 'タロコ入口・山海絶景', ko: '타이루거 입구 & 해안 절경' }, 
-        points: [
+        name: { zh: '太魯閣與北花蓮', en: 'Taroko & North', ja: 'タロコと北線', ko: '타이루거 및 북부' }, 
+        extendText: { zh: '解鎖：延伸至合歡山/清境', en: 'Unlock: Extend to Cingjing', ja: '解放：清境農場へ延長', ko: '잠금 해제: 칭징 농장 연장' },
+        extendRouteName: { zh: '太魯閣-清境越嶺線', en: 'Taroko-Cingjing Route', ja: 'タロコ-清境横断線', ko: '타이루거-칭징 코스' },
+        base: [
           { query: '崇德遊憩區 花蓮', stay: 40, zh: '清水斷崖', en: 'Qingshui Cliff', ja: '清水断崖', ko: '칭수이 절벽' }, 
           { query: '太魯閣遊客中心', stay: 60, zh: '太魯閣遊客中心', en: 'Taroko Visitor Center', ja: 'タロコビジターセンター', ko: '타이루거 방문자 센터' }, 
+          { query: '長春祠', stay: 30, status: 'closed', zh: '長春祠', en: 'Eternal Spring Shrine', ja: '長春祠', ko: '창춘사' },
           { query: '崇德瑩農場', stay: 60, zh: '崇德瑩農場', en: 'Chongde Ying Farm', ja: '崇徳瑩農場', ko: '총더잉 농장' }, 
           { query: '新城老街', stay: 40, zh: '新城老街', en: 'Xincheng Old Street', ja: '新城老街', ko: '신청 옛거리' }, 
           { query: '地耕味-玩味蕃樂園', stay: 40, zh: '玩味蕃樂園', en: 'Digengwei Souvenir', ja: '玩味蕃楽園', ko: '완웨이판러위안' }, 
           { query: '曼波海洋生態休閒園區', stay: 30, zh: '曼波園區', en: 'Mambo Park', ja: 'マンボウパーク', ko: '맘보 공원' }, 
           { query: '七星潭海岸風景特定區', stay: 40, zh: '七星潭', en: 'Qixingtan Beach', ja: '七星潭', ko: '치싱탄' },
           { query: '魚刺人雞蛋糕咖啡館 七星潭店', stay: 30, zh: '魚刺人雞蛋糕', en: 'Yuciren Egg Cake', ja: '魚刺人ベビーカステラ', ko: '위츠런 계란빵' }
-        ] 
-      },
-      'kenting_valley': {
-        name: { zh: '【長程】墾丁 (縱谷線)', en: 'Kenting (Valley)', ja: '墾丁 (縦谷線)', ko: '컨딩 (종구)' },
-        points: [
-          { query: '瑞穗牧場', stay: 60, zh: '瑞穗牧場', en: 'Ruisui Pasture', ja: '瑞穂牧場', ko: '루이수이 목장' },
-          { query: '富里農會', stay: 40, zh: '富里稻草藝術', en: 'Fuli Rice Art', ja: '富里農協', ko: '푸리 농협' },
-          { query: '伯朗大道', stay: 60, zh: '池上伯朗大道', en: 'Mr. Brown Avenue', ja: '伯朗大道', ko: '보랑대도' },
-          { query: '鹿野高台', stay: 60, zh: '鹿野高台', en: 'Luye Highland', ja: '鹿野高台', ko: '루예고대' },
-          { query: '多良車站', stay: 30, zh: '多良車站', en: 'Duoliang Station', ja: '多良駅', ko: '두량역' },
-          { query: '墾丁大街', stay: 60, zh: '墾丁大街', en: 'Kenting Street', ja: '墾丁通り', ko: '컨딩 야시장' }
+        ],
+        extend: [
+          { query: '天祥', stay: 30, zh: '天祥/祥德寺', en: 'Tianxiang', ja: '天祥', ko: '티엔샹' },
+          { query: '碧綠神木', stay: 30, zh: '碧綠神木', en: 'Bilu Sacred Tree', ja: '碧緑神木', ko: '비뤼신무' },
+          { query: '大禹嶺', stay: 20, zh: '大禹嶺', en: 'Dayuling', ja: '大禹嶺', ko: '다위링' },
+          { query: '合歡山', stay: 40, zh: '合歡山', en: 'Hehuanshan', ja: '合歓山', ko: '허환산' },
+          { query: '武嶺', stay: 40, zh: '武嶺', en: 'Wuling', ja: '武嶺', ko: '우링' },
+          { query: '清境農場', stay: 120, zh: '清境農場', en: 'Cingjing Farm', ja: '清境農場', ko: '칭징농장' }
         ]
       },
-      'kenting_coast': {
-        name: { zh: '【長程】墾丁 (海岸線)', en: 'Kenting (Coast)', ja: '墾丁 (海岸線)', ko: '컨딩 (해안)' },
-        points: [
-          { query: '石梯坪', stay: 60, zh: '石梯坪', en: 'Shitiping', ja: '石梯坪', ko: '스이핑' },
+      'coast': { 
+        name: { zh: '花蓮東海岸線', en: 'Hualien Coast', ja: '花蓮東海岸', ko: '화롄 동해안' }, 
+        extendText: { zh: '解鎖：延伸至國境之南(墾丁)', en: 'Unlock: Extend to Kenting', ja: '解放：墾丁へ延長', ko: '잠금 해제: 컨딩 연장' },
+        extendRouteName: { zh: '東海岸-墾丁線', en: 'Coast-Kenting Route', ja: '東海岸-墾丁線', ko: '동해안-컨딩 코스' },
+        base: [
+          { query: '山度空間', stay: 60, zh: '山度空間', en: 'Mountain Space', ja: '山度空間', ko: '산도공간' }, 
+          { query: '洄瀾門市 星巴克', stay: 40, zh: '貨櫃星巴克', en: 'Starbucks Container', ja: 'コンテナスタバ', ko: '스타벅스 컨테이너' }, 
+          { query: '新社梯田', stay: 30, zh: '新社梯田', en: 'Xinshe Rice Terraces', ja: '新社棚田', ko: '신서 다랑논' },
+          { query: '石梯坪', stay: 60, zh: '石梯坪', en: 'Shitiping', ja: '石梯坪', ko: '스이핑' }
+        ],
+        extend: [
           { query: '八仙洞', stay: 40, zh: '八仙洞', en: 'Baxian Cave', ja: '八仙洞', ko: '팔선동' },
           { query: '三仙台', stay: 50, zh: '三仙台', en: 'Sanxiantai', ja: '三仙台', ko: '싼셴타이' },
           { query: '加路蘭', stay: 40, zh: '加路蘭', en: 'Jialulan', ja: '加路蘭', ko: '지아루란' },
@@ -250,24 +266,25 @@
           { query: '墾丁大街', stay: 60, zh: '墾丁大街', en: 'Kenting Street', ja: '墾丁通り', ko: '컨딩 야시장' }
         ]
       },
-      'coast': { 
-        name: { zh: '花蓮東海岸線', en: 'Hualien Coast', ja: '花蓮東海岸', ko: '화롄 동해안' }, 
-        points: [
-          { query: '山度空間', stay: 60, zh: '山度空間', en: 'Mountain Space', ja: '山度空間', ko: '산도공간' }, 
-          { query: '洄瀾門市 星巴克', stay: 40, zh: '貨櫃星巴克', en: 'Starbucks Container', ja: 'コンテナスタバ', ko: '스타벅스 컨테이너' }, 
-          { query: '石梯坪', stay: 60, zh: '石梯坪', en: 'Shitiping', ja: '石梯坪', ko: '스이핑' }, 
-          { query: '新社梯田', stay: 30, zh: '新社梯田', en: 'Xinshe Rice Terraces', ja: '新社棚田', ko: '신서 다랑논' }
-        ] 
-      },
       'valley': { 
         name: { zh: '花東縱谷慢活', en: 'Rift Valley', ja: '花東縦谷', ko: '화동종구' }, 
-        points: [
+        extendText: { zh: '解鎖：延伸至國境之南(墾丁)', en: 'Unlock: Extend to Kenting', ja: '解放：墾丁へ延長', ko: '잠금 해제: 컨딩 연장' },
+        extendRouteName: { zh: '縱谷-墾丁線', en: 'Valley-Kenting Route', ja: '縦谷-墾丁線', ko: '종구-컨딩 코스' },
+        base: [
           { query: '鯉魚潭', stay: 60, zh: '鯉魚潭', en: 'Liyu Lake', ja: '鯉魚潭', ko: '리위탄' }, 
           { query: '雲山水', stay: 60, zh: '雲山水', en: 'Yunshan Shui', ja: '雲山水', ko: '운산수' }, 
           { query: '山姆先生', stay: 40, zh: '山姆先生', en: 'Mr. Sam Cafe', ja: 'Mr. Sam', ko: '미스터 샘' }, 
           { query: '光復糖廠', stay: 40, zh: '光復糖廠', en: 'Guangfu Sugar Factory', ja: '光復糖廠', ko: '광푸 설탕공장' }, 
           { query: '大農大富', stay: 60, zh: '大農大富', en: 'Danongdafu', ja: '大農大富', ko: '대농대부' }
-        ] 
+        ],
+        extend: [
+          { query: '瑞穗牧場', stay: 60, zh: '瑞穗牧場', en: 'Ruisui Pasture', ja: '瑞穂牧場', ko: '루이수이 목장' },
+          { query: '富里農會', stay: 40, zh: '富里稻草藝術', en: 'Fuli Rice Art', ja: '富里農協', ko: '푸리 농협' },
+          { query: '伯朗大道', stay: 60, zh: '池上伯朗大道', en: 'Mr. Brown Avenue', ja: '伯朗大道', ko: '보랑대도' },
+          { query: '鹿野高台', stay: 60, zh: '鹿野高台', en: 'Luye Highland', ja: '鹿野高台', ko: '루예고대' },
+          { query: '多良車站', stay: 30, zh: '多良車站', en: 'Duoliang Station', ja: '多良駅', ko: '두량역' },
+          { query: '墾丁大街', stay: 60, zh: '墾丁大街', en: 'Kenting Street', ja: '墾丁通り', ko: '컨딩 야시장' }
+        ]
       }
     };
 
@@ -275,6 +292,7 @@
       if(typeof google !== 'undefined') { initMap(); }
       liff.init({ liffId: TOUR_LIFF_ID }).catch(err => console.log('LIFF Error:', err));
       setLang('zh');
+      handleRouteSelection(); // 初始化開關文字
     };
 
     function setLang(lang) {
@@ -293,6 +311,17 @@
         const key = el.getAttribute('data-i18n-opt');
         if (I18N[lang][key]) el.innerText = I18N[lang][key];
       });
+      
+      handleRouteSelection(); // 重新渲染開關文字與景點
+    }
+
+    // 🚀 處理主線切換與開關文字動態變化
+    function handleRouteSelection() {
+      const routeId = document.getElementById('tourRoute').value;
+      const data = TOUR_DATA[routeId];
+      // 移除開關的 checked 狀態（切換路線時還原）
+      document.getElementById('extendToggle').checked = false;
+      document.getElementById('extendRouteText').innerText = data.extendText[currLang];
       renderPOIs();
     }
 
@@ -301,7 +330,7 @@
       const div = document.createElement('div');
       div.className = 'flex gap-2 mt-2';
       div.innerHTML = `
-        <input type="text" class="custom-poi-input flex-1 border-0 bg-slate-50 rounded-xl p-3 text-slate-800 outline-none font-bold" placeholder="${I18N[currLang].wishPlace}" oninput="resetFormCalculation()">
+        <input type="text" class="custom-poi-input flex-1 border-0 bg-slate-50 rounded-xl p-3 text-slate-800 outline-none font-bold shadow-inner" placeholder="${I18N[currLang].wishPlace}" oninput="resetFormCalculation()">
         <button onclick="this.parentElement.remove(); resetFormCalculation();" class="bg-rose-100 text-rose-600 w-12 rounded-xl active:scale-95 transition-transform flex items-center justify-center shadow-sm"><i class="fa-solid fa-minus"></i></button>
       `;
       container.appendChild(div);
@@ -350,14 +379,23 @@
     }
 
     function renderPOIs() {
-      const data = TOUR_DATA[document.getElementById('tourRoute').value];
-      document.getElementById('poiContainer').innerHTML = data.points.map((pt) => {
+      const routeId = document.getElementById('tourRoute').value;
+      const data = TOUR_DATA[routeId];
+      const isExtended = document.getElementById('extendToggle').checked;
+      
+      // 🚀 根據開關狀態決定陣列長度
+      let pointsToRender = [...data.base];
+      if (isExtended) {
+          pointsToRender = pointsToRender.concat(data.extend);
+      }
+
+      document.getElementById('poiContainer').innerHTML = pointsToRender.map((pt) => {
         let isChecked = pt.status === 'closed' ? '' : 'checked';
         let badgeHtml = '';
         if (pt.status === 'closed') {
-            badgeHtml = `<span class="text-[10px] bg-rose-100 text-rose-600 px-1.5 py-0.5 rounded ml-1.5 whitespace-nowrap">${I18N[currLang].statusClosed}</span>`;
+            badgeHtml = `<span class="text-[10px] bg-rose-100 text-rose-600 px-1.5 py-0.5 rounded ml-1.5 whitespace-nowrap shadow-sm">${I18N[currLang].statusClosed}</span>`;
         } else if (pt.status === 'partial') {
-            badgeHtml = `<span class="text-[10px] bg-amber-100 text-amber-600 px-1.5 py-0.5 rounded ml-1.5 whitespace-nowrap">${I18N[currLang].statusPartial}</span>`;
+            badgeHtml = `<span class="text-[10px] bg-amber-100 text-amber-600 px-1.5 py-0.5 rounded ml-1.5 whitespace-nowrap shadow-sm">${I18N[currLang].statusPartial}</span>`;
         }
 
         return `
@@ -485,8 +523,10 @@
     function processPrice(totalMinutes, actualKm, backendList) {
       const carType = document.querySelector('input[name="carType"]:checked').value;
       let basePrice = carType === '5' ? 1500 : (carType === '7' ? 2000 : 2500);
-      const route = document.getElementById('tourRoute').value;
-      const isLong = (route.includes('cingjing') || route.includes('kenting'));
+      const routeId = document.getElementById('tourRoute').value;
+      
+      // 🚀 動態判定：如果解鎖開關 ON，就視為長程防禦模式 (至少8H)
+      const isLong = document.getElementById('extendToggle').checked;
 
       if (isLong && totalMinutes < 480) totalMinutes = 480;
       else if (totalMinutes < 180) totalMinutes = 180;
@@ -515,7 +555,7 @@
         hours: finalH.toFixed(1), price: finalP, limitKm: limitK, 
         actualKm, isOvertime: isOT, isOverKm: isOverK, 
         isLongDistance: isLong, backendPoiText: backendList,
-        routeId: route
+        routeId: routeId
       };
     }
 
@@ -523,12 +563,22 @@
       if (!currentCalcResult) return;
       const carVal = document.querySelector('input[name="carType"]:checked').value;
       let carZh = carVal === '5' ? '五人座' : (carVal === '7' ? '七人座' : '九人座');
+      const isLong = document.getElementById('extendToggle').checked;
+      
+      // 動態抓取送單的主題名稱 (判斷是否有解鎖)
+      let finalRouteZh = TOUR_DATA[currentCalcResult.routeId].name.zh;
+      let finalRouteEn = TOUR_DATA[currentCalcResult.routeId].name.en;
+      if (isLong) {
+          finalRouteZh = TOUR_DATA[currentCalcResult.routeId].extendRouteName.zh;
+          finalRouteEn = TOUR_DATA[currentCalcResult.routeId].extendRouteName.en;
+      }
+
       const payload = {
         date: document.getElementById('tourDate').value,
         pickup: document.getElementById('pickup-input').value,
         dropoff: document.getElementById('dropoff-input').value,
-        routeNameZh: TOUR_DATA[currentCalcResult.routeId].name.zh,
-        routeNameEn: TOUR_DATA[currentCalcResult.routeId].name.en,
+        routeNameZh: finalRouteZh,
+        routeNameEn: finalRouteEn,
         carTypeZh: carZh,
         ...currentCalcResult
       };
