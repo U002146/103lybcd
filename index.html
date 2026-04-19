@@ -1,469 +1,173 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>學銘專車：花蓮敬老愛心接送</title>
+  
+  <!-- SEO 與分享標籤 -->
+  <meta name="description" content="花蓮敬老愛心車隊 - 免報路名、一鍵定位、在地長輩最安心的選擇！提供即時叫車與預約接送服務。">
+  <meta property="og:title" content="學銘專車：花蓮敬老愛心接送">
+  <meta property="og:description" content="給長輩最安心的乘車體驗！一鍵叫車、免報路名，立刻點擊開啟雷達！">
+  
+  <!-- UI 套件 -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+  <style>
+    body { background-color: #f3f4f6; font-family: -apple-system, 'Noto Sans TC', Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
     
-    <title>營業狀態 數位名片</title> 
-    <meta name="apple-mobile-web-app-capable" content="yes">
+    /* 隱藏捲軸但保持順滑滾動 */
+    ::-webkit-scrollbar { width: 0px; background: transparent; }
+    html { scroll-behavior: smooth; }
     
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    /* 底部安全區 (iOS) */
+    .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
     
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
-    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAIxc6PEhHgUs_A9lyRUg8dNbmwOpSamY8&libraries=geometry"></script>
+    /* 呼吸燈特效：吸引點擊 */
+    @keyframes pulse-shadow {
+      0% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.7); }
+      70% { box-shadow: 0 0 0 15px rgba(22, 163, 74, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0); }
+    }
+    .btn-pulse { animation: pulse-shadow 2s infinite; }
     
-    <style>
-        .gmnoprint, .gm-control-active { display: none !important; }
-        body { overflow: hidden; font-family: 'Noto Sans TC', -apple-system, sans-serif; background: #f0f2f5; } 
-
-        .swal2-container { z-index: 99999 !important; }
-        .swal2-popup { border-radius: 24px !important; font-family: 'Noto Sans TC', sans-serif !important; }
-
-        /* 動態通話按鈕基礎設定 */
-        #btn-contact-fab {
-            position: absolute; bottom: 30px; right: 20px;
-            width: 85px; height: 85px; border-radius: 50%;
-            color: white; display: flex; flex-direction: column;
-            justify-content: center; align-items: center;
-            z-index: 40; text-decoration: none; transition: transform 0.1s, background 0.3s;
-        }
-        #btn-contact-fab:active { transform: scale(0.92); }
-        #btn-contact-fab i { font-size: 32px; margin-bottom: 2px; }
-        #btn-contact-fab span { font-size: 13px; font-weight: 900; letter-spacing: 0.5px; }
-
-        /* 🟢 綠色官方樣式 */
-        @keyframes pulse-official { 
-            0% { box-shadow: 0 0 0 0 rgba(0, 200, 83, 0.7); } 
-            70% { box-shadow: 0 0 0 15px rgba(0, 200, 83, 0); } 
-            100% { box-shadow: 0 0 0 0 rgba(0, 200, 83, 0); } 
-        }
-        .official-style {
-            background: linear-gradient(135deg, #00C853, #1B5E20);
-            border: 3px solid #00E676;
-            animation: pulse-official 2s infinite;
-        }
-
-        /* 🔵 藍色司機專線樣式 */
-        @keyframes pulse-driver { 
-            0% { box-shadow: 0 0 0 0 rgba(33, 150, 243, 0.7); } 
-            70% { box-shadow: 0 0 0 15px rgba(33, 150, 243, 0); } 
-            100% { box-shadow: 0 0 0 0 rgba(33, 150, 243, 0); } 
-        }
-        .driver-style {
-            background: linear-gradient(135deg, #2196F3, #0D47A1);
-            border: 3px solid #64B5F6;
-            animation: pulse-driver 2s infinite;
-        }
-
-        #btn-share {
-            position: absolute; bottom: 30px; left: 20px;
-            width: 85px; height: 85px; border-radius: 50%;
-            background: linear-gradient(135deg, #FFB300, #F57F17);
-            color: white; display: flex; flex-direction: column;
-            justify-content: center; align-items: center;
-            box-shadow: 0 8px 25px rgba(255, 179, 0, 0.4);
-            border: 3px solid #FFE082; z-index: 40;
-            text-decoration: none; cursor: pointer; transition: transform 0.1s;
-        }
-        #btn-share:active { transform: scale(0.92); }
-        #btn-share i { font-size: 32px; margin-bottom: 2px; }
-        #btn-share span { font-size: 13px; font-weight: 900; letter-spacing: 0.5px; }
-
-        /* 胖手指防呆：向上拉提至 160px，並與大按鈕完美置中對齊 */
-        #btn-my-loc {
-            position: absolute; bottom: 160px; right: 35px;
-            width: 55px; height: 55px; border-radius: 50%;
-            background: white; color: #333; display: flex;
-            justify-content: center; align-items: center;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-            border: 2px solid #eee; z-index: 30; cursor: pointer;
-        }
-        #btn-my-loc:active { background: #f5f5f5; }
-    </style>
+    /* 圖片防破圖美化 */
+    img { position: relative; }
+    img::after {
+      content: "圖片載入中..."; display: flex; justify-content: center; align-items: center;
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      background-color: #f3f4f6; color: #9ca3af; font-weight: bold; font-size: 14px;
+    }
+    
+    .swal2-popup { border-radius: 24px !important; font-family: 'Noto Sans TC', sans-serif !important; }
+  </style>
 </head>
-<body class="h-screen flex flex-col">
+<body class="bg-gray-100 pb-28">
 
-    <div id="status-bar" class="bg-gray-800 text-white p-4 shadow-md z-50 flex items-center justify-between transition-all duration-500">
-        <div class="flex items-center flex-grow" id="status-info-area">
-            <img id="user-avatar" src="https://via.placeholder.com/40" class="w-12 h-12 rounded-full border-2 border-white mr-3 hidden object-cover">
-            <div>
-                <h2 id="welcome-text" class="text-lg font-bold leading-tight">資料載入中...</h2>
-                <div class="flex items-center mt-1">
-                    <p id="status-text" class="text-sm font-medium opacity-90">正在連線至車輛系統</p>
-                </div>
-            </div>
-        </div>
-        
-        <div id="distance-display" class="flex flex-col items-end justify-center bg-white/20 px-3 py-1.5 rounded-xl border border-white/30 ml-2 whitespace-nowrap min-w-[80px] shadow-inner">
-            <span class="text-[10px] uppercase tracking-wider opacity-90 font-bold"><i class="fa-solid fa-location-arrow mr-1"></i>距離</span>
-            <span id="dist-text" class="text-lg font-bold font-mono leading-none mt-0.5">計算中...</span>
-        </div>
-    </div>
-
-    <div id="map" class="flex-grow w-full relative"></div>
-
-    <button id="btn-my-loc" onclick="panToDriverLocation()">
-        <i class="fa-solid fa-crosshairs text-2xl"></i>
-    </button>
-
-    <div id="btn-share" onclick="shareToFriends()">
+  <!-- 📱 手機版面容器 (維持 App 體驗感) -->
+  <div class="max-w-md mx-auto bg-white min-h-screen shadow-2xl relative overflow-hidden">
+    
+    <!-- 🟢 頂部導航列 -->
+    <header class="bg-green-600 text-white p-4 sticky top-0 z-40 shadow-md flex justify-between items-center">
+      <div class="flex items-center gap-2">
+        <i class="fa-solid fa-taxi text-2xl"></i>
+        <h1 class="text-xl font-black tracking-wide">學銘專車</h1>
+      </div>
+      <button onclick="shareWebsite()" class="bg-white/20 hover:bg-white/30 rounded-full w-10 h-10 flex justify-center items-center transition-colors">
         <i class="fa-solid fa-share-nodes"></i>
-        <span>分享給好友</span>
+      </button>
+    </header>
+
+    <!-- 🎯 Hero 區塊：第一眼行銷轉換 -->
+    <div class="p-6 text-center bg-gradient-to-b from-green-50 to-white">
+      <h2 class="text-2xl font-black text-gray-800 mb-2 leading-snug">花蓮敬老愛心接送服務</h2>
+      <p class="text-gray-600 font-bold mb-5 text-sm">免報路名 ‧ 一鍵定位 ‧ 長輩最安心</p>
+      
+      <!-- 主力轉換按鈕 -->
+      <a href="https://liff.line.me/2008907691-CzDqd7mm" class="inline-flex items-center justify-center w-full bg-green-500 text-white font-black text-xl py-4 rounded-2xl shadow-lg border-2 border-green-400 active:scale-95 transition-transform btn-pulse">
+        <i class="fa-solid fa-location-crosshairs mr-2 text-2xl"></i> 立即開啟叫車雷達
+      </a>
+      <p class="text-xs text-gray-400 mt-3 font-bold"><i class="fa-solid fa-shield-halved"></i> 系統將透過 LINE 安全登入</p>
     </div>
 
-    <a href="https://lin.ee/9Davl6e" target="_blank" id="btn-contact-fab" class="official-style">
-        <i id="contact-icon" class="fa-solid fa-phone-volume"></i>
-        <span id="contact-text">通話叫車</span>
-    </a>
+    <!-- 📖 圖文型錄展示區 (000.jpg ~ 005.jpg 精華 6 圖) -->
+    <div class="px-4 pb-6 space-y-5">
+      
+      <div class="flex items-center justify-center gap-3 mb-6 mt-2">
+        <div class="h-1 w-12 bg-gray-200 rounded-full"></div>
+        <div class="text-gray-400 font-black text-sm tracking-widest">服務亮點介紹</div>
+        <div class="h-1 w-12 bg-gray-200 rounded-full"></div>
+      </div>
 
-    <script>
-        // ========= CONFIG 設定區 =========
-        const VERSION = "v8.18"; // 🚀 優雅降級：無 GPS 時顯示教學彈窗
-        const LIFF_ID = '2008907691-1mAjwojZ'; 
-        
-        // 老闆(總台)的 ID，用於判斷是否要切換成官方客服按鈕
-        const BOSS_ID = 'U467348846c6b1fa433990d7b75c935b5';
-        const OFFICIAL_LINE_URL = 'https://lin.ee/9Davl6e';
-        
-        const urlParams = new URLSearchParams(window.location.search);
-        const DRIVER_USER_ID = urlParams.get('did') || BOSS_ID; 
-        
-        const MY_LIFF_URL = `https://liff.line.me/${LIFF_ID}?did=${DRIVER_USER_ID}`;
-        // ====================================================
+      <!-- 圖片容器 (加入圓角與陰影，提升質感) -->
+      <img src="https://u002146.github.io/103lybcd/photos/000.jpg" alt="智慧預約與定位服務" class="w-full rounded-2xl shadow-[0_8px_20px_rgba(0,0,0,0.1)] border border-gray-100 object-cover" onerror="imgError(this)">
+      <img src="https://u002146.github.io/103lybcd/photos/001.jpg" alt="規劃行程與確認送出" class="w-full rounded-2xl shadow-[0_8px_20px_rgba(0,0,0,0.1)] border border-gray-100 object-cover" onerror="imgError(this)">
+      <img src="https://u002146.github.io/103lybcd/photos/002.jpg" alt="輕鬆預約指南" class="w-full rounded-2xl shadow-[0_8px_20px_rgba(0,0,0,0.1)] border border-gray-100 object-cover" onerror="imgError(this)">
+      <img src="https://u002146.github.io/103lybcd/photos/003.jpg" alt="定期接送預約" class="w-full rounded-2xl shadow-[0_8px_20px_rgba(0,0,0,0.1)] border border-gray-100 object-cover" onerror="imgError(this)">
+      <img src="https://u002146.github.io/103lybcd/photos/004.jpg" alt="專屬司機資訊" class="w-full rounded-2xl shadow-[0_8px_20px_rgba(0,0,0,0.1)] border border-gray-100 object-cover" onerror="imgError(this)">
+      <img src="https://u002146.github.io/103lybcd/photos/005.jpg" alt="隨時隨地輕鬆叫車" class="w-full rounded-2xl shadow-[0_8px_20px_rgba(0,0,0,0.1)] border border-gray-100 object-cover" onerror="imgError(this)">
+      
+    </div>
 
-        let map, carMarker;
-        let passengerLatLng = null;
-        let currentStatus = 'init';
-        let isFirstFocus = true; 
+    <!-- 底部品牌宣告 -->
+    <div class="text-center py-6 bg-gray-50 text-gray-400 text-xs font-bold border-t border-gray-100">
+      <p>Copyright © 花蓮敬老愛心車隊 (劉學銘)</p>
+      <p class="mt-1">Designed for AgeTech & Easy Booking</p>
+    </div>
 
-        let dynamicDriverInfo = {
-            name: "專屬司機",
-            carNo: "花蓮計程車",
-            photo: "https://cdn-icons-png.flaticon.com/512/3237/3237472.png", // 預設圖片
-            phone: ""
-        };
+  </div>
 
-        const firebaseConfig = { databaseURL: "https://hualientaxi-bb32f-default-rtdb.asia-southeast1.firebasedatabase.app/" };
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.database();
+  <!-- 🚨 黏性轉換區 (Sticky CTA) - 永遠浮動在畫面最下方 -->
+  <div class="fixed bottom-0 left-0 right-0 w-full z-50 bg-white/95 backdrop-blur-md border-t border-gray-200 shadow-[0_-10px_30px_rgba(0,0,0,0.1)] pb-safe">
+    <div class="max-w-md mx-auto px-4 py-3 flex gap-3">
+      
+      <!-- 客服按鈕 (左側，佔比 1) -->
+      <a href="https://lin.ee/9Davl6e" class="flex-1 bg-gradient-to-br from-orange-400 to-orange-500 text-white flex flex-col items-center justify-center py-2.5 rounded-2xl font-bold shadow-md active:scale-95 transition-transform border border-orange-300">
+        <i class="fa-solid fa-headset text-xl mb-1"></i>
+        <span class="text-xs">線上客服</span>
+      </a>
+      
+      <!-- 叫車按鈕 (右側，佔比 2，最具吸引力) -->
+      <a href="https://liff.line.me/2008907691-CzDqd7mm" class="flex-[2.5] bg-gradient-to-br from-green-500 to-green-600 text-white flex flex-col items-center justify-center py-2.5 rounded-2xl font-black shadow-[0_4px_15px_rgba(22,163,74,0.4)] border-2 border-green-400 active:scale-95 transition-transform btn-pulse">
+        <div class="flex items-center gap-2">
+          <i class="fa-solid fa-bolt text-2xl text-yellow-300"></i>
+          <span class="text-xl tracking-wider">立即叫車</span>
+        </div>
+        <span class="text-[10px] text-green-100 font-normal mt-0.5">免下載APP ‧ LINE直接叫車</span>
+      </a>
+      
+    </div>
+  </div>
 
-        const getPinIcon = (status) => {
-            let color = '#7f8c8d'; 
-            if (status === 'available') color = '#00C853'; 
-            else if (status === 'queue') color = '#00B0FF'; 
-            else if (status === 'arrived') color = '#E65100'; 
-            else if (status === 'busy') color = '#FF9800'; 
-            return {
-                path: "M0-48c-9.8 0-17.7 7.8-17.7 17.4 0 15.5 17.7 30.6 17.7 30.6s17.7-15.4 17.7-30.6c0-9.6-7.9-17.4-17.7-17.4z",
-                fillColor: color, fillOpacity: 1, strokeColor: "#fff", strokeWeight: 2, scale: 1.1,
-                labelOrigin: new google.maps.Point(0, -28) 
-            };
-        };
+  <script>
+    // 圖片載入失敗時的美化處理
+    function imgError(image) {
+      image.onerror = null;
+      image.src = "https://placehold.co/800x500/f3f4f6/9ca3af?text=圖片準備中\\n(請確認檔名為 "+ image.src.split('/').pop() +")";
+    }
 
-        const getPinLabel = (status) => {
-            if (status === 'available') return { text: "空", color: "white", fontSize: "14px", fontWeight: "bold" };
-            if (status === 'queue') return { text: "排", color: "white", fontSize: "14px", fontWeight: "bold" };
-            if (status === 'arrived') return { text: "達", color: "white", fontSize: "14px", fontWeight: "bold" };
-            if (status === 'busy') return { text: "載", color: "white", fontSize: "14px", fontWeight: "bold" };
-            return { text: "休", color: "white", fontSize: "14px", fontWeight: "bold" };
-        };
+    // Web Share API 分享功能
+    function shareWebsite() {
+      const shareData = {
+        title: '學銘專車：花蓮敬老愛心接送',
+        text: '給長輩最安心的乘車體驗！免報路名、一鍵定位，點擊網址立即叫車🚕',
+        url: window.location.href
+      }
 
-        window.onload = async function() {
-            Swal.fire({ title: '連線中', text: '正在鎖定專車即時位置...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
-            
-            initMap({ lat: 23.9933, lng: 121.6011 });
-            
-            // 取得客人手機目前的 GPS，只用來計算距離，不會寫入 Firebase
-            getUserLocation().then(pos => {
-                passengerLatLng = pos;
-                updateDistanceDisplay();
-            });
-            
-            await initLiff();
-            setupConnectionManager(); 
-            startRealtimeRadar(); 
-        };
+      if (navigator.share) {
+        navigator.share(shareData)
+          .catch((error) => console.log('分享取消或失敗', error));
+      } else {
+        // 若瀏覽器不支援，使用 SweetAlert 提示複製網址
+        Swal.fire({
+          title: '分享給親朋好友',
+          text: '請點擊下方按鈕複製本站網址',
+          icon: 'info',
+          confirmButtonText: '<i class="fa-solid fa-copy"></i> 複製網址',
+          confirmButtonColor: '#00C853',
+        }).then((result) => {
+          if (result.isConfirmed) {
+            navigator.clipboard.writeText(window.location.href);
+            Swal.fire({ icon: 'success', title: '複製成功！', timer: 1500, showConfirmButton: false });
+          }
+        });
+      }
+    }
 
-        function getUserLocation() {
-            return new Promise((resolve) => {
-                if (!navigator.geolocation) {
-                    resolve(null);
-                } else {
-                    navigator.geolocation.getCurrentPosition(
-                        (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-                        (err) => resolve(null), 
-                        { enableHighAccuracy: true, timeout: 5000 }
-                    );
-                }
-            });
-        }
-
-        function initMap(startPos) {
-            map = new google.maps.Map(document.getElementById("map"), {
-                zoom: 16, center: startPos, disableDefaultUI: true, gestureHandling: 'greedy'
-            });
-
-            carMarker = new google.maps.Marker({
-                position: startPos, 
-                map: map, icon: getPinIcon('offline'), label: getPinLabel('offline'), title: "司機位置"
-            });
-
-            // 持續監聽客人位置變化，僅用於前端計算距離
-            if (navigator.geolocation) {
-                navigator.geolocation.watchPosition((pos) => {
-                    passengerLatLng = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-                    updateDistanceDisplay();
-                }, null, { enableHighAccuracy: true });
-            }
-        }
-
-        function setupConnectionManager() {
-            document.addEventListener("visibilitychange", () => {
-                if (document.visibilityState === "visible") {
-                    firebase.database().goOnline();
-                } else {
-                    firebase.database().goOffline();
-                }
-            });
-        }
-
-        function panToDriverLocation() {
-            if (carMarker && carMarker.getPosition()) {
-                map.panTo(carMarker.getPosition());
-                map.setZoom(16);
-            } else {
-                Swal.fire({ icon: 'info', title: '定位中', text: '尚未鎖定司機位置', timer: 1500, showConfirmButton: false });
-            }
-        }
-
-        // 單向監聽司機在 Firebase 上的位置
-        function startRealtimeRadar() {
-            db.ref('drivers/' + DRIVER_USER_ID).on('value', snapshot => {
-                updateDriverUI(snapshot.val());
-            }, err => {
-                console.error("Sync Error:", err);
-                Swal.close(); 
-            });
-        }
-
-        function updateDriverUI(data) {
-            let status = 'offline'; 
-            if (data) {
-                dynamicDriverInfo.name = data.name || "專屬司機";
-                dynamicDriverInfo.carNo = data.carNo || data.car || "花蓮計程車";
-                dynamicDriverInfo.phone = data.phone || "";
-                if(data.photo && data.photo.trim() !== "") {
-                    dynamicDriverInfo.photo = data.photo;
-                }
-
-                document.getElementById('user-avatar').src = dynamicDriverInfo.photo;
-                document.getElementById('user-avatar').style.display = 'block';
-
-                const contactBtn = document.getElementById('btn-contact-fab');
-                const contactIcon = document.getElementById('contact-icon');
-                const contactText = document.getElementById('contact-text');
-
-                // 總台模式：一律顯示「通話叫車」與話筒圖示
-                if (DRIVER_USER_ID === BOSS_ID || !dynamicDriverInfo.phone) {
-                    contactBtn.href = OFFICIAL_LINE_URL;
-                    contactBtn.target = "_blank"; 
-                    contactBtn.className = "official-style";
-                    contactIcon.className = "fa-solid fa-phone-volume";
-                    contactText.innerText = "通話叫車";
-                } else {
-                    contactBtn.href = `tel:${dynamicDriverInfo.phone}`;
-                    contactBtn.target = "_self"; 
-                    contactBtn.className = "driver-style";
-                    contactIcon.className = "fa-solid fa-phone-volume";
-                    contactText.innerText = "聯絡司機";
-                }
-
-                if (data.status === 'online') { 
-                    if (data.workStatus === 'busy') status = 'busy';
-                    else if (data.workStatus === 'arrived') status = 'arrived';
-                    else if (data.workStatus === 'queue') status = 'queue';
-                    else status = 'available'; 
-                    
-                    // 🚀 防呆機制：確保有經緯度才移動地圖
-                    if (data.lat !== undefined && data.lng !== undefined) {
-                        const newPos = { lat: parseFloat(data.lat), lng: parseFloat(data.lng) };
-                        if (!isNaN(newPos.lat) && !isNaN(newPos.lng)) {
-                            carMarker.setPosition(newPos);
-                            if (isFirstFocus) {
-                                map.panTo(newPos);
-                            }
-                        }
-                    }
-                }
-            }
-
-            if (isFirstFocus) {
-                isFirstFocus = false;
-                Swal.close(); 
-            }
-
-            if (currentStatus !== status) {
-                currentStatus = status;
-                carMarker.setIcon(getPinIcon(status));
-                carMarker.setLabel(getPinLabel(status));
-                updateStatusUI(status);
-            }
-            updateDistanceDisplay();
-        }
-
-        // 🚀 核心優化：單向距離計算加上教學引導
-        function updateDistanceDisplay() {
-            const distSpan = document.getElementById('dist-text');
-            if (currentStatus === 'offline' || !carMarker.getPosition() || !passengerLatLng) {
-                // 將冰冷的 --- 換成可點擊的教學提示
-                distSpan.innerHTML = '<span class="text-[13px] text-yellow-200 underline cursor-pointer" onclick="showGpsInstruction()">需開啟GPS</span>';
-                return;
-            }
-            const dist = google.maps.geometry.spherical.computeDistanceBetween(
-                new google.maps.LatLng(passengerLatLng.lat, passengerLatLng.lng),
-                carMarker.getPosition()
-            );
-            if (dist < 1000) { distSpan.innerText = Math.round(dist) + ' m'; } 
-            else { distSpan.innerText = (dist / 1000).toFixed(1) + ' km'; }
-        }
-
-        // 🚀 新增：百萬級 GPS 教學彈窗
-        window.showGpsInstruction = function() {
-            Swal.fire({
-                title: '📍 開啟定位權限',
-                html: `
-                    <div style="text-align: left; font-size: 15px; line-height: 1.6; color: #475569;">
-                        <p style="margin-bottom: 12px;">系統無法取得您的位置，因此無法計算您與車輛的距離。</p>
-                        <p style="font-weight: bold; color: #1e293b; margin-bottom: 6px;"><i class="fa-solid fa-wrench text-emerald-500 mr-1"></i> 如何開啟？</p>
-                        <ol style="padding-left: 20px; margin-bottom: 15px; color: #334155;">
-                            <li>前往手機的 <b>設定</b></li>
-                            <li>找到 <b>LINE</b> 或 <b>瀏覽器</b></li>
-                            <li>將 <b>位置資訊 (GPS)</b> 設為 <b style="color: #00C853;">使用期間允許</b></li>
-                        </ol>
-                        <p style="font-size: 13px; color: #94a3b8; border-top: 1px solid #f1f5f9; padding-top: 10px;">設定完成後，請重新整理此網頁即可生效。</p>
-                    </div>
-                `,
-                icon: 'info',
-                confirmButtonText: '我知道了',
-                confirmButtonColor: '#00C853'
-            });
-        };
-
-        function updateStatusUI(status) {
-            const bar = document.getElementById('status-bar');
-            const sub = document.getElementById('status-text');
-            
-            if (status === 'available') {
-                bar.className = "bg-green-600 text-white p-4 shadow-md z-50 flex items-center justify-between transition-colors duration-500";
-                sub.innerHTML = "🚕 空車，歡迎搭乘！";
-            } else if (status === 'queue') {
-                bar.className = "bg-blue-600 text-white p-4 shadow-md z-50 flex items-center justify-between transition-colors duration-500";
-                sub.innerHTML = "🚕 排班中，歡迎預約！";
-            } else if (status === 'arrived') {
-                bar.className = "bg-orange-600 text-white p-4 shadow-md z-50 flex items-center justify-between transition-colors duration-500";
-                sub.innerHTML = "📍 <span class='animate-pulse text-yellow-200 font-bold'>司機已抵達，請準備上車！</span>";
-            } else if (status === 'busy') {
-                bar.className = "bg-yellow-500 text-black p-4 shadow-md z-50 flex items-center justify-between transition-colors duration-500";
-                sub.innerHTML = "🚫 載客中，請稍候。";
-            } else {
-                bar.className = "bg-gray-600 text-white p-4 shadow-md z-50 flex items-center justify-between transition-colors duration-500";
-                sub.innerHTML = "💤 司機休息中";
-            }
-        }
-
-        async function initLiff() {
-            try {
-                await liff.init({ liffId: LIFF_ID });
-                if (liff.isLoggedIn()) {
-                    const profile = await liff.getProfile();
-                    document.getElementById('welcome-text').innerText = `你好，${profile.displayName}`;
-                } else {
-                    liff.login();
-                }
-            } catch (err) {
-                console.error('LIFF Init Error', err);
-            }
-        }
-
-        async function shareToFriends() {
-            if (!liff.isLoggedIn()) {
-                Swal.fire({ icon: 'warning', title: '請先登入', text: '需登入 LINE 才能分享給好友喔！' });
-                return;
-            }
-
-            if (!liff.isApiAvailable('shareTargetPicker')) {
-                Swal.fire({ 
-                    icon: 'error', 
-                    title: '未開啟分享權限', 
-                    html: '<div style="text-align:left; font-size:15px; line-height:1.6;">請開發者至 <b>LINE Developers 後台</b>：<br>1. 選擇此 LIFF App<br>2. 找到 <b>Share Target Picker</b><br>3. 將開關切換為 <b>ON</b><br>即可解鎖分享功能！</div>'
-                });
-                return;
-            }
-
-            // 🚀 個人尊榮版 Flex Message：已掛載專屬橫幅大圖
-            const flexMsg = {
-                type: "flex",
-                altText: `🚕 推薦您的專屬司機：${dynamicDriverInfo.name}`,
-                contents: {
-                    type: "bubble",
-                    hero: {
-                        type: "image",
-                        url: "https://u002146.github.io/103lybcd/photos/TDP-1123.jpg", // 🎯 你的專屬名片橫幅
-                        size: "full",
-                        aspectRatio: "20:13", 
-                        aspectMode: "cover"
-                    },
-                    body: {
-                        type: "box", layout: "vertical",
-                        contents: [
-                            { type: "text", text: "🚕 數位名片", weight: "bold", size: "xl", color: "#1B5E20" },
-                            {
-                                type: "box", layout: "baseline", margin: "md",
-                                contents: [ 
-                                    { type: "icon", size: "sm", url: dynamicDriverInfo.photo }, // 這裡保留司機個人大頭照
-                                    { type: "text", text: `${dynamicDriverInfo.name} ${dynamicDriverInfo.carNo}`, weight: "bold", size: "md", margin: "sm", color: "#333333" } 
-                                ]
-                            },
-                            { type: "separator", margin: "md" },
-                            { type: "text", text: "您的專屬司機，提供最高規格數位服務：", size: "sm", color: "#555555", weight: "bold", margin: "md", wrap: true },
-                            {
-                                type: "box", layout: "vertical", margin: "sm", spacing: "sm",
-                                contents: [
-                                    { type: "box", layout: "baseline", spacing: "sm", contents: [{ type: "text", text: "✔", color: "#00C853", size: "sm", flex: 0 }, { type: "text", text: "預估車資 (透明化不喊價)", size: "sm", color: "#333333", weight: "bold" }] },
-                                    { type: "box", layout: "baseline", spacing: "sm", contents: [{ type: "text", text: "✔", color: "#00C853", size: "sm", flex: 0 }, { type: "text", text: "行車軌跡 (安全把關有保障)", size: "sm", color: "#333333", weight: "bold" }] },
-                                    { type: "box", layout: "baseline", spacing: "sm", contents: [{ type: "text", text: "✔", color: "#00C853", size: "sm", flex: 0 }, { type: "text", text: "數位收據 (乘車報帳超方便)", size: "sm", color: "#333333", weight: "bold" }] },
-                                    { type: "box", layout: "baseline", spacing: "sm", contents: [{ type: "text", text: "✔", color: "#00C853", size: "sm", flex: 0 }, { type: "text", text: "乘車記錄 (評價與歷史查詢)", size: "sm", color: "#333333", weight: "bold" }] }
-                                ]
-                            },
-                            { type: "text", text: "點擊下方按鈕，查看我的即時營業狀態，一鍵呼叫專車！", size: "xs", color: "#999999", wrap: true, margin: "md" }
-                        ]
-                    },
-                    footer: {
-                        type: "box", layout: "vertical", spacing: "sm",
-                        contents: [
-                            {
-                                type: "button", style: "primary", color: "#00C853", height: "sm",
-                                action: { type: "uri", label: "📍 呼叫專屬司機", uri: MY_LIFF_URL }
-                            }
-                        ]
-                    }
-                }
-            };
-
-            try {
-                const res = await liff.shareTargetPicker([flexMsg]);
-                if (res) {
-                    Swal.fire({ icon: 'success', title: '分享成功！', text: '謝謝您的推薦，我會繼續提供最優質的服務！', timer: 2500, showConfirmButton: false });
-                }
-            } catch (error) {
-                console.error("分享發生錯誤", error);
-                Swal.fire({ icon: 'error', title: '分享失敗', text: '發生錯誤，請稍後再試。' });
-            }
-        }
-    </script>
+    // 進站歡迎提示 (非侵入式，滑動一段距離後才顯示)
+    let hasShownWelcome = false;
+    window.addEventListener('scroll', () => {
+      if (!hasShownWelcome && window.scrollY > 300) {
+        hasShownWelcome = true;
+        const Toast = Swal.mixin({
+          toast: true, position: 'top-end', showConfirmButton: false, timer: 3000,
+          timerProgressBar: true, customClass: { popup: 'rounded-xl' }
+        });
+        Toast.fire({ icon: 'info', title: '滑到底部，隨時可以點擊「立即叫車」喔！' });
+      }
+    });
+  </script>
 </body>
 </html>
