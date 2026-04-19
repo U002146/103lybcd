@@ -1,4 +1,4 @@
-// v3.1 [終極防禦版] 導入每日五次限制、動態地圖渲染與精算引擎
+// v3.2 [視覺聚焦校準版] 修復地圖縮放比例、圖層遮擋與視角強制置頂問題
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
@@ -19,12 +19,12 @@
     .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
     
     /* 地圖包裝層：初始高度為 0 */
-    #map-wrapper { position: fixed; top: 0; left: 0; width: 100vw; height: 0; z-index: 0; overflow: hidden; transition: height 0.6s cubic-bezier(0.16, 1, 0.3, 1); }
+    #map-wrapper { position: fixed; top: 0; left: 0; width: 100vw; height: 0; z-index: 0; overflow: hidden; transition: height 0.5s ease-out; }
     #map { width: 100%; height: 100%; }
-    .map-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(180deg, rgba(15,23,42,0.8) 0%, rgba(15,23,42,0) 100%); pointer-events: none; z-index: 5; opacity: 0; transition: opacity 0.6s ease; }
+    .map-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(180deg, rgba(15,23,42,0.85) 0%, rgba(15,23,42,0) 100%); pointer-events: none; z-index: 5; opacity: 0; transition: opacity 0.5s ease-out; }
     
-    /* 表單容器：初始不預留空間 */
-    .form-container { position: relative; z-index: 10; background-color: #f8fafc; transition: margin-top 0.6s cubic-bezier(0.16, 1, 0.3, 1); min-height: 100vh; padding-bottom: 160px; }
+    /* 表單容器：加大 padding-bottom 防遮擋 */
+    .form-container { position: relative; z-index: 10; background-color: #f8fafc; transition: margin-top 0.5s ease-out; min-height: 100vh; padding-bottom: 240px; }
     
     .swal2-popup { border-radius: 24px !important; font-family: 'Noto Sans TC', sans-serif !important; padding-bottom: 20px !important;}
     
@@ -175,7 +175,6 @@
       renderPOIs();
     };
 
-    // 🚀 API 次數限制防禦盾
     function getRemainingQuota() {
       const today = new Date().toISOString().split('T')[0];
       let usage = JSON.parse(localStorage.getItem('tourCalcUsage')) || { date: today, count: 0 };
@@ -202,7 +201,9 @@
     function initMap() {
       map = new google.maps.Map(document.getElementById("map"), { center: { lat: 23.991, lng: 121.601 }, zoom: 12, disableDefaultUI: true, gestureHandling: 'none' });
       directionsService = new google.maps.DirectionsService();
-      directionsRenderer = new google.maps.DirectionsRenderer({ map: map, suppressMarkers: false, polylineOptions: { strokeColor: '#10b981', strokeWeight: 5 } });
+      
+      // 🚀 關閉自動聚焦，改為我們手動算好邊界再推給地圖
+      directionsRenderer = new google.maps.DirectionsRenderer({ map: map, suppressMarkers: false, preserveViewport: true, polylineOptions: { strokeColor: '#10b981', strokeWeight: 5 } });
       const options = { componentRestrictions: { country: "tw" } };
       new google.maps.places.Autocomplete(document.getElementById('dropoff-input'), options).addListener('place_changed', resetCalculation);
     }
@@ -254,7 +255,6 @@
       document.getElementById('poiCount').innerText = `已選 ${count} 個`;
     }
 
-    // 🚀 核心邏輯：點擊計算後才渲染地圖
     function calculateFareWithGoogle() {
       if (getRemainingQuota() <= 0) {
         Swal.fire('精算次數上限', '您今日的使用次數已滿，請直接點擊上方圖示聯絡老司機。', 'info'); return;
@@ -285,11 +285,19 @@
           let driveMins = Math.floor(res.routes[0].legs.reduce((acc, leg) => acc + leg.duration.value, 0) / 60);
           let totalKm = Math.floor(res.routes[0].legs.reduce((acc, leg) => acc + leg.distance.value, 0) / 1000);
           
-          // 執行 UI 動態展開
-          document.getElementById('map-wrapper').style.height = '40vh';
-          document.getElementById('form-body').style.marginTop = '35vh';
+          // 🚀 修復1：UI 動態展開
+          document.getElementById('map-wrapper').style.height = '45vh'; // 稍微加高地圖
+          document.getElementById('form-body').style.marginTop = '42vh'; // 與表單稍微重疊
           document.getElementById('map-gradient').style.opacity = '1';
           
+          // 🚀 修復2：等待 DOM 重繪後，強制 Google Maps 重新抓取尺寸並聚焦路徑
+          setTimeout(() => {
+              google.maps.event.trigger(map, 'resize');
+              const bounds = res.routes[0].bounds;
+              // 加上 padding 避免被頂部文字或底部表單遮擋
+              map.fitBounds(bounds, { top: 60, bottom: 20, left: 40, right: 40 });
+          }, 400);
+
           processPrice(driveMins + totalStay, totalKm);
         } else {
           Swal.fire('規劃失敗', '地址可能過於模糊，請重新輸入。', 'error');
@@ -301,7 +309,6 @@
       const carType = document.querySelector('input[name="carType"]:checked').value;
       let basePrice = carType === '5' ? 1500 : (carType === '7' ? 2000 : 2500);
       
-      // 特規判定
       const route = document.getElementById('tourRoute').value;
       const isLong = (route === 'cingjing' || route === 'kenting');
       if (isLong && totalMinutes < 480) totalMinutes = 480;
@@ -328,8 +335,12 @@
       document.getElementById('kmDisplay').innerHTML = isOverK ? `<span class="text-rose-400">已逾里程上限 (${actualKm}km)</span>` : `安全里程上限：${limitK}km`;
 
       currentCalcResult = { hours: finalH.toFixed(1), price: finalP, limitKm: limitK, actualKm, isOvertime: isOT, isOverKm: isOverK, isLongDistance: isLong };
+      
+      // 彈出底部發送按鈕
       document.getElementById('sticky-footer').classList.remove('translate-y-full');
-      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+      
+      // 🚀 修復3：畫面強制回到最頂端，展示地圖與上半段表單
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
     function submitForm() {
