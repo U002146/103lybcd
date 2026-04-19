@@ -1,4 +1,4 @@
-// v4.2 [實時路況防護版] 導入步道封閉標籤、多國語系警示與智慧預設取消勾選
+// v4.3 [北花蓮山海精品版] 撤除高危線路，重組高轉換率網美與文化景點
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
@@ -108,8 +108,7 @@
       <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
         <label class="block text-[10px] text-slate-400 mb-1 uppercase tracking-wider font-bold" data-i18n="route">主題路線</label>
         <select id="tourRoute" class="w-full text-xs font-black border-0 bg-transparent text-slate-800 outline-none appearance-none" onchange="renderPOIs()">
-          <option value="taroko" data-i18n-opt="r_taroko">太魯閣深度遊</option>
-          <option value="cingjing" data-i18n-opt="r_cingjing">【長程】清境高山延伸線</option>
+          <option value="taroko" data-i18n-opt="r_taroko">太魯閣與山海網美線</option>
           <option value="kenting_valley" data-i18n-opt="r_kenting_v">【長程】墾丁 (縱谷線)</option>
           <option value="kenting_coast" data-i18n-opt="r_kenting_c">【長程】墾丁 (海岸線)</option>
           <option value="coast" data-i18n-opt="r_coast">花蓮東海岸線</option>
@@ -182,7 +181,7 @@
         poiAdj: '行程景點微調', wish: '許願池 (自訂秘境)', wishPlace: '輸入景點名稱...',
         calcBtn: '精算路徑與車資', drive: '行車', stay: '停留', totalSys: '系統總時數', hour: '小時',
         limit: '上限', baseFare: '基準車資 / 超時另計', sendBtn: '發送客製需求單', selected: '已排',
-        r_taroko: '太魯閣深度遊', r_coast: '花蓮東海岸', r_valley: '花東縱谷慢活', r_cingjing: '【長程】清境延伸線', r_kenting_v: '【長程】墾丁 (縱谷)', r_kenting_c: '【長程】墾丁 (海岸)',
+        r_taroko: '太魯閣與山海網美線', r_coast: '花蓮東海岸', r_valley: '花東縱谷慢活', r_kenting_v: '【長程】墾丁 (縱谷)', r_kenting_c: '【長程】墾丁 (海岸)',
         min: '分', statusClosed: '封閉中', statusPartial: '部分開放'
       },
       en: {
@@ -191,7 +190,7 @@
         poiAdj: 'Adjust Stops', wish: 'Custom Wishlist', wishPlace: 'Place name...',
         calcBtn: 'Calculate Price', drive: 'Drive', stay: 'Stay', totalSys: 'Total Est. Hours', hour: 'hrs',
         limit: 'Limit', baseFare: 'Base Fare / Extra TBD', sendBtn: 'Send Request', selected: 'Selected',
-        r_taroko: 'Taroko Gorge', r_coast: 'Hualien Coast', r_valley: 'Rift Valley', r_cingjing: 'Cingjing Route', r_kenting_v: 'Kenting (Valley)', r_kenting_c: 'Kenting (Coast)',
+        r_taroko: 'Taroko & Coastal Beauty', r_coast: 'Hualien Coast', r_valley: 'Rift Valley', r_kenting_v: 'Kenting (Valley)', r_kenting_c: 'Kenting (Coast)',
         min: 'm', statusClosed: 'Closed', statusPartial: 'Partial'
       },
       ja: {
@@ -200,7 +199,7 @@
         poiAdj: '観光地の調整', wish: '希望観光地', wishPlace: '観光地名...',
         calcBtn: '料金を計算', drive: '運転', stay: '滞在', totalSys: '合計所要時間', hour: '時間',
         limit: '上限', baseFare: '基本料金 / 延長別途', sendBtn: 'リクエスト送信', selected: '選択済',
-        r_taroko: 'タロコ峡谷', r_coast: '花蓮東海岸', r_valley: '花東縦谷', r_cingjing: '清境延伸ルート', r_kenting_v: '墾丁 (縦谷線)', r_kenting_c: '墾丁 (海岸線)',
+        r_taroko: 'タロコ入口・山海絶景', r_coast: '花蓮東海岸', r_valley: '花東縦谷', r_kenting_v: '墾丁 (縦谷線)', r_kenting_c: '墾丁 (海岸線)',
         min: '分', statusClosed: '閉鎖中', statusPartial: '一部開放'
       },
       ko: {
@@ -209,36 +208,24 @@
         poiAdj: '관광지 조정', wish: '추가 희망지', wishPlace: '장소 이름...',
         calcBtn: '요금 계산', drive: '이동', stay: '체류', totalSys: '총 예상 시간', hour: '시간',
         limit: '제한', baseFare: '기본 요금 / 초과시 별도', sendBtn: '요청 보내기', selected: '선택됨',
-        r_taroko: '타이루거 협곡', r_coast: '화롄 동해안', r_valley: '화동종구', r_cingjing: '칭징 연장 코스', r_kenting_v: '컨딩 (종구)', r_kenting_c: '컨딩 (해안)',
+        r_taroko: '타이루거 입구 & 해안 절경', r_coast: '화롄 동해안', r_valley: '화동종구', r_kenting_v: '컨딩 (종구)', r_kenting_c: '컨딩 (해안)',
         min: '분', statusClosed: '폐쇄됨', statusPartial: '부분 개방'
       }
     };
 
-    // 🚀 加上實時 status 狀態 (closed, partial)
     const TOUR_DATA = {
       'taroko': { 
-        name: { zh: '太魯閣深度遊', en: 'Taroko Gorge', ja: 'タロコ峡谷', ko: '타이루거 협곡' }, 
+        name: { zh: '太魯閣與山海網美線', en: 'Taroko & Coastal Beauty', ja: 'タロコ入口・山海絶景', ko: '타이루거 입구 & 해안 절경' }, 
         points: [
           { query: '清水斷崖', stay: 40, zh: '清水斷崖', en: 'Qingshui Cliff', ja: '清水断崖', ko: '칭수이 절벽' }, 
-          { query: '砂卡礑步道', stay: 60, status: 'closed', zh: '砂卡礑步道', en: 'Shakadang Trail', ja: '砂卡礑歩道', ko: '샤카당 트레일' }, 
-          { query: '燕子口', stay: 40, status: 'closed', zh: '燕子口', en: 'Swallow Grotto', ja: '燕子口', ko: '옌쯔커우' }, 
-          { query: '九曲洞', stay: 40, status: 'closed', zh: '九曲洞', en: 'Tunnel of Nine Turns', ja: '九曲洞', ko: '지우취둥' }, 
-          { query: '天祥', stay: 60, zh: '天祥/祥德寺', en: 'Tianxiang', ja: '天祥', ko: '티엔샹' }, 
-          { query: '長春祠', stay: 30, status: 'closed', zh: '長春祠', en: 'Eternal Spring Shrine', ja: '長春祠', ko: '창춘사' }, 
-          { query: '七星潭', stay: 40, zh: '七星潭', en: 'Qixingtan Beach', ja: '七星潭', ko: '치싱탄' }
+          { query: '太魯閣遊客中心', stay: 60, zh: '太魯閣遊客中心', en: 'Taroko Visitor Center', ja: 'タロコビジターセンター', ko: '타이루거 방문자 센터' }, 
+          { query: '崇德瑩農場', stay: 60, zh: '崇德瑩農場', en: 'Chongde Ying Farm', ja: '崇徳瑩農場', ko: '총더잉 농장' }, 
+          { query: '新城老街', stay: 40, zh: '新城老街', en: 'Xincheng Old Street', ja: '新城老街', ko: '신청 옛거리' }, 
+          { query: '地耕味-玩味蕃樂園', stay: 40, zh: '玩味蕃樂園', en: 'Digengwei Souvenir', ja: '玩味蕃楽園', ko: '완웨이판러위안' }, 
+          { query: '曼波海洋生態休閒園區', stay: 30, zh: '曼波園區', en: 'Mambo Park', ja: 'マンボウパーク', ko: '맘보 공원' }, 
+          { query: '七星潭海岸風景特定區', stay: 40, zh: '七星潭', en: 'Qixingtan Beach', ja: '七星潭', ko: '치싱탄' },
+          { query: '魚刺人雞蛋糕咖啡館 七星潭店', stay: 30, zh: '魚刺人雞蛋糕', en: 'Yuciren Egg Cake', ja: '魚刺人ベビーカステラ', ko: '위츠런 계란빵' }
         ] 
-      },
-      'cingjing': {
-        name: { zh: '【長程】清境延伸線', en: 'Cingjing Route', ja: '清境延伸ルート', ko: '칭징 연장 코스' },
-        points: [
-          { query: '長春祠', stay: 20, status: 'closed', zh: '長春祠', en: 'Eternal Spring Shrine', ja: '長春祠', ko: '창춘사' },
-          { query: '天祥', stay: 30, zh: '天祥/祥德寺', en: 'Tianxiang', ja: '天祥', ko: '티엔샹' },
-          { query: '碧綠神木', stay: 30, zh: '碧綠神木', en: 'Bilu Sacred Tree', ja: '碧緑神木', ko: '비뤼신무' },
-          { query: '大禹嶺', stay: 20, zh: '大禹嶺', en: 'Dayuling', ja: '大禹嶺', ko: '다위링' },
-          { query: '合歡山', stay: 40, zh: '合歡山', en: 'Hehuanshan', ja: '合歓山', ko: '허환산' },
-          { query: '武嶺', stay: 40, zh: '武嶺', en: 'Wuling', ja: '武嶺', ko: '우링' },
-          { query: '清境農場', stay: 120, zh: '清境農場', en: 'Cingjing Farm', ja: '清境農場', ko: '칭징농장' }
-        ]
       },
       'kenting_valley': {
         name: { zh: '【長程】墾丁 (縱谷線)', en: 'Kenting (Valley)', ja: '墾丁 (縦谷線)', ko: '컨딩 (종구)' },
@@ -364,7 +351,6 @@
     function renderPOIs() {
       const data = TOUR_DATA[document.getElementById('tourRoute').value];
       document.getElementById('poiContainer').innerHTML = data.points.map((pt) => {
-        // 🚀 封閉景點預設不勾選，並加入 UI 標籤
         let isChecked = pt.status === 'closed' ? '' : 'checked';
         let badgeHtml = '';
         if (pt.status === 'closed') {
