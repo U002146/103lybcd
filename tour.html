@@ -1,3 +1,4 @@
+// v4.7 [2026戰略景點擴充版] 導入最新高轉換率景點、多國語系對照與停留時間校準
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
@@ -181,7 +182,7 @@
     const DAILY_LIMIT = 5;
     const TOUR_LIFF_ID = '2008907691-zTgIQ9Oa'; 
     let map, directionsService, directionsRenderer, currentCalcResult = null, currLang = 'zh';
-    let autoFilledDropoff = ""; // 紀錄系統代入的下車點
+    let autoFilledDropoff = ""; 
 
     const I18N = {
       zh: {
@@ -222,7 +223,7 @@
       }
     };
 
-    // 🚀 雙層資料庫架構 + 新增 extendDefaultDropoff 智慧代入點
+    // 🚀 2026 最新戰略擴充資料庫
     const TOUR_DATA = {
       'taroko': { 
         name: { zh: '太魯閣與北花蓮', en: 'Taroko & North', ja: 'タロコと北線', ko: '타이루거 및 북부' }, 
@@ -232,13 +233,13 @@
         base: [
           { query: '崇德遊憩區 花蓮', stay: 40, zh: '清水斷崖', en: 'Qingshui Cliff', ja: '清水断崖', ko: '칭수이 절벽' }, 
           { query: '太魯閣遊客中心', stay: 60, zh: '太魯閣遊客中心', en: 'Taroko Visitor Center', ja: 'タロコビジターセンター', ko: '타이루거 방문자 센터' }, 
-          { query: '長春祠', stay: 30, status: 'closed', zh: '長春祠', en: 'Eternal Spring Shrine', ja: '長春祠', ko: '창춘사' },
           { query: '崇德瑩農場', stay: 60, zh: '崇德瑩農場', en: 'Chongde Ying Farm', ja: '崇徳瑩農場', ko: '총더잉 농장' }, 
           { query: '新城老街', stay: 40, zh: '新城老街', en: 'Xincheng Old Street', ja: '新城老街', ko: '신청 옛거리' }, 
           { query: '地耕味-玩味蕃樂園', stay: 40, zh: '玩味蕃樂園', en: 'Digengwei Souvenir', ja: '玩味蕃楽園', ko: '완웨이판러위안' }, 
           { query: '曼波海洋生態休閒園區', stay: 30, zh: '曼波園區', en: 'Mambo Park', ja: 'マンボウパーク', ko: '맘보 공원' }, 
           { query: '七星潭海岸風景特定區', stay: 40, zh: '七星潭', en: 'Qixingtan Beach', ja: '七星潭', ko: '치싱탄' },
-          { query: '魚刺人雞蛋糕咖啡館 七星潭店', stay: 30, zh: '魚刺人雞蛋糕', en: 'Yuciren Egg Cake', ja: '魚刺人ベビーカステラ', ko: '위츠런 계란빵' }
+          { query: '魚刺人雞蛋糕咖啡館 七星潭店', stay: 30, zh: '魚刺人雞蛋糕', en: 'Yuciren Egg Cake', ja: '魚刺人ベビーカステラ', ko: '위츠런 계란빵' },
+          { query: '定置漁場三代目 花蓮將軍府', stay: 60, zh: '定置漁場三代目(需預約)', en: 'Fishery 3rd Gen', ja: '定置漁場三代目', ko: '어장 3대째' }
         ],
         extend: [
           { query: '天祥', stay: 30, zh: '天祥/祥德寺', en: 'Tianxiang', ja: '天祥', ko: '티엔샹' },
@@ -256,7 +257,9 @@
         extendDefaultDropoff: { zh: '墾丁大街', en: 'Kenting Street', ja: '墾丁通り', ko: '컨딩 야시장' },
         base: [
           { query: '山度空間', stay: 60, zh: '山度空間', en: 'Mountain Space', ja: '山度空間', ko: '산도공간' }, 
+          { query: '浪慢咖啡', stay: 60, zh: '浪慢咖啡', en: 'Langman Cafe', ja: '浪慢カフェ', ko: '낭만 카페' },
           { query: '洄瀾門市 星巴克', stay: 40, zh: '貨櫃星巴克', en: 'Starbucks Container', ja: 'コンテナスタバ', ko: '스타벅스 컨테이너' }, 
+          { query: '月崖灣親子農場', stay: 90, zh: '月崖灣農場', en: 'Yueyawan Farm', ja: '月崖湾農場', ko: '웨야완 농장' },
           { query: '新社梯田', stay: 30, zh: '新社梯田', en: 'Xinshe Rice Terraces', ja: '新社棚田', ko: '신서 다랑논' },
           { query: '石梯坪', stay: 60, zh: '石梯坪', en: 'Shitiping', ja: '石梯坪', ko: '스이핑' }
         ],
@@ -264,7 +267,10 @@
           { query: '八仙洞', stay: 40, zh: '八仙洞', en: 'Baxian Cave', ja: '八仙洞', ko: '팔선동' },
           { query: '三仙台', stay: 50, zh: '三仙台', en: 'Sanxiantai', ja: '三仙台', ko: '싼셴타이' },
           { query: '加路蘭', stay: 40, zh: '加路蘭', en: 'Jialulan', ja: '加路蘭', ko: '지아루란' },
+          { query: '台東縣立總圖書館', stay: 60, zh: '台東總圖書館(雨備)', en: 'Taitung Library', ja: '台東県立図書館', ko: '타이둥 도서관' },
           { query: '太麻里', stay: 30, zh: '太麻里', en: 'Taimali', ja: '太麻里', ko: '타이마리' },
+          { query: '看海美術館', stay: 40, zh: '看海美術館', en: 'Seaside Art Museum', ja: '海を見る美術館', ko: '바다 미술관' },
+          { query: '鹿ㄦ島水豚生態園區', stay: 90, zh: '鹿ㄦ島水豚園', en: 'Capybara Park', ja: 'カピバラパーク', ko: '카피바라 파크' },
           { query: '墾丁大街', stay: 60, zh: '墾丁大街', en: 'Kenting Street', ja: '墾丁通り', ko: '컨딩 야시장' }
         ]
       },
@@ -277,15 +283,18 @@
           { query: '鯉魚潭', stay: 60, zh: '鯉魚潭', en: 'Liyu Lake', ja: '鯉魚潭', ko: '리위탄' }, 
           { query: '雲山水', stay: 60, zh: '雲山水', en: 'Yunshan Shui', ja: '雲山水', ko: '운산수' }, 
           { query: '山姆先生', stay: 40, zh: '山姆先生', en: 'Mr. Sam Cafe', ja: 'Mr. Sam', ko: '미스터 샘' }, 
+          { query: '月崖灣親子農場', stay: 90, zh: '月崖灣農場', en: 'Yueyawan Farm', ja: '月崖湾農場', ko: '웨야완 농장' },
           { query: '光復糖廠', stay: 40, zh: '光復糖廠', en: 'Guangfu Sugar Factory', ja: '光復糖廠', ko: '광푸 설탕공장' }, 
           { query: '大農大富', stay: 60, zh: '大農大富', en: 'Danongdafu', ja: '大農大富', ko: '대농대부' }
         ],
         extend: [
           { query: '瑞穗牧場', stay: 60, zh: '瑞穗牧場', en: 'Ruisui Pasture', ja: '瑞穂牧場', ko: '루이수이 목장' },
-          { query: '富里農會', stay: 40, zh: '富里稻草藝術', en: 'Fuli Rice Art', ja: '富里農協', ko: '푸리 농협' },
           { query: '伯朗大道', stay: 60, zh: '池上伯朗大道', en: 'Mr. Brown Avenue', ja: '伯朗大道', ko: '보랑대도' },
           { query: '鹿野高台', stay: 60, zh: '鹿野高台', en: 'Luye Highland', ja: '鹿野高台', ko: '루예고대' },
+          { query: '台東縣立總圖書館', stay: 60, zh: '台東總圖書館(雨備)', en: 'Taitung Library', ja: '台東県立図書館', ko: '타이둥 도서관' },
           { query: '多良車站', stay: 30, zh: '多良車站', en: 'Duoliang Station', ja: '多良駅', ko: '두량역' },
+          { query: '看海美術館', stay: 40, zh: '看海美術館', en: 'Seaside Art Museum', ja: '海を見る美術館', ko: '바다 미술관' },
+          { query: '鹿ㄦ島水豚生態園區', stay: 90, zh: '鹿ㄦ島水豚園', en: 'Capybara Park', ja: 'カピバラパーク', ko: '카피바라 파크' },
           { query: '墾丁大街', stay: 60, zh: '墾丁大街', en: 'Kenting Street', ja: '墾丁通り', ko: '컨딩 야시장' }
         ]
       }
@@ -318,26 +327,21 @@
       handleRouteSelection(); 
     }
 
-    // 處理主線切換
     function handleRouteSelection() {
       const routeId = document.getElementById('tourRoute').value;
       const data = TOUR_DATA[routeId];
       
-      // 復原開關
       document.getElementById('extendToggle').checked = false;
       document.getElementById('extendRouteText').innerText = data.extendText[currLang];
       
-      // 清空可能代入的下車點
       const dropoffInput = document.getElementById('dropoff-input');
       if (autoFilledDropoff !== "" && dropoffInput.value === autoFilledDropoff) {
           dropoffInput.value = "";
           autoFilledDropoff = "";
       }
-      
       renderPOIs();
     }
 
-    // 🚀 處理滑動開關變化 (智慧代入下車點)
     function handleToggleChange() {
       const isExtended = document.getElementById('extendToggle').checked;
       const routeId = document.getElementById('tourRoute').value;
@@ -345,11 +349,9 @@
       const dropoffInput = document.getElementById('dropoff-input');
 
       if (isExtended && data.extendDefaultDropoff) {
-          // 開關打開，自動填入長程終點
           dropoffInput.value = data.extendDefaultDropoff[currLang];
           autoFilledDropoff = dropoffInput.value;
       } else {
-          // 開關關閉，若使用者沒修改過就清空
           if (dropoffInput.value === autoFilledDropoff || (data.extendDefaultDropoff && dropoffInput.value === data.extendDefaultDropoff[currLang])) {
               dropoffInput.value = "";
           }
@@ -374,7 +376,7 @@
       const pickupVal = document.getElementById('pickup-input').value.trim();
       if (!pickupVal) return;
       document.getElementById('dropoff-input').value = pickupVal;
-      autoFilledDropoff = ""; // 清除自動代入標記
+      autoFilledDropoff = "";
       resetFormCalculation();
     }
 
@@ -396,7 +398,7 @@
       
       const dropoffAutocomplete = new google.maps.places.Autocomplete(document.getElementById('dropoff-input'), options);
       dropoffAutocomplete.addListener('place_changed', () => {
-          autoFilledDropoff = ""; // 若客人自己用 autocomplete 選了別的地方，解除自動代入狀態
+          autoFilledDropoff = "";
           resetFormCalculation();
       });
     }
