@@ -1,4 +1,4 @@
-// v4.0 [國際外客接單版] 多國語系靜態字典與雙軌送單架構
+// v4.1 [山海分流版] 長程路線分流（縱谷/海岸）、清境高山延伸線與四國語系擴充
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
@@ -18,44 +18,28 @@
     html { scroll-behavior: smooth; }
     .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
     
-    /* 滿版戰情儀表板 */
     #top-dashboard {
       position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; height: 100dvh; z-index: 100;
       background-color: #0f172a; display: flex; flex-direction: column;
       transform: translateY(-100%); transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
     }
     #map { width: 100%; height: 35vh; flex-shrink: 0; } 
-    
-    /* 儀表板下半部 */
     .dashboard-panel { flex: 1; display: flex; flex-direction: column; background-color: #0f172a; padding: 1rem; overflow: hidden; }
-    
-    /* 自訂捲軸 */
     .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-    .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
     .custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
     
-    /* 表單容器 */
     .form-container { position: relative; z-index: 10; background-color: #f8fafc; min-height: 100vh; padding-bottom: 60px; }
-    
-    .swal2-popup { border-radius: 24px !important; font-family: 'Noto Sans TC', sans-serif !important; padding-bottom: 20px !important;}
+    .swal2-popup { border-radius: 24px !important; font-family: 'Noto Sans TC', sans-serif !important; }
     
     .custom-checkbox input:checked + div { background-color: #0f172a; border-color: #0f172a; color: #ffffff; }
     .custom-checkbox input:checked + div i { color: #34d399; }
-    
     .custom-radio input:checked + div { background-color: #0f172a; border-color: #0f172a; color: #ffffff; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.3); transform: scale(1.02); }
-    .custom-radio input:checked + div .subtitle { color: #94a3b8; }
-    .custom-radio input:checked + div .icon { color: #34d399; }
 
     .input-row { display: flex; align-items: center; background: #ffffff; border-radius: 16px; padding: 12px 16px; border: 1px solid #e2e8f0; transition: border-color 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
     .input-row:focus-within { border-color: #10b981; box-shadow: 0 0 0 3px rgba(16,185,129,0.1); }
     .input-row input { flex: 1; background: transparent; border: none; outline: none; font-size: 16px; font-weight: bold; color: #1e293b; width: 100%; }
-    .input-row input::placeholder { color: #94a3b8; font-weight: normal; font-size: 15px; }
     
-    .pac-container { border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); font-family: 'Noto Sans TC'; border: none; margin-top: 5px; padding: 5px; z-index: 1050; }
-    .pac-item { padding: 12px 15px; cursor: pointer; font-size: 15px; border-top: 1px solid #f1f5f9; }
-    .pac-item:hover { background-color: #f8fafc; }
-
-    /* 語系切換按鈕 */
+    .pac-container { border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); font-family: 'Noto Sans TC'; border: none; z-index: 1050; }
     .lang-btn { transition: all 0.2s; }
     .lang-btn.active { background-color: #0f172a; color: #ffffff; border-color: #0f172a; }
   </style>
@@ -66,17 +50,13 @@
     <button onclick="resetCalculation()" class="absolute top-4 right-4 z-50 bg-slate-900/60 backdrop-blur-md text-white w-10 h-10 rounded-full flex items-center justify-center shadow-lg active:scale-90 transition-transform border border-white/10">
       <i class="fa-solid fa-xmark text-lg"></i>
     </button>
-    
     <div id="map"></div>
-    
     <div class="dashboard-panel pb-safe">
       <div class="flex justify-between items-center text-xs font-bold mb-4 pb-3 border-b border-slate-700 shrink-0 px-1">
         <span class="text-blue-400"><i class="fa-solid fa-car-side"></i> <span data-i18n="drive">行車</span>：<span id="rawDriveDisplay">--</span></span>
         <span class="text-amber-400"><i class="fa-solid fa-camera"></i> <span data-i18n="stay">停留</span>：<span id="rawStayDisplay">--</span></span>
       </div>
-      
       <div id="routeDetails" class="flex-1 overflow-y-auto custom-scrollbar pr-2 mt-1"></div>
-
       <div class="shrink-0 pt-4 border-t border-slate-700/50 mt-3">
         <div class="flex justify-between items-end mb-4 px-1">
           <div>
@@ -97,8 +77,7 @@
   </div>
 
   <div class="form-container px-5 pt-6" id="form-body">
-    
-    <div class="flex justify-between items-center mb-6 overflow-x-auto pb-2 custom-scrollbar gap-2">
+    <div class="flex justify-between items-center mb-6 overflow-x-auto pb-2 gap-2">
       <h2 class="text-xl font-black text-slate-800 tracking-wide shrink-0" data-i18n="title">專屬客製包車</h2>
       <div class="flex gap-1 shrink-0 bg-slate-100 p-1 rounded-lg border border-slate-200">
         <button onclick="setLang('zh')" id="btn-lang-zh" class="lang-btn active text-[10px] font-bold px-2.5 py-1.5 rounded-md text-slate-600">繁中</button>
@@ -111,15 +90,13 @@
     <div class="space-y-3 mb-6">
       <div class="input-row">
         <i class="fa-solid fa-location-crosshairs text-emerald-500 w-6 text-center mr-2 text-lg"></i>
-        <input type="text" id="pickup-input" data-i18n-ph="pickupPlace" placeholder="手動輸入上車點，或點右側定位" oninput="resetFormCalculation()">
+        <input type="text" id="pickup-input" data-i18n-ph="pickupPlace" placeholder="上車地點" oninput="resetFormCalculation()">
         <button onclick="useMyLocation()" class="text-emerald-600 p-2 active:scale-90 bg-emerald-100 rounded-xl ml-2 flex-shrink-0 shadow-sm"><i class="fa-solid fa-crosshairs"></i></button>
       </div>
-      <div class="input-row relative overflow-hidden">
+      <div class="input-row">
         <i class="fa-solid fa-flag-checkered text-rose-500 w-6 text-center mr-2 text-lg"></i>
-        <input type="text" id="dropoff-input" data-i18n-ph="dropoffPlace" placeholder="輸入目的地，或點右側同上" oninput="resetFormCalculation()">
-        <button onclick="setSameAsPickup()" class="text-rose-600 p-2 active:scale-90 bg-rose-100 rounded-xl ml-2 flex-shrink-0 shadow-sm">
-          <i class="fa-solid fa-arrow-up-from-bracket"></i>
-        </button>
+        <input type="text" id="dropoff-input" data-i18n-ph="dropoffPlace" placeholder="下車目的地" oninput="resetFormCalculation()">
+        <button onclick="setSameAsPickup()" class="text-rose-600 p-2 active:scale-90 bg-rose-100 rounded-xl ml-2 flex-shrink-0 shadow-sm"><i class="fa-solid fa-arrow-up-from-bracket"></i></button>
       </div>
     </div>
 
@@ -130,12 +107,13 @@
       </div>
       <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
         <label class="block text-[10px] text-slate-400 mb-1 uppercase tracking-wider font-bold" data-i18n="route">主題路線</label>
-        <select id="tourRoute" class="w-full text-sm font-black border-0 bg-transparent text-slate-800 outline-none appearance-none" onchange="renderPOIs()">
+        <select id="tourRoute" class="w-full text-xs font-black border-0 bg-transparent text-slate-800 outline-none appearance-none" onchange="renderPOIs()">
           <option value="taroko" data-i18n-opt="r_taroko">太魯閣深度遊</option>
-          <option value="coast" data-i18n-opt="r_coast">東海岸網美線</option>
+          <option value="cingjing" data-i18n-opt="r_cingjing">【長程】清境高山延伸線</option>
+          <option value="kenting_valley" data-i18n-opt="r_kenting_v">【長程】墾丁 (縱谷線)</option>
+          <option value="kenting_coast" data-i18n-opt="r_kenting_c">【長程】墾丁 (海岸線)</option>
+          <option value="coast" data-i18n-opt="r_coast">花蓮東海岸線</option>
           <option value="valley" data-i18n-opt="r_valley">花東縱谷慢活</option>
-          <option value="cingjing" data-i18n-opt="r_cingjing">【長程】清境越嶺</option>
-          <option value="kenting" data-i18n-opt="r_kenting">【長程】國境之南</option>
         </select>
       </div>
     </div>
@@ -170,17 +148,17 @@
     <div class="mb-6 bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
       <div class="flex justify-between items-center mb-3">
         <label class="block text-[11px] text-slate-500 uppercase tracking-wider font-bold" data-i18n="poiAdj">行程景點微調</label>
-        <span id="poiCount" class="text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md"><span data-i18n="selected">已排</span> 0</span>
+        <span id="poiCount" class="text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md">已排 0</span>
       </div>
       <div id="poiContainer" class="grid grid-cols-2 gap-2 text-[13px]"></div>
       
       <div class="mt-4 border-t border-slate-100 pt-4">
         <label class="block text-[11px] text-slate-500 mb-2 uppercase tracking-wider font-bold">
-          <i class="fa-solid fa-wand-magic-sparkles text-amber-500 mr-1"></i> <span data-i18n="wish">許願池 (自訂其他秘境)</span>
+          <i class="fa-solid fa-wand-magic-sparkles text-amber-500 mr-1"></i> <span data-i18n="wish">許願池 (自訂秘境)</span>
         </label>
         <div id="customPoiContainer" class="space-y-2">
           <div class="flex gap-2">
-            <input type="text" class="custom-poi-input flex-1 border-0 bg-slate-50 rounded-xl p-3 text-slate-800 outline-none font-bold shadow-inner" data-i18n-ph="wishPlace" placeholder="請輸入景點名稱..." oninput="resetFormCalculation()">
+            <input type="text" class="custom-poi-input flex-1 border-0 bg-slate-50 rounded-xl p-3 text-slate-800 outline-none font-bold" data-i18n-ph="wishPlace" placeholder="輸入景點名稱..." oninput="resetFormCalculation()">
             <button onclick="addCustomPoiInput()" class="bg-emerald-100 text-emerald-600 w-12 rounded-xl active:scale-95 transition-transform flex items-center justify-center shadow-sm"><i class="fa-solid fa-plus"></i></button>
           </div>
         </div>
@@ -188,57 +166,54 @@
     </div>
 
     <button onclick="calculateFareWithGoogle()" id="calc-btn" class="w-full bg-slate-800 hover:bg-slate-900 text-white flex items-center justify-center py-4 rounded-xl font-black shadow-lg active:scale-95 transition-all text-lg tracking-wider mb-4">
-      <i class="fa-solid fa-calculator text-emerald-400 mr-2"></i> <span data-i18n="calcBtn">精算最佳化路徑與車資</span>
+      <i class="fa-solid fa-calculator text-emerald-400 mr-2"></i> <span data-i18n="calcBtn">精算路徑與車資</span>
     </button>
   </div>
 
   <script>
     const DAILY_LIMIT = 5;
     const TOUR_LIFF_ID = '2008907691-zTgIQ9Oa'; 
-    let map, directionsService, directionsRenderer, currentCalcResult = null;
-    let currLang = 'zh';
+    let map, directionsService, directionsRenderer, currentCalcResult = null, currLang = 'zh';
 
-    // 🚀 多國語系字典庫
     const I18N = {
       zh: {
-        title: '專屬客製包車', pickupPlace: '手動輸入上車點，或點右側定位', dropoffPlace: '輸入目的地，或點右側同上',
+        title: '專屬客製包車', pickupPlace: '上車地點 (手動輸入或GPS)', dropoffPlace: '下車目的地 (同上或輸入)',
         date: '出發日期', route: '主題路線', pax: '乘車人數與車型', pax5: '5人座', pax7: '7人座', pax9: '9人座',
-        poiAdj: '行程景點微調', wish: '許願池 (自訂其他秘境)', wishPlace: '請輸入景點名稱...',
-        calcBtn: '精算最佳化路徑與車資', drive: '行車', stay: '停留', totalSys: '總計系統時數', hour: '小時',
+        poiAdj: '行程景點微調', wish: '許願池 (自訂秘境)', wishPlace: '輸入景點名稱...',
+        calcBtn: '精算路徑與車資', drive: '行車', stay: '停留', totalSys: '系統總時數', hour: '小時',
         limit: '上限', baseFare: '基準車資 / 超時另計', sendBtn: '發送客製需求單', selected: '已排',
-        r_taroko: '太魯閣深度遊', r_coast: '東海岸網美線', r_valley: '花東縱谷慢活', r_cingjing: '【長程】清境越嶺', r_kenting: '【長程】國境之南',
+        r_taroko: '太魯閣深度遊', r_coast: '花蓮東海岸', r_valley: '花東縱谷慢活', r_cingjing: '【長程】清境延伸線', r_kenting_v: '【長程】墾丁 (縱谷)', r_kenting_c: '【長程】墾丁 (海岸)',
         min: '分'
       },
       en: {
-        title: 'Custom Private Tour', pickupPlace: 'Enter pickup or use GPS', dropoffPlace: 'Enter dropoff or same as above',
-        date: 'Date', route: 'Tour Route', pax: 'Vehicle Type', pax5: '5-Seater', pax7: '7-Seater', pax9: '9-Seater',
-        poiAdj: 'Attractions', wish: 'Wishlist (Custom POI)', wishPlace: 'Enter place name...',
-        calcBtn: 'Calculate Optimal Route & Fare', drive: 'Drive', stay: 'Stay', totalSys: 'Est. Duration', hour: 'hrs',
-        limit: 'Limit', baseFare: 'Base Fare / Overtime Extra', sendBtn: 'Send Request', selected: 'Selected',
-        r_taroko: 'Taroko Gorge', r_coast: 'East Coast', r_valley: 'Rift Valley', r_cingjing: 'Cingjing Farm', r_kenting: 'Kenting',
+        title: 'Custom Tour', pickupPlace: 'Pickup Location', dropoffPlace: 'Destination',
+        date: 'Date', route: 'Theme Route', pax: 'Vehicle Type', pax5: '5-Seater', pax7: '7-Seater', pax9: '9-Seater',
+        poiAdj: 'Adjust Stops', wish: 'Custom Wishlist', wishPlace: 'Place name...',
+        calcBtn: 'Calculate Price', drive: 'Drive', stay: 'Stay', totalSys: 'Total Est. Hours', hour: 'hrs',
+        limit: 'Limit', baseFare: 'Base Fare / Extra TBD', sendBtn: 'Send Request', selected: 'Selected',
+        r_taroko: 'Taroko Gorge', r_coast: 'Hualien Coast', r_valley: 'Rift Valley', r_cingjing: 'Cingjing Route', r_kenting_v: 'Kenting (Valley)', r_kenting_c: 'Kenting (Coast)',
         min: 'm'
       },
       ja: {
-        title: '貸切チャーター', pickupPlace: '乗車地を入力、またはGPS', dropoffPlace: '降車地を入力、または同上',
-        date: '出発日', route: 'ルート', pax: '車種', pax5: '5人乗り', pax7: '7人乗り', pax9: '9人乗り',
-        poiAdj: '観光地', wish: 'その他の希望観光地', wishPlace: '観光地名を入力...',
-        calcBtn: '最適ルートと料金を計算', drive: '運転', stay: '滞在', totalSys: '予想所要時間', hour: '時間',
-        limit: '上限', baseFare: '基本料金 / 延長別途', sendBtn: 'リクエストを送信', selected: '選択済',
-        r_taroko: 'タロコ峡谷', r_coast: '東海岸', r_valley: '花東縦谷', r_cingjing: '清境農場', r_kenting: '墾丁',
+        title: '貸切チャーター', pickupPlace: '乗車場所', dropoffPlace: '降車場所',
+        date: '出発日', route: 'ルート選択', pax: '車種', pax5: '5人乗り', pax7: '7人乗り', pax9: '9人乗り',
+        poiAdj: '観光地の調整', wish: '希望観光地', wishPlace: '観光地名...',
+        calcBtn: '料金を計算', drive: '運転', stay: '滞在', totalSys: '合計所要時間', hour: '時間',
+        limit: '上限', baseFare: '基本料金 / 延長別途', sendBtn: 'リクエスト送信', selected: '選択済',
+        r_taroko: 'タロコ峡谷', r_coast: '花蓮東海岸', r_valley: '花東縦谷', r_cingjing: '清境延伸ルート', r_kenting_v: '墾丁 (縦谷線)', r_kenting_c: '墾丁 (海岸線)',
         min: '分'
       },
       ko: {
-        title: '맞춤형 프라이빗 투어', pickupPlace: '승차지 입력 또는 GPS', dropoffPlace: '하차지 입력 또는 위와 동일',
-        date: '출발일', route: '투어 코스', pax: '차량 종류', pax5: '5인승', pax7: '7인승', pax9: '9인승',
-        poiAdj: '관광지', wish: '추가 희망 관광지', wishPlace: '관광지 이름 입력...',
-        calcBtn: '최적 루트 및 요금 계산', drive: '이동', stay: '체류', totalSys: '예상 소요 시간', hour: '시간',
+        title: '맞춤 프라이빗 투어', pickupPlace: '승차 장소', dropoffPlace: '하차 장소',
+        date: '출발 날짜', route: '테마 코스', pax: '차량 종류', pax5: '5인승', pax7: '7인승', pax9: '9인승',
+        poiAdj: '관광지 조정', wish: '추가 희망지', wishPlace: '장소 이름...',
+        calcBtn: '요금 계산', drive: '이동', stay: '체류', totalSys: '총 예상 시간', hour: '시간',
         limit: '제한', baseFare: '기본 요금 / 초과시 별도', sendBtn: '요청 보내기', selected: '선택됨',
-        r_taroko: '타이루거 협곡', r_coast: '동해안', r_valley: '화동종구', r_cingjing: '칭징농장', r_kenting: '컨딩',
+        r_taroko: '타이루거 협곡', r_coast: '화롄 동해안', r_valley: '화동종구', r_cingjing: '칭징 연장 코스', r_kenting_v: '컨딩 (종구)', r_kenting_c: '컨딩 (해안)',
         min: '분'
       }
     };
 
-    // 🚀 雙軌資料庫：query 用於 Google API 搜尋與後台記錄，各語系用於前端顯示
     const TOUR_DATA = {
       'taroko': { 
         name: { zh: '太魯閣深度遊', en: 'Taroko Gorge', ja: 'タロコ峡谷', ko: '타이루거 협곡' }, 
@@ -252,14 +227,45 @@
           { query: '七星潭', stay: 40, zh: '七星潭', en: 'Qixingtan Beach', ja: '七星潭', ko: '치싱탄' }
         ] 
       },
-      'coast': { 
-        name: { zh: '東海岸網美線', en: 'East Coast', ja: '東海岸', ko: '동해안' }, 
+      'cingjing': {
+        name: { zh: '【長程】清境延伸線', en: 'Cingjing Route', ja: '清境延伸ルート', ko: '칭징 연장 코스' },
         points: [
-          { query: '遠雄海洋公園', stay: 20, zh: '遠雄海洋公園', en: 'Farglory Ocean Park', ja: 'ファーグローリーオーシャンパーク', ko: '위안슝 해양공원' }, 
+          { query: '長春祠', stay: 20, zh: '長春祠', en: 'Eternal Spring Shrine', ja: '長春祠', ko: '창춘사' },
+          { query: '天祥', stay: 30, zh: '天祥/祥德寺', en: 'Tianxiang', ja: '天祥', ko: '티엔샹' },
+          { query: '碧綠神木', stay: 30, zh: '碧綠神木', en: 'Bilu Sacred Tree', ja: '碧緑神木', ko: '비뤼신무' },
+          { query: '大禹嶺', stay: 20, zh: '大禹嶺', en: 'Dayuling', ja: '大禹嶺', ko: '다위링' },
+          { query: '合歡山', stay: 40, zh: '合歡山', en: 'Hehuanshan', ja: '合歓山', ko: '허환산' },
+          { query: '武嶺', stay: 40, zh: '武嶺', en: 'Wuling', ja: '武嶺', ko: '우링' },
+          { query: '清境農場', stay: 120, zh: '清境農場', en: 'Cingjing Farm', ja: '清境農場', ko: '칭징농장' }
+        ]
+      },
+      'kenting_valley': {
+        name: { zh: '【長程】墾丁 (縱谷線)', en: 'Kenting (Valley)', ja: '墾丁 (縦谷線)', ko: '컨딩 (종구)' },
+        points: [
+          { query: '瑞穗牧場', stay: 60, zh: '瑞穗牧場', en: 'Ruisui Pasture', ja: '瑞穂牧場', ko: '루이수이 목장' },
+          { query: '富里農會', stay: 40, zh: '富里稻草藝術', en: 'Fuli Rice Art', ja: '富里農協', ko: '푸리 농협' },
+          { query: '伯朗大道', stay: 60, zh: '池上伯朗大道', en: 'Mr. Brown Avenue', ja: '伯朗大道', ko: '보랑대도' },
+          { query: '鹿野高台', stay: 60, zh: '鹿野高台', en: 'Luye Highland', ja: '鹿野高台', ko: '루예고대' },
+          { query: '多良車站', stay: 30, zh: '多良車站', en: 'Duoliang Station', ja: '多良駅', ko: '두량역' },
+          { query: '墾丁大街', stay: 60, zh: '墾丁大街', en: 'Kenting Street', ja: '墾丁通り', ko: '컨딩 야시장' }
+        ]
+      },
+      'kenting_coast': {
+        name: { zh: '【長程】墾丁 (海岸線)', en: 'Kenting (Coast)', ja: '墾丁 (海岸線)', ko: '컨딩 (해안)' },
+        points: [
+          { query: '石梯坪', stay: 60, zh: '石梯坪', en: 'Shitiping', ja: '石梯坪', ko: '스이핑' },
+          { query: '八仙洞', stay: 40, zh: '八仙洞', en: 'Baxian Cave', ja: '八仙洞', ko: '팔선동' },
+          { query: '三仙台', stay: 50, zh: '三仙台', en: 'Sanxiantai', ja: '三仙台', ko: '싼셴타이' },
+          { query: '加路蘭', stay: 40, zh: '加路蘭', en: 'Jialulan', ja: '加路蘭', ko: '지아루란' },
+          { query: '太麻里', stay: 30, zh: '太麻里', en: 'Taimali', ja: '太麻里', ko: '타이마리' },
+          { query: '墾丁大街', stay: 60, zh: '墾丁大街', en: 'Kenting Street', ja: '墾丁通り', ko: '컨딩 야시장' }
+        ]
+      },
+      'coast': { 
+        name: { zh: '花蓮東海岸線', en: 'Hualien Coast', ja: '花蓮東海岸', ko: '화롄 동해안' }, 
+        points: [
           { query: '山度空間', stay: 60, zh: '山度空間', en: 'Mountain Space', ja: '山度空間', ko: '산도공간' }, 
           { query: '洄瀾門市 星巴克', stay: 40, zh: '貨櫃星巴克', en: 'Starbucks Container', ja: 'コンテナスタバ', ko: '스타벅스 컨테이너' }, 
-          { query: '牛山呼庭', stay: 60, zh: '牛山呼庭', en: 'Niushan Huting', ja: '牛山呼庭', ko: '니우산 후팅' }, 
-          { query: '大石鼻山步道', stay: 50, zh: '大石鼻山步道', en: 'Dashibi Hill Trail', ja: '大石鼻山歩道', ko: '대석비산 트레일' }, 
           { query: '石梯坪', stay: 60, zh: '石梯坪', en: 'Shitiping', ja: '石梯坪', ko: '스이핑' }, 
           { query: '新社梯田', stay: 30, zh: '新社梯田', en: 'Xinshe Rice Terraces', ja: '新社棚田', ko: '신서 다랑논' }
         ] 
@@ -269,29 +275,9 @@
         points: [
           { query: '鯉魚潭', stay: 60, zh: '鯉魚潭', en: 'Liyu Lake', ja: '鯉魚潭', ko: '리위탄' }, 
           { query: '雲山水', stay: 60, zh: '雲山水', en: 'Yunshan Shui', ja: '雲山水', ko: '운산수' }, 
-          { query: '山姆先生咖啡館', stay: 40, zh: '山姆先生', en: 'Mr. Sam Cafe', ja: 'Mr. Sam カフェ', ko: '미스터 샘 카페' }, 
-          { query: '林田山', stay: 60, zh: '林田山', en: 'Lintianshan', ja: '林田山', ko: '린티엔산' }, 
+          { query: '山姆先生', stay: 40, zh: '山姆先生', en: 'Mr. Sam Cafe', ja: 'Mr. Sam', ko: '미스터 샘' }, 
           { query: '光復糖廠', stay: 40, zh: '光復糖廠', en: 'Guangfu Sugar Factory', ja: '光復糖廠', ko: '광푸 설탕공장' }, 
-          { query: '瑞穗牧場', stay: 60, zh: '瑞穗牧場', en: 'Ruisui Pasture', ja: '瑞穂牧場', ko: '루이수이 목장' }, 
           { query: '大農大富', stay: 60, zh: '大農大富', en: 'Danongdafu', ja: '大農大富', ko: '대농대부' }
-        ] 
-      },
-      'cingjing': { 
-        name: { zh: '【長程】清境越嶺', en: 'Cingjing Farm', ja: '清境農場', ko: '칭징농장' }, 
-        points: [
-          { query: '太魯閣牌樓', stay: 20, zh: '太魯閣牌樓', en: 'Taroko Gate', ja: 'タロコゲート', ko: '타이루거 게이트' }, 
-          { query: '大禹嶺', stay: 20, zh: '大禹嶺', en: 'Dayuling', ja: '大禹嶺', ko: '다위링' }, 
-          { query: '武嶺', stay: 40, zh: '合歡山武嶺', en: 'Wuling', ja: '武嶺', ko: '우링' }, 
-          { query: '清境農場', stay: 120, zh: '清境農場', en: 'Cingjing Farm', ja: '清境農場', ko: '칭징농장' }
-        ] 
-      },
-      'kenting': { 
-        name: { zh: '【長程】國境之南', en: 'Kenting', ja: '墾丁', ko: '컨딩' }, 
-        points: [
-          { query: '石梯坪', stay: 30, zh: '石梯坪', en: 'Shitiping', ja: '石梯坪', ko: '스이핑' }, 
-          { query: '三仙台', stay: 30, zh: '三仙台', en: 'Sanxiantai', ja: '三仙台', ko: '싼셴타이' }, 
-          { query: '多良車站', stay: 30, zh: '多良車站', en: 'Duoliang Station', ja: '多良駅', ko: '둬량역' }, 
-          { query: '墾丁大街', stay: 60, zh: '墾丁大街', en: 'Kenting Street', ja: '墾丁メインストリート', ko: '컨딩 야시장' }
         ] 
       }
     };
@@ -306,22 +292,18 @@
       currLang = lang;
       document.querySelectorAll('.lang-btn').forEach(btn => btn.classList.remove('active'));
       document.getElementById(`btn-lang-${lang}`).classList.add('active');
-
       document.querySelectorAll('[data-i18n]').forEach(el => {
         const key = el.getAttribute('data-i18n');
         if (I18N[lang][key]) el.innerHTML = I18N[lang][key];
       });
-
       document.querySelectorAll('[data-i18n-ph]').forEach(el => {
         const key = el.getAttribute('data-i18n-ph');
         if (I18N[lang][key]) el.placeholder = I18N[lang][key];
       });
-
       document.querySelectorAll('[data-i18n-opt]').forEach(el => {
         const key = el.getAttribute('data-i18n-opt');
         if (I18N[lang][key]) el.innerText = I18N[lang][key];
       });
-
       renderPOIs();
     }
 
@@ -330,7 +312,7 @@
       const div = document.createElement('div');
       div.className = 'flex gap-2 mt-2';
       div.innerHTML = `
-        <input type="text" class="custom-poi-input flex-1 border-0 bg-slate-50 rounded-xl p-3 text-slate-800 outline-none font-bold shadow-inner" placeholder="${I18N[currLang].wishPlace}" oninput="resetFormCalculation()">
+        <input type="text" class="custom-poi-input flex-1 border-0 bg-slate-50 rounded-xl p-3 text-slate-800 outline-none font-bold" placeholder="${I18N[currLang].wishPlace}" oninput="resetFormCalculation()">
         <button onclick="this.parentElement.remove(); resetFormCalculation();" class="bg-rose-100 text-rose-600 w-12 rounded-xl active:scale-95 transition-transform flex items-center justify-center shadow-sm"><i class="fa-solid fa-minus"></i></button>
       `;
       container.appendChild(div);
@@ -362,7 +344,7 @@
 
     function useMyLocation() {
       if (navigator.geolocation) {
-        Swal.fire({ title: 'GPS...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+        Swal.fire({ title: 'GPS...', allowOutsideClick: false, didOpen: () => { Swal.showLoading() }});
         navigator.geolocation.getCurrentPosition((pos) => {
           const lat = pos.coords.latitude, lng = pos.coords.longitude;
           new google.maps.Geocoder().geocode({ location: { lat, lng } }, (res, status) => {
@@ -379,14 +361,12 @@
     }
 
     function renderPOIs() {
-      const routeId = document.getElementById('tourRoute').value;
-      const data = TOUR_DATA[routeId];
-      // value 存 query 給 google 算，顯示用當前語系
+      const data = TOUR_DATA[document.getElementById('tourRoute').value];
       document.getElementById('poiContainer').innerHTML = data.points.map((pt) => `
         <label class="custom-checkbox block cursor-pointer active:scale-95 transition-transform">
           <input type="checkbox" class="poi-check hidden" value="${pt.query}" data-zh="${pt.zh}" data-stay="${pt.stay}" data-disp="${pt[currLang]}" onchange="resetFormCalculation()" checked>
           <div class="border border-slate-200 rounded-xl p-3 flex items-center gap-2 bg-white h-full shadow-sm">
-            <span class="font-bold leading-tight flex-1 text-slate-700">${pt[currLang]}</span>
+            <span class="font-bold leading-tight flex-1 text-slate-700 text-xs">${pt[currLang]}</span>
           </div>
         </label>
       `).join('');
@@ -397,7 +377,7 @@
       currentCalcResult = null;
       let count = document.querySelectorAll('.poi-check:checked').length;
       document.querySelectorAll('.custom-poi-input').forEach(input => { if(input.value.trim() !== '') count++; });
-      document.getElementById('poiCount').innerHTML = `<span data-i18n="selected">${I18N[currLang].selected}</span> ${count}`;
+      document.getElementById('poiCount').innerHTML = `${I18N[currLang].selected} ${count}`;
     }
 
     function resetCalculation() {
@@ -422,11 +402,11 @@
       Swal.fire({ title: 'Google Maps...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
       const waypoints = [];
-      const originalPois = []; // 存中英文對照
+      const originalPois = [];
       let totalStay = 0;
 
       checkedBoxes.forEach(cb => {
-        waypoints.push({ location: cb.value + " 花蓮", stopover: true }); // 給Google算
+        waypoints.push({ location: cb.value, stopover: true });
         originalPois.push({ dispName: cb.dataset.disp, zhName: cb.dataset.zh, stay: parseInt(cb.dataset.stay) });
         totalStay += parseInt(cb.dataset.stay);
       });
@@ -446,7 +426,6 @@
         Swal.close();
         if (status === 'OK') {
           directionsRenderer.setDirections(res);
-          
           let driveMins = Math.floor(res.routes[0].legs.reduce((acc, leg) => acc + leg.duration.value, 0) / 60);
           let totalKm = Math.floor(res.routes[0].legs.reduce((acc, leg) => acc + leg.distance.value, 0) / 1000);
           
@@ -461,7 +440,6 @@
               <div class="truncate font-bold text-emerald-400 text-base leading-6">${pickup}</div>
             </div>`;
           
-          // 後台送單強制保留中文
           let backendList = `${originLabel}. 上車：${pickup}\n`;
 
           optimizedOrder.forEach(index => {
@@ -474,7 +452,7 @@
                 <div class="absolute left-[11px] top-6 bottom-[-16px] w-[2px] bg-slate-600 z-0"></div>
                 <div class="flex justify-between items-center leading-6">
                   <span class="truncate flex-1 font-bold text-slate-100 text-base">${poi.dispName}</span>
-                  <span class="text-[12px] text-amber-400 font-bold shrink-0 bg-amber-400/15 px-2 py-0.5 rounded ml-2">${poi.stay} ${I18N[currLang].min}</span>
+                  <span class="text-[12px] text-amber-400 font-bold shrink-0 bg-amber-400/15 px-2 py-0.5 rounded ml-2">${poi.stay}${I18N[currLang].min}</span>
                 </div>
               </div>`;
           });
@@ -493,14 +471,12 @@
 
           document.body.style.overflow = 'hidden';
           document.getElementById('top-dashboard').style.transform = 'translateY(0)';
-          
           processPrice(driveMins + totalStay, totalKm, backendList);
 
           setTimeout(() => {
               google.maps.event.trigger(map, 'resize');
               map.fitBounds(res.routes[0].bounds, { top: 30, bottom: 30, left: 30, right: 30 });
           }, 300);
-
         } else {
           Swal.fire('Error', 'Google Maps Error', 'error');
         }
@@ -510,9 +486,9 @@
     function processPrice(totalMinutes, actualKm, backendList) {
       const carType = document.querySelector('input[name="carType"]:checked').value;
       let basePrice = carType === '5' ? 1500 : (carType === '7' ? 2000 : 2500);
-      
       const route = document.getElementById('tourRoute').value;
-      const isLong = (route === 'cingjing' || route === 'kenting');
+      const isLong = (route.includes('cingjing') || route.includes('kenting'));
+
       if (isLong && totalMinutes < 480) totalMinutes = 480;
       else if (totalMinutes < 180) totalMinutes = 180;
 
@@ -548,7 +524,6 @@
       if (!currentCalcResult) return;
       const carVal = document.querySelector('input[name="carType"]:checked').value;
       let carZh = carVal === '5' ? '五人座' : (carVal === '7' ? '七人座' : '九人座');
-      
       const payload = {
         date: document.getElementById('tourDate').value,
         pickup: document.getElementById('pickup-input').value,
@@ -564,10 +539,8 @@
     async function sendFlex(data) {
       if (!liff.isInClient()) { Swal.fire('Error', 'Please run inside LINE', 'warning'); return; }
       Swal.fire({ title: 'Sending...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-      
-      // 🚀 Flex Message 強制中文與英文對照 (總台接單視角)
       const flex = {
-        type: "flex", altText: `📅 收到外客包車單：${data.routeNameZh}`,
+        type: "flex", altText: `📅 收到諮詢：${data.routeNameZh}`,
         contents: {
           type: "bubble", size: "mega",
           header: { type: "box", layout: "vertical", backgroundColor: "#0f172a", paddingAll: "16px", contents: [{ type: "text", text: "🌐 國際客製包車單", weight: "bold", color: "#34d399", size: "xl" }, { type: "text", text: "Google Maps 路線精算引擎", color: "#94a3b8", size: "xs", margin: "sm" }] },
@@ -585,7 +558,6 @@
           footer: { type: "box", layout: "vertical", paddingAll: "16px", backgroundColor: "#f8fafc", contents: [{ type: "text", text: "*最終報價以老司機確認為準", size: "xs", color: "#94a3b8", align: "center" }] }
         }
       };
-
       try {
         await liff.sendMessages([flex]);
         Swal.fire({ icon: 'success', title: 'Success', text: 'Request sent.' }).then(() => liff.closeWindow());
