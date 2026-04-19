@@ -1,4 +1,4 @@
-// v4.3 [北花蓮山海精品版] 撤除高危線路，重組高轉換率網美與文化景點
+// v4.4 [導航校正版] 竄改清水斷崖底層座標，防禦 Google 迴轉繞路 Bug
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
@@ -213,11 +213,12 @@
       }
     };
 
+    // 🚀 底層導航錨點偷換：query 傳送崇德遊憩區供合法迴轉，zh/en/ja/ko 仍顯示清水斷崖
     const TOUR_DATA = {
       'taroko': { 
         name: { zh: '太魯閣與山海網美線', en: 'Taroko & Coastal Beauty', ja: 'タロコ入口・山海絶景', ko: '타이루거 입구 & 해안 절경' }, 
         points: [
-          { query: '清水斷崖', stay: 40, zh: '清水斷崖', en: 'Qingshui Cliff', ja: '清水断崖', ko: '칭수이 절벽' }, 
+          { query: '崇德遊憩區 花蓮', stay: 40, zh: '清水斷崖', en: 'Qingshui Cliff', ja: '清水断崖', ko: '칭수이 절벽' }, 
           { query: '太魯閣遊客中心', stay: 60, zh: '太魯閣遊客中心', en: 'Taroko Visitor Center', ja: 'タロコビジターセンター', ko: '타이루거 방문자 센터' }, 
           { query: '崇德瑩農場', stay: 60, zh: '崇德瑩農場', en: 'Chongde Ying Farm', ja: '崇徳瑩農場', ko: '총더잉 농장' }, 
           { query: '新城老街', stay: 40, zh: '新城老街', en: 'Xincheng Old Street', ja: '新城老街', ko: '신청 옛거리' }, 
