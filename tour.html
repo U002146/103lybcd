@@ -1,4 +1,4 @@
-// v3.5 [全螢幕結算版] 結算面板滿版、列表自動延展、字體放大與按鈕絕對置底
+// v3.6 [路線標記同步版] 同步 Google Maps A-Z 標記，升級時間軸 UI 與純淨文字流
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
@@ -18,7 +18,7 @@
     html { scroll-behavior: smooth; }
     .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
     
-    /* 🚀 滿版戰情儀表板 */
+    /* 滿版戰情儀表板 */
     #top-dashboard {
       position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; height: 100dvh; z-index: 100;
       background-color: #0f172a; 
@@ -27,10 +27,10 @@
     }
     #map { width: 100%; height: 35vh; flex-shrink: 0; } 
     
-    /* 儀表板下半部 (資訊與表單區) */
+    /* 儀表板下半部 */
     .dashboard-panel { flex: 1; display: flex; flex-direction: column; background-color: #0f172a; padding: 1rem; overflow: hidden; }
     
-    /* 自訂捲軸 (路線清單用) */
+    /* 自訂捲軸 */
     .custom-scrollbar::-webkit-scrollbar { width: 4px; }
     .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
     .custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
@@ -68,12 +68,12 @@
     
     <div class="dashboard-panel pb-safe">
       
-      <div class="flex justify-between items-center text-xs font-bold mb-3 pb-3 border-b border-slate-700 shrink-0">
+      <div class="flex justify-between items-center text-xs font-bold mb-4 pb-3 border-b border-slate-700 shrink-0 px-1">
         <span class="text-blue-400"><i class="fa-solid fa-car-side"></i> 行車：<span id="rawDriveDisplay">--</span></span>
         <span class="text-amber-400"><i class="fa-solid fa-camera"></i> 停留：<span id="rawStayDisplay">--</span></span>
       </div>
       
-      <div id="routeDetails" class="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-1">
+      <div id="routeDetails" class="flex-1 overflow-y-auto custom-scrollbar pr-2 mt-1">
         </div>
 
       <div class="shrink-0 pt-4 border-t border-slate-700/50 mt-3">
@@ -202,10 +202,7 @@
 
     function setSameAsPickup() {
       const pickupVal = document.getElementById('pickup-input').value.trim();
-      if (!pickupVal) {
-        Swal.fire('無法複製', '請先填寫或定位上車點', 'warning');
-        return;
-      }
+      if (!pickupVal) { Swal.fire('無法複製', '請先填寫或定位上車點', 'warning'); return; }
       document.getElementById('dropoff-input').value = pickupVal;
       resetFormCalculation();
     }
@@ -227,8 +224,7 @@
     function recordUsage() {
       const today = new Date().toISOString().split('T')[0];
       let usage = JSON.parse(localStorage.getItem('tourCalcUsage')) || { date: today, count: 0 };
-      usage.count++;
-      localStorage.setItem('tourCalcUsage', JSON.stringify(usage));
+      usage.count++; localStorage.setItem('tourCalcUsage', JSON.stringify(usage));
       updateQuotaDisplay();
     }
 
@@ -290,7 +286,6 @@
     }
 
     function resetCalculation() {
-      // 收起儀表板，恢復背景滾動
       document.getElementById('top-dashboard').style.transform = 'translateY(-100%)';
       document.body.style.overflow = 'auto';
     }
@@ -338,32 +333,51 @@
           let driveMins = Math.floor(res.routes[0].legs.reduce((acc, leg) => acc + leg.duration.value, 0) / 60);
           let totalKm = Math.floor(res.routes[0].legs.reduce((acc, leg) => acc + leg.distance.value, 0) / 1000);
           
-          // 🚀 生成放大版的動態 ABCDEFG 路線明細
+          // 🚀 完美同步 A-Z 標記與時間軸 UI
           const optimizedOrder = res.routes[0].waypoint_order;
-          let routeHtml = `<div class="flex items-center gap-3 mb-3 mt-1"><i class="fa-regular fa-circle-dot text-emerald-400 text-xl shrink-0"></i> <span class="truncate font-bold text-white text-base">${pickup}</span></div>`;
+          let currentLabelCode = 65; // A
+          const originLabel = String.fromCharCode(currentLabelCode++); 
           
-          let currentLabelCode = 65; 
+          let routeHtml = `
+            <div class="relative pl-10 mb-4">
+              <span class="absolute left-0 top-0 bg-emerald-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-[13px] font-black shadow-md z-10">${originLabel}</span>
+              <div class="absolute left-[11px] top-6 bottom-[-16px] w-[2px] bg-slate-600 z-0"></div>
+              <div class="truncate font-bold text-emerald-400 text-base leading-6">上車：${pickup}</div>
+            </div>`;
+          
+          let plainTextList = `${originLabel}. 上車：${pickup}\n`;
+
           optimizedOrder.forEach(index => {
             const poi = originalPois[index];
             const label = String.fromCharCode(currentLabelCode++);
+            plainTextList += `${label}. ${poi.name} (停 ${poi.stay}分)\n`;
             routeHtml += `
-              <div class="flex items-center gap-3 mb-3 ml-2 border-l-2 border-slate-600 pl-4 py-1">
-                <span class="bg-rose-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-[13px] font-black shrink-0 shadow-md">${label}</span>
-                <span class="truncate flex-1 font-bold text-slate-100 text-base">${poi.name}</span>
-                <span class="text-[13px] text-amber-400 font-bold shrink-0 bg-amber-400/15 px-2.5 py-1 rounded-lg">停 ${poi.stay}分</span>
+              <div class="relative pl-10 mb-4 pr-1">
+                <span class="absolute left-0 top-0 bg-rose-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-[13px] font-black shadow-md z-10">${label}</span>
+                <div class="absolute left-[11px] top-6 bottom-[-16px] w-[2px] bg-slate-600 z-0"></div>
+                <div class="flex justify-between items-center leading-6">
+                  <span class="truncate flex-1 font-bold text-slate-100 text-base">${poi.name}</span>
+                  <span class="text-[12px] text-amber-400 font-bold shrink-0 bg-amber-400/15 px-2 py-0.5 rounded ml-2">停 ${poi.stay}分</span>
+                </div>
               </div>`;
           });
-          routeHtml += `<div class="flex items-center gap-3 mt-3 mb-2"><i class="fa-solid fa-flag-checkered text-rose-400 text-xl shrink-0"></i> <span class="truncate font-bold text-white text-base">${dropoff}</span></div>`;
+          
+          const destLabel = String.fromCharCode(currentLabelCode);
+          plainTextList += `${destLabel}. 下車：${dropoff}`;
+          routeHtml += `
+            <div class="relative pl-10 mb-2">
+              <span class="absolute left-0 top-0 bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-[13px] font-black shadow-md z-10">${destLabel}</span>
+              <div class="truncate font-bold text-blue-400 text-base leading-6">下車：${dropoff}</div>
+            </div>`;
           
           document.getElementById('routeDetails').innerHTML = routeHtml;
           document.getElementById('rawDriveDisplay').innerText = `${totalKm}km / ${formatTimeText(driveMins)}`;
           document.getElementById('rawStayDisplay').innerText = formatTimeText(totalStay);
 
-          // 降下全螢幕儀表板，鎖定背景
           document.body.style.overflow = 'hidden';
           document.getElementById('top-dashboard').style.transform = 'translateY(0)';
           
-          processPrice(driveMins + totalStay, totalKm);
+          processPrice(driveMins + totalStay, totalKm, plainTextList);
 
           setTimeout(() => {
               google.maps.event.trigger(map, 'resize');
@@ -371,12 +385,12 @@
           }, 300);
 
         } else {
-          Swal.fire('規劃失敗', '部分地址無法連接，請手動簡化地名後再試。', 'error');
+          Swal.fire('規劃失敗', '地址可能過於模糊，請修改後再試。', 'error');
         }
       });
     }
 
-    function processPrice(totalMinutes, actualKm) {
+    function processPrice(totalMinutes, actualKm, plainTextList) {
       const carType = document.querySelector('input[name="carType"]:checked').value;
       let basePrice = carType === '5' ? 1500 : (carType === '7' ? 2000 : 2500);
       
@@ -405,7 +419,11 @@
       document.getElementById('timeDisplay').innerHTML = `${finalH.toFixed(1)} <span class="text-lg">小時</span> ${isOT ? '<span class="text-[10px] bg-rose-600 px-1.5 py-0.5 rounded ml-2 text-white relative -top-1">防疲勞</span>' : ''}`;
       document.getElementById('kmDisplay').innerHTML = isOverK ? `<span class="text-rose-400">逾里程上限 (${actualKm}km)</span>` : `安全里程上限：${limitK}km`;
 
-      currentCalcResult = { hours: finalH.toFixed(1), price: finalP, limitKm: limitK, actualKm, isOvertime: isOT, isOverKm: isOverK, isLongDistance: isLong };
+      currentCalcResult = { 
+        hours: finalH.toFixed(1), price: finalP, limitKm: limitK, 
+        actualKm, isOvertime: isOT, isOverKm: isOverK, 
+        isLongDistance: isLong, orderedPoiText: plainTextList 
+      };
     }
 
     function submitForm() {
@@ -418,9 +436,7 @@
         dropoff: document.getElementById('dropoff-input').value,
         routeName: TOUR_DATA[routeVal].name,
         carType: carVal === '5' ? '五人座' : (carVal === '7' ? '七人座' : '九人座'),
-        ...currentCalcResult,
-        orderedPoiText: document.getElementById('routeDetails').innerText,
-        customPoi: document.getElementById('customPoi').value.trim()
+        ...currentCalcResult
       };
       sendFlex(payload);
     }
