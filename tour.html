@@ -1,9 +1,10 @@
+// v4.8 [高對比視覺優化版] 修復勾選景點文字對比度、強化高齡科技視覺舒適度
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>客製化旅遊精算 v4.7</title>
+  <title>學銘專車：客製化旅遊精算</title>
   
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -30,8 +31,11 @@
     .form-container { position: relative; z-index: 10; background-color: #f8fafc; min-height: 100vh; padding-bottom: 60px; }
     .swal2-popup { border-radius: 24px !important; font-family: 'Noto Sans TC', sans-serif !important; }
     
-    .custom-checkbox input:checked + div { background-color: #0f172a; border-color: #0f172a; color: #ffffff; }
+    /* 🚀 核心視覺修復：勾選時文字強制反白 */
+    .custom-checkbox input:checked + div { background-color: #0f172a; border-color: #0f172a; }
+    .custom-checkbox input:checked + div span { color: #ffffff !important; }
     .custom-checkbox input:checked + div i { color: #34d399; }
+    
     .custom-radio input:checked + div { background-color: #0f172a; border-color: #0f172a; color: #ffffff; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.3); transform: scale(1.02); }
 
     .input-row { display: flex; align-items: center; background: #ffffff; border-radius: 16px; padding: 12px 16px; border: 1px solid #e2e8f0; transition: border-color 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
@@ -165,7 +169,7 @@
         </label>
         <div id="customPoiContainer" class="space-y-2">
           <div class="flex gap-2">
-            <input type="text" class="custom-poi-input flex-1 border-0 bg-slate-50 rounded-xl p-3 text-slate-800 outline-none font-bold" data-i18n-ph="wishPlace" placeholder="輸入景點名稱..." oninput="resetFormCalculation()">
+            <input type="text" class="custom-poi-input flex-1 border-0 bg-slate-50 rounded-xl p-3 text-slate-800 outline-none font-bold shadow-inner" data-i18n-ph="wishPlace" placeholder="輸入景點名稱..." oninput="resetFormCalculation()">
             <button onclick="addCustomPoiInput()" class="bg-emerald-100 text-emerald-600 w-12 rounded-xl active:scale-95 transition-transform flex items-center justify-center shadow-sm"><i class="fa-solid fa-plus"></i></button>
           </div>
         </div>
@@ -222,19 +226,18 @@
       }
     };
 
-    // 🚀 2026 最新戰略擴充資料庫
     const TOUR_DATA = {
       'taroko': { 
         name: { zh: '太魯閣與北花蓮', en: 'Taroko & North', ja: 'タロコと北線', ko: '타이루거 및 북부' }, 
         extendText: { zh: '解鎖：延伸至合歡山/清境', en: 'Unlock: Extend to Cingjing', ja: '解放：清境農場へ延長', ko: '잠금 해제: 칭징 농장 연장' },
-        extendRouteName: { zh: '太魯閣-清境越嶺線', en: 'Taroko-Cingjing Route', ja: 'タロコ-清境横断線', ko: '타이루거-칭징 코스' },
+        extendRouteName: { zh: '太魯閣-清境越嶺線', en: 'Taroko-Cingjing Route', ja: 'タロコ-清境横斷線', ko: '타이루거-칭징 코스' },
         extendDefaultDropoff: { zh: '清境農場', en: 'Cingjing Farm', ja: '清境農場', ko: '칭징농장' },
         base: [
-          { query: '崇德遊憩區 花蓮', stay: 40, zh: '清水斷崖', en: 'Qingshui Cliff', ja: '清水断崖', ko: '칭수이 절벽' }, 
+          { query: '崇德遊憩區 花蓮', stay: 40, zh: '清水斷崖', en: 'Qingshui Cliff', ja: '清水斷崖', ko: '칭수이 절벽' }, 
           { query: '太魯閣遊客中心', stay: 60, zh: '太魯閣遊客中心', en: 'Taroko Visitor Center', ja: 'タロコビジターセンター', ko: '타이루거 방문자 센터' }, 
           { query: '崇德瑩農場', stay: 60, zh: '崇德瑩農場', en: 'Chongde Ying Farm', ja: '崇徳瑩農場', ko: '총더잉 농장' }, 
           { query: '新城老街', stay: 40, zh: '新城老街', en: 'Xincheng Old Street', ja: '新城老街', ko: '신청 옛거리' }, 
-          { query: '地耕味-玩味蕃樂園', stay: 40, zh: '玩味蕃樂園', en: 'Digengwei Souvenir', ja: '玩味蕃楽園', ko: '완웨이판러위안' }, 
+          { query: '地耕味-玩味蕃樂園', stay: 40, zh: '玩味蕃樂園', en: 'Digengwei Souvenir', ja: '玩味蕃樂園', ko: '완웨이판러위안' }, 
           { query: '曼波海洋生態休閒園區', stay: 30, zh: '曼波園區', en: 'Mambo Park', ja: 'マンボウパーク', ko: '맘보 공원' }, 
           { query: '七星潭海岸風景特定區', stay: 40, zh: '七星潭', en: 'Qixingtan Beach', ja: '七星潭', ko: '치싱탄' },
           { query: '魚刺人雞蛋糕咖啡館 七星潭店', stay: 30, zh: '魚刺人雞蛋糕', en: 'Yuciren Egg Cake', ja: '魚刺人ベビーカステラ', ko: '위츠런 계란빵' },
@@ -257,8 +260,8 @@
         base: [
           { query: '山度空間', stay: 60, zh: '山度空間', en: 'Mountain Space', ja: '山度空間', ko: '산도공간' }, 
           { query: '浪慢咖啡', stay: 60, zh: '浪慢咖啡', en: 'Langman Cafe', ja: '浪慢カフェ', ko: '낭만 카페' },
-          { query: '洄瀾門市 星巴克', stay: 40, zh: '貨櫃星巴克', en: 'Starbucks Container', ja: 'コンテナスタバ', ko: '스타벅스 컨테이너' }, 
-          { query: '月崖灣親子農場', stay: 90, zh: '月崖灣農場', en: 'Yueyawan Farm', ja: '月崖湾農場', ko: '웨야완 농장' },
+          { query: '洄瀾門市 星巴克', stay: 40, zh: '貨櫃星巴克', en: 'Starbucks Container', ja: 'コンテナスタバ', ko: '스타벅斯 컨테이너' }, 
+          { query: '月崖灣親子農場', stay: 90, zh: '月崖灣農場', en: 'Yueyawan Farm', ja: '月崖灣農場', ko: '웨야완 농장' },
           { query: '新社梯田', stay: 30, zh: '新社梯田', en: 'Xinshe Rice Terraces', ja: '新社棚田', ko: '신서 다랑논' },
           { query: '石梯坪', stay: 60, zh: '石梯坪', en: 'Shitiping', ja: '石梯坪', ko: '스이핑' }
         ],
@@ -266,7 +269,7 @@
           { query: '八仙洞', stay: 40, zh: '八仙洞', en: 'Baxian Cave', ja: '八仙洞', ko: '팔선동' },
           { query: '三仙台', stay: 50, zh: '三仙台', en: 'Sanxiantai', ja: '三仙台', ko: '싼셴타이' },
           { query: '加路蘭', stay: 40, zh: '加路蘭', en: 'Jialulan', ja: '加路蘭', ko: '지아루란' },
-          { query: '台東縣立總圖書館', stay: 60, zh: '台東總圖書館(雨備)', en: 'Taitung Library', ja: '台東県立図書館', ko: '타이둥 도서관' },
+          { query: '台東縣立總圖書館', stay: 60, zh: '台東總圖書館(雨備)', en: 'Taitung Library', ja: '台東縣立圖書館', ko: '타이둥 도서관' },
           { query: '太麻里', stay: 30, zh: '太麻里', en: 'Taimali', ja: '太麻里', ko: '타이마리' },
           { query: '看海美術館', stay: 40, zh: '看海美術館', en: 'Seaside Art Museum', ja: '海を見る美術館', ko: '바다 미술관' },
           { query: '鹿ㄦ島水豚生態園區', stay: 90, zh: '鹿ㄦ島水豚園', en: 'Capybara Park', ja: 'カピバラパーク', ko: '카피바라 파크' },
@@ -276,13 +279,13 @@
       'valley': { 
         name: { zh: '花東縱谷慢活', en: 'Rift Valley', ja: '花東縦谷', ko: '화동종구' }, 
         extendText: { zh: '解鎖：延伸至國境之南(墾丁)', en: 'Unlock: Extend to Kenting', ja: '解放：墾丁へ延長', ko: '잠금 해제: 컨딩 연장' },
-        extendRouteName: { zh: '縱谷-墾丁線', en: 'Valley-Kenting Route', ja: '縦谷-墾丁線', ko: '종구-컨딩 코스' },
+        extendRouteName: { zh: '縱谷-墾丁線', en: 'Valley-Kenting Route', ja: '縱谷-墾丁線', ko: '종구-컨딩 코스' },
         extendDefaultDropoff: { zh: '墾丁大街', en: 'Kenting Street', ja: '墾丁通り', ko: '컨딩 야시장' },
         base: [
           { query: '鯉魚潭', stay: 60, zh: '鯉魚潭', en: 'Liyu Lake', ja: '鯉魚潭', ko: '리위탄' }, 
           { query: '雲山水', stay: 60, zh: '雲山水', en: 'Yunshan Shui', ja: '雲山水', ko: '운산수' }, 
           { query: '山姆先生', stay: 40, zh: '山姆先生', en: 'Mr. Sam Cafe', ja: 'Mr. Sam', ko: '미스터 샘' }, 
-          { query: '月崖灣親子農場', stay: 90, zh: '月崖灣農場', en: 'Yueyawan Farm', ja: '月崖湾農場', ko: '웨야완 농장' },
+          { query: '月崖灣親子農場', stay: 90, zh: '月崖灣農場', en: 'Yueyawan Farm', ja: '月崖灣農場', ko: '웨야완 농장' },
           { query: '光復糖廠', stay: 40, zh: '光復糖廠', en: 'Guangfu Sugar Factory', ja: '光復糖廠', ko: '광푸 설탕공장' }, 
           { query: '大農大富', stay: 60, zh: '大農大富', en: 'Danongdafu', ja: '大農大富', ko: '대농대부' }
         ],
@@ -290,7 +293,7 @@
           { query: '瑞穗牧場', stay: 60, zh: '瑞穗牧場', en: 'Ruisui Pasture', ja: '瑞穂牧場', ko: '루이수이 목장' },
           { query: '伯朗大道', stay: 60, zh: '池上伯朗大道', en: 'Mr. Brown Avenue', ja: '伯朗大道', ko: '보랑대도' },
           { query: '鹿野高台', stay: 60, zh: '鹿野高台', en: 'Luye Highland', ja: '鹿野高台', ko: '루예고대' },
-          { query: '台東縣立總圖書館', stay: 60, zh: '台東總圖書館(雨備)', en: 'Taitung Library', ja: '台東県立図書館', ko: '타이둥 도서관' },
+          { query: '台東縣立總圖書館', stay: 60, zh: '台東總圖書館(雨備)', en: 'Taitung Library', ja: '台東縣立圖書館', ko: '타이둥 도서관' },
           { query: '多良車站', stay: 30, zh: '多良車站', en: 'Duoliang Station', ja: '多良駅', ko: '두량역' },
           { query: '看海美術館', stay: 40, zh: '看海美術館', en: 'Seaside Art Museum', ja: '海を見る美術館', ko: '바다 미술관' },
           { query: '鹿ㄦ島水豚生態園區', stay: 90, zh: '鹿ㄦ島水豚園', en: 'Capybara Park', ja: 'カピバラパーク', ko: '카피바라 파크' },
@@ -322,17 +325,14 @@
         const key = el.getAttribute('data-i18n-opt');
         if (I18N[lang][key]) el.innerText = I18N[lang][key];
       });
-      
       handleRouteSelection(); 
     }
 
     function handleRouteSelection() {
       const routeId = document.getElementById('tourRoute').value;
       const data = TOUR_DATA[routeId];
-      
       document.getElementById('extendToggle').checked = false;
       document.getElementById('extendRouteText').innerText = data.extendText[currLang];
-      
       const dropoffInput = document.getElementById('dropoff-input');
       if (autoFilledDropoff !== "" && dropoffInput.value === autoFilledDropoff) {
           dropoffInput.value = "";
@@ -346,7 +346,6 @@
       const routeId = document.getElementById('tourRoute').value;
       const data = TOUR_DATA[routeId];
       const dropoffInput = document.getElementById('dropoff-input');
-
       if (isExtended && data.extendDefaultDropoff) {
           dropoffInput.value = data.extendDefaultDropoff[currLang];
           autoFilledDropoff = dropoffInput.value;
@@ -391,10 +390,8 @@
       directionsService = new google.maps.DirectionsService();
       directionsRenderer = new google.maps.DirectionsRenderer({ map: map, suppressMarkers: false, preserveViewport: true, polylineOptions: { strokeColor: '#10b981', strokeWeight: 5 } });
       const options = { componentRestrictions: { country: "tw" } };
-      
       const pickupAutocomplete = new google.maps.places.Autocomplete(document.getElementById('pickup-input'), options);
       pickupAutocomplete.addListener('place_changed', resetFormCalculation);
-      
       const dropoffAutocomplete = new google.maps.places.Autocomplete(document.getElementById('dropoff-input'), options);
       dropoffAutocomplete.addListener('place_changed', () => {
           autoFilledDropoff = "";
@@ -424,26 +421,23 @@
       const routeId = document.getElementById('tourRoute').value;
       const data = TOUR_DATA[routeId];
       const isExtended = document.getElementById('extendToggle').checked;
-      
       let pointsToRender = [...data.base];
-      if (isExtended) {
-          pointsToRender = pointsToRender.concat(data.extend);
-      }
+      if (isExtended) { pointsToRender = pointsToRender.concat(data.extend); }
 
       document.getElementById('poiContainer').innerHTML = pointsToRender.map((pt) => {
         let isChecked = pt.status === 'closed' ? '' : 'checked';
         let badgeHtml = '';
         if (pt.status === 'closed') {
-            badgeHtml = `<span class="text-[10px] bg-rose-100 text-rose-600 px-1.5 py-0.5 rounded ml-1.5 whitespace-nowrap shadow-sm">${I18N[currLang].statusClosed}</span>`;
+            badgeHtml = `<span class="text-[10px] bg-rose-100 text-rose-600 px-1.5 py-0.5 rounded ml-1.5 whitespace-nowrap shadow-sm font-bold">封閉</span>`;
         } else if (pt.status === 'partial') {
-            badgeHtml = `<span class="text-[10px] bg-amber-100 text-amber-600 px-1.5 py-0.5 rounded ml-1.5 whitespace-nowrap shadow-sm">${I18N[currLang].statusPartial}</span>`;
+            badgeHtml = `<span class="text-[10px] bg-amber-100 text-amber-600 px-1.5 py-0.5 rounded ml-1.5 whitespace-nowrap shadow-sm font-bold">部分</span>`;
         }
 
         return `
           <label class="custom-checkbox block cursor-pointer active:scale-95 transition-transform">
             <input type="checkbox" class="poi-check hidden" value="${pt.query}" data-zh="${pt.zh}" data-stay="${pt.stay}" data-disp="${pt[currLang]}" onchange="resetFormCalculation()" ${isChecked}>
             <div class="border border-slate-200 rounded-xl p-3 flex items-center gap-2 bg-white h-full shadow-sm">
-              <span class="font-bold leading-tight flex-1 text-slate-700 text-xs flex items-center flex-wrap">${pt[currLang]} ${badgeHtml}</span>
+              <span class="font-black leading-tight flex-1 text-slate-700 text-xs flex items-center flex-wrap transition-colors">${pt[currLang]} ${badgeHtml}</span>
             </div>
           </label>
         `;
@@ -469,26 +463,21 @@
       const date = document.getElementById('tourDate').value;
       const checkedBoxes = document.querySelectorAll('.poi-check:checked');
       const customInputs = document.querySelectorAll('.custom-poi-input');
-
       let hasValidPoi = (checkedBoxes.length > 0);
       customInputs.forEach(input => { if(input.value.trim() !== '') hasValidPoi = true; });
 
       if (!date || !pickup || !dropoff || !hasValidPoi) {
         Swal.fire('Warning', 'Please check all inputs', 'warning'); return;
       }
-
       Swal.fire({ title: 'Google Maps...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-
       const waypoints = [];
       const originalPois = [];
       let totalStay = 0;
-
       checkedBoxes.forEach(cb => {
         waypoints.push({ location: cb.value, stopover: true });
         originalPois.push({ dispName: cb.dataset.disp, zhName: cb.dataset.zh, stay: parseInt(cb.dataset.stay) });
         totalStay += parseInt(cb.dataset.stay);
       });
-
       customInputs.forEach(input => {
         const val = input.value.trim();
         if (val) {
@@ -506,20 +495,16 @@
           directionsRenderer.setDirections(res);
           let driveMins = Math.floor(res.routes[0].legs.reduce((acc, leg) => acc + leg.duration.value, 0) / 60);
           let totalKm = Math.floor(res.routes[0].legs.reduce((acc, leg) => acc + leg.distance.value, 0) / 1000);
-          
           const optimizedOrder = res.routes[0].waypoint_order;
           let currentLabelCode = 65; 
           const originLabel = String.fromCharCode(currentLabelCode++); 
-          
           let routeHtml = `
             <div class="relative pl-10 mb-4">
               <span class="absolute left-0 top-0 bg-emerald-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-[13px] font-black shadow-md z-10">${originLabel}</span>
               <div class="absolute left-[11px] top-6 bottom-[-16px] w-[2px] bg-slate-600 z-0"></div>
               <div class="truncate font-bold text-emerald-400 text-base leading-6">${pickup}</div>
             </div>`;
-          
           let backendList = `${originLabel}. 上車：${pickup}\n`;
-
           optimizedOrder.forEach(index => {
             const poi = originalPois[index];
             const label = String.fromCharCode(currentLabelCode++);
@@ -534,7 +519,6 @@
                 </div>
               </div>`;
           });
-          
           const destLabel = String.fromCharCode(currentLabelCode);
           backendList += `${destLabel}. 下車：${dropoff}`;
           routeHtml += `
@@ -542,22 +526,17 @@
               <span class="absolute left-0 top-0 bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-[13px] font-black shadow-md z-10">${destLabel}</span>
               <div class="truncate font-bold text-blue-400 text-base leading-6">${dropoff}</div>
             </div>`;
-          
           document.getElementById('routeDetails').innerHTML = routeHtml;
           document.getElementById('rawDriveDisplay').innerText = `${totalKm}km / ${formatTimeText(driveMins)}`;
           document.getElementById('rawStayDisplay').innerText = formatTimeText(totalStay);
-
           document.body.style.overflow = 'hidden';
           document.getElementById('top-dashboard').style.transform = 'translateY(0)';
           processPrice(driveMins + totalStay, totalKm, backendList);
-
           setTimeout(() => {
               google.maps.event.trigger(map, 'resize');
               map.fitBounds(res.routes[0].bounds, { top: 30, bottom: 30, left: 30, right: 30 });
           }, 300);
-        } else {
-          Swal.fire('Error', 'Google Maps Error', 'error');
-        }
+        } else { Swal.fire('Error', 'Google Maps Error', 'error'); }
       });
     }
 
@@ -566,10 +545,8 @@
       let basePrice = carType === '5' ? 1500 : (carType === '7' ? 2000 : 2500);
       const routeId = document.getElementById('tourRoute').value;
       const isLong = document.getElementById('extendToggle').checked;
-
       if (isLong && totalMinutes < 480) totalMinutes = 480;
       else if (totalMinutes < 180) totalMinutes = 180;
-
       let extraMins = totalMinutes - 180;
       let extraH = 0;
       if (extraMins > 0) {
@@ -577,25 +554,16 @@
         if (extraMins % 60 > 30) extraH += 1.0;
         else if (extraMins % 60 > 15) extraH += 0.5;
       }
-
       let finalH = 3.0 + extraH;
       let isOT = false;
       if (finalH > 12) { finalH = 12; isOT = true; }
-
       let finalP = basePrice + (extraH * 500);
       let limitK = 75 + (extraH * 25);
       let isOverK = actualKm > limitK;
-
       document.getElementById('priceDisplay').innerText = `$${finalP.toLocaleString()}`;
       document.getElementById('timeDisplay').innerHTML = `${finalH.toFixed(1)} <span class="text-lg">${I18N[currLang].hour}</span>`;
       document.getElementById('kmDisplay').innerHTML = `${I18N[currLang].limit}：${limitK}km`;
-
-      currentCalcResult = { 
-        hours: finalH.toFixed(1), price: finalP, limitKm: limitK, 
-        actualKm, isOvertime: isOT, isOverKm: isOverK, 
-        isLongDistance: isLong, backendPoiText: backendList,
-        routeId: routeId
-      };
+      currentCalcResult = { hours: finalH.toFixed(1), price: finalP, limitKm: limitK, actualKm, isOvertime: isOT, isOverKm: isOverK, isLongDistance: isLong, backendPoiText: backendList, routeId: routeId };
     }
 
     function submitForm() {
@@ -603,23 +571,13 @@
       const carVal = document.querySelector('input[name="carType"]:checked').value;
       let carZh = carVal === '5' ? '五人座' : (carVal === '7' ? '七人座' : '九人座');
       const isLong = document.getElementById('extendToggle').checked;
-      
       let finalRouteZh = TOUR_DATA[currentCalcResult.routeId].name.zh;
       let finalRouteEn = TOUR_DATA[currentCalcResult.routeId].name.en;
       if (isLong) {
           finalRouteZh = TOUR_DATA[currentCalcResult.routeId].extendRouteName.zh;
           finalRouteEn = TOUR_DATA[currentCalcResult.routeId].extendRouteName.en;
       }
-
-      const payload = {
-        date: document.getElementById('tourDate').value,
-        pickup: document.getElementById('pickup-input').value,
-        dropoff: document.getElementById('dropoff-input').value,
-        routeNameZh: finalRouteZh,
-        routeNameEn: finalRouteEn,
-        carTypeZh: carZh,
-        ...currentCalcResult
-      };
+      const payload = { date: document.getElementById('tourDate').value, pickup: document.getElementById('pickup-input').value, dropoff: document.getElementById('dropoff-input').value, routeNameZh: finalRouteZh, routeNameEn: finalRouteEn, carTypeZh: carZh, ...currentCalcResult };
       sendFlex(payload);
     }
 
