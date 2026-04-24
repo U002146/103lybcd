@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>任務大廳</title>
+    <title>任務大廳 V1.1</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -134,7 +134,8 @@
                 
                 let targetDate = new Date(currentYear, parseInt(month)-1, parseInt(day), parseInt(hour), parseInt(minute)).getTime();
 
-                if (targetDate < now - 30 * 24 * 60 * 60 * 1000) {
+                // 🚀 核心修正：將跨年判定門檻從 30 天改為 180 天 (半年)，防止舊單詐屍
+                if (targetDate < now - 180 * 24 * 60 * 60 * 1000) {
                     targetDate = new Date(currentYear + 1, parseInt(month)-1, parseInt(day), parseInt(hour), parseInt(minute)).getTime();
                 }
 
@@ -289,7 +290,6 @@
                     }).catch(e => console.log("回報試算表失敗", e));
                 }
 
-                // 🚀 核心修改：植入真實 userId，並附上 source 暗號
                 database.ref(`drivers/${myDriverId}/request`).set({
                     userId: orderData.userId || "unknown_id", 
                     source: "lobby", 
