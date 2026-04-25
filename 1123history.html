@@ -76,7 +76,7 @@
 
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script>
-        const VERSION = "v6.6"; // 🚀 靛藍高質感手帳版
+        const VERSION = "v6.7"; // 🚀 補齊「客人未到」狀態判定
         
         const LIFF_ID = '2008907691-WHXiIAeb'; 
         const BOOKING_LIFF_URL = 'https://liff.line.me/2008907691-3P676tTN'; 
@@ -135,7 +135,8 @@
             
             listContainer.innerHTML = '';
             
-            const activeTrips = data.filter(item => !item.status.includes('取消')).length;
+            // 🚀 修正點：將「未到」的任務排除於 Active Trips 計算之外
+            const activeTrips = data.filter(item => !item.status.includes('取消') && !item.status.includes('未到')).length;
             countText.innerText = activeTrips;
             countBadge.classList.remove('hidden');
             countBadge.classList.add('flex');
@@ -154,7 +155,8 @@
 
                 let displayText = rawStatus.replace(/✅|❌|📡|🔄/g, '').trim(); 
 
-                const isCancelled = rawStatus.includes('取消');
+                // 🚀 修正點：將「客人未到」視同取消狀態處理（灰底、刪除線）
+                const isCancelled = rawStatus.includes('取消') || rawStatus.includes('未到');
                 const isTaken = rawStatus.includes('已接');
                 const isDispatched = rawStatus.includes('派發大廳');
 
@@ -176,7 +178,6 @@
                 
                 let actionButtonsHtml = '';
                 
-                // 🚀 核心邏輯：依據狀態顯示高質感對應按鈕
                 if (isTaken && driverPhone) {
                     actionButtonsHtml = `
                         <div class="mt-4 pt-3 border-t border-slate-100">
