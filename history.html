@@ -26,7 +26,6 @@
         
         .status-badge { display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 99px; font-size: 11px; font-weight: bold; letter-spacing: 0.5px; }
         .status-active { background-color: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
-        .status-cancelled { background-color: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; text-decoration: line-through; }
         
         .loader-container { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 0; }
         .loader { border: 3px solid #f3f3f3; border-top: 3px solid #00C853; border-radius: 50%; width: 32px; height: 32px; animation: spin 1s linear infinite; }
@@ -65,7 +64,7 @@
                 <i class="fa-solid fa-car-side"></i>
             </div>
             <h3 class="text-lg font-bold text-slate-700 mb-1">尚無乘車紀錄</h3>
-            <p class="text-sm text-slate-400 mb-6">您目前還沒有搭乘過我們的車喔！</p>
+            <p class="text-sm text-slate-400 mb-6">您目前還沒有完成的搭乘紀錄喔！</p>
             <button onclick="goToBooking()" class="bg-green-600 text-white font-bold py-3 px-6 rounded-xl shadow-lg active:scale-95 transition-transform flex items-center">
                 <i class="fa-solid fa-taxi mr-2"></i> 立刻開啟雷達叫車
             </button>
@@ -77,7 +76,7 @@
 
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script>
-        const VERSION = "v10.5"; // 🚀 沉浸式內建彈窗評分版
+        const VERSION = "v10.7"; // 🚀 純淨版：只顯示已完成的任務與評分
         
         const LIFF_ID = "2008907691-fVLGsJtK"; 
         const BOOKING_LIFF_URL = 'https://liff.line.me/2008907691-CzDqd7mm'; 
@@ -114,27 +113,33 @@
 
         async function fetchHistory() {
             try {
+                // 為了避免被取消單佔滿額度，多抓一點再到前端過濾
                 const snapshot = await firestoreDb.collection('trips')
                                                   .where('passengerId', '==', passengerId)
                                                   .orderBy('timestamp', 'desc')
-                                                  .limit(10)
+                                                  .limit(20) 
                                                   .get();
 
                 document.getElementById('loading-state').classList.add('hidden');
 
-                if (snapshot.empty) {
+                let trips = [];
+                snapshot.forEach(doc => {
+                    let data = doc.data();
+                    // 🚀 隱形濾網：只保留已完成的訂單
+                    if (data.status === 'completed') {
+                        data.id = doc.id; 
+                        trips.push(data);
+                    }
+                });
+
+                if (trips.length === 0) {
                     document.getElementById('empty-state').classList.remove('hidden');
                     document.getElementById('empty-state').classList.add('flex');
                     return;
                 }
 
-                let trips = [];
-                snapshot.forEach(doc => {
-                    let data = doc.data();
-                    data.id = doc.id; 
-                    trips.push(data);
-                });
-                renderHistory(trips);
+                // 只渲染成功完成的訂單（最多顯示 10 筆）
+                renderHistory(trips.slice(0, 10));
 
             } catch (error) {
                 console.error("讀取歷史紀錄失敗:", error);
@@ -150,12 +155,7 @@
             
             listContainer.innerHTML = '';
             
-            let activeTripsCount = 0;
-
             for (let trip of data) {
-                if(trip.isBlacklist === true) continue; 
-                activeTripsCount++;
-
                 let driverName = trip.driverName || "車隊司機";
                 let driverCar = trip.carNo || "專屬座車";
                 let contactPhone = trip.driverPhone || OFFICIAL_PHONE;
@@ -182,76 +182,63 @@
                     timeString = `${mo}月${da}日 ${hr}:${mi}`;
                 }
 
-                const isCancelled = trip.status === 'cancelled' || trip.status === 'rejected';
-                const badgeClass = isCancelled ? 'status-cancelled' : 'status-active';
-                const statusIcon = isCancelled ? '<i class="fa-solid fa-xmark mr-1"></i>' : '<i class="fa-solid fa-check mr-1"></i>';
-                const displayText = isCancelled ? '已取消' : '已完成';
-                const cardOpacity = isCancelled ? 'opacity-60' : 'opacity-100';
-                
                 const pickupAddr = trip.pickup || "上車點未紀錄";
                 const dropoffAddr = trip.dropoff || "依乘客指示";
 
-                let tripDetailsHtml = '';
-                if (!isCancelled) {
-                    const fareDisplay = trip.fare ? `<span class="text-amber-600 font-black">NT$ ${trip.fare}</span>` : `<span class="text-slate-400 font-bold">未紀錄</span>`;
-                    
-                    let ratingDisplay = '';
-                    if (trip.rating) {
-                        let stars = '';
-                        for (let i = 1; i <= 5; i++) {
-                            stars += `<i class="fa-solid fa-star ${i <= trip.rating ? 'text-amber-400' : 'text-slate-200'}"></i>`;
-                        }
-                        ratingDisplay = `
-                            <div class="flex items-center">
-                                ${stars}
-                                <span class="text-xs text-amber-500 font-black ml-1">${trip.rating}.0</span>
-                            </div>
-                        `;
-                    } else {
-                        // 🚀 核心升級：替換為呼叫 JavaScript 內建彈窗，不再導向 GAS
-                        ratingDisplay = `
-                            <button onclick="openRatingPopup('${trip.id}')" class="text-amber-600 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-lg text-xs font-black hover:bg-amber-100 transition active:scale-95 inline-block cursor-pointer">
-                                ⭐ 前往評價
-                            </button>
-                        `;
+                const fareDisplay = trip.fare ? `<span class="text-amber-600 font-black">NT$ ${trip.fare}</span>` : `<span class="text-slate-400 font-bold">未紀錄</span>`;
+                
+                let ratingDisplay = '';
+                if (trip.rating) {
+                    let stars = '';
+                    for (let i = 1; i <= 5; i++) {
+                        stars += `<i class="fa-solid fa-star ${i <= trip.rating ? 'text-amber-400' : 'text-slate-200'}"></i>`;
                     }
-
-                    tripDetailsHtml = `
-                        <div class="flex justify-between items-center bg-slate-50 p-3 rounded-xl mb-3 border border-slate-100">
-                            <div class="flex flex-col">
-                                <span class="text-[10px] text-slate-400 font-bold mb-0.5">實收車資</span>
-                                ${fareDisplay}
-                            </div>
-                            <div class="flex flex-col items-end">
-                                <span class="text-[10px] text-slate-400 font-bold mb-0.5">我的評價</span>
-                                ${ratingDisplay}
-                            </div>
+                    ratingDisplay = `
+                        <div class="flex items-center">
+                            ${stars}
+                            <span class="text-xs text-amber-500 font-black ml-1">${trip.rating}.0</span>
                         </div>
+                    `;
+                } else {
+                    ratingDisplay = `
+                        <button onclick="openRatingPopup('${trip.id}')" class="text-amber-600 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-lg text-xs font-black hover:bg-amber-100 transition active:scale-95 inline-block cursor-pointer">
+                            ⭐ 前往評價
+                        </button>
                     `;
                 }
 
-                let driverContactHtml = '';
-                if (!isCancelled) {
-                     driverContactHtml = `
-                        <div class="mt-2 flex justify-between items-center">
-                            <div class="text-xs text-slate-400 font-bold flex items-center">
-                                <i class="fa-solid fa-shield-halved mr-1 text-green-500"></i> 敬老愛心計程車
-                            </div>
-                            <a href="tel:${contactPhone}" class="bg-orange-50 hover:bg-orange-100 text-orange-600 font-bold py-1.5 px-4 rounded-xl transition-colors text-sm flex items-center justify-center border border-orange-200">
-                                <i class="fa-solid fa-phone mr-1.5"></i> 尋找遺失物
-                            </a>
+                const tripDetailsHtml = `
+                    <div class="flex justify-between items-center bg-slate-50 p-3 rounded-xl mb-3 border border-slate-100">
+                        <div class="flex flex-col">
+                            <span class="text-[10px] text-slate-400 font-bold mb-0.5">實收車資</span>
+                            ${fareDisplay}
                         </div>
-                     `;
-                }
+                        <div class="flex flex-col items-end">
+                            <span class="text-[10px] text-slate-400 font-bold mb-0.5">我的評價</span>
+                            ${ratingDisplay}
+                        </div>
+                    </div>
+                `;
+
+                const driverContactHtml = `
+                    <div class="mt-2 flex justify-between items-center">
+                        <div class="text-xs text-slate-400 font-bold flex items-center">
+                            <i class="fa-solid fa-shield-halved mr-1 text-green-500"></i> 敬老愛心計程車
+                        </div>
+                        <a href="tel:${contactPhone}" class="bg-orange-50 hover:bg-orange-100 text-orange-600 font-bold py-1.5 px-4 rounded-xl transition-colors text-sm flex items-center justify-center border border-orange-200">
+                            <i class="fa-solid fa-phone mr-1.5"></i> 尋找遺失物
+                        </a>
+                    </div>
+                `;
 
                 const cardHtml = `
-                    <div class="history-card ${cardOpacity}">
+                    <div class="history-card opacity-100">
                         <div class="flex justify-between items-start mb-3 border-b border-slate-100 pb-3">
                             <div>
                                 <div class="text-[10px] text-slate-400 font-mono mb-1">車號：${driverCar}</div>
                                 <div class="text-lg font-black text-slate-800">${timeString}</div>
                             </div>
-                            <span class="status-badge ${badgeClass}">${statusIcon}${displayText}</span>
+                            <span class="status-badge status-active"><i class="fa-solid fa-check mr-1"></i>已完成</span>
                         </div>
                         
                         <div class="flex items-center text-sm font-bold text-slate-700 mb-2">
@@ -273,20 +260,14 @@
                 listContainer.innerHTML += cardHtml;
             }
             
-            countText.innerText = activeTripsCount;
+            countText.innerText = data.length;
             countBadge.classList.remove('hidden');
             countBadge.classList.add('flex');
 
-            if (activeTripsCount > 0) {
-                listContainer.classList.remove('hidden');
-                listContainer.classList.add('flex');
-            } else {
-                document.getElementById('empty-state').classList.remove('hidden');
-                document.getElementById('empty-state').classList.add('flex');
-            }
+            listContainer.classList.remove('hidden');
+            listContainer.classList.add('flex');
         }
 
-        // 🚀 新增：內建動態五星彈窗
         window.openRatingPopup = async function(tripId) {
             let selectedRating = 0;
             const { isConfirmed } = await Swal.fire({
@@ -333,7 +314,6 @@
             if (isConfirmed && selectedRating > 0) {
                 Swal.fire({ title: '送出中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
                 try {
-                    // 寫入 Firestore
                     await firestoreDb.collection('trips').doc(tripId).update({
                         rating: selectedRating,
                         ratingTime: firebase.firestore.FieldValue.serverTimestamp()
@@ -341,7 +321,6 @@
                     
                     Swal.fire({ icon: 'success', title: '評價成功', text: '感謝您的回饋！', timer: 1500, showConfirmButton: false })
                     .then(() => {
-                        // 🚀 重新撈取資料，讓按鈕瞬間變成星星！
                         fetchHistory(); 
                     });
                 } catch(e) { 
