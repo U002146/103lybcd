@@ -54,7 +54,7 @@
     .btn-calc { background: linear-gradient(135deg, #00C853, #1B5E20); color: white; width: 100%; padding: 16px; border-radius: 16px; font-weight: 900; font-size: 18px; box-shadow: 0 6px 20px rgba(0, 200, 83, 0.3); border: none; cursor: pointer; transition: transform 0.1s; margin-top: 16px; }
     .btn-calc:active { transform: scale(0.96); }
     
-    /* 🚀 底部結果懸浮卡片動畫 */
+    /* 底部結果懸浮卡片動畫 */
     #result-floating-card {
         transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
     }
@@ -111,7 +111,7 @@
     </div>
   </div>
 
-  <!-- 🚀 完美還原設計圖的懸浮結果卡片 -->
+  <!-- 懸浮結果卡片 -->
   <div id="result-floating-card" class="hidden-card fixed bottom-6 left-4 right-4 mx-auto max-w-[500px] bg-white rounded-[28px] shadow-[0_20px_50px_rgba(0,0,0,0.15)] z-40 flex-col p-5 font-sans border border-slate-100">
       <div class="flex items-center gap-1.5 text-slate-400 font-bold text-sm mb-2">
           <i class="fa-solid fa-flag-checkered"></i> 預估抵達
@@ -124,6 +124,11 @@
           <span class="text-amber-700 font-black text-lg"><i class="fa-solid fa-taxi mr-2 text-amber-500"></i>小黃</span>
           <span class="text-amber-600 font-black text-[26px]" id="card-yellow">~NT$ --</span>
       </div>
+
+      <!-- 🚀 新增：一鍵發送叫車單 CTA 按鈕 -->
+      <button onclick="sendOrderMessage()" class="w-full bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white font-black py-4 rounded-2xl transition-all flex items-center justify-center gap-2 text-[18px] shadow-[0_8px_20px_rgba(5,150,105,0.25)] mb-3">
+          <i class="fa-solid fa-paper-plane"></i> 將此行程送出叫車
+      </button>
       
       <div id="extra-fares" class="hidden flex-col gap-3 mb-3">
           <div class="bg-sky-50 border border-sky-100 rounded-2xl p-4 flex justify-between items-center shadow-sm">
@@ -144,7 +149,7 @@
   <div id="map"></div>
 
   <script>
-    const VERSION = "v3.2"; // 🚀 固定懸浮卡片與視角安全區避讓版
+    const VERSION = "v3.3"; 
     const LIFF_ID = "2008907691-Faf4aET8"; 
     const DAILY_LIMIT = 5;
     
@@ -156,7 +161,15 @@
     let dropoffAutocomplete; 
     let passengerId = "unknown";
     let isPickupValid = false; 
-    let currentRouteBounds = null; // 紀錄目前路線邊界，展開卡片時用來重算避讓
+    let currentRouteBounds = null; 
+
+    // 🚀 新增：全域變數用來儲存當次計算結果，供發送叫車單使用
+    let currentOrderData = {
+        pickup: '',
+        dropoff: '',
+        duration: '',
+        yellowFare: 0
+    };
 
     window.onload = async function() {
         Swal.fire({ title: '系統載入中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
@@ -280,7 +293,6 @@
         }
     }
 
-    // 🚀 控制懸浮卡片展開與地圖智慧避讓
     window.toggleFares = function() {
         const extra = document.getElementById('extra-fares');
         const btn = document.getElementById('toggle-btn');
@@ -294,11 +306,9 @@
             btn.innerHTML = '展開更多車型 <i class="fa-solid fa-chevron-down"></i>';
         }
         
-        // 重新讀取展開/收起後的卡片高度，再次逼迫地圖往上推
         if (currentRouteBounds) {
             setTimeout(() => {
                 const cardHeight = document.getElementById('result-floating-card').offsetHeight;
-                // 這裡的 bottom 就是「視角安全區避讓」，確保路線不會被擋住
                 map.fitBounds(currentRouteBounds, { top: 100, bottom: cardHeight + 40, left: 40, right: 40 });
             }, 50);
         }
@@ -332,7 +342,7 @@
                 
                 directionsRenderer.setDirections(result);
                 const route = result.routes[0].legs[0];
-                currentRouteBounds = result.routes[0].bounds; // 紀錄邊界給展開按鈕用
+                currentRouteBounds = result.routes[0].bounds; 
                 
                 const distanceMeters = route.distance.value; 
                 const durationSeconds = route.duration.value; 
@@ -345,13 +355,17 @@
                 const m12Fare = roundToTaxiStandard(yellowFare * 1.2);
                 const m14Fare = roundToTaxiStandard(yellowFare * 1.4);
 
-                // 填入懸浮卡片資料
+                // 🚀 記錄至全域變數，供送出叫車單使用
+                currentOrderData.pickup = pickup;
+                currentOrderData.dropoff = dropoff;
+                currentOrderData.duration = route.duration.text;
+                currentOrderData.yellowFare = yellowFare;
+
                 document.getElementById('card-meta').innerHTML = `${route.distance.text} / ${route.duration.text} ${modeTag}`;
                 document.getElementById('card-yellow').innerText = `~NT$ ${yellowFare}`;
                 document.getElementById('card-m12').innerText = `~NT$ ${m12Fare}`;
                 document.getElementById('card-m14').innerText = `~NT$ ${m14Fare}`;
 
-                // 🚀 UI 變形：隱藏輸入面板，顯示左上角返回鍵與底部卡片
                 document.getElementById('top-panel').classList.add('hide-top');
                 document.getElementById('back-btn').classList.remove('hidden-btn');
                 
@@ -359,12 +373,11 @@
                 floatingCard.classList.remove('hidden-card');
                 floatingCard.classList.add('flex');
 
-                // 🚀 執行地圖視角智慧避讓 (等待 DOM 渲染算出高度)
                 setTimeout(() => {
                     const cardHeight = floatingCard.offsetHeight;
                     map.fitBounds(currentRouteBounds, { 
-                        top: 100, // 留給返回按鈕的空間
-                        bottom: cardHeight + 40, // 底部留出卡片高度 + 40px 的安全呼吸空間
+                        top: 100, 
+                        bottom: cardHeight + 40, 
                         left: 40, right: 40 
                     });
                 }, 100);
@@ -372,6 +385,29 @@
             } else {
                 Swal.fire('找不到路線', '無法計算此兩點間的路線，請嘗試輸入更準確的地址。', 'error');
             }
+        });
+    }
+
+    // 🚀 新增：一鍵發送叫車單功能
+    function sendOrderMessage() {
+        if (!liff.isInClient()) {
+            Swal.fire('無法傳送', '請在 LINE APP 中使用此功能發送叫車單。', 'warning');
+            return;
+        }
+
+        // 組裝包含免責聲明的標準叫車字串
+        const msgText = `🚕 【預估車資叫車】\n📍 上車：${currentOrderData.pickup}\n🏁 下車：${currentOrderData.dropoff}\n⏱️ 預估時間：${currentOrderData.duration}\n💰 預估小黃：約 NT$ ${currentOrderData.yellowFare}\n(註：實際車資依跳表為準)`;
+
+        Swal.fire({ title: '發送叫車單中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
+
+        liff.sendMessages([{
+            type: 'text',
+            text: msgText
+        }]).then(() => {
+            Swal.close();
+            liff.closeWindow(); // 傳送成功後立即關閉網頁，退回聊天室
+        }).catch((err) => {
+            Swal.fire('發送失敗', '請確定您已授權傳送訊息，或稍後再試。', 'error');
         });
     }
     
@@ -391,21 +427,18 @@
     function roundToTaxiStandard(num) { return Math.round(num / 5) * 5; }
 
     function resetView() {
-        // 🚀 UI 復原：顯示輸入面板，隱藏返回鍵與卡片
         document.getElementById('top-panel').classList.remove('hide-top');
         document.getElementById('back-btn').classList.add('hidden-btn');
         
         const floatingCard = document.getElementById('result-floating-card');
         floatingCard.classList.add('hidden-card');
-        setTimeout(() => floatingCard.classList.remove('flex'), 300); // 等動畫播完再拔除 flex
+        setTimeout(() => floatingCard.classList.remove('flex'), 300); 
         
-        // 如果詳細車資是展開的，把它收起來
         const extra = document.getElementById('extra-fares');
         if (!extra.classList.contains('hidden')) {
             window.toggleFares();
         }
         
-        // 清除路線，重置地圖
         directionsRenderer.set('directions', null);
         currentRouteBounds = null;
         useMyLocation(); 
