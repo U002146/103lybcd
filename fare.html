@@ -20,58 +20,60 @@
     
     #map { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1; }
     
-    /* 頂部懸浮控制台 (Top Panel) */
+    /* 頂部懸浮控制台 */
     #top-panel { 
         position: absolute; top: 0; left: 0; width: 100%; 
         background: rgba(255, 255, 255, 0.98); 
-        backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
+        backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
         border-bottom-left-radius: 28px; border-bottom-right-radius: 28px; 
         box-shadow: 0 10px 40px rgba(0,0,0,0.12); z-index: 20; 
         padding: max(env(safe-area-inset-top, 24px), 24px) 24px 24px 24px; 
         display: flex; flex-direction: column;
-        transition: transform 0.3s ease, height 0.3s ease;
+        transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     }
     
-    #views-container { display: flex; flex-direction: column; width: 100%; }
-    #input-view, #result-view { display: flex; flex-direction: column; width: 100%; }
-    .hidden-view { display: none !important; }
-    
+    /* 🚀 將頂部面板往上推離畫面外 (全螢幕模式) */
+    #top-panel.hide-top { transform: translateY(-120%); }
+
+    /* 🚀 懸浮返回按鈕 */
+    #back-btn {
+        position: absolute;
+        top: max(env(safe-area-inset-top, 20px), 20px); left: 20px;
+        z-index: 30;
+        transition: opacity 0.3s ease, transform 0.3s ease;
+    }
+    #back-btn.hidden { opacity: 0; pointer-events: none; transform: scale(0.8); }
+
     .input-row { display: flex; align-items: center; background: #f8fafc; border-radius: 16px; padding: 12px 16px; border: 1px solid #e2e8f0; transition: border-color 0.2s; }
     .input-row:focus-within { border-color: #00C853; background: #fff; box-shadow: 0 0 0 3px rgba(0,200,83,0.1); }
     .input-row input { flex: 1; background: transparent; border: none; outline: none; font-size: 16px; font-weight: bold; color: #1e293b; width: 100%; }
     .input-row input::placeholder { color: #94a3b8; font-weight: normal; font-size: 15px; }
-    
     .input-row input:read-only { color: #00C853; font-weight: 900; cursor: default; }
     .input-row.locked { background: #f0fdf4; border-color: #bbf7d0; }
 
     .btn-calc { background: linear-gradient(135deg, #00C853, #1B5E20); color: white; width: 100%; padding: 16px; border-radius: 16px; font-weight: 900; font-size: 18px; box-shadow: 0 6px 20px rgba(0, 200, 83, 0.3); border: none; cursor: pointer; transition: transform 0.1s; margin-top: 16px; }
     .btn-calc:active { transform: scale(0.96); }
     
-    /* 車資結果卡片 */
-    .fare-card { border: 2px solid #f1f5f9; border-radius: 16px; padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; transition: all 0.2s; gap: 8px; }
-    .fare-title { font-size: clamp(14px, 4vw, 16px); font-weight: bold; color: #334155; display: flex; align-items: center; gap: 8px; }
-    .fare-title i { flex-shrink: 0; width: 24px; text-align: center; }
-    .fare-price { font-size: clamp(18px, 5vw, 22px); font-weight: 900; color: #0f172a; white-space: nowrap; flex-shrink: 0; }
-    
-    .fc-yellow { border-color: #fef3c7; background: #fffbeb; }
-    .fc-yellow .fare-price { color: #d97706; }
-    
-    .fc-multi12 { border-color: #e0f2fe; background: #f0f9ff; }
-    .fc-multi12 .fare-price { color: #0284c7; }
-    
-    .fc-multi14 { border-color: #ede9fe; background: #f5f3ff; }
-    .fc-multi14 .fare-price { color: #7c3aed; }
-    
+    /* Google Maps 自動完成選單美化 */
     .pac-container { border-radius: 0 0 16px 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); font-family: 'Noto Sans TC'; border: 1px solid #e2e8f0; border-top: none; margin-top: 0; padding: 5px; z-index: 9999 !important; }
     .pac-item { padding: 12px 15px; cursor: pointer; font-size: 15px; border-top: 1px solid #f1f5f9; }
     .pac-item:hover { background-color: #f8fafc; }
     .pac-item-query { font-size: 16px; color: #1e293b; font-weight: bold; }
     
     .swal2-popup { border-radius: 24px !important; font-family: 'Noto Sans TC', sans-serif !important; }
+
+    /* 🚀 強制覆寫 Google Maps InfoWindow 預設醜陋樣式 */
+    .gm-style-iw-c { padding: 0 !important; border-radius: 20px !important; box-shadow: 0 15px 40px rgba(0,0,0,0.2) !important; background: white !important; }
+    .gm-style-iw-d { overflow: hidden !important; padding: 0 !important; }
+    .gm-ui-hover-effect { display: none !important; } /* 隱藏預設打叉按鈕，強迫使用左上角返回 */
   </style>
 </head>
 <body>
+
+  <!-- 🚀 懸浮返回鍵 (預設隱藏) -->
+  <button id="back-btn" onclick="resetView()" class="hidden bg-white text-slate-700 shadow-lg border border-slate-100 rounded-full w-12 h-12 flex items-center justify-center text-xl active:scale-90">
+    <i class="fa-solid fa-arrow-left"></i>
+  </button>
 
   <div id="top-panel">
     <div class="flex justify-between items-end mb-4">
@@ -83,65 +85,32 @@
         </div>
     </div>
     
-    <div id="views-container">
+    <div id="input-view">
+        <div class="text-xs text-slate-500 font-bold text-center tracking-wide flex items-center justify-center gap-1.5 bg-slate-100 py-2 rounded-lg border border-slate-200 mb-3">
+            <i class="fa-solid fa-circle-info text-slate-400"></i> 預估車資僅供參考，實際收費以跳錶為準
+        </div>
         
-        <!-- 輸入畫面 -->
-        <div id="input-view">
-            <div class="text-xs text-slate-500 font-bold text-center tracking-wide flex items-center justify-center gap-1.5 bg-slate-100 py-2 rounded-lg border border-slate-200 mb-3">
-                <i class="fa-solid fa-circle-info text-slate-400"></i> 預估車資僅供參考，實際收費以跳錶為準
+        <div class="space-y-3 w-full">
+            <div class="input-row locked" onclick="triggerGpsWarning()">
+                <i class="fa-solid fa-location-crosshairs text-emerald-500 w-6 text-center mr-2 text-lg"></i>
+                <input type="text" id="pickup-input" placeholder="自動定位目前位置..." readonly>
+                <button onclick="useMyLocation(); event.stopPropagation();" class="text-emerald-600 p-2 active:scale-90 bg-emerald-100 hover:bg-emerald-200 rounded-xl ml-2 transition-colors"><i class="fa-solid fa-rotate-right"></i></button>
             </div>
             
-            <div class="space-y-3 w-full">
-                <div class="input-row locked" onclick="triggerGpsWarning()">
-                    <i class="fa-solid fa-location-crosshairs text-emerald-500 w-6 text-center mr-2 text-lg"></i>
-                    <input type="text" id="pickup-input" placeholder="自動定位目前位置..." readonly>
-                    <button onclick="useMyLocation(); event.stopPropagation();" class="text-emerald-600 p-2 active:scale-90 bg-emerald-100 hover:bg-emerald-200 rounded-xl ml-2 transition-colors"><i class="fa-solid fa-rotate-right"></i></button>
-                </div>
-                
-                <div class="input-row shadow-sm">
-                    <i class="fa-solid fa-location-dot text-rose-500 w-6 text-center mr-2 text-lg"></i>
-                    <input type="text" id="dropoff-input" placeholder="請點此輸入下車地點 (跨縣市可)">
-                </div>
-            </div>
-            
-            <button onclick="calculateFare()" class="btn-calc">開始計算車資</button>
-        </div>
-
-        <!-- 結果畫面 -->
-        <div id="result-view" class="hidden-view">
-            <div class="flex justify-between items-start mb-3 border-b border-slate-100 pb-3">
-                <div>
-                    <div class="text-xs text-slate-400 font-bold mb-1">預估距離與時間</div>
-                    <div class="text-xl font-black text-slate-800" id="route-meta">-- 公里 / -- 分鐘</div>
-                </div>
-                <button onclick="resetView()" class="text-slate-500 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 rounded-full w-10 h-10 flex items-center justify-center transition-colors shadow-sm">
-                    <i class="fa-solid fa-rotate-left"></i>
-                </button>
-            </div>
-
-            <div class="flex flex-col gap-2.5">
-                <div class="fare-card fc-yellow">
-                    <div class="fare-title"><i class="fa-solid fa-taxi text-amber-500 text-xl"></i> 標準小黃 (跳表)</div>
-                    <div class="fare-price" id="fare-yellow">$--</div>
-                </div>
-                <div class="fare-card fc-multi12">
-                    <div class="fare-title"><i class="fa-solid fa-car-side text-sky-500 text-xl"></i> 多元專車 (1.2倍)</div>
-                    <div class="fare-price" id="fare-m12">$--</div>
-                </div>
-                <div class="fare-card fc-multi14">
-                    <div class="fare-title"><i class="fa-solid fa-van-shuttle text-violet-500 text-xl"></i> 尊榮六座 (1.4倍)</div>
-                    <div class="fare-price" id="fare-m14">$--</div>
-                </div>
+            <div class="input-row shadow-sm">
+                <i class="fa-solid fa-location-dot text-rose-500 w-6 text-center mr-2 text-lg"></i>
+                <input type="text" id="dropoff-input" placeholder="請點此輸入下車地點 (跨縣市可)">
             </div>
         </div>
-
+        
+        <button onclick="calculateFare()" class="btn-calc">開始計算車資</button>
     </div>
   </div>
 
   <div id="map"></div>
 
   <script>
-    const VERSION = "v3.0"; // 🚀 完美精準定位版 (修正非同步衝突 + 綠色定位錨點)
+    const VERSION = "v3.1"; // 🚀 全螢幕終點浮窗版 (沉浸式地圖)
     const LIFF_ID = "2008907691-Faf4aET8"; 
     const DAILY_LIMIT = 5;
     
@@ -153,6 +122,9 @@
     let dropoffAutocomplete; 
     let passengerId = "unknown";
     let isPickupValid = false; 
+
+    // 🚀 全域變數：結果資訊窗
+    window.resultInfoWindow = null;
 
     window.onload = async function() {
         Swal.fire({ title: '系統載入中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
@@ -215,6 +187,9 @@
             polylineOptions: { strokeColor: '#00C853', strokeWeight: 6, strokeOpacity: 0.8 }
         });
 
+        // 建立共用的 InfoWindow
+        window.resultInfoWindow = new google.maps.InfoWindow();
+
         const options = { componentRestrictions: { country: "tw" } };
         dropoffAutocomplete = new google.maps.places.Autocomplete(document.getElementById('dropoff-input'), options);
         dropoffAutocomplete.setFields(['formatted_address', 'geometry']);
@@ -245,29 +220,15 @@
                             document.getElementById('pickup-input').style.color = "#00C853";
                             Swal.close();
                             
-                            // 🚀 核心修復：強制先瞬間設定 Zoom 與 Center，再進行 Pan 偏移，避免動畫衝突
                             map.setZoom(16);
                             map.setCenter({lat, lng});
                             
-                            // 🚀 新增 UI 回饋：在 GPS 座標上畫出綠色雷達定位點
-                            if (window.pickupMarker) {
-                                window.pickupMarker.setMap(null);
-                            }
+                            if (window.pickupMarker) window.pickupMarker.setMap(null);
                             window.pickupMarker = new google.maps.Marker({
-                                position: {lat, lng},
-                                map: map,
-                                icon: {
-                                    path: google.maps.SymbolPath.CIRCLE,
-                                    scale: 9,
-                                    fillColor: '#00C853',
-                                    fillOpacity: 1,
-                                    strokeColor: '#ffffff',
-                                    strokeWeight: 3,
-                                },
-                                zIndex: 999
+                                position: {lat, lng}, map: map, zIndex: 999,
+                                icon: { path: google.maps.SymbolPath.CIRCLE, scale: 9, fillColor: '#00C853', fillOpacity: 1, strokeColor: '#ffffff', strokeWeight: 3 }
                             });
 
-                            // 使用 setTimeout 等待底圖設定完成後，再平滑下移視角避開頂部面板
                             setTimeout(() => {
                                 const topPanelHeight = document.getElementById('top-panel').offsetHeight;
                                 map.panBy(0, -(topPanelHeight / 2));
@@ -289,6 +250,21 @@
             Swal.fire('錯誤', '您的裝置不支援 GPS 定位。', 'error');
         }
     }
+
+    // 🚀 控制 InfoWindow 內部展開動畫的函數 (需為全域)
+    window.toggleFares = function() {
+        const extra = document.getElementById('extra-fares');
+        const btn = document.getElementById('toggle-btn');
+        if (extra.classList.contains('hidden')) {
+            extra.classList.remove('hidden');
+            extra.classList.add('flex');
+            btn.innerHTML = '收起詳細車資 <i class="fa-solid fa-chevron-up ml-1"></i>';
+        } else {
+            extra.classList.add('hidden');
+            extra.classList.remove('flex');
+            btn.innerHTML = '展開更多車型 <i class="fa-solid fa-chevron-down ml-1"></i>';
+        }
+    };
 
     function calculateFare() {
         if (getRemainingQuota() <= 0) {
@@ -314,10 +290,7 @@
             if (status == 'OK') {
                 recordUsage();
                 
-                // 計算出路線後，隱藏單一的綠色定位點，交給系統畫 A、B 點
-                if (window.pickupMarker) {
-                    window.pickupMarker.setMap(null);
-                }
+                if (window.pickupMarker) window.pickupMarker.setMap(null);
                 
                 directionsRenderer.setDirections(result);
                 const route = result.routes[0].legs[0];
@@ -327,23 +300,54 @@
                 
                 const currentHour = new Date().getHours();
                 const isNight = (currentHour >= 22 || currentHour < 6);
-                const modeTag = isNight ? '<span class="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded ml-2">夜間費率</span>' : '';
-                
-                document.getElementById('route-meta').innerHTML = `${route.distance.text} / ${route.duration.text} ${modeTag}`;
+                const modeTag = isNight ? '<span class="text-[10px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded ml-2 align-middle">夜間</span>' : '';
                 
                 const yellowFare = calculateOfficialFare(distanceMeters, durationSeconds, isNight);
-                
-                document.getElementById('fare-yellow').innerText = `~NT$ ${yellowFare}`;
-                document.getElementById('fare-m12').innerText = `~NT$ ${roundToTaxiStandard(yellowFare * 1.2)}`;
-                document.getElementById('fare-m14').innerText = `~NT$ ${roundToTaxiStandard(yellowFare * 1.4)}`;
+                const m12Fare = roundToTaxiStandard(yellowFare * 1.2);
+                const m14Fare = roundToTaxiStandard(yellowFare * 1.4);
 
-                document.getElementById('input-view').classList.add('hidden-view');
-                document.getElementById('result-view').classList.remove('hidden-view');
+                // 🚀 動態生成 InfoWindow 內部的 HTML
+                const infoHtml = `
+                    <div class="p-4 min-w-[240px] max-w-[280px] font-sans">
+                        <div class="text-xs text-slate-400 font-bold mb-1"><i class="fa-solid fa-flag-checkered mr-1"></i>預估抵達</div>
+                        <div class="text-lg font-black text-slate-800 mb-3">${route.distance.text} / ${route.duration.text} ${modeTag}</div>
+                        
+                        <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-2 flex justify-between items-center shadow-sm">
+                            <span class="text-amber-700 font-bold text-sm"><i class="fa-solid fa-taxi mr-1.5"></i>小黃</span>
+                            <span class="text-amber-600 font-black text-xl">~NT$ ${yellowFare}</span>
+                        </div>
+                        
+                        <div id="extra-fares" class="hidden flex-col gap-2 mb-2">
+                            <div class="bg-sky-50 border border-sky-200 rounded-xl p-3 flex justify-between items-center shadow-sm">
+                                <span class="text-sky-700 font-bold text-sm"><i class="fa-solid fa-car-side mr-1.5"></i>多元 (1.2x)</span>
+                                <span class="text-sky-600 font-black text-lg">~NT$ ${m12Fare}</span>
+                            </div>
+                            <div class="bg-violet-50 border border-violet-200 rounded-xl p-3 flex justify-between items-center shadow-sm">
+                                <span class="text-violet-700 font-bold text-sm"><i class="fa-solid fa-van-shuttle mr-1.5"></i>尊榮 (1.4x)</span>
+                                <span class="text-violet-600 font-black text-lg">~NT$ ${m14Fare}</span>
+                            </div>
+                        </div>
+                        
+                        <button onclick="window.toggleFares()" id="toggle-btn" class="w-full mt-2 bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-500 font-bold py-2 rounded-lg text-xs transition-all">
+                            展開更多車型 <i class="fa-solid fa-chevron-down ml-1"></i>
+                        </button>
+                    </div>
+                `;
 
+                // 🚀 將 UI 綁定在 B 點 (終點)
+                window.resultInfoWindow.setContent(infoHtml);
+                window.resultInfoWindow.setPosition(route.end_location);
+                window.resultInfoWindow.open(map);
+
+                // 🚀 UI 變形：隱藏輸入面板，顯示左上角返回鍵
+                document.getElementById('top-panel').classList.add('hide-top');
+                document.getElementById('back-btn').classList.remove('hidden');
+
+                // 自動縮放以容納路線與資訊窗
                 const bounds = result.routes[0].bounds;
                 setTimeout(() => {
-                    const topPanelHeight = document.getElementById('top-panel').offsetHeight + 30;
-                    map.fitBounds(bounds, { top: topPanelHeight, bottom: 50, left: 50, right: 50 });
+                    // 全螢幕模式，邊距設定得更寬裕
+                    map.fitBounds(bounds, { top: 120, bottom: 80, left: 50, right: 50 });
                 }, 100);
 
             } else {
@@ -368,11 +372,15 @@
     function roundToTaxiStandard(num) { return Math.round(num / 5) * 5; }
 
     function resetView() {
-        document.getElementById('result-view').classList.add('hidden-view');
-        document.getElementById('input-view').classList.remove('hidden-view');
+        // 🚀 UI 復原：顯示輸入面板，隱藏返回鍵
+        document.getElementById('top-panel').classList.remove('hide-top');
+        document.getElementById('back-btn').classList.add('hidden');
         
-        // 恢復定位時，清除路線
+        // 關閉資訊窗並清除路線
+        window.resultInfoWindow.close();
         directionsRenderer.set('directions', null);
+        
+        // 重新執行定位
         useMyLocation(); 
     }
   </script>
