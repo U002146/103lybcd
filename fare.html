@@ -32,17 +32,17 @@
         transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     }
     
-    /* 🚀 將頂部面板往上推離畫面外 (全螢幕模式) */
+    /* 將頂部面板往上推離畫面外 */
     #top-panel.hide-top { transform: translateY(-120%); }
 
-    /* 🚀 懸浮返回按鈕 */
+    /* 懸浮返回按鈕 */
     #back-btn {
         position: absolute;
         top: max(env(safe-area-inset-top, 20px), 20px); left: 20px;
         z-index: 30;
         transition: opacity 0.3s ease, transform 0.3s ease;
     }
-    #back-btn.hidden { opacity: 0; pointer-events: none; transform: scale(0.8); }
+    #back-btn.hidden-btn { opacity: 0; pointer-events: none; transform: scale(0.8); }
 
     .input-row { display: flex; align-items: center; background: #f8fafc; border-radius: 16px; padding: 12px 16px; border: 1px solid #e2e8f0; transition: border-color 0.2s; }
     .input-row:focus-within { border-color: #00C853; background: #fff; box-shadow: 0 0 0 3px rgba(0,200,83,0.1); }
@@ -54,6 +54,14 @@
     .btn-calc { background: linear-gradient(135deg, #00C853, #1B5E20); color: white; width: 100%; padding: 16px; border-radius: 16px; font-weight: 900; font-size: 18px; box-shadow: 0 6px 20px rgba(0, 200, 83, 0.3); border: none; cursor: pointer; transition: transform 0.1s; margin-top: 16px; }
     .btn-calc:active { transform: scale(0.96); }
     
+    /* 🚀 底部結果懸浮卡片動畫 */
+    #result-floating-card {
+        transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+    }
+    #result-floating-card.hidden-card {
+        transform: translateY(150%); opacity: 0; pointer-events: none;
+    }
+    
     /* Google Maps 自動完成選單美化 */
     .pac-container { border-radius: 0 0 16px 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); font-family: 'Noto Sans TC'; border: 1px solid #e2e8f0; border-top: none; margin-top: 0; padding: 5px; z-index: 9999 !important; }
     .pac-item { padding: 12px 15px; cursor: pointer; font-size: 15px; border-top: 1px solid #f1f5f9; }
@@ -61,20 +69,16 @@
     .pac-item-query { font-size: 16px; color: #1e293b; font-weight: bold; }
     
     .swal2-popup { border-radius: 24px !important; font-family: 'Noto Sans TC', sans-serif !important; }
-
-    /* 🚀 強制覆寫 Google Maps InfoWindow 預設醜陋樣式 */
-    .gm-style-iw-c { padding: 0 !important; border-radius: 20px !important; box-shadow: 0 15px 40px rgba(0,0,0,0.2) !important; background: white !important; }
-    .gm-style-iw-d { overflow: hidden !important; padding: 0 !important; }
-    .gm-ui-hover-effect { display: none !important; } /* 隱藏預設打叉按鈕，強迫使用左上角返回 */
   </style>
 </head>
 <body>
 
-  <!-- 🚀 懸浮返回鍵 (預設隱藏) -->
-  <button id="back-btn" onclick="resetView()" class="hidden bg-white text-slate-700 shadow-lg border border-slate-100 rounded-full w-12 h-12 flex items-center justify-center text-xl active:scale-90">
+  <!-- 左上角返回鍵 -->
+  <button id="back-btn" onclick="resetView()" class="hidden-btn bg-white text-slate-700 shadow-lg border border-slate-100 rounded-full w-12 h-12 flex items-center justify-center text-xl active:scale-90">
     <i class="fa-solid fa-arrow-left"></i>
   </button>
 
+  <!-- 頂部輸入面板 -->
   <div id="top-panel">
     <div class="flex justify-between items-end mb-4">
         <div>
@@ -107,10 +111,40 @@
     </div>
   </div>
 
+  <!-- 🚀 完美還原設計圖的懸浮結果卡片 -->
+  <div id="result-floating-card" class="hidden-card fixed bottom-6 left-4 right-4 mx-auto max-w-[500px] bg-white rounded-[28px] shadow-[0_20px_50px_rgba(0,0,0,0.15)] z-40 flex-col p-5 font-sans border border-slate-100">
+      <div class="flex items-center gap-1.5 text-slate-400 font-bold text-sm mb-2">
+          <i class="fa-solid fa-flag-checkered"></i> 預估抵達
+      </div>
+      <div class="text-[26px] font-black text-slate-800 mb-4 tracking-tight" id="card-meta">
+          -- 公里 / -- 分鐘
+      </div>
+      
+      <div class="bg-amber-50 border-2 border-amber-100 rounded-2xl p-4 flex justify-between items-center shadow-sm mb-3">
+          <span class="text-amber-700 font-black text-lg"><i class="fa-solid fa-taxi mr-2 text-amber-500"></i>小黃</span>
+          <span class="text-amber-600 font-black text-[26px]" id="card-yellow">~NT$ --</span>
+      </div>
+      
+      <div id="extra-fares" class="hidden flex-col gap-3 mb-3">
+          <div class="bg-sky-50 border border-sky-100 rounded-2xl p-4 flex justify-between items-center shadow-sm">
+              <span class="text-sky-700 font-bold text-md"><i class="fa-solid fa-car-side mr-2 text-sky-500"></i>多元專車 (1.2x)</span>
+              <span class="text-sky-600 font-black text-xl" id="card-m12">~NT$ --</span>
+          </div>
+          <div class="bg-violet-50 border border-violet-100 rounded-2xl p-4 flex justify-between items-center shadow-sm">
+              <span class="text-violet-700 font-bold text-md"><i class="fa-solid fa-van-shuttle mr-2 text-violet-500"></i>尊榮六座 (1.4x)</span>
+              <span class="text-violet-600 font-black text-xl" id="card-m14">~NT$ --</span>
+          </div>
+      </div>
+      
+      <button onclick="window.toggleFares()" id="toggle-btn" class="w-full bg-slate-50 hover:bg-slate-100 active:scale-[0.98] text-slate-500 font-bold py-3.5 rounded-xl transition-all flex items-center justify-center gap-2 text-[15px]">
+          展開更多車型 <i class="fa-solid fa-chevron-down text-sm"></i>
+      </button>
+  </div>
+
   <div id="map"></div>
 
   <script>
-    const VERSION = "v3.1"; // 🚀 全螢幕終點浮窗版 (沉浸式地圖)
+    const VERSION = "v3.2"; // 🚀 固定懸浮卡片與視角安全區避讓版
     const LIFF_ID = "2008907691-Faf4aET8"; 
     const DAILY_LIMIT = 5;
     
@@ -122,9 +156,7 @@
     let dropoffAutocomplete; 
     let passengerId = "unknown";
     let isPickupValid = false; 
-
-    // 🚀 全域變數：結果資訊窗
-    window.resultInfoWindow = null;
+    let currentRouteBounds = null; // 紀錄目前路線邊界，展開卡片時用來重算避讓
 
     window.onload = async function() {
         Swal.fire({ title: '系統載入中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
@@ -187,9 +219,6 @@
             polylineOptions: { strokeColor: '#00C853', strokeWeight: 6, strokeOpacity: 0.8 }
         });
 
-        // 建立共用的 InfoWindow
-        window.resultInfoWindow = new google.maps.InfoWindow();
-
         const options = { componentRestrictions: { country: "tw" } };
         dropoffAutocomplete = new google.maps.places.Autocomplete(document.getElementById('dropoff-input'), options);
         dropoffAutocomplete.setFields(['formatted_address', 'geometry']);
@@ -251,18 +280,27 @@
         }
     }
 
-    // 🚀 控制 InfoWindow 內部展開動畫的函數 (需為全域)
+    // 🚀 控制懸浮卡片展開與地圖智慧避讓
     window.toggleFares = function() {
         const extra = document.getElementById('extra-fares');
         const btn = document.getElementById('toggle-btn');
         if (extra.classList.contains('hidden')) {
             extra.classList.remove('hidden');
             extra.classList.add('flex');
-            btn.innerHTML = '收起詳細車資 <i class="fa-solid fa-chevron-up ml-1"></i>';
+            btn.innerHTML = '收起詳細車資 <i class="fa-solid fa-chevron-up"></i>';
         } else {
             extra.classList.add('hidden');
             extra.classList.remove('flex');
-            btn.innerHTML = '展開更多車型 <i class="fa-solid fa-chevron-down ml-1"></i>';
+            btn.innerHTML = '展開更多車型 <i class="fa-solid fa-chevron-down"></i>';
+        }
+        
+        // 重新讀取展開/收起後的卡片高度，再次逼迫地圖往上推
+        if (currentRouteBounds) {
+            setTimeout(() => {
+                const cardHeight = document.getElementById('result-floating-card').offsetHeight;
+                // 這裡的 bottom 就是「視角安全區避讓」，確保路線不會被擋住
+                map.fitBounds(currentRouteBounds, { top: 100, bottom: cardHeight + 40, left: 40, right: 40 });
+            }, 50);
         }
     };
 
@@ -294,60 +332,41 @@
                 
                 directionsRenderer.setDirections(result);
                 const route = result.routes[0].legs[0];
+                currentRouteBounds = result.routes[0].bounds; // 紀錄邊界給展開按鈕用
                 
                 const distanceMeters = route.distance.value; 
                 const durationSeconds = route.duration.value; 
                 
                 const currentHour = new Date().getHours();
                 const isNight = (currentHour >= 22 || currentHour < 6);
-                const modeTag = isNight ? '<span class="text-[10px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded ml-2 align-middle">夜間</span>' : '';
+                const modeTag = isNight ? '<span class="text-[12px] bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded ml-2 align-middle">夜間</span>' : '';
                 
                 const yellowFare = calculateOfficialFare(distanceMeters, durationSeconds, isNight);
                 const m12Fare = roundToTaxiStandard(yellowFare * 1.2);
                 const m14Fare = roundToTaxiStandard(yellowFare * 1.4);
 
-                // 🚀 動態生成 InfoWindow 內部的 HTML
-                const infoHtml = `
-                    <div class="p-4 min-w-[240px] max-w-[280px] font-sans">
-                        <div class="text-xs text-slate-400 font-bold mb-1"><i class="fa-solid fa-flag-checkered mr-1"></i>預估抵達</div>
-                        <div class="text-lg font-black text-slate-800 mb-3">${route.distance.text} / ${route.duration.text} ${modeTag}</div>
-                        
-                        <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-2 flex justify-between items-center shadow-sm">
-                            <span class="text-amber-700 font-bold text-sm"><i class="fa-solid fa-taxi mr-1.5"></i>小黃</span>
-                            <span class="text-amber-600 font-black text-xl">~NT$ ${yellowFare}</span>
-                        </div>
-                        
-                        <div id="extra-fares" class="hidden flex-col gap-2 mb-2">
-                            <div class="bg-sky-50 border border-sky-200 rounded-xl p-3 flex justify-between items-center shadow-sm">
-                                <span class="text-sky-700 font-bold text-sm"><i class="fa-solid fa-car-side mr-1.5"></i>多元 (1.2x)</span>
-                                <span class="text-sky-600 font-black text-lg">~NT$ ${m12Fare}</span>
-                            </div>
-                            <div class="bg-violet-50 border border-violet-200 rounded-xl p-3 flex justify-between items-center shadow-sm">
-                                <span class="text-violet-700 font-bold text-sm"><i class="fa-solid fa-van-shuttle mr-1.5"></i>尊榮 (1.4x)</span>
-                                <span class="text-violet-600 font-black text-lg">~NT$ ${m14Fare}</span>
-                            </div>
-                        </div>
-                        
-                        <button onclick="window.toggleFares()" id="toggle-btn" class="w-full mt-2 bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-500 font-bold py-2 rounded-lg text-xs transition-all">
-                            展開更多車型 <i class="fa-solid fa-chevron-down ml-1"></i>
-                        </button>
-                    </div>
-                `;
+                // 填入懸浮卡片資料
+                document.getElementById('card-meta').innerHTML = `${route.distance.text} / ${route.duration.text} ${modeTag}`;
+                document.getElementById('card-yellow').innerText = `~NT$ ${yellowFare}`;
+                document.getElementById('card-m12').innerText = `~NT$ ${m12Fare}`;
+                document.getElementById('card-m14').innerText = `~NT$ ${m14Fare}`;
 
-                // 🚀 將 UI 綁定在 B 點 (終點)
-                window.resultInfoWindow.setContent(infoHtml);
-                window.resultInfoWindow.setPosition(route.end_location);
-                window.resultInfoWindow.open(map);
-
-                // 🚀 UI 變形：隱藏輸入面板，顯示左上角返回鍵
+                // 🚀 UI 變形：隱藏輸入面板，顯示左上角返回鍵與底部卡片
                 document.getElementById('top-panel').classList.add('hide-top');
-                document.getElementById('back-btn').classList.remove('hidden');
+                document.getElementById('back-btn').classList.remove('hidden-btn');
+                
+                const floatingCard = document.getElementById('result-floating-card');
+                floatingCard.classList.remove('hidden-card');
+                floatingCard.classList.add('flex');
 
-                // 自動縮放以容納路線與資訊窗
-                const bounds = result.routes[0].bounds;
+                // 🚀 執行地圖視角智慧避讓 (等待 DOM 渲染算出高度)
                 setTimeout(() => {
-                    // 全螢幕模式，邊距設定得更寬裕
-                    map.fitBounds(bounds, { top: 120, bottom: 80, left: 50, right: 50 });
+                    const cardHeight = floatingCard.offsetHeight;
+                    map.fitBounds(currentRouteBounds, { 
+                        top: 100, // 留給返回按鈕的空間
+                        bottom: cardHeight + 40, // 底部留出卡片高度 + 40px 的安全呼吸空間
+                        left: 40, right: 40 
+                    });
                 }, 100);
 
             } else {
@@ -372,15 +391,23 @@
     function roundToTaxiStandard(num) { return Math.round(num / 5) * 5; }
 
     function resetView() {
-        // 🚀 UI 復原：顯示輸入面板，隱藏返回鍵
+        // 🚀 UI 復原：顯示輸入面板，隱藏返回鍵與卡片
         document.getElementById('top-panel').classList.remove('hide-top');
-        document.getElementById('back-btn').classList.add('hidden');
+        document.getElementById('back-btn').classList.add('hidden-btn');
         
-        // 關閉資訊窗並清除路線
-        window.resultInfoWindow.close();
+        const floatingCard = document.getElementById('result-floating-card');
+        floatingCard.classList.add('hidden-card');
+        setTimeout(() => floatingCard.classList.remove('flex'), 300); // 等動畫播完再拔除 flex
+        
+        // 如果詳細車資是展開的，把它收起來
+        const extra = document.getElementById('extra-fares');
+        if (!extra.classList.contains('hidden')) {
+            window.toggleFares();
+        }
+        
+        // 清除路線，重置地圖
         directionsRenderer.set('directions', null);
-        
-        // 重新執行定位
+        currentRouteBounds = null;
         useMyLocation(); 
     }
   </script>
