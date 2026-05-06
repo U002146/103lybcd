@@ -48,7 +48,7 @@
     .btn-calc { background: linear-gradient(135deg, #00C853, #1B5E20); color: white; width: 100%; padding: 16px; border-radius: 16px; font-weight: 900; font-size: 18px; box-shadow: 0 6px 20px rgba(0, 200, 83, 0.3); border: none; cursor: pointer; transition: transform 0.1s; margin-top: 16px; }
     .btn-calc:active { transform: scale(0.96); }
     
-    /* 🚀 車資結果卡片 - 排版自適應與防換行升級 */
+    /* 車資結果卡片 */
     .fare-card { border: 2px solid #f1f5f9; border-radius: 16px; padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; transition: all 0.2s; gap: 8px; }
     .fare-title { font-size: clamp(14px, 4vw, 16px); font-weight: bold; color: #334155; display: flex; align-items: center; gap: 8px; }
     .fare-title i { flex-shrink: 0; width: 24px; text-align: center; }
@@ -141,7 +141,7 @@
   <div id="map"></div>
 
   <script>
-    const VERSION = "v2.9"; // 🚀 頂部面板 + 響應式防破版
+    const VERSION = "v3.0"; // 🚀 完美精準定位版 (修正非同步衝突 + 綠色定位錨點)
     const LIFF_ID = "2008907691-Faf4aET8"; 
     const DAILY_LIMIT = 5;
     
@@ -245,10 +245,34 @@
                             document.getElementById('pickup-input').style.color = "#00C853";
                             Swal.close();
                             
-                            const topPanelHeight = document.getElementById('top-panel').offsetHeight;
-                            map.panTo({lat, lng}); 
-                            map.panBy(0, -(topPanelHeight / 2));
+                            // 🚀 核心修復：強制先瞬間設定 Zoom 與 Center，再進行 Pan 偏移，避免動畫衝突
                             map.setZoom(16);
+                            map.setCenter({lat, lng});
+                            
+                            // 🚀 新增 UI 回饋：在 GPS 座標上畫出綠色雷達定位點
+                            if (window.pickupMarker) {
+                                window.pickupMarker.setMap(null);
+                            }
+                            window.pickupMarker = new google.maps.Marker({
+                                position: {lat, lng},
+                                map: map,
+                                icon: {
+                                    path: google.maps.SymbolPath.CIRCLE,
+                                    scale: 9,
+                                    fillColor: '#00C853',
+                                    fillOpacity: 1,
+                                    strokeColor: '#ffffff',
+                                    strokeWeight: 3,
+                                },
+                                zIndex: 999
+                            });
+
+                            // 使用 setTimeout 等待底圖設定完成後，再平滑下移視角避開頂部面板
+                            setTimeout(() => {
+                                const topPanelHeight = document.getElementById('top-panel').offsetHeight;
+                                map.panBy(0, -(topPanelHeight / 2));
+                            }, 100);
+
                         } else {
                             isPickupValid = false;
                             Swal.fire('定位失敗', '無法解析您的地址，請確認網路連線。', 'error');
@@ -289,6 +313,12 @@
             Swal.close();
             if (status == 'OK') {
                 recordUsage();
+                
+                // 計算出路線後，隱藏單一的綠色定位點，交給系統畫 A、B 點
+                if (window.pickupMarker) {
+                    window.pickupMarker.setMap(null);
+                }
+                
                 directionsRenderer.setDirections(result);
                 const route = result.routes[0].legs[0];
                 
@@ -340,6 +370,9 @@
     function resetView() {
         document.getElementById('result-view').classList.add('hidden-view');
         document.getElementById('input-view').classList.remove('hidden-view');
+        
+        // 恢復定位時，清除路線
+        directionsRenderer.set('directions', null);
         useMyLocation(); 
     }
   </script>
