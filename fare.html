@@ -73,12 +73,10 @@
 </head>
 <body>
 
-  <!-- 左上角返回鍵 -->
   <button id="back-btn" onclick="resetView()" class="hidden-btn bg-white text-slate-700 shadow-lg border border-slate-100 rounded-full w-12 h-12 flex items-center justify-center text-xl active:scale-90">
     <i class="fa-solid fa-arrow-left"></i>
   </button>
 
-  <!-- 頂部輸入面板 -->
   <div id="top-panel">
     <div class="flex justify-between items-end mb-4">
         <div>
@@ -87,6 +85,12 @@
             </h1>
             <p class="text-sm text-slate-500 mt-1 font-bold" id="quota-display">精準估算・透明費率 (載入中...)</p>
         </div>
+        <button onclick="window.location.href='https://liff.line.me/2008907691-zTgIQ9Oa'" class="bg-slate-100 hover:bg-slate-200 active:scale-95 border border-slate-200 px-3 py-2 rounded-xl flex items-center justify-center transition-all shadow-sm">
+            <div class="flex flex-col items-center">
+                <i class="fa-solid fa-route text-indigo-500 text-[18px] mb-1"></i>
+                <span class="text-[10px] text-slate-600 font-bold tracking-wider">包車精算</span>
+            </div>
+        </button>
     </div>
     
     <div id="input-view">
@@ -111,7 +115,6 @@
     </div>
   </div>
 
-  <!-- 懸浮結果卡片 -->
   <div id="result-floating-card" class="hidden-card fixed bottom-6 left-4 right-4 mx-auto max-w-[500px] bg-white rounded-[28px] shadow-[0_20px_50px_rgba(0,0,0,0.15)] z-40 flex-col p-5 font-sans border border-slate-100">
       <div class="flex items-center gap-1.5 text-slate-400 font-bold text-sm mb-2">
           <i class="fa-solid fa-flag-checkered"></i> 預估抵達
@@ -125,7 +128,6 @@
           <span class="text-amber-600 font-black text-[26px]" id="card-yellow">~NT$ --</span>
       </div>
 
-      <!-- 🚀 新增：一鍵發送叫車單 CTA 按鈕 -->
       <button onclick="sendOrderMessage()" class="w-full bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white font-black py-4 rounded-2xl transition-all flex items-center justify-center gap-2 text-[18px] shadow-[0_8px_20px_rgba(5,150,105,0.25)] mb-3">
           <i class="fa-solid fa-paper-plane"></i> 將此行程送出叫車
       </button>
@@ -149,7 +151,7 @@
   <div id="map"></div>
 
   <script>
-    const VERSION = "v3.3"; 
+    const VERSION = "v3.4"; 
     const LIFF_ID = "2008907691-Faf4aET8"; 
     const DAILY_LIMIT = 5;
     
@@ -163,7 +165,7 @@
     let isPickupValid = false; 
     let currentRouteBounds = null; 
 
-    // 🚀 新增：全域變數用來儲存當次計算結果，供發送叫車單使用
+    // 全域變數用來儲存當次計算結果，供發送叫車單使用
     let currentOrderData = {
         pickup: '',
         dropoff: '',
@@ -355,7 +357,7 @@
                 const m12Fare = roundToTaxiStandard(yellowFare * 1.2);
                 const m14Fare = roundToTaxiStandard(yellowFare * 1.4);
 
-                // 🚀 記錄至全域變數，供送出叫車單使用
+                // 記錄至全域變數，供送出叫車單使用
                 currentOrderData.pickup = pickup;
                 currentOrderData.dropoff = dropoff;
                 currentOrderData.duration = route.duration.text;
@@ -388,7 +390,7 @@
         });
     }
 
-    // 🚀 新增：一鍵發送叫車單功能
+    // 一鍵發送叫車單功能
     function sendOrderMessage() {
         if (!liff.isInClient()) {
             Swal.fire('無法傳送', '請在 LINE APP 中使用此功能發送叫車單。', 'warning');
