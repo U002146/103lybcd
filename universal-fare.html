@@ -12,7 +12,7 @@
   <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAIxc6PEhHgUs_A9lyRUg8dNbmwOpSamY8&libraries=places,geometry"></script>
   
   <style>
-    body { margin: 0; font-family: 'Noto Sans TC', sans-serif; background-color: #f1f5f9; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+    body { margin: 0; font-family: 'Noto Sans TC', -apple-system, sans-serif; background-color: #f1f5f9; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
     #map { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1; }
     
     #top-panel { 
@@ -21,7 +21,7 @@
         backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
         border-bottom-left-radius: 28px; border-bottom-right-radius: 28px; 
         box-shadow: 0 10px 40px rgba(0,0,0,0.12); z-index: 20; 
-        padding: max(env(safe-area-inset-top, 24px), 24px) 24px 24px 24px; 
+        padding: max(env(safe-area-inset-top, 24px), 24px) 24px 20px 24px; 
         display: flex; flex-direction: column;
         transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     }
@@ -38,25 +38,17 @@
     .input-row { display: flex; align-items: center; background: #f8fafc; border-radius: 16px; padding: 12px 16px; border: 1px solid #e2e8f0; transition: border-color 0.2s; }
     .input-row:focus-within { border-color: #00C853; background: #fff; box-shadow: 0 0 0 3px rgba(0,200,83,0.1); }
     .input-row input { flex: 1; background: transparent; border: none; outline: none; font-size: 15px; font-weight: bold; color: #1e293b; width: 100%; }
-    .input-row input::placeholder { color: #94a3b8; font-weight: normal; font-size: 14px; }
-    .input-row input:read-only { color: #00C853; font-weight: 900; cursor: default; }
-    .input-row.locked { background: #f0fdf4; border-color: #bbf7d0; }
-
+    
     .btn-calc { background: linear-gradient(135deg, #00C853, #1B5E20); color: white; width: 100%; padding: 16px; border-radius: 16px; font-weight: 900; font-size: 18px; box-shadow: 0 6px 20px rgba(0, 200, 83, 0.3); border: none; cursor: pointer; transition: transform 0.1s; margin-top: 16px; }
     .btn-calc:active { transform: scale(0.96); }
     
-    #result-floating-card {
-        transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
-    }
-    #result-floating-card.hidden-card {
-        transform: translateY(150%); opacity: 0; pointer-events: none;
-    }
+    #result-floating-card { transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease; }
+    #result-floating-card.hidden-card { transform: translateY(150%); opacity: 0; pointer-events: none; }
     
-    .pac-container { border-radius: 0 0 16px 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); font-family: 'Noto Sans TC'; border: 1px solid #e2e8f0; border-top: none; margin-top: 0; padding: 5px; z-index: 9999 !important; }
-    .pac-item { padding: 12px 15px; cursor: pointer; font-size: 15px; border-top: 1px solid #f1f5f9; }
-    .pac-item:hover { background-color: #f8fafc; }
-    .pac-item-query { font-size: 16px; color: #1e293b; font-weight: bold; }
-    
+    .lang-btn { transition: all 0.2s; border: 1px solid transparent; }
+    .lang-btn.active { background-color: #1e293b; color: #ffffff; border-color: #1e293b; }
+
+    .pac-container { border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); font-family: 'Noto Sans TC'; border: none; z-index: 9999 !important; }
     .swal2-popup { border-radius: 24px !important; font-family: 'Noto Sans TC', sans-serif !important; }
   </style>
 </head>
@@ -67,56 +59,58 @@
   </button>
 
   <div id="top-panel">
-    <div class="flex justify-between items-end mb-4">
+    <div class="flex justify-between items-start mb-4">
         <div>
             <h1 class="text-xl font-black text-slate-800 flex items-center gap-2">
-              <i class="fa-solid fa-calculator text-emerald-500"></i> 預估車資 Fare Calc
+              <i class="fa-solid fa-calculator text-emerald-500"></i> <span data-i18n="title">預估車資</span>
             </h1>
-            <p class="text-[12px] text-slate-500 mt-1 font-bold" id="quota-display">精準估算 (載入中...)</p>
+            <p class="text-[12px] text-slate-500 mt-1 font-bold" id="quota-display">--</p>
         </div>
-        <!-- 🚀 已更換為 GitHub Pages 純淨版包車連結 -->
-        <button onclick="window.location.href='https://u002146.github.io/103lybcd/universal-tour.html'" class="bg-slate-100 hover:bg-slate-200 active:scale-95 border border-slate-200 px-3 py-2 rounded-xl flex items-center justify-center transition-all shadow-sm">
-            <div class="flex flex-col items-center">
-                <i class="fa-solid fa-route text-indigo-500 text-[18px] mb-1"></i>
-                <span class="text-[10px] text-slate-600 font-bold tracking-wider">包車精算</span>
-            </div>
-        </button>
+        <div class="flex gap-1 bg-slate-100 p-1 rounded-lg border border-slate-200 scale-90 origin-right">
+            <button onclick="setLang('zh')" id="btn-lang-zh" class="lang-btn active text-[10px] font-bold px-2 py-1.5 rounded-md text-slate-600">繁中</button>
+            <button onclick="setLang('en')" id="btn-lang-en" class="lang-btn text-[10px] font-bold px-2 py-1.5 rounded-md text-slate-600">EN</button>
+            <button onclick="setLang('ja')" id="btn-lang-ja" class="lang-btn text-[10px] font-bold px-2 py-1.5 rounded-md text-slate-600">日本語</button>
+            <button onclick="setLang('ko')" id="btn-lang-ko" class="lang-btn text-[10px] font-bold px-2 py-1.5 rounded-md text-slate-600">한국어</button>
+        </div>
     </div>
     
     <div id="input-view">
-        <div class="text-[11px] text-slate-500 font-bold text-center tracking-wide flex items-center justify-center gap-1.5 bg-slate-100 py-2 rounded-lg border border-slate-200 mb-3">
-            <i class="fa-solid fa-circle-info text-slate-400"></i> 預估車資僅供參考，實際以跳錶為準 (Estimated only)
+        <div class="text-[11px] text-slate-400 font-bold text-center tracking-wide flex items-center justify-center gap-1.5 bg-slate-50 py-2 rounded-lg border border-slate-100 mb-3">
+            <i class="fa-solid fa-circle-info text-slate-300"></i> <span data-i18n="disclaimer">預估車資僅供參考，實際以跳錶為準</span>
         </div>
         
         <div class="space-y-3 w-full">
-            <div class="input-row locked" onclick="triggerGpsWarning()">
+            <div class="input-row bg-emerald-50/50 border-emerald-100" onclick="triggerGpsWarning()">
                 <i class="fa-solid fa-location-crosshairs text-emerald-500 w-6 text-center mr-2 text-lg"></i>
-                <input type="text" id="pickup-input" placeholder="GPS 自動定位 (Auto-locating)..." readonly>
-                <button onclick="useMyLocation(); event.stopPropagation();" class="text-emerald-600 p-2 active:scale-90 bg-emerald-100 hover:bg-emerald-200 rounded-xl ml-2 transition-colors"><i class="fa-solid fa-rotate-right"></i></button>
+                <input type="text" id="pickup-input" data-i18n-ph="phPickup" placeholder="GPS 自動定位..." readonly>
+                <button onclick="useMyLocation(); event.stopPropagation();" class="text-emerald-600 p-2 active:scale-90 bg-white shadow-sm rounded-xl ml-2 transition-colors border border-emerald-100"><i class="fa-solid fa-rotate-right"></i></button>
             </div>
             
             <div class="input-row shadow-sm">
                 <i class="fa-solid fa-location-dot text-rose-500 w-6 text-center mr-2 text-lg"></i>
-                <input type="text" id="dropoff-input" placeholder="輸入下車地點 (Enter Destination)">
+                <input type="text" id="dropoff-input" data-i18n-ph="phDropoff" placeholder="輸入下車地點">
             </div>
         </div>
         
-        <button onclick="calculateFare()" class="btn-calc">開始計算 (Calculate Fare)</button>
+        <div class="flex gap-2">
+            <button onclick="calculateFare()" class="btn-calc flex-1"><span data-i18n="btnCalc">開始計算車資</span></button>
+            <button onclick="window.location.href='https://u002146.github.io/103lybcd/universal-tour.html'" class="mt-4 bg-slate-100 border border-slate-200 px-4 rounded-16 flex flex-col items-center justify-center rounded-2xl active:scale-95 transition-all">
+                <i class="fa-solid fa-route text-indigo-500 text-lg mb-0.5"></i>
+                <span class="text-[10px] text-slate-500 font-bold" data-i18n="btnTour">包車精算</span>
+            </button>
+        </div>
     </div>
   </div>
 
   <div id="result-floating-card" class="hidden-card fixed bottom-6 left-4 right-4 mx-auto max-w-[500px] bg-white rounded-[28px] shadow-[0_20px_50px_rgba(0,0,0,0.15)] z-40 flex-col p-5 font-sans border border-slate-100 max-h-[85vh] overflow-y-auto">
       <div class="flex items-center gap-1.5 text-slate-400 font-bold text-sm mb-2">
-          <i class="fa-solid fa-flag-checkered"></i> 預估抵達 (Est. Arrival)
+          <i class="fa-solid fa-flag-checkered"></i> <span data-i18n="cardArrival">預估抵達</span>
       </div>
-      <div class="text-[24px] font-black text-slate-800 mb-4 tracking-tight" id="card-meta">
-          -- 公里 / -- 分鐘
-      </div>
+      <div class="text-[24px] font-black text-slate-800 mb-4 tracking-tight" id="card-meta">--</div>
       
       <div class="bg-amber-50 border-2 border-amber-100 rounded-2xl p-4 flex justify-between items-center shadow-sm mb-4">
           <div class="flex flex-col">
-              <span class="text-amber-700 font-black text-lg"><i class="fa-solid fa-taxi mr-1 text-amber-500"></i>標準小黃</span>
-              <span class="text-amber-600/70 font-bold text-[11px]">(Standard Taxi)</span>
+              <span class="text-amber-700 font-black text-lg"><i class="fa-solid fa-taxi mr-1 text-amber-500"></i><span data-i18n="taxiStandard">標準小黃</span></span>
           </div>
           <span class="text-amber-600 font-black text-[26px]" id="card-yellow">~NT$ --</span>
       </div>
@@ -127,294 +121,231 @@
           </button>
           
           <button onclick="bookViaLine()" class="w-full bg-[#06C755] hover:bg-[#05b34c] active:scale-[0.98] text-white font-black py-3.5 rounded-2xl transition-all flex items-center justify-center gap-2 text-[16px] shadow-[0_8px_20px_rgba(6,199,85,0.25)]">
-              <i class="fa-brands fa-line text-xl"></i> 用 LINE 一鍵叫車
+              <i class="fa-brands fa-line text-xl"></i> <span data-i18n="btnLine">用 LINE 一鍵叫車</span>
           </button>
           
           <button onclick="window.location.href='tel:+886976981123'" class="w-full bg-slate-800 hover:bg-slate-900 active:scale-[0.98] text-white font-black py-3 rounded-2xl transition-all flex items-center justify-center gap-2 text-[15px] shadow-sm">
-              <i class="fa-solid fa-phone"></i> 撥打總機 (Call Now)
+              <i class="fa-solid fa-phone"></i> <span data-i18n="btnPhone">撥打總機</span>
           </button>
       </div>
       
       <div id="extra-fares" class="hidden flex-col gap-3 mb-3 border-t border-slate-100 pt-3">
           <div class="bg-sky-50 border border-sky-100 rounded-2xl p-4 flex justify-between items-center shadow-sm">
-              <span class="text-sky-700 font-bold text-sm"><i class="fa-solid fa-car-side mr-1.5 text-sky-500"></i>多元專車 (1.2x)</span>
+              <span class="text-sky-700 font-bold text-sm"><i class="fa-solid fa-car-side mr-1.5 text-sky-500"></i><span data-i18n="taxiM12">多元專車 (1.2x)</span></span>
               <span class="text-sky-600 font-black text-xl" id="card-m12">~NT$ --</span>
           </div>
           <div class="bg-violet-50 border border-violet-100 rounded-2xl p-4 flex justify-between items-center shadow-sm">
-              <span class="text-violet-700 font-bold text-sm"><i class="fa-solid fa-van-shuttle mr-1.5 text-violet-500"></i>尊榮六座 (1.4x)</span>
+              <span class="text-violet-700 font-bold text-sm"><i class="fa-solid fa-van-shuttle mr-1.5 text-violet-500"></i><span data-i18n="taxiM14">尊榮六座 (1.4x)</span></span>
               <span class="text-violet-600 font-black text-xl" id="card-m14">~NT$ --</span>
           </div>
       </div>
       
       <button onclick="window.toggleFares()" id="toggle-btn" class="w-full bg-slate-50 hover:bg-slate-100 active:scale-[0.98] text-slate-500 font-bold py-3 rounded-xl transition-all flex items-center justify-center gap-2 text-[14px]">
-          展開更多車型 <i class="fa-solid fa-chevron-down text-sm"></i>
+          <span data-i18n="btnExpand">展開更多車型</span> <i class="fa-solid fa-chevron-down text-sm"></i>
       </button>
   </div>
 
   <div id="map"></div>
 
   <script>
-    const VERSION = "v4.2_Universal"; 
-    
+    const VERSION = "v4.3_Universal_i18n";
     const WA_PHONE = "886976981123"; 
     const LINE_OA_ID = "@103lybcd";  
-    
     const DAILY_LIMIT = 5;
 
-    let map, directionsService, directionsRenderer;
-    let dropoffAutocomplete; 
-    let isPickupValid = false; 
-    let currentRouteBounds = null; 
+    let map, directionsService, directionsRenderer, currLang = 'zh';
+    let dropoffAutocomplete, currentRouteBounds = null, isPickupValid = false; 
 
-    let currentOrderData = {
-        pickup: '',
-        dropoff: '',
-        duration: '',
-        yellowFare: 0
+    const I18N = {
+        zh: {
+            title: '預估車資', quota: '今日剩餘 %n 次', disclaimer: '預估車資僅供參考，實際以跳錶為準',
+            phPickup: 'GPS 自動定位...', phDropoff: '輸入下車地點 (跨縣市可)',
+            btnCalc: '開始計算車資', btnTour: '包車精算',
+            cardArrival: '預估抵達', taxiStandard: '標準小黃', taxiM12: '多元專車 (1.2x)', taxiM14: '尊榮六座 (1.4x)',
+            btnLine: '用 LINE 一鍵叫車', btnPhone: '撥打總機', btnExpand: '展開更多車型', btnCollapse: '收起詳細車資',
+            night: '夜間', km: '公里', min: '分鐘',
+            msgTitle: '預估車資叫車', msgNote: '實際車資依跳表為準',
+            swalLocating: '定位中...', swalErrorRange: '超出服務範圍', swalErrorRangeMsg: '上車點僅限花蓮境內喔！',
+            swalFinishLoc: '請先完成定位', swalFinishDest: '請填寫下車地點'
+        },
+        en: {
+            title: 'Fare Calc', quota: '%n quota left today', disclaimer: 'Estimated only. Final fare follows meter.',
+            phPickup: 'GPS Auto-locating...', phDropoff: 'Enter Destination',
+            btnCalc: 'Calculate Fare', btnTour: 'Charter Tour',
+            cardArrival: 'Est. Arrival', taxiStandard: 'Standard Taxi', taxiM12: 'Business (1.2x)', taxiM14: 'Luxury 6 (1.4x)',
+            btnLine: 'Book via LINE', btnPhone: 'Call Support', btnExpand: 'Show More Types', btnCollapse: 'Hide Details',
+            night: 'Night', km: 'km', min: 'min',
+            msgTitle: 'Taxi Booking', msgNote: 'Fare depends on taximeter',
+            swalLocating: 'Locating...', swalErrorRange: 'Out of Area', swalErrorRangeMsg: 'Pickup only within Hualien!',
+            swalFinishLoc: 'Wait for GPS...', swalFinishDest: 'Enter destination!'
+        },
+        ja: {
+            title: '料金見積', quota: '本日残り %n 回', disclaimer: '見積は参考です。実料金はメーター制。',
+            phPickup: 'GPS 自動取得中...', phDropoff: '目的地を入力してください',
+            btnCalc: '料金を計算する', btnTour: '貸切プラン',
+            cardArrival: '到着予定', taxiStandard: '標準タクシー', taxiM12: '特選車 (1.2x)', taxiM14: '6人乗り (1.4x)',
+            btnLine: 'LINEで予約', btnPhone: '電話で呼ぶ', btnExpand: '車種を増やす', btnCollapse: '詳細を隠す',
+            night: '夜間', km: 'km', min: '分',
+            msgTitle: 'タクシー配車依頼', msgNote: '実料金はメーターの通りです',
+            swalLocating: '位置取得中...', swalErrorRange: 'エリア外', swalErrorRangeMsg: '花蓮県内のみ対応しています。',
+            swalFinishLoc: '位置取得を待機', swalFinishDest: '目的地を入力'
+        },
+        ko: {
+            title: '예상 요금', quota: '오늘 남은 횟수 %n회', disclaimer: '예상 요금이며, 실제는 미터기 기준입니다.',
+            phPickup: 'GPS 자동 위치 지정...', phDropoff: '하차 목적지 입력',
+            btnCalc: '요금 계산하기', btnTour: '투어 정산',
+            cardArrival: '예상 도착', taxiStandard: '일반 택시', taxiM12: '프리미엄 (1.2x)', taxiM14: '6인승 대형 (1.4x)',
+            btnLine: 'LINE으로 호출', btnPhone: '고객센터 연결', btnExpand: '차종 더보기', btnCollapse: '상세 닫기',
+            night: '야간', km: 'km', min: '분',
+            msgTitle: '택시 호출 예약', msgNote: '실제 요금은 미터기에 따릅니다',
+            swalLocating: '위치 확인중...', swalErrorRange: '서비스 지역 외', swalErrorRangeMsg: '화롄 지역 내에서만 가능합니다.',
+            swalFinishLoc: '위치 확인 대기', swalFinishDest: '목적지 입력 필요'
+        }
     };
 
+    let currentOrderData = { pickup: '', dropoff: '', duration: '', yellowFare: 0 };
+
     window.onload = function() {
-        Swal.fire({ title: 'System Loading...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
         if(typeof google !== 'undefined') { initMap(); }
-        updateQuotaDisplay();
+        setLang('zh');
         useMyLocation();
     };
 
-    function triggerGpsWarning() {
-        if (!isPickupValid) {
-            Swal.fire({ icon: 'info', title: 'Location Locked', text: '為確保系統安全，上車點僅限由 GPS 自動定位 (Auto GPS only).', confirmButtonColor: '#00C853' });
-        }
+    function setLang(lang) {
+        currLang = lang;
+        document.querySelectorAll('.lang-btn').forEach(btn => btn.classList.remove('active'));
+        document.getElementById(`btn-lang-${lang}`).classList.add('active');
+        
+        document.querySelectorAll('[data-i18n]').forEach(el => {
+            const key = el.getAttribute('data-i18n');
+            if (I18N[lang][key]) el.innerText = I18N[lang][key];
+        });
+        document.querySelectorAll('[data-i18n-ph]').forEach(el => {
+            const key = el.getAttribute('data-i18n-ph');
+            if (I18N[lang][key]) el.placeholder = I18N[lang][key];
+        });
+        updateQuotaDisplay();
     }
 
-    function getRemainingQuota() {
+    function updateQuotaDisplay() {
         const today = new Date().toISOString().split('T')[0]; 
         let usageData = JSON.parse(localStorage.getItem('fareCalcUsage')) || { date: today, count: 0 };
-        if (usageData.date !== today) { usageData = { date: today, count: 0 }; localStorage.setItem('fareCalcUsage', JSON.stringify(usageData)); }
-        return Math.max(0, DAILY_LIMIT - usageData.count);
+        if (usageData.date !== today) usageData = { date: today, count: 0 };
+        const remaining = Math.max(0, DAILY_LIMIT - usageData.count);
+        document.getElementById('quota-display').innerText = I18N[currLang].quota.replace('%n', remaining);
     }
 
     function recordUsage() {
         const today = new Date().toISOString().split('T')[0];
         let usageData = JSON.parse(localStorage.getItem('fareCalcUsage')) || { date: today, count: 0 };
-        usageData.count++; localStorage.setItem('fareCalcUsage', JSON.stringify(usageData));
+        usageData.count++; 
+        localStorage.setItem('fareCalcUsage', JSON.stringify(usageData));
         updateQuotaDisplay();
     }
 
-    function updateQuotaDisplay() {
-        const remaining = getRemainingQuota();
-        document.getElementById('quota-display').innerText = `今日剩餘 (Quota left): ${remaining} 次`;
-    }
-
     function initMap() {
-        map = new google.maps.Map(document.getElementById("map"), {
-            center: { lat: 23.991, lng: 121.601 }, zoom: 14, disableDefaultUI: true, mapTypeControl: false
-        });
-        
+        map = new google.maps.Map(document.getElementById("map"), { center: { lat: 23.991, lng: 121.601 }, zoom: 14, disableDefaultUI: true });
         directionsService = new google.maps.DirectionsService();
-        directionsRenderer = new google.maps.DirectionsRenderer({
-            map: map, suppressMarkers: false, preserveViewport: true, 
-            polylineOptions: { strokeColor: '#00C853', strokeWeight: 6, strokeOpacity: 0.8 }
-        });
-
-        const options = { componentRestrictions: { country: "tw" } };
-        dropoffAutocomplete = new google.maps.places.Autocomplete(document.getElementById('dropoff-input'), options);
-        dropoffAutocomplete.setFields(['formatted_address', 'geometry']);
+        directionsRenderer = new google.maps.DirectionsRenderer({ map: map, polylineOptions: { strokeColor: '#00C853', strokeWeight: 6 } });
+        dropoffAutocomplete = new google.maps.places.Autocomplete(document.getElementById('dropoff-input'), { componentRestrictions: { country: "tw" } });
     }
 
     function useMyLocation() {
         if (navigator.geolocation) {
-            Swal.fire({ title: 'Locating...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
-            navigator.geolocation.getCurrentPosition(
-                (position) => {
-                    const lat = position.coords.latitude;
-                    const lng = position.coords.longitude;
-                    const geocoder = new google.maps.Geocoder();
-                    geocoder.geocode({ location: { lat, lng } }, (results, status) => {
-                        if (status === "OK" && results[0]) {
-                            const addr = results[0].formatted_address.replace("台灣", "").replace(/[0-9]{3}/, "");
-                            
-                            if (!addr.includes("花蓮")) {
-                                isPickupValid = false;
-                                document.getElementById('pickup-input').value = "您不在服務範圍 (Out of service area)";
-                                document.getElementById('pickup-input').style.color = "#e74c3c";
-                                Swal.fire({ icon: 'error', title: 'Out of Area', html: '上車地點僅限<b style="color:#e74c3c;">花蓮境內 (Hualien Area Only)</b>', confirmButtonColor: '#e74c3c' });
-                                return;
-                            }
-
-                            isPickupValid = true;
-                            document.getElementById('pickup-input').value = addr;
-                            document.getElementById('pickup-input').style.color = "#00C853";
-                            Swal.close();
-                            
-                            map.setZoom(16);
-                            map.setCenter({lat, lng});
-                            
-                            if (window.pickupMarker) window.pickupMarker.setMap(null);
-                            window.pickupMarker = new google.maps.Marker({
-                                position: {lat, lng}, map: map, zIndex: 999,
-                                icon: { path: google.maps.SymbolPath.CIRCLE, scale: 9, fillColor: '#00C853', fillOpacity: 1, strokeColor: '#ffffff', strokeWeight: 3 }
-                            });
-
-                            setTimeout(() => {
-                                const topPanelHeight = document.getElementById('top-panel').offsetHeight;
-                                map.panBy(0, -(topPanelHeight / 2));
-                            }, 100);
-
-                        } else {
+            Swal.fire({ title: I18N[currLang].swalLocating, allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+            navigator.geolocation.getCurrentPosition((pos) => {
+                const lat = pos.coords.latitude, lng = pos.coords.longitude;
+                new google.maps.Geocoder().geocode({ location: { lat, lng } }, (results, status) => {
+                    if (status === "OK" && results[0]) {
+                        const addr = results[0].formatted_address.replace("台灣", "").replace(/[0-9]{3}/, "");
+                        if (!addr.includes("花蓮")) {
                             isPickupValid = false;
-                            Swal.fire('Error', 'Unable to parse address.', 'error');
+                            Swal.fire(I18N[currLang].swalErrorRange, I18N[currLang].swalErrorRangeMsg, 'error');
+                            return;
                         }
-                    });
-                },
-                () => { 
-                    isPickupValid = false;
-                    Swal.fire({icon: 'error', title: 'GPS Denied', text: '請允許網頁取得定位權限 (Please allow location access).', confirmButtonColor: '#00C853'}); 
-                },
-                { enableHighAccuracy: true, timeout: 10000 }
-            );
-        } else {
-            Swal.fire('Error', 'GPS not supported on this device.', 'error');
+                        isPickupValid = true;
+                        document.getElementById('pickup-input').value = addr;
+                        Swal.close();
+                        map.setCenter({lat, lng}); map.setZoom(16);
+                        if (window.pickupMarker) window.pickupMarker.setMap(null);
+                        window.pickupMarker = new google.maps.Marker({ position: {lat, lng}, map, icon: { path: google.maps.SymbolPath.CIRCLE, scale: 9, fillColor: '#00C853', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 3 } });
+                    }
+                });
+            }, () => Swal.fire('GPS Denied', 'Please allow location access.', 'error'), { enableHighAccuracy: true });
         }
+    }
+
+    function calculateFare() {
+        const pickup = document.getElementById('pickup-input').value;
+        const dropoff = document.getElementById('dropoff-input').value;
+        if (!isPickupValid || !pickup) return Swal.fire(I18N[currLang].swalFinishLoc, '', 'warning');
+        if (!dropoff) return Swal.fire(I18N[currLang].swalFinishDest, '', 'warning');
+
+        Swal.fire({ title: '...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+        directionsService.route({ origin: pickup, destination: dropoff, travelMode: 'DRIVING' }, (result, status) => {
+            Swal.close();
+            if (status == 'OK') {
+                recordUsage();
+                directionsRenderer.setDirections(result);
+                const route = result.routes[0].legs[0];
+                currentRouteBounds = result.routes[0].bounds;
+                
+                const isNight = (new Date().getHours() >= 22 || new Date().getHours() < 6);
+                const yellowFare = calculateOfficialFare(route.distance.value, route.duration.value, isNight);
+                
+                currentOrderData = { pickup, dropoff, duration: route.duration.text, yellowFare };
+
+                document.getElementById('card-meta').innerHTML = `${route.distance.text} / ${route.duration.text} ${isNight ? `(${I18N[currLang].night})` : ''}`;
+                document.getElementById('card-yellow').innerText = `~NT$ ${yellowFare}`;
+                document.getElementById('card-m12').innerText = `~NT$ ${Math.round(yellowFare * 1.2 / 5) * 5}`;
+                document.getElementById('card-m14').innerText = `~NT$ ${Math.round(yellowFare * 1.4 / 5) * 5}`;
+
+                document.getElementById('top-panel').classList.add('hide-top');
+                document.getElementById('back-btn').classList.remove('hidden-btn');
+                document.getElementById('result-floating-card').classList.remove('hidden-card');
+            }
+        });
+    }
+
+    // 🚀 WhatsApp 雙語訂單發送
+    function bookViaWhatsApp() {
+        const msg = `🚕 *${I18N[currLang].msgTitle}*\n\n📍 Pickup (上車): \n${currentOrderData.pickup}\n\n🏁 Drop-off (下車): \n${currentOrderData.dropoff}\n\n⏱️ Est. Time (預估): ${currentOrderData.duration}\n💰 Est. Fare (小黃): ~NT$ ${currentOrderData.yellowFare}\n\n(註: ${I18N[currLang].msgNote})`;
+        window.open(`https://wa.me/${WA_PHONE}?text=${encodeURIComponent(msg)}`, '_blank');
+    }
+
+    // 🚀 LINE 雙語訂單發送 (帶參數至官方帳號)
+    function bookViaLine() {
+        const msg = `🚕 【${I18N[currLang].msgTitle}】\n📍 上車 (Pickup)：${currentOrderData.pickup}\n🏁 下車 (Dropoff)：${currentOrderData.dropoff}\n⏱️ 預估時間：${currentOrderData.duration}\n💰 預估小黃：NT$ ${currentOrderData.yellowFare}\n(${I18N[currLang].msgNote})`;
+        window.open(`https://line.me/R/oaMessage/${LINE_OA_ID}/?${encodeURIComponent(msg)}`, '_blank');
+    }
+
+    function calculateOfficialFare(m, s, isNight) {
+        let fare = 100;
+        if (isNight) {
+            if (m > 834) fare += Math.ceil((m - 834) / 192) * 5;
+            fare += Math.floor((s * 0.2) / 100) * 5;
+        } else {
+            if (m > 1000) fare += Math.ceil((m - 1000) / 230) * 5;
+            fare += Math.floor((s * 0.2) / 120) * 5;
+        }
+        return Math.round(fare / 5) * 5;
+    }
+
+    function resetView() {
+        document.getElementById('top-panel').classList.remove('hide-top');
+        document.getElementById('back-btn').classList.add('hidden-btn');
+        document.getElementById('result-floating-card').classList.add('hidden-card');
+        directionsRenderer.setDirections({routes: []});
+        useMyLocation();
     }
 
     window.toggleFares = function() {
         const extra = document.getElementById('extra-fares');
         const btn = document.getElementById('toggle-btn');
-        if (extra.classList.contains('hidden')) {
-            extra.classList.remove('hidden');
-            extra.classList.add('flex');
-            btn.innerHTML = '收起詳細車資 <i class="fa-solid fa-chevron-up"></i>';
-        } else {
-            extra.classList.add('hidden');
-            extra.classList.remove('flex');
-            btn.innerHTML = '展開更多車型 <i class="fa-solid fa-chevron-down"></i>';
-        }
-        
-        if (currentRouteBounds) {
-            setTimeout(() => {
-                const cardHeight = document.getElementById('result-floating-card').offsetHeight;
-                map.fitBounds(currentRouteBounds, { top: 100, bottom: cardHeight + 40, left: 40, right: 40 });
-            }, 50);
-        }
+        const isHidden = extra.classList.contains('hidden');
+        extra.classList.toggle('hidden');
+        btn.querySelector('span').innerText = isHidden ? I18N[currLang].btnCollapse : I18N[currLang].btnExpand;
     };
-
-    function calculateFare() {
-        if (getRemainingQuota() <= 0) {
-            Swal.fire({ icon: 'warning', title: 'Quota Exceeded', text: '今日估算次數已達上限。請直接撥打電話叫車！', confirmButtonColor: '#00C853', confirmButtonText: 'OK' }); return;
-        }
-
-        const pickup = document.getElementById('pickup-input').value;
-        const dropoff = document.getElementById('dropoff-input').value;
-
-        if (!isPickupValid || !pickup || pickup.includes("自動定位") || pickup.includes("Out of service")) {
-            Swal.fire({ icon: 'warning', title: 'Location Required', text: '請等待 GPS 完成自動定位！', confirmButtonColor: '#00C853' }); return;
-        }
-        if (!dropoff) {
-            Swal.fire({ icon: 'warning', title: 'Destination Required', text: '請輸入下車地點！', confirmButtonColor: '#00C853' }); return;
-        }
-
-        Swal.fire({ title: 'Routing...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
-
-        const request = { origin: pickup, destination: dropoff, travelMode: 'DRIVING' };
-
-        directionsService.route(request, (result, status) => {
-            Swal.close();
-            if (status == 'OK') {
-                recordUsage();
-                
-                if (window.pickupMarker) window.pickupMarker.setMap(null);
-                
-                directionsRenderer.setDirections(result);
-                const route = result.routes[0].legs[0];
-                currentRouteBounds = result.routes[0].bounds; 
-                
-                const distanceMeters = route.distance.value; 
-                const durationSeconds = route.duration.value; 
-                
-                const currentHour = new Date().getHours();
-                const isNight = (currentHour >= 22 || currentHour < 6);
-                const modeTag = isNight ? '<span class="text-[12px] bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded ml-2 align-middle">夜間 Night</span>' : '';
-                
-                const yellowFare = calculateOfficialFare(distanceMeters, durationSeconds, isNight);
-                const m12Fare = roundToTaxiStandard(yellowFare * 1.2);
-                const m14Fare = roundToTaxiStandard(yellowFare * 1.4);
-
-                currentOrderData.pickup = pickup;
-                currentOrderData.dropoff = dropoff;
-                currentOrderData.duration = route.duration.text;
-                currentOrderData.yellowFare = yellowFare;
-
-                document.getElementById('card-meta').innerHTML = `${route.distance.text} / ${route.duration.text} ${modeTag}`;
-                document.getElementById('card-yellow').innerText = `~NT$ ${yellowFare}`;
-                document.getElementById('card-m12').innerText = `~NT$ ${m12Fare}`;
-                document.getElementById('card-m14').innerText = `~NT$ ${m14Fare}`;
-
-                document.getElementById('top-panel').classList.add('hide-top');
-                document.getElementById('back-btn').classList.remove('hidden-btn');
-                
-                const floatingCard = document.getElementById('result-floating-card');
-                floatingCard.classList.remove('hidden-card');
-                floatingCard.classList.add('flex');
-
-                setTimeout(() => {
-                    const cardHeight = floatingCard.offsetHeight;
-                    map.fitBounds(currentRouteBounds, { 
-                        top: 100, 
-                        bottom: cardHeight + 40, 
-                        left: 40, right: 40 
-                    });
-                }, 100);
-
-            } else {
-                Swal.fire('Error', '無法計算路線 (Cannot route).', 'error');
-            }
-        });
-    }
-
-    function bookViaWhatsApp() {
-        const msg = `🚕 *Hualien Taxi Order / 預估車資叫車*\n\n📍 Pickup (上車): \n${currentOrderData.pickup}\n\n🏁 Drop-off (下車): \n${currentOrderData.dropoff}\n\n⏱️ Est. Time (預估時間): ${currentOrderData.duration}\n💰 Est. Fare (預估小黃): ~NT$ ${currentOrderData.yellowFare}\n\n(Note: Actual fare is based on meter / 實際車資依跳表為準)`;
-        const url = `https://wa.me/${WA_PHONE}?text=${encodeURIComponent(msg)}`;
-        window.open(url, '_blank');
-    }
-
-    function bookViaLine() {
-        const msg = `🚕 【預估車資叫車】\n📍 上車：${currentOrderData.pickup}\n🏁 下車：${currentOrderData.dropoff}\n⏱️ 預估時間：${currentOrderData.duration}\n💰 預估小黃：約 NT$ ${currentOrderData.yellowFare}\n(註：實際車資依跳表為準)`;
-        const url = `https://line.me/R/oaMessage/${LINE_OA_ID}/?${encodeURIComponent(msg)}`;
-        window.open(url, '_blank');
-    }
-    
-    function calculateOfficialFare(meters, seconds, isNight) {
-        let fare = 100; 
-        const idleSeconds = seconds * 0.2; 
-        if (isNight) {
-            if (meters > 834) { fare += Math.ceil((meters - 834) / 192) * 5; }
-            fare += Math.floor(idleSeconds / 100) * 5;
-        } else {
-            if (meters > 1000) { fare += Math.ceil((meters - 1000) / 230) * 5; }
-            fare += Math.floor(idleSeconds / 120) * 5;
-        }
-        return roundToTaxiStandard(fare);
-    }
-    
-    function roundToTaxiStandard(num) { return Math.round(num / 5) * 5; }
-
-    function resetView() {
-        document.getElementById('top-panel').classList.remove('hide-top');
-        document.getElementById('back-btn').classList.add('hidden-btn');
-        
-        const floatingCard = document.getElementById('result-floating-card');
-        floatingCard.classList.add('hidden-card');
-        setTimeout(() => floatingCard.classList.remove('flex'), 300); 
-        
-        const extra = document.getElementById('extra-fares');
-        if (!extra.classList.contains('hidden')) {
-            window.toggleFares();
-        }
-        
-        directionsRenderer.set('directions', null);
-        currentRouteBounds = null;
-        useMyLocation(); 
-    }
   </script>
 </body>
 </html>
