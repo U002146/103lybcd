@@ -9,7 +9,6 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   
-  <!-- 🚀 拔除 LIFF SDK，只需 Google Maps API -->
   <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAIxc6PEhHgUs_A9lyRUg8dNbmwOpSamY8&libraries=places,geometry"></script>
 
   <style>
@@ -31,12 +30,10 @@
     .form-container { position: relative; z-index: 10; background-color: #f8fafc; min-height: 100vh; padding-bottom: 60px; }
     .swal2-popup { border-radius: 24px !important; font-family: 'Noto Sans TC', sans-serif !important; }
     
-    /* 景點勾選時文字強制反白 */
     .custom-checkbox input:checked + div { background-color: #0f172a; border-color: #0f172a; }
     .custom-checkbox input:checked + div span { color: #ffffff !important; }
     .custom-checkbox input:checked + div i { color: #34d399 !important; }
     
-    /* 車型勾選時文字與圖示強制高對比 */
     .custom-radio input:checked + div { background-color: #0f172a; border-color: #0f172a; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.3); transform: scale(1.02); }
     .custom-radio input:checked + div div { color: #ffffff !important; }
     .custom-radio input:checked + div i { color: #34d399 !important; }
@@ -185,11 +182,10 @@
   </div>
 
   <script>
-    const VERSION = "v5.0_Universal"; // 🚀 純淨版升級
+    const VERSION = "v5.1_Universal"; 
     
-    // ⚠️ 請填入你的車隊聯絡資訊
-    const WA_PHONE = "886976981123"; // 填入包含國碼的 WhatsApp 號碼 (不含 + 號)
-    const LINE_OA_ID = "@103lybcd";  // 填入你的 LINE 官方帳號 ID
+    const WA_PHONE = "886976981123"; 
+    const LINE_OA_ID = "@103lybcd";  
     
     let map, directionsService, directionsRenderer, currentCalcResult = null, currLang = 'zh';
     let autoFilledDropoff = ""; 
@@ -317,7 +313,6 @@
       }
     };
 
-    // 🚀 拔除 LIFF，直接啟動
     window.onload = function() {
       if(typeof google !== 'undefined') { initMap(); }
       setLang('zh');
@@ -581,7 +576,6 @@
       currentCalcResult = { hours: finalH.toFixed(1), price: finalP, limitKm: limitK, actualKm, isOvertime: isOT, isOverKm: isOverK, isLongDistance: isLong, backendPoiText: backendList, routeId: routeId };
     }
 
-    // 🚀 全新萬國出口：拔除 LINE Flex，改為彈窗發送矩陣
     function submitForm() {
       if (!currentCalcResult) return;
       
@@ -598,25 +592,20 @@
       }
       const date = document.getElementById('tourDate').value;
       
-      // 🚀 組裝雙語純文字訂單，用於 WhatsApp / LINE Deep Link 發送
       const msgText = `🚙 *Custom Tour Request / 客製包車需求單*\n\n📅 Date (日期): ${date}\n👥 Type (車型): ${carEn} / ${carZh}\n🗺️ Route (路線): ${finalRouteEn} / ${finalRouteZh}\n⏱️ Est. Hours (預估時數): ${currentCalcResult.hours} hrs\n\n📍 Itinerary (行程):\n${currentCalcResult.backendPoiText}\n\n💰 Est. Fare (預估基本車資): ~NT$ ${currentCalcResult.price.toLocaleString()}\n(Note: Extra hours/km will be charged additionally / 超時超里程另計)`;
 
-      // 彈出萬國收銀台 (Global Checkout Modal)
       Swal.fire({
         title: I18N[currLang].chooseMethod,
         html: `
           <div class="flex flex-col gap-3 mt-4">
-              <!-- WhatsApp 外國客通道 -->
               <button onclick="window.open('https://wa.me/${WA_PHONE}?text=${encodeURIComponent(msgText)}', '_blank')" class="w-full bg-[#25D366] hover:bg-[#128C7E] text-white font-black py-4 rounded-xl transition-all flex items-center justify-center gap-2 shadow-sm text-lg active:scale-95">
                   <i class="fa-brands fa-whatsapp text-2xl"></i> WhatsApp
               </button>
               
-              <!-- LINE OA 本國客通道 -->
               <button onclick="window.open('https://line.me/R/oaMessage/${LINE_OA_ID}/?${encodeURIComponent(msgText)}', '_blank')" class="w-full bg-[#06C755] hover:bg-[#05b34c] text-white font-black py-4 rounded-xl transition-all flex items-center justify-center gap-2 shadow-sm text-lg active:scale-95">
                   <i class="fa-brands fa-line text-2xl"></i> LINE
               </button>
 
-              <!-- Email 防呆備用通道 -->
               <button onclick="window.open('mailto:?subject=Custom Tour Request&body=${encodeURIComponent(msgText)}', '_blank')" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-black py-4 rounded-xl transition-all flex items-center justify-center gap-2 shadow-sm text-lg active:scale-95">
                   <i class="fa-regular fa-envelope text-xl"></i> Email
               </button>
