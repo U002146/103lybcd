@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>花蓮車隊 | 智慧呼叫系統</title>
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAIxc6PEhHgUs_A9lyRUg8dNbmwOpSamY8&libraries=geometry"></script>
+  
+  <style>
+    body { background-color: #0f172a; margin: 0; font-family: 'Noto Sans TC', sans-serif; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+    
+    #top-radar { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%); overflow: hidden;}
+    
+    .radar-pulse { position: absolute; width: 150px; height: 150px; background: rgba(16, 185, 129, 0.15); border-radius: 50%; z-index: 1; animation: pulse-ring 2.5s cubic-bezier(0.215, 0.61, 0.355, 1) infinite; }
+    .radar-pulse:nth-child(2) { animation-delay: 0.8s; }
+    .radar-pulse:nth-child(3) { animation-delay: 1.6s; }
+    @keyframes pulse-ring { 0% { transform: scale(1); opacity: 1; } 100% { transform: scale(3.5); opacity: 0; } }
+    
+    .status-badge { z-index: 10; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(10px); padding: 12px 24px; border-radius: 30px; border: 1px solid rgba(255,255,255,0.1); color: white; display: flex; flex-direction: column; align-items: center; text-align: center; margin-bottom: 20px;}
+    
+    #bottom-control { height: 45vh; background: white; border-top-left-radius: 32px; border-top-right-radius: 32px; box-shadow: 0 -10px 40px rgba(0,0,0,0.5); display: flex; flex-direction: column; align-items: center; padding: 40px 24px 30px 24px; position: relative; z-index: 20; }
+    
+    /* 巨大盲操按鈕三段變形 */
+    .btn-call { width: 100%; height: 100px; border-radius: 24px; border: none; outline: none; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; transition: transform 0.1s; cursor: pointer; flex-direction: column; gap: 4px; }
+    .btn-call:active { transform: scale(0.96); }
+    
+    /* 狀態 A: 本區有車 (翠綠發光) */
+    .btn-state-a { background: linear-gradient(135deg, #10b981, #059669); box-shadow: 0 15px 35px rgba(16, 185, 129, 0.4), inset 0 2px 0 rgba(255,255,255,0.2); }
+    /* 狀態 B: 鄰近支援 (深海藍發光) */
+    .btn-state-b { background: linear-gradient(135deg, #3b82f6, #1d4ed8); box-shadow: 0 15px 35px rgba(59, 130, 246, 0.4), inset 0 2px 0 rgba(255,255,255,0.2); }
+    /* 狀態 C: 無車調度 (曜石黑) */
+    .btn-state-c { background: linear-gradient(135deg, #334155, #0f172a); box-shadow: 0 15px 35px rgba(15, 23, 42, 0.4), inset 0 2px 0 rgba(255,255,255,0.2); }
+    /* 狀態 D: 鎖定中 (灰階) */
+    .btn-state-disabled { background: linear-gradient(135deg, #94a3b8, #64748b); box-shadow: none; pointer-events: none; }
+
+    .btn-title { font-size: 26px; font-weight: 900; color: white; letter-spacing: 1px; text-shadow: 0 2px 4px rgba(0,0,0,0.2); line-height: 1.1; }
+    .btn-subtitle { font-size: 14px; font-weight: bold; color: rgba(255,255,255,0.9); }
+
+    .book-tour-link { margin-top: 20px; font-size: 15px; font-weight: bold; color: #64748b; text-decoration: underline; text-underline-offset: 4px; cursor: pointer; transition: color 0.2s; }
+    .book-tour-link:active { color: #3b82f6; }
+
+    .swal2-popup { border-radius: 28px !important; font-family: 'Noto Sans TC', sans-serif !important; }
+    
+    /* 防放鴿子鎖定層 */
+    #lock-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.85); z-index: 9999; display: none; flex-direction: column; align-items: center; justify-content: center; backdrop-filter: blur(15px); }
+    .lock-text { color: white; font-size: 24px; font-weight: 900; margin-top: 20px; text-align: center; }
+    .lock-sub { color: #10b981; font-size: 18px; font-weight: bold; margin-top: 10px; }
+  </style>
+</head>
+<body>
+
+  <!-- 防放鴿子全螢幕鎖定 -->
+  <div id="lock-overlay">
+      <i class="fa-solid fa-car-side fa-bounce text-emerald-400 text-6xl"></i>
+      <div class="lock-text">配對中，請勿關閉網頁</div>
+      <div class="lock-sub">倒數 <span id="lock-countdown">15</span> 秒</div>
+  </div>
+
+  <div id="top-radar">
+      <div class="radar-pulse"></div>
+      <div class="radar-pulse"></div>
+      <div class="radar-pulse"></div>
+      
+      <div class="status-badge" id="location-badge">
+          <span class="text-emerald-400 text-[13px] font-bold mb-1" id="loc-status"><i class="fa-solid fa-satellite-dish animate-pulse mr-1"></i> 定位中...</span>
+          <span class="text-2xl font-black tracking-widest text-slate-100" id="zone-name">解析位置中</span>
+      </div>
+      
+      <div class="z-10 text-slate-400 font-bold bg-slate-800/50 px-4 py-1.5 rounded-full border border-slate-700" id="vehicle-count-display">
+          掃描周邊車隊網絡...
+      </div>
+  </div>
+
+  <div id="bottom-control">
+      <div class="w-16 h-1.5 bg-slate-200 rounded-full absolute top-4"></div>
+      
+      <div class="text-slate-800 text-[22px] font-black mb-1 tracking-wide mt-2" id="call-title">免輸入地址，自動派單</div>
+      <div class="text-slate-500 text-[13px] font-bold mb-6 text-center px-4" id="call-subtitle">系統將自動為您指派最快到達的合法專車</div>
+      
+      <button id="main-btn" class="btn-call btn-state-disabled" onclick="triggerDispatch()">
+          <span class="btn-title" id="btn-title">系統連線中</span>
+          <span class="btn-subtitle" id="btn-subtitle">請稍候...</span>
+      </button>
+
+      <div class="book-tour-link" onclick="window.location.href='https://u002146.github.io/103lybcd/universal-tour.html'">
+          不趕時間？改用【客製化預約】
+      </div>
+  </div>
+
+  <script>
+    const VERSION = "v1.1_Passenger_AntiGhosting";
+    const firebaseConfig = { databaseURL: "https://hualientaxi-bb32f-default-rtdb.asia-southeast1.firebasedatabase.app/" };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    // 建立乘客 Session ID (免登入機制)
+    let passengerId = localStorage.getItem('guest_pid');
+    if (!passengerId) {
+        passengerId = 'GUEST-' + Math.random().toString(36).substr(2, 9).toUpperCase();
+        localStorage.setItem('guest_pid', passengerId);
+    }
+    let passengerPhone = localStorage.getItem('passengerPhone') || "";
+
+    const GEO_RAW = {
+      "type": "FeatureCollection",
+      "features": [
+        { "type": "Feature", "properties": { "花蓮前站": "" }, "geometry": { "coordinates": [ 121.60168998252806, 23.992626784625898 ], "type": "Point" }, "id": 0 },
+        { "type": "Feature", "properties": { "門諾醫院": "" }, "geometry": { "coordinates": [ 121.62634974720402, 23.988350693835287 ], "type": "Point" }, "id": 1 },
+        { "type": "Feature", "properties": { "七星潭": "" }, "geometry": { "coordinates": [ 121.62985443925902, 24.0240452839449 ], "type": "Point" }, "id": 2 },
+        { "type": "Feature", "properties": { "花蓮市區": "" }, "geometry": { "coordinates": [ 121.60503445968459, 23.975719035539854 ], "type": "Point" }, "id": 3 },
+        { "type": "Feature", "properties": { "慈濟醫院": "" }, "geometry": { "coordinates": [ 121.59259277050967, 23.99472348051779 ], "type": "Point" }, "id": 4 },
+        { "type": "Feature", "properties": { "貨櫃星巴克": "" }, "geometry": { "coordinates": [ 121.59485216992056, 23.93864335170278 ], "type": "Point" }, "id": 5 },
+        { "type": "Feature", "properties": { "海洋公園": "" }, "geometry": { "coordinates": [ 121.60339089561705, 23.90115152457301 ], "type": "Point" }, "id": 6 },
+        { "type": "Feature", "properties": { "南華區": "" }, "geometry": { "coordinates": [ 121.55015997975681, 23.953530367218633 ], "type": "Point" }, "id": 7 },
+        { "type": "Feature", "properties": { "鯉魚潭": "" }, "geometry": { "coordinates": [ 121.5059120436257, 23.928738031821098 ], "type": "Point" }, "id": 8 },
+        { "type": "Feature", "properties": { "吉安站": "" }, "geometry": { "coordinates": [ 121.58260829450097, 23.968271265573676 ], "type": "Point" }, "id": 9 },
+        { "type": "Feature", "properties": { "北埔區": "" }, "geometry": { "coordinates": [ 121.6049584313999, 24.036053518573794 ], "type": "Point" }, "id": 10 },
+        { "type": "Feature", "properties": { "東華大學": "" }, "geometry": { "coordinates": [ 121.53630247302488, 23.903708037772105 ], "type": "Point" }, "id": 11 },
+        { "type": "Feature", "properties": { "新城區": "" }, "geometry": { "coordinates": [ 121.65311981456426, 24.128359901120476 ], "type": "Point" }, "id": 12 },
+        { "type": "Feature", "properties": { "花蓮後站": "" }, "geometry": { "coordinates": [ 121.59913250603176, 23.994160342822838 ], "type": "Point" }, "id": 24 },
+        
+        { "type": "Feature", "geometry": { "coordinates": [[[121.621501,24.092506],[121.653926,24.116610],[121.666316,24.142070],[121.668852,24.178144],[121.657187,24.181655],[121.644718,24.155221],[121.606200,24.166211],[121.600318,24.161506],[121.619900,24.153495],[121.632674,24.137602],[121.613742,24.105961],[121.599645,24.108858],[121.597810,24.104062],[121.607230,24.103632],[121.607789,24.100907],[121.615904,24.100453],[121.621501,24.092506]]], "type": "Polygon" } },
+        { "type": "Feature", "geometry": { "coordinates": [[[121.604948,23.901474],[121.610687,23.926220],[121.612580,23.942989],[121.608024,23.941799],[121.591145,23.909209],[121.577361,23.892592],[121.601849,23.876074],[121.604948,23.901474]]], "type": "Polygon" } },
+        { "type": "Feature", "geometry": { "coordinates": [[[121.639506,23.993598],[121.648135,24.008651],[121.643382,24.019640],[121.623962,24.042681],[121.619458,24.041224],[121.628747,24.024339],[121.615551,24.008296],[121.618160,24.005953],[121.631206,24.007526],[121.632488,24.008181],[121.638329,24.005843],[121.637199,23.994001],[121.639506,23.993598]]], "type": "Polygon" } },
+        { "type": "Feature", "geometry": { "coordinates": [[[121.535547,23.932017],[121.512450,23.889656],[121.515776,23.886672],[121.517735,23.880624],[121.520035,23.876071],[121.526071,23.873088],[121.530713,23.873879],[121.535878,23.879688],[121.542451,23.879972],[121.571687,23.888404],[121.590972,23.909476],[121.535547,23.932017]]], "type": "Polygon" } },
+        { "type": "Feature", "geometry": { "coordinates": [[[121.534930,23.932707],[121.520771,23.947018],[121.510697,23.960677],[121.495462,23.969784],[121.479319,23.973066],[121.477172,23.970161],[121.502105,23.953288],[121.500065,23.924869],[121.489372,23.898882],[121.496465,23.884703],[121.512192,23.889863],[121.534930,23.932707]]], "type": "Polygon" } },
+        { "type": "Feature", "geometry": { "coordinates": [[[121.621473,24.092329],[121.615890,24.100417],[121.607771,24.100864],[121.607187,24.103606],[121.598394,24.103863],[121.609935,24.097499],[121.602034,24.078485],[121.582579,24.048778],[121.576432,24.021054],[121.582037,24.017281],[121.583576,24.015313],[121.585245,24.014263],[121.589424,24.014322],[121.591092,24.014396],[121.592502,24.013064],[121.595152,24.013873],[121.607105,24.013479],[121.610118,24.011970],[121.628461,24.024218],[121.619209,24.041341],[121.623579,24.042700],[121.616476,24.062867],[121.621473,24.092329]]], "type": "Polygon" } },
+        { "type": "Feature", "geometry": { "coordinates": [[[121.608853,23.962525],[121.604308,23.963716],[121.599956,23.959501],[121.592253,23.960256],[121.577888,23.953156],[121.573188,23.944287],[121.561521,23.938944],[121.555415,23.926686],[121.569790,23.920126],[121.595530,23.917945],[121.607366,23.941806],[121.610149,23.942395],[121.606798,23.951657],[121.608853,23.962525]]], "type": "Polygon" } },
+        { "type": "Feature", "geometry": { "coordinates": [[[121.636974,23.994142],[121.638162,24.005833],[121.632291,24.008063],[121.631023,24.007418],[121.618029,24.005899],[121.616089,24.007697],[121.613669,24.000403],[121.610744,23.984856],[121.610240,23.984409],[121.610420,23.980999],[121.611960,23.980436],[121.612986,23.979576],[121.613859,23.979451],[121.614167,23.980577],[121.614270,23.981452],[121.615929,23.981655],[121.617623,23.980905],[121.618513,23.979217],[121.626351,23.972007],[121.636974,23.994142]]], "type": "Polygon" } },
+        { "type": "Feature", "geometry": { "coordinates": [[[121.554934,23.926874],[121.555328,23.926700],[121.561388,23.939022],[121.573067,23.944405],[121.578220,23.954043],[121.562668,23.962982],[121.548449,23.969906],[121.536591,23.958793],[121.517658,23.951543],[121.536169,23.932649],[121.554934,23.926874]]], "type": "Polygon" } },
+        { "type": "Feature", "geometry": { "coordinates": [[[121.608868,23.962642],[121.621165,23.976698],[121.618494,23.979126],[121.617588,23.980866],[121.615902,23.981602],[121.614346,23.981389],[121.614241,23.980583],[121.613927,23.979394],[121.612975,23.979522],[121.611877,23.980374],[121.610332,23.980884],[121.609891,23.984704],[121.607266,23.982964],[121.597024,23.985025],[121.591904,23.974303],[121.589916,23.972727],[121.592345,23.970571],[121.594509,23.968734],[121.597739,23.966114],[121.601150,23.964254],[121.604233,23.963820],[121.608868,23.962642]]], "type": "Polygon" } },
+        { "type": "Feature", "geometry": { "coordinates": [[[121.548541,23.970078],[121.548462,23.969917],[121.553956,23.967257],[121.562619,23.963043],[121.565175,23.961586],[121.571708,23.957815],[121.578251,23.954067],[121.577823,23.953184],[121.592196,23.960279],[121.599931,23.959551],[121.604239,23.963751],[121.601175,23.964177],[121.597655,23.966111],[121.586927,23.975055],[121.581145,23.977027],[121.569369,23.983364],[121.562253,23.987210],[121.554964,23.986668],[121.552471,23.984802],[121.545110,23.986579],[121.548541,23.970078]]], "type": "Polygon" } },
+        { "type": "Feature", "geometry": { "coordinates": [[[121.597169,23.985151],[121.597097,23.985033],[121.607268,23.982985],[121.609933,23.984753],[121.609994,23.984247],[121.610718,23.984865],[121.613574,24.000349],[121.616080,24.007788],[121.606080,24.003461],[121.601315,23.993537],[121.597169,23.985151]]], "type": "Polygon" } },
+        { "type": "Feature", "geometry": { "coordinates": [[[121.616044,24.009066],[121.607110,24.013401],[121.595108,24.013766],[121.594523,23.996108],[121.595495,23.994799],[121.597661,23.992048],[121.599438,23.989763],[121.603343,23.997866],[121.606047,24.003483],[121.616058,24.007805],[121.615502,24.008290],[121.616044,24.009066]]], "type": "Polygon" } },
+        { "type": "Feature", "geometry": { "coordinates": [[[121.594514,23.996095],[121.595082,24.013793],[121.592506,24.013038],[121.591056,24.014355],[121.585219,24.014232],[121.583543,24.015290],[121.582019,24.017271],[121.576419,24.021038],[121.573564,24.012905],[121.564777,24.010478],[121.555731,24.005600],[121.545742,24.007521],[121.542729,24.005622],[121.545145,23.986602],[121.552470,23.984834],[121.554959,23.986700],[121.562270,23.987244],[121.569697,23.983203],[121.574546,23.980589],[121.581174,23.977035],[121.586972,23.975072],[121.589810,23.972683],[121.591898,23.974309],[121.597023,23.985056],[121.597143,23.985135],[121.599437,23.989744],[121.597656,23.992029],[121.595497,23.994787],[121.594514,23.996095]]], "type": "Polygon" } }
+      ]
+    };
+
+    let zonePolygons = {};
+    let myCurrentZone = null;
+    let myLat = null, myLng = null;
+    
+    let currentState = 'DISABLED'; 
+    let bestDriver = null; 
+    let ignoredDrivers = []; // 漏單/拒接的司機黑名單
+
+    function processPolygons() {
+        const points = [];
+        GEO_RAW.features.forEach(f => {
+            if(f.geometry.type === "Point") {
+                points.push({ name: Object.keys(f.properties)[0], lat: f.geometry.coordinates[1], lng: f.geometry.coordinates[0] });
+            } else if (f.geometry.type === "Polygon") {
+                const paths = f.geometry.coordinates[0].map(c => ({ lat: c[1], lng: c[0] }));
+                const googlePoly = new google.maps.Polygon({ paths: paths });
+                for(let p of points) {
+                    if(google.maps.geometry.poly.containsLocation(new google.maps.LatLng(p.lat, p.lng), googlePoly)) {
+                        zonePolygons[p.name] = googlePoly; break; 
+                    }
+                }
+            }
+        });
+    }
+
+    function locateUser() {
+        if (!navigator.geolocation) {
+            Swal.fire({icon: 'error', title: 'GPS 失敗', text: '您的裝置不支援定位', confirmButtonColor: '#10b981'});
+            return;
+        }
+
+        navigator.geolocation.getCurrentPosition(
+            (pos) => {
+                myLat = pos.coords.latitude;
+                myLng = pos.coords.longitude;
+                const userLatLng = new google.maps.LatLng(myLat, myLng);
+                
+                myCurrentZone = null;
+                for (let zoneName in zonePolygons) {
+                    if (google.maps.geometry.poly.containsLocation(userLatLng, zonePolygons[zoneName])) {
+                        myCurrentZone = zoneName; break;
+                    }
+                }
+
+                if (myCurrentZone) {
+                    document.getElementById('zone-name').innerText = myCurrentZone;
+                    document.getElementById('loc-status').innerHTML = '<i class="fa-solid fa-location-dot text-emerald-400 mr-1"></i> 定位成功';
+                    startListeningDrivers();
+                } else {
+                    Swal.fire({icon: 'error', title: '超出服務區', text: '您目前不在排班服務區內', confirmButtonColor: '#10b981'});
+                    document.getElementById('zone-name').innerText = "未在服務區";
+                    document.getElementById('loc-status').innerHTML = '<i class="fa-solid fa-triangle-exclamation text-rose-500 mr-1"></i> 定位失敗';
+                }
+            },
+            () => { Swal.fire({icon: 'error', title: '定位權限遭拒', text: '請開啟 GPS 定位權限', confirmButtonColor: '#10b981'}); },
+            { enableHighAccuracy: true, timeout: 10000 }
+        );
+    }
+
+    // 核心引擎：掃描全域司機狀態，判斷 A / B / C
+    function startListeningDrivers() {
+        if (!myCurrentZone) return;
+
+        db.ref('drivers').on('value', snapshot => {
+            const data = snapshot.val();
+            if (!data) return;
+
+            let zoneQueueCars = [];
+            let nearbyEmptyCars = [];
+            const userLatLng = new google.maps.LatLng(myLat, myLng);
+
+            Object.keys(data).forEach(key => {
+                if (ignoredDrivers.includes(key)) return; 
+                const d = data[key];
+                if (d.status !== 'online') return;
+
+                d.id = key;
+                const dLatLng = new google.maps.LatLng(d.lat, d.lng);
+
+                // 找本區排班車
+                if (d.workStatus === 'queue') {
+                    if (zonePolygons[myCurrentZone] && google.maps.geometry.poly.containsLocation(dLatLng, zonePolygons[myCurrentZone])) {
+                        zoneQueueCars.push(d);
+                    }
+                }
+                // 找鄰近空車
+                else if (d.workStatus === 'empty') {
+                    let dist = google.maps.geometry.spherical.computeDistanceBetween(userLatLng, dLatLng);
+                    if (dist <= 3000) { // 3公里內
+                        d.dist = dist;
+                        nearbyEmptyCars.push(d);
+                    }
+                }
+            });
+
+            // 狀態判定邏輯
+            if (zoneQueueCars.length > 0) {
+                // 狀態 A：本區有排班車 (照 queueTime 排序，抓第一名)
+                zoneQueueCars.sort((a, b) => (a.queueTime || Date.now()) - (b.queueTime || Date.now()));
+                bestDriver = zoneQueueCars[0];
+                updateUI('A', zoneQueueCars.length);
+            } 
+            else if (nearbyEmptyCars.length > 0) {
+                // 狀態 B：本區無車，抓鄰近最近的空車
+                nearbyEmptyCars.sort((a, b) => a.dist - b.dist);
+                bestDriver = nearbyEmptyCars[0];
+                updateUI('B', nearbyEmptyCars.length);
+            } 
+            else {
+                // 狀態 C：全區皆沒車
+                bestDriver = null;
+                updateUI('C', 0);
+            }
+        });
+    }
+
+    // 三段變形介面
+    function updateUI(state, count) {
+        currentState = state;
+        const btn = document.getElementById('main-btn');
+        const title = document.getElementById('btn-title');
+        const sub = document.getElementById('btn-subtitle');
+        const display = document.getElementById('vehicle-count-display');
+        
+        btn.className = 'btn-call'; // Reset
+
+        if (state === 'A') {
+            btn.classList.add('btn-state-a');
+            title.innerHTML = '<i class="fa-solid fa-bolt text-yellow-300 mr-1"></i> 呼叫首部排班車';
+            sub.innerText = `🟢 本區有 ${count} 台專車待命，秒速接駕`;
+            display.innerHTML = `<span class="text-emerald-400 font-black text-lg">${count}</span> 台車輛待命中`;
+        } 
+        else if (state === 'B') {
+            btn.classList.add('btn-state-b');
+            title.innerHTML = '<i class="fa-solid fa-truck-fast text-sky-300 mr-1"></i> 呼叫鄰近支援車';
+            sub.innerText = `🔵 正在為您從市區調派，預計 5-8 分鐘`;
+            display.innerHTML = `<span class="text-sky-400 font-black text-lg">${count}</span> 台鄰近空車可支援`;
+        } 
+        else if (state === 'C') {
+            btn.classList.add('btn-state-c');
+            title.innerHTML = '<i class="fa-solid fa-phone-volume text-rose-400 mr-1"></i> 撥打總台專線';
+            sub.innerText = `🔴 目前全線滿載，由總台人工為您派車`;
+            display.innerHTML = `<span class="text-rose-400 font-bold">目前現場車輛較多，建議使用預約功能</span>`;
+        }
+    }
+
+    // 啟動派單 (借殼上市)
+    async function triggerDispatch() {
+        if (currentState === 'DISABLED') return;
+        
+        // 狀態C：無車直接打電話
+        if (currentState === 'C') {
+            window.location.href = 'tel:+886976981123';
+            return;
+        }
+
+        // 首次使用需輸入電話 (方便司機聯絡)
+        if (!passengerPhone) {
+            const { value: phone } = await Swal.fire({
+                title: '📱 輸入手機號碼',
+                text: '僅需填寫一次，方便司機抵達時聯繫您',
+                input: 'tel',
+                inputPlaceholder: '例如：0912345678',
+                confirmButtonColor: '#10b981',
+                confirmButtonText: '確定',
+                allowOutsideClick: false,
+                inputValidator: (value) => {
+                    if (!/^09\d{8}$/.test(value.replace(/\D/g, ''))) return '請輸入正確的 10 碼手機號碼';
+                }
+            });
+            if (phone) {
+                passengerPhone = phone.replace(/\D/g, '');
+                localStorage.setItem('passengerPhone', passengerPhone);
+            } else {
+                return; // 取消填寫則終止
+            }
+        }
+
+        executeDispatchLoop();
+    }
+
+    // 15秒自動防呆派車迴圈
+    let dispatchInterval;
+    let dispatchTimeout;
+    
+    function executeDispatchLoop() {
+        if (!bestDriver) {
+            Swal.fire({icon: 'warning', title: '目前無車', text: '請撥打總台專線調度', confirmButtonColor: '#10b981'});
+            return;
+        }
+
+        const targetId = bestDriver.id;
+        const requestRef = db.ref(`drivers/${targetId}/request`);
+
+        // 1. 開啟防放鴿子鎖定層
+        document.getElementById('lock-overlay').style.display = 'flex';
+        let sec = 15;
+        document.getElementById('lock-countdown').innerText = sec;
+        
+        dispatchInterval = setInterval(() => {
+            sec--;
+            document.getElementById('lock-countdown').innerText = sec;
+        }, 1000);
+
+        // 2. 借殼寫入一鍵叫車格式
+        requestRef.set({
+            lat: myLat, lng: myLng,
+            userId: passengerId,
+            userName: "排班區乘客",
+            userPhone: passengerPhone,
+            pickup: myCurrentZone + " (排班叫車)",
+            dropoff: "依乘客指示",
+            timestamp: firebase.database.ServerValue.TIMESTAMP
+        });
+
+        // 3. 監聽該司機狀態 (看他有沒有接單)
+        const driverRef = db.ref(`drivers/${targetId}`);
+        driverRef.on('value', snap => {
+            const dData = snap.val();
+            if(!dData) return;
+
+            // 司機按下「前往/接單」(他的狀態會變成 busy 或 arrived，或進入 trackStep)
+            if (dData.workStatus === 'busy' || dData.workStatus === 'arrived') {
+                clearTimeout(dispatchTimeout);
+                clearInterval(dispatchInterval);
+                driverRef.off('value');
+                
+                // 接單成功，鎖定層變更為成功狀態
+                document.getElementById('lock-overlay').innerHTML = `
+                    <i class="fa-solid fa-circle-check text-emerald-400 text-7xl mb-4"></i>
+                    <div class="lock-text">司機已接單</div>
+                    <div class="text-white text-lg mt-2">車牌號碼：<b class="text-yellow-400 text-2xl ml-2">${dData.carNo || '專車'}</b></div>
+                    <div class="text-rose-400 font-bold mt-6 text-sm bg-rose-900/30 px-4 py-2 rounded-lg border border-rose-500/50">⚠️ 請在原地等候，勿關閉此網頁或離開現場</div>
+                `;
+            }
+            // 司機手動拒接 (rejected)
+            else if (dData.request && dData.request.status === 'rejected') {
+                handleMissedOrder(targetId, requestRef, driverRef);
+            }
+        });
+
+        // 4. 設定 15 秒超時未接遞補機制
+        dispatchTimeout = setTimeout(() => {
+            handleMissedOrder(targetId, requestRef, driverRef);
+        }, 15000);
+    }
+
+    // 處理漏單/拒接
+    function handleMissedOrder(targetId, requestRef, driverRef) {
+        clearTimeout(dispatchTimeout);
+        clearInterval(dispatchInterval);
+        driverRef.off('value');
+        
+        // 刪除該次請求
+        requestRef.remove();
+        
+        // 【防呆懲罰機制】: 踢出排班隊伍，避免佔著茅坑不拉屎
+        db.ref(`drivers/${targetId}`).update({ workStatus: 'offline', status: 'offline' });
+
+        // 加入黑名單，避免迴圈再次找上他
+        ignoredDrivers.push(targetId);
+
+        // 重新掃描並派給下一位 (系統會自動因 db.on 而更新 bestDriver)
+        setTimeout(() => {
+            if (currentState === 'C' || !bestDriver) {
+                // 如果已經沒車了
+                document.getElementById('lock-overlay').style.display = 'none';
+                Swal.fire({
+                    icon: 'warning', 
+                    title: '現場車輛忙碌中', 
+                    html: '目前前線車輛皆未能及時接單<br>建議您撥打總台專線由人工調派。',
+                    confirmButtonColor: '#10b981',
+                    confirmButtonText: '撥打總機'
+                }).then(() => { window.location.href = 'tel:+886976981123'; });
+            } else {
+                // 還有下一位，繼續迴圈
+                executeDispatchLoop();
+            }
+        }, 1000); // 給1秒緩衝時間讓 Firebase 更新資料
+    }
+
+    window.addEventListener('load', () => {
+        if(typeof google !== 'undefined') {
+            processPolygons();
+            locateUser();
+        }
+    });
+
+  </script>
+</body>
+</html>
