@@ -21,16 +21,6 @@
     #top-bar { position: absolute; top: 15px; left: 15px; right: 15px; z-index: 10; display: flex; justify-content: space-between; pointer-events: none; align-items: flex-start;}
     .status-pill { background: white; padding: 10px 15px; border-radius: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); font-weight: bold; color: #333; pointer-events: auto; display: flex; align-items: center; font-size: 14px; height: fit-content; transition: all 0.3s;}
     
-    .action-buttons-container { display: flex; flex-direction: column; gap: 12px; pointer-events: auto; }
-    
-    .btn-customer { background: linear-gradient(135deg, #00C853, #64DD17); color: white; width: 50px; height: 50px; border-radius: 50%; display: flex; flex-direction: column; justify-content: center; align-items: center; box-shadow: 0 4px 15px rgba(0,0,0,0.2); text-decoration: none; font-size: 11px; font-weight: bold; border: 2px solid white; transition: transform 0.1s;}
-    .btn-customer:active { transform: scale(0.92); }
-    .btn-customer i { font-size: 18px; margin-bottom: 2px; }
-
-    .btn-share { background: linear-gradient(135deg, #FF9800, #FF5722); color: white; width: 50px; height: 50px; border-radius: 50%; display: flex; flex-direction: column; justify-content: center; align-items: center; box-shadow: 0 4px 15px rgba(255,152,0,0.4); cursor: pointer; font-size: 11px; font-weight: bold; border: 2px solid white; transition: transform 0.1s;}
-    .btn-share:active { transform: scale(0.92); background: #E65100; }
-    .btn-share i { font-size: 18px; margin-bottom: 2px; }
-    
     #driver-carousel { position: absolute; bottom: 20px; left: 0; width: 100%; display: flex; gap: 15px; padding: 10px 20px; box-sizing: border-box; overflow-x: auto; scroll-snap-type: x mandatory; z-index: 20; scrollbar-width: none; }
     #driver-carousel::-webkit-scrollbar { display: none; }
     
@@ -110,10 +100,6 @@
             <span id="loc-text">定位中...</span>
         </div>
       </div>
-      <div class="action-buttons-container">
-        <a href="https://lin.ee/9Davl6e" target="_blank" class="btn-customer"><i class="fa-solid fa-user-tie"></i>聯絡我</a>
-        <div class="btn-share" onclick="shareToFriends()"><i class="fa-solid fa-gift"></i>分享</div>
-      </div>
     </div>
     <div id="map"></div>
     <div id="btn-loc" onclick="centerMap()"><i class="fa-solid fa-crosshairs"></i></div>
@@ -122,7 +108,7 @@
 
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script>
-    const VERSION = "v9.35"; 
+    const VERSION = "v9.36"; 
     const LIFF_ID = "2008907691-CzDqd7mm"; 
     const GAS_URL = "https://script.google.com/macros/s/AKfycbzjWZ8j394jfKoMVbPWGvHJHqwF7RBCQxnxyju1ifWKoKdM7RE512F7qrhUsQqQGoWg/exec"; 
     
@@ -146,7 +132,6 @@
     let driverRatingsCache = {};
     let isAppJustLoaded = true;
 
-    // 🚀 核心更新：取得台灣時區時間 (強制轉換)
     function getTaipeiTime() {
         const d = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Taipei"}));
         const month = d.getMonth() + 1;
@@ -211,27 +196,6 @@
             document.getElementById('app-content').style.display = 'block';
             setupConnectionManager(); startRealtimeRadar();
         } catch(e) { Swal.fire({ icon: 'error', title: '系統錯誤', text: '請重新開啟網頁' }); } 
-    }
-
-    async function shareToFriends() {
-        if (!liff.isApiAvailable('shareTargetPicker')) return Swal.fire('無法分享', '不支援分享功能', 'warning');
-        const flexMessage = {
-            "type": "flex", "altText": "🚕 您的好友推薦了專屬接送服務！",
-            "contents": {
-                "type": "bubble",
-                "hero": { "type": "image", "url": "https://u002146.github.io/103lybcd/photos/004.jpg", "size": "full", "aspectRatio": "20:13", "aspectMode": "cover" },
-                "body": { "type": "box", "layout": "vertical", "contents": [
-                    { "type": "text", "text": "VIP 專屬接送", "weight": "bold", "size": "xl", "color": "#111111" },
-                    { "type": "text", "text": "免報路名 ‧ 尊榮雙向定位", "size": "sm", "color": "#FF9800", "weight": "bold", "margin": "sm" },
-                    { "type": "text", "text": "最安心的專車服務！點擊下方按鈕，立即連線您的專屬司機位置。", "size": "xs", "color": "#666666", "wrap": true, "margin": "md" }
-                ]},
-                "footer": { "type": "box", "layout": "vertical", "contents": [{ "type": "button", "style": "primary", "color": "#00C853", "action": { "type": "uri", "label": "📍 點我呼叫專屬司機", "uri": "https://liff.line.me/2008907691-CzDqd7mm" } }] }
-            }
-        };
-        try {
-            const result = await liff.shareTargetPicker([flexMessage]);
-            if (result) Swal.fire({ icon: 'success', title: '分享成功！', timer: 2000, showConfirmButton: false, customClass: {popup: 'rounded-[24px]'} });
-        } catch (error) {}
     }
 
     function setupConnectionManager() {
@@ -421,7 +385,6 @@
         const originalContent = btn.innerHTML; btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin" style="font-size:20px;"></i>'; btn.disabled = true;
 
         const currentAddress = document.getElementById('loc-text').innerText;
-        // 🚀 核心變數鎖定：記錄叫車當下的真實地址，防呆取消時抓到定位中
         localStorage.setItem('lastPickupAddress', currentAddress);
         const timeObj = getTaipeiTime();
 
@@ -431,7 +394,6 @@
             btn.innerHTML = originalContent; btn.disabled = false;
             Swal.fire({ icon: 'success', title: '✅ 叫車成功！', text: '司機已收到通知，將為您切換至雷達追蹤。', timer: 2000, showConfirmButton: false });
 
-            // 🚀 核心更新：極簡版同款白色卡片，無右上角按鈕，去除付款與下車點
             if (liff.isInClient()) {
                 const orderFlexMessage = {
                     "type": "flex",
@@ -520,7 +482,6 @@
             if (!confirm.isConfirmed) return; 
             try { await db.ref('drivers/' + myTrackedDriverId + '/request').remove(); } catch (e) {}
             
-            // 🚀 核心更新：提取鎖定的變數地址，確保文字訊息正確
             if (liff.isInClient()) {
                 const lockedAddress = localStorage.getItem('lastPickupAddress') || document.getElementById('loc-text').innerText;
                 const timeObj = getTaipeiTime();
