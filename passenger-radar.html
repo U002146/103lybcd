@@ -122,8 +122,8 @@
 
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script>
-    const VERSION = "v2.0"; 
-    const LIFF_ID = "2008907691-CzDqd7mm"; 
+    const VERSION = "v2.1"; 
+    const LIFF_ID = "2008907691-VMGx4cZZ"; // 🚀 修復：更新為排班大廳專用 LIFF ID
     const GAS_URL = "https://script.google.com/macros/s/AKfycbzjWZ8j394jfKoMVbPWGvHJHqwF7RBCQxnxyju1ifWKoKdM7RE512F7qrhUsQqQGoWg/exec"; 
     
     const firebaseConfig = { 
@@ -282,7 +282,7 @@
                     { "type": "text", "text": "免報路名 ‧ 尊榮雙向定位", "size": "sm", "color": "#FF9800", "weight": "bold", "margin": "sm" },
                     { "type": "text", "text": "最安心的專車服務！點擊下方按鈕，立即連線您的專屬司機位置。", "size": "xs", "color": "#666666", "wrap": true, "margin": "md" }
                 ]},
-                "footer": { "type": "box", "layout": "vertical", "contents": [{ "type": "button", "style": "primary", "color": "#00C853", "action": { "type": "uri", "label": "📍 點我呼叫專屬司機", "uri": "https://liff.line.me/2008907691-CzDqd7mm" } }] }
+                "footer": { "type": "box", "layout": "vertical", "contents": [{ "type": "button", "style": "primary", "color": "#00C853", "action": { "type": "uri", "label": "📍 點我呼叫專屬司機", "uri": "https://liff.line.me/2008907691-VMGx4cZZ" } }] } // 🚀 修復：更新為排班大廳專用 LIFF URL
             }
         };
         try {
