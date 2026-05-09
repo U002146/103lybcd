@@ -94,12 +94,12 @@
   </div>
 
   <script>
-    const VERSION = "v1.2_Passenger_FullLink";
+    const VERSION = "v1.3_Passenger_DataAlign";
     const firebaseConfig = { databaseURL: "https://hualientaxi-bb32f-default-rtdb.asia-southeast1.firebasedatabase.app/" };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
     
-    // 🚀 關鍵修復：補回 GAS Webhook 引擎 (負責寫入乘車紀錄與預約總表)
+    // Webhook：通知後台有新單產生
     const GAS_URL = "https://script.google.com/macros/s/AKfycbzjWZ8j394jfKoMVbPWGvHJHqwF7RBCQxnxyju1ifWKoKdM7RE512F7qrhUsQqQGoWg/exec";
 
     let passengerId = localStorage.getItem('guest_pid');
@@ -335,18 +335,21 @@
             document.getElementById('lock-countdown').innerText = sec;
         }, 1000);
 
-        // 寫入任務
+        // 🚀 關鍵修復：完全對齊司機端 APP Firestore 需要的欄位 (確保不會因為 null 報錯)
         requestRef.set({
-            lat: myLat, lng: myLng,
-            userId: passengerId,
-            userName: "排班區乘客",
-            userPhone: passengerPhone,
-            pickup: myCurrentZone + " (排班叫車)",
+            lat: myLat, 
+            lng: myLng,
+            userId: passengerId, // 這是 Firestore 需要的 _passengerId
+            userName: "排班區乘客", // 這是 _passengerName
+            userPhone: passengerPhone, // 這是 _passengerPhone
+            pickup: myCurrentZone + " (排班叫車)", 
             dropoff: "依乘客指示",
+            source: "web_app", // 增加來源標記
+            status: "pending", 
             timestamp: firebase.database.ServerValue.TIMESTAMP
         });
 
-        // 🚀 關鍵修復 A：補回 GAS 觸發器，讓後台知道有這筆單，負責建立 Firestore 乘車紀錄與預約總表
+        // 觸發 GAS 寫入預約總表
         fetch(GAS_URL, { 
             method: 'POST', 
             mode: 'no-cors', 
@@ -357,12 +360,10 @@
         const driverRef = db.ref(`drivers/${targetId}`);
         let requestSent = false;
 
-        // 監聽司機動態
         driverRef.on('value', snap => {
             const dData = snap.val();
             if(!dData) return;
 
-            // 司機接單
             if (dData.workStatus === 'busy' || dData.workStatus === 'arrived') {
                 clearTimeout(dispatchTimeout);
                 clearInterval(dispatchInterval);
@@ -375,8 +376,8 @@
                     <div class="text-rose-400 font-bold mt-6 text-sm bg-rose-900/30 px-4 py-2 rounded-lg border border-rose-500/50">⚠️ 請在原地等候，勿關閉此網頁或離開現場</div>
                 `;
             }
-            // 🚀 關鍵修復 B：防呆拒接判定。當司機按下「無法承接」時，request 節點會直接消失。
             else {
+                // 如果 request 節點消失，代表司機按下了無法承接或被系統回收
                 if (requestSent && (!dData.request || dData.request.status === 'rejected')) {
                     handleMissedOrder(targetId, requestRef, driverRef);
                 }
