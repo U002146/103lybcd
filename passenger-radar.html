@@ -3,112 +3,138 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>花蓮車隊 | 智慧呼叫系統</title>
   
-  <script src="https://cdn.tailwindcss.com"></script>
+  <title>花蓮車隊 | 智慧呼叫系統</title> 
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script> 
+  
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAIxc6PEhHgUs_A9lyRUg8dNbmwOpSamY8&libraries=geometry"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
-  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAIxc6PEhHgUs_A9lyRUg8dNbmwOpSamY8&libraries=geometry"></script>
-  
   <style>
-    body { background-color: #0f172a; margin: 0; font-family: 'Noto Sans TC', sans-serif; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+    body { margin: 0; padding: 0; font-family: -apple-system, Roboto, sans-serif; overflow: hidden; background: #f0f2f5; }
+    #map { width: 100vw; height: 100vh; }
+    #top-bar { position: absolute; top: 15px; left: 15px; right: 15px; z-index: 10; display: flex; justify-content: space-between; pointer-events: none; align-items: flex-start;}
+    .status-pill { background: white; padding: 10px 15px; border-radius: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); font-weight: bold; color: #333; pointer-events: auto; display: flex; align-items: center; font-size: 14px; height: fit-content; transition: all 0.3s;}
     
-    #top-radar { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%); overflow: hidden;}
+    .action-buttons-container { display: flex; flex-direction: column; gap: 12px; pointer-events: auto; }
     
-    .radar-pulse { position: absolute; width: 150px; height: 150px; background: rgba(16, 185, 129, 0.15); border-radius: 50%; z-index: 1; animation: pulse-ring 2.5s cubic-bezier(0.215, 0.61, 0.355, 1) infinite; }
-    .radar-pulse:nth-child(2) { animation-delay: 0.8s; }
-    .radar-pulse:nth-child(3) { animation-delay: 1.6s; }
-    @keyframes pulse-ring { 0% { transform: scale(1); opacity: 1; } 100% { transform: scale(3.5); opacity: 0; } }
-    
-    .status-badge { z-index: 10; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(10px); padding: 12px 24px; border-radius: 30px; border: 1px solid rgba(255,255,255,0.1); color: white; display: flex; flex-direction: column; align-items: center; text-align: center; margin-bottom: 20px;}
-    
-    #bottom-control { height: 45vh; background: white; border-top-left-radius: 32px; border-top-right-radius: 32px; box-shadow: 0 -10px 40px rgba(0,0,0,0.5); display: flex; flex-direction: column; align-items: center; padding: 40px 24px 30px 24px; position: relative; z-index: 20; }
-    
-    /* 巨大盲操按鈕三段變形 */
-    .btn-call { width: 100%; height: 100px; border-radius: 24px; border: none; outline: none; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; transition: transform 0.1s; cursor: pointer; flex-direction: column; gap: 4px; }
-    .btn-call:active { transform: scale(0.96); }
-    
-    /* 狀態 A: 本區有車 (翠綠發光) */
-    .btn-state-a { background: linear-gradient(135deg, #10b981, #059669); box-shadow: 0 15px 35px rgba(16, 185, 129, 0.4), inset 0 2px 0 rgba(255,255,255,0.2); }
-    /* 狀態 B: 鄰近支援 (深海藍發光) */
-    .btn-state-b { background: linear-gradient(135deg, #3b82f6, #1d4ed8); box-shadow: 0 15px 35px rgba(59, 130, 246, 0.4), inset 0 2px 0 rgba(255,255,255,0.2); }
-    /* 狀態 C: 無車調度 (曜石黑) */
-    .btn-state-c { background: linear-gradient(135deg, #334155, #0f172a); box-shadow: 0 15px 35px rgba(15, 23, 42, 0.4), inset 0 2px 0 rgba(255,255,255,0.2); }
-    /* 狀態 D: 鎖定中 (灰階) */
-    .btn-state-disabled { background: linear-gradient(135deg, #94a3b8, #64748b); box-shadow: none; pointer-events: none; }
+    .btn-customer { background: linear-gradient(135deg, #00C853, #64DD17); color: white; width: 50px; height: 50px; border-radius: 50%; display: flex; flex-direction: column; justify-content: center; align-items: center; box-shadow: 0 4px 15px rgba(0,0,0,0.2); text-decoration: none; font-size: 11px; font-weight: bold; border: 2px solid white; transition: transform 0.1s;}
+    .btn-customer:active { transform: scale(0.92); }
+    .btn-customer i { font-size: 18px; margin-bottom: 2px; }
 
-    .btn-title { font-size: 26px; font-weight: 900; color: white; letter-spacing: 1px; text-shadow: 0 2px 4px rgba(0,0,0,0.2); line-height: 1.1; }
-    .btn-subtitle { font-size: 14px; font-weight: bold; color: rgba(255,255,255,0.9); }
-
-    .book-tour-link { margin-top: 20px; font-size: 15px; font-weight: bold; color: #64748b; text-decoration: underline; text-underline-offset: 4px; cursor: pointer; transition: color 0.2s; }
-    .book-tour-link:active { color: #3b82f6; }
-
-    .swal2-popup { border-radius: 28px !important; font-family: 'Noto Sans TC', sans-serif !important; }
+    .btn-share { background: linear-gradient(135deg, #FF9800, #FF5722); color: white; width: 50px; height: 50px; border-radius: 50%; display: flex; flex-direction: column; justify-content: center; align-items: center; box-shadow: 0 4px 15px rgba(255,152,0,0.4); cursor: pointer; font-size: 11px; font-weight: bold; border: 2px solid white; transition: transform 0.1s;}
+    .btn-share:active { transform: scale(0.92); background: #E65100; }
+    .btn-share i { font-size: 18px; margin-bottom: 2px; }
     
-    /* 防放鴿子鎖定層 */
-    #lock-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.85); z-index: 9999; display: none; flex-direction: column; align-items: center; justify-content: center; backdrop-filter: blur(15px); }
-    .lock-text { color: white; font-size: 24px; font-weight: 900; margin-top: 20px; text-align: center; }
-    .lock-sub { color: #10b981; font-size: 18px; font-weight: bold; margin-top: 10px; }
+    #driver-carousel { position: absolute; bottom: 20px; left: 0; width: 100%; display: flex; gap: 15px; padding: 10px 20px; box-sizing: border-box; overflow-x: auto; scroll-snap-type: x mandatory; z-index: 20; scrollbar-width: none; }
+    #driver-carousel::-webkit-scrollbar { display: none; }
+    
+    .driver-card { 
+        flex: 0 0 92%; max-width: 380px; background: white; border-radius: 24px; padding: 16px 20px; 
+        box-shadow: 0 10px 30px rgba(0,0,0,0.25); scroll-snap-align: center; 
+        display: flex; flex-direction: column; gap: 12px; 
+        transition: transform 0.2s; border: 2px solid #ddd; position: relative; 
+    }
+    
+    .driver-card-top { display: flex; flex-direction: row; align-items: center; gap: 12px; width: 100%; }
+    .driver-card-actions { display: flex; gap: 10px; width: 100%; }
+
+    .driver-card.tracking-mode { border-color: #00B0FF; box-shadow: 0 10px 35px rgba(0, 176, 255, 0.3); } 
+    .driver-card.arrived-mode { border-color: #FF9800; box-shadow: 0 10px 35px rgba(255, 152, 0, 0.4); animation: card-pulse 2s infinite; } 
+    .driver-card.busy-mode { border-color: #00C853; box-shadow: 0 10px 35px rgba(0, 200, 83, 0.3); } 
+    .driver-card.queue-mode { border-color: #00B0FF; }
+    
+    .d-avatar { width: 70px; height: 70px; background: #eee; border-radius: 50%; overflow: hidden; border: 3px solid #00C853; box-shadow: 0 4px 12px rgba(0,0,0,0.15); flex-shrink: 0; }
+    .driver-card.tracking-mode .d-avatar { border-color: #00B0FF; }
+    .driver-card.arrived-mode .d-avatar { border-color: #FF9800; } 
+    .driver-card.busy-mode .d-avatar { border-color: #00C853; }
+    .driver-card.queue-mode .d-avatar { border-color: #00B0FF; }
+    .d-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    
+    .d-info { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 4px; }
+    .d-name { font-size: 20px; font-weight: 900; color: #000; display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin: 0; line-height: 1.2; }
+    
+    .tag { font-size: 12px; padding: 2px 6px; border-radius: 6px; font-weight: bold; display: inline-flex; align-items: center; }
+    .tag-empty { background: #e8f5e9; color: #1B5E20; border: 1px solid #4CAF50; }
+    .tag-queue { background: #e3f2fd; color: #0D47A1; border: 1px solid #2196F3; }
+    .tag-tracking { background: #E1F5FE; color: #0277BD; border: 1px solid #03A9F4; animation: pulse-radar 2s infinite; }
+    .tag-arrived { background: #FFF3E0; color: #E65100; border: 1px solid #FF9800; animation: pulse-radar 1.5s infinite; }
+    .tag-busy { background: #E8F5E9; color: #2E7D32; border: 1px solid #4CAF50; } 
+    .tag-star { background: #FFF8E1; color: #F57F17; border: 1px solid #FFC107; margin-left: auto; font-size: 13px; }
+
+    .d-meta { font-size: 14px; font-weight: 600; color: #666; display: flex; flex-direction: column; gap: 2px; }
+    .d-meta span { display: flex; align-items: center; gap: 6px; }
+    .d-meta i { width: 16px; text-align: center; color: #888; }
+    
+    .btn-call-action {
+        height: 48px; padding: 0 16px; border-radius: 12px;
+        background: linear-gradient(135deg, #00C853, #1B5E20); color: white;
+        display: flex; justify-content: center; align-items: center; gap: 8px;
+        font-size: 16px; font-weight: 900; box-shadow: 0 4px 12px rgba(76, 175, 80, 0.4);
+        border: 2px solid #00E676; flex: 1; cursor: pointer; transition: transform 0.1s; white-space: nowrap;
+    }
+    .btn-call-action:active { transform: scale(0.95); background: #1B5E20; }
+    .btn-call-action:disabled { background: #9E9E9E !important; border-color: #757575 !important; box-shadow: none !important; cursor: not-allowed !important; transform: none !important; }
+    
+    .btn-cancel-action {
+        height: 48px; padding: 0 16px; border-radius: 12px;
+        background: linear-gradient(135deg, #F44336, #B71C1C); color: white;
+        display: flex; justify-content: center; align-items: center; gap: 8px;
+        font-size: 16px; font-weight: 900; box-shadow: 0 4px 12px rgba(244, 67, 54, 0.4);
+        border: 2px solid #EF9A9A; flex: 1; cursor: pointer; transition: transform 0.1s; white-space: nowrap;
+    }
+    .btn-cancel-action:active { transform: scale(0.95); background: #B71C1C; }
+
+    .btn-call-full { width: 100%; height: 50px; border-radius: 16px; background: linear-gradient(135deg, #F57F17, #E65100); color: white; display: flex; justify-content: center; align-items: center; gap: 12px; text-decoration: none; font-size: 18px; font-weight: 900; box-shadow: 0 6px 15px rgba(245, 127, 23, 0.4); border: 2px solid #FFB300; cursor: pointer; }
+
+    #btn-loc { position: absolute; bottom: 170px; right: 20px; width: 55px; height: 55px; background: white; border-radius: 50%; box-shadow: 0 4px 15px rgba(0,0,0,0.25); display: flex; justify-content: center; align-items: center; font-size: 24px; color: #333; cursor: pointer; z-index: 15; border: 2px solid #eee; transition: bottom 0.3s; }
+    
+    @keyframes pulse-radar { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
+    @keyframes card-pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 152, 0, 0.4); } 70% { box-shadow: 0 0 0 15px rgba(255, 152, 0, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 152, 0, 0); } }
+    
+    .swal2-popup { border-radius: 24px !important; font-family: 'Noto Sans TC', sans-serif !important; }
   </style>
 </head>
 <body>
 
-  <div id="lock-overlay">
-      <i class="fa-solid fa-car-side fa-bounce text-emerald-400 text-6xl"></i>
-      <div class="lock-text">配對中，請勿關閉網頁</div>
-      <div class="lock-sub">倒數 <span id="lock-countdown">15</span> 秒</div>
+  <div id="app-content" style="display: none;">
+    <div id="top-bar">
+      <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+        <div class="status-pill" id="location-pill">
+            <i class="fa-solid fa-location-dot" id="loc-icon" style="color:#e74c3c;margin-right:5px;"></i> 
+            <span id="loc-text">定位中...</span>
+        </div>
+      </div>
+      <div class="action-buttons-container">
+        <a href="https://lin.ee/9Davl6e" target="_blank" class="btn-customer"><i class="fa-solid fa-user-tie"></i>聯絡我</a>
+        <div class="btn-share" onclick="shareToFriends()"><i class="fa-solid fa-gift"></i>分享</div>
+      </div>
+    </div>
+    <div id="map"></div>
+    <div id="btn-loc" onclick="centerMap()"><i class="fa-solid fa-crosshairs"></i></div>
+    <div id="driver-carousel"></div>
   </div>
 
-  <div id="top-radar">
-      <div class="radar-pulse"></div>
-      <div class="radar-pulse"></div>
-      <div class="radar-pulse"></div>
-      
-      <div class="status-badge" id="location-badge">
-          <span class="text-emerald-400 text-[13px] font-bold mb-1" id="loc-status"><i class="fa-solid fa-satellite-dish animate-pulse mr-1"></i> 定位中...</span>
-          <span class="text-2xl font-black tracking-widest text-slate-100" id="zone-name">解析位置中</span>
-      </div>
-      
-      <div class="z-10 text-slate-400 font-bold bg-slate-800/50 px-4 py-1.5 rounded-full border border-slate-700" id="vehicle-count-display">
-          掃描周邊車隊網絡...
-      </div>
-  </div>
-
-  <div id="bottom-control">
-      <div class="w-16 h-1.5 bg-slate-200 rounded-full absolute top-4"></div>
-      
-      <div class="text-slate-800 text-[22px] font-black mb-1 tracking-wide mt-2" id="call-title">免輸入地址，自動派單</div>
-      <div class="text-slate-500 text-[13px] font-bold mb-6 text-center px-4" id="call-subtitle">系統將自動為您指派最快到達的合法專車</div>
-      
-      <button id="main-btn" class="btn-call btn-state-disabled" onclick="triggerDispatch()">
-          <span class="btn-title" id="btn-title">系統連線中</span>
-          <span class="btn-subtitle" id="btn-subtitle">請稍候...</span>
-      </button>
-
-      <div class="book-tour-link" onclick="window.location.href='https://u002146.github.io/103lybcd/universal-tour.html'">
-          不趕時間？改用【客製化預約】
-      </div>
-  </div>
-
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script>
-    const VERSION = "v1.3_Passenger_DataAlign";
-    const firebaseConfig = { databaseURL: "https://hualientaxi-bb32f-default-rtdb.asia-southeast1.firebasedatabase.app/" };
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
+    const VERSION = "v2.0"; 
+    const LIFF_ID = "2008907691-CzDqd7mm"; 
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbzjWZ8j394jfKoMVbPWGvHJHqwF7RBCQxnxyju1ifWKoKdM7RE512F7qrhUsQqQGoWg/exec"; 
     
-    // Webhook：通知後台有新單產生
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbzjWZ8j394jfKoMVbPWGvHJHqwF7RBCQxnxyju1ifWKoKdM7RE512F7qrhUsQqQGoWg/exec";
-
-    let passengerId = localStorage.getItem('guest_pid');
-    if (!passengerId) {
-        passengerId = 'GUEST-' + Math.random().toString(36).substr(2, 9).toUpperCase();
-        localStorage.setItem('guest_pid', passengerId);
-    }
-    let passengerPhone = localStorage.getItem('passengerPhone') || "";
-
+    const firebaseConfig = { 
+        databaseURL: "https://hualientaxi-bb32f-default-rtdb.asia-southeast1.firebasedatabase.app/",
+        projectId: "hualientaxi-bb32f" 
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database(); 
+    const firestoreDb = firebase.firestore(); 
+    
+    // 📍 載入戰區多邊形圖資
     const GEO_RAW = {
       "type": "FeatureCollection",
       "features": [
@@ -143,15 +169,23 @@
         { "type": "Feature", "geometry": { "coordinates": [[[121.594514,23.996095],[121.595082,24.013793],[121.592506,24.013038],[121.591056,24.014355],[121.585219,24.014232],[121.583543,24.015290],[121.582019,24.017271],[121.576419,24.021038],[121.573564,24.012905],[121.564777,24.010478],[121.555731,24.005600],[121.545742,24.007521],[121.542729,24.005622],[121.545145,23.986602],[121.552470,23.984834],[121.554959,23.986700],[121.562270,23.987244],[121.569697,23.983203],[121.574546,23.980589],[121.581174,23.977035],[121.586972,23.975072],[121.589810,23.972683],[121.591898,23.974309],[121.597023,23.985056],[121.597143,23.985135],[121.599437,23.989744],[121.597656,23.992029],[121.595497,23.994787],[121.594514,23.996095]]], "type": "Polygon" } }
       ]
     };
-
-    let zonePolygons = {};
-    let myCurrentZone = null;
-    let myLat = null, myLng = null;
     
-    let currentState = 'DISABLED'; 
-    let bestDriver = null; 
-    let ignoredDrivers = []; 
+    var zonePolygons = {};
+    var myCurrentZone = null;
+    
+    var map, userMarker, markers = {};
+    var myLat = null, myLng = null; 
+    var lastGeocodePos = null; 
+    
+    let passengerId = "unknown";
+    let passengerName = "未授權乘客";
+    let myTrackedDriverId = localStorage.getItem('trackedDriverId') || null;
+    let currentTrackStep = localStorage.getItem('trackStep') || '1';
 
+    let driverRatingsCache = {};
+    let isAppJustLoaded = true;
+
+    // 📍 建立多邊形判斷區
     function processPolygons() {
         const points = [];
         GEO_RAW.features.forEach(f => {
@@ -169,260 +203,561 @@
         });
     }
 
-    function locateUser() {
-        if (!navigator.geolocation) {
-            Swal.fire({icon: 'error', title: 'GPS 失敗', text: '您的裝置不支援定位', confirmButtonColor: '#10b981'});
-            return;
-        }
+    function getTaipeiTime() {
+        const d = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Taipei"}));
+        const month = d.getMonth() + 1;
+        const date = d.getDate();
+        const hours = d.getHours().toString().padStart(2, '0');
+        const minutes = d.getMinutes().toString().padStart(2, '0');
+        return {
+            full: `${month}月${date}日 ${hours}:${minutes}`,
+            short: `${month}/${date} ${hours}:${minutes}`
+        };
+    }
 
-        navigator.geolocation.getCurrentPosition(
-            (pos) => {
-                myLat = pos.coords.latitude;
-                myLng = pos.coords.longitude;
-                const userLatLng = new google.maps.LatLng(myLat, myLng);
+    const getPinIcon = (type, isTracked, workStatus, trackStep) => {
+        if (isTracked) {
+            let trackColor = '#00B0FF'; 
+            if (trackStep === '1.5' || workStatus === 'arrived') trackColor = '#FF9800'; 
+            else if (trackStep === '2') trackColor = '#00C853'; 
+            return { path: "M0-48c-9.8 0-17.7 7.8-17.7 17.4 0 15.5 17.7 30.6 17.7 30.6s17.7-15.4 17.7-30.6c0-9.6-7.9-17.4-17.7-17.4z", fillColor: trackColor, fillOpacity: 1, strokeColor: "#fff", strokeWeight: 3, scale: 1.3, labelOrigin: new google.maps.Point(0, -28) };
+        }
+        const isQueue = type === 'queue';
+        const color = isQueue ? '#00B0FF' : '#00C853';
+        return { path: "M0-48c-9.8 0-17.7 7.8-17.7 17.4 0 15.5 17.7 30.6 17.7 30.6s17.7-15.4 17.7-30.6c0-9.6-7.9-17.4-17.7-17.4z", fillColor: color, fillOpacity: 1, strokeColor: "#fff", strokeWeight: 2, scale: 1.1, labelOrigin: new google.maps.Point(0, -28) };
+    };
+
+    window.onload = async function() {
+        Swal.fire({ title: '連線中', text: '正在為您連線專車位置...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
+        processPolygons(); // 🚀 初始化多邊形
+        initMap();
+        await initLiffAndCheckBlacklist(); 
+    };
+
+    async function fetchDriverRating(driverId) {
+        if (driverRatingsCache[driverId] !== undefined) return driverRatingsCache[driverId];
+        try {
+            const snapshot = await firestoreDb.collection('trips').where('driverId', '==', driverId).where('status', '==', 'completed').get();
+            let totalStars = 0, count = 0;
+            snapshot.forEach(doc => { const data = doc.data(); if (data.rating) { totalStars += data.rating; count++; } });
+            driverRatingsCache[driverId] = count === 0 ? "NEW" : (totalStars / count).toFixed(1);
+            return driverRatingsCache[driverId];
+        } catch (e) {
+            return "NEW";
+        }
+    }
+
+    async function initLiffAndCheckBlacklist() { 
+        try { 
+            await liff.init({ liffId: LIFF_ID }); 
+            if(!liff.isLoggedIn()) { liff.login(); return; }
+            const profile = await liff.getProfile();
+            passengerId = profile.userId;
+            passengerName = profile.displayName || "乘客";
+
+            const blockDoc = await firestoreDb.collection('blacklists').doc(passengerId).get();
+            if (blockDoc.exists) { 
+                document.body.innerHTML = ''; document.body.style.backgroundColor = '#f8d7da';
+                Swal.fire({
+                    icon: 'error', title: '服務暫停', html: '您的帳號目前<b>無法使用叫車服務</b>。',
+                    confirmButtonText: '<i class="fa-solid fa-user-tie"></i> 聯繫專屬司機', confirmButtonColor: '#e74c3c', allowOutsideClick: false
+                }).then(() => { window.location.href = "https://lin.ee/9Davl6e"; });
+                return; 
+            }
+            Swal.close();
+            document.getElementById('app-content').style.display = 'block';
+            setupConnectionManager(); startRealtimeRadar();
+        } catch(e) { Swal.fire({ icon: 'error', title: '系統錯誤', text: '請重新開啟網頁' }); } 
+    }
+
+    async function shareToFriends() {
+        if (!liff.isApiAvailable('shareTargetPicker')) return Swal.fire('無法分享', '不支援分享功能', 'warning');
+        const flexMessage = {
+            "type": "flex", "altText": "🚕 您的好友推薦了專屬接送服務！",
+            "contents": {
+                "type": "bubble",
+                "hero": { "type": "image", "url": "https://u002146.github.io/103lybcd/photos/004.jpg", "size": "full", "aspectRatio": "20:13", "aspectMode": "cover" },
+                "body": { "type": "box", "layout": "vertical", "contents": [
+                    { "type": "text", "text": "VIP 專屬接送", "weight": "bold", "size": "xl", "color": "#111111" },
+                    { "type": "text", "text": "免報路名 ‧ 尊榮雙向定位", "size": "sm", "color": "#FF9800", "weight": "bold", "margin": "sm" },
+                    { "type": "text", "text": "最安心的專車服務！點擊下方按鈕，立即連線您的專屬司機位置。", "size": "xs", "color": "#666666", "wrap": true, "margin": "md" }
+                ]},
+                "footer": { "type": "box", "layout": "vertical", "contents": [{ "type": "button", "style": "primary", "color": "#00C853", "action": { "type": "uri", "label": "📍 點我呼叫專屬司機", "uri": "https://liff.line.me/2008907691-CzDqd7mm" } }] }
+            }
+        };
+        try {
+            const result = await liff.shareTargetPicker([flexMessage]);
+            if (result) Swal.fire({ icon: 'success', title: '分享成功！', timer: 2000, showConfirmButton: false, customClass: {popup: 'rounded-[24px]'} });
+        } catch (error) {}
+    }
+
+    function setupConnectionManager() {
+        document.addEventListener("visibilitychange", () => {
+            if (document.visibilityState === "visible") firebase.database().goOnline(); else firebase.database().goOffline(); 
+        });
+    }
+
+    function updateStatusUI() {
+        const locTextEl = document.getElementById('loc-text');
+        const locIconEl = document.getElementById('loc-icon');
+        if (myTrackedDriverId) {
+            if (currentTrackStep === '2') {
+                locTextEl.innerText = "🚕 快樂旅程中"; locTextEl.style.color = "#2E7D32"; locIconEl.className = "fa-solid fa-flag-checkered"; locIconEl.style.color = "#2E7D32";
+            } else if (currentTrackStep === '1.5') {
+                locTextEl.innerText = "📍 司機已抵達"; locTextEl.style.color = "#E65100"; locIconEl.className = "fa-solid fa-location-dot"; locIconEl.style.color = "#FF9800";
+            } else {
+                locTextEl.innerText = "✅ 專車前往中"; locTextEl.style.color = "#0277BD"; locIconEl.className = "fa-solid fa-car-side"; locIconEl.style.color = "#03A9F4";
+            }
+        } else {
+            locTextEl.style.color = "#333"; 
+            locIconEl.className = "fa-solid fa-location-dot"; 
+            locIconEl.style.color = "#e74c3c";
+        }
+    }
+
+    function initMap() {
+        map = new google.maps.Map(document.getElementById("map"), {
+            center: { lat: 23.991, lng: 121.601 }, zoom: 15, disableDefaultUI: true, styles: [ { featureType: "poi", elementType: "labels", stylers: [{ visibility: "off" }] } ]
+        });
+        if(navigator.geolocation) {
+            navigator.geolocation.watchPosition(pos => {
+                myLat = pos.coords.latitude; myLng = pos.coords.longitude;
+                const p = { lat: myLat, lng: myLng };
                 
+                // 🚀 核心更新：判斷乘客目前在哪一個排班戰區
                 myCurrentZone = null;
+                const userLatLng = new google.maps.LatLng(myLat, myLng);
                 for (let zoneName in zonePolygons) {
                     if (google.maps.geometry.poly.containsLocation(userLatLng, zonePolygons[zoneName])) {
                         myCurrentZone = zoneName; break;
                     }
                 }
 
-                if (myCurrentZone) {
-                    document.getElementById('zone-name').innerText = myCurrentZone;
-                    document.getElementById('loc-status').innerHTML = '<i class="fa-solid fa-location-dot text-emerald-400 mr-1"></i> 定位成功';
-                    startListeningDrivers();
-                } else {
-                    Swal.fire({icon: 'error', title: '超出服務區', text: '您目前不在排班服務區內', confirmButtonColor: '#10b981'});
-                    document.getElementById('zone-name').innerText = "未在服務區";
-                    document.getElementById('loc-status').innerHTML = '<i class="fa-solid fa-triangle-exclamation text-rose-500 mr-1"></i> 定位失敗';
-                }
-            },
-            () => { Swal.fire({icon: 'error', title: '定位權限遭拒', text: '請開啟 GPS 定位權限', confirmButtonColor: '#10b981'}); },
-            { enableHighAccuracy: true, timeout: 10000 }
-        );
-    }
-
-    function startListeningDrivers() {
-        if (!myCurrentZone) return;
-
-        db.ref('drivers').on('value', snapshot => {
-            const data = snapshot.val();
-            if (!data) return;
-
-            let zoneQueueCars = [];
-            let nearbyEmptyCars = [];
-            const userLatLng = new google.maps.LatLng(myLat, myLng);
-
-            Object.keys(data).forEach(key => {
-                if (ignoredDrivers.includes(key)) return; 
-                const d = data[key];
-                if (d.status !== 'online') return;
-
-                d.id = key;
-                const dLatLng = new google.maps.LatLng(d.lat, d.lng);
-
-                if (d.workStatus === 'queue') {
-                    if (zonePolygons[myCurrentZone] && google.maps.geometry.poly.containsLocation(dLatLng, zonePolygons[myCurrentZone])) {
-                        zoneQueueCars.push(d);
-                    }
-                }
-                else if (d.workStatus === 'empty') {
-                    let dist = google.maps.geometry.spherical.computeDistanceBetween(userLatLng, dLatLng);
-                    if (dist <= 3000) { 
-                        d.dist = dist;
-                        nearbyEmptyCars.push(d);
-                    }
-                }
-            });
-
-            if (zoneQueueCars.length > 0) {
-                zoneQueueCars.sort((a, b) => (a.queueTime || Date.now()) - (b.queueTime || Date.now()));
-                bestDriver = zoneQueueCars[0];
-                updateUI('A', zoneQueueCars.length);
-            } 
-            else if (nearbyEmptyCars.length > 0) {
-                nearbyEmptyCars.sort((a, b) => a.dist - b.dist);
-                bestDriver = nearbyEmptyCars[0];
-                updateUI('B', nearbyEmptyCars.length);
-            } 
-            else {
-                bestDriver = null;
-                updateUI('C', 0);
-            }
-        });
-    }
-
-    function updateUI(state, count) {
-        currentState = state;
-        const btn = document.getElementById('main-btn');
-        const title = document.getElementById('btn-title');
-        const sub = document.getElementById('btn-subtitle');
-        const display = document.getElementById('vehicle-count-display');
-        
-        btn.className = 'btn-call'; 
-
-        if (state === 'A') {
-            btn.classList.add('btn-state-a');
-            title.innerHTML = '<i class="fa-solid fa-bolt text-yellow-300 mr-1"></i> 呼叫首部排班車';
-            sub.innerText = `🟢 本區有 ${count} 台專車待命，秒速接駕`;
-            display.innerHTML = `<span class="text-emerald-400 font-black text-lg">${count}</span> 台車輛待命中`;
-        } 
-        else if (state === 'B') {
-            btn.classList.add('btn-state-b');
-            title.innerHTML = '<i class="fa-solid fa-truck-fast text-sky-300 mr-1"></i> 呼叫鄰近支援車';
-            sub.innerText = `🔵 正在為您從市區調派，預計 5-8 分鐘`;
-            display.innerHTML = `<span class="text-sky-400 font-black text-lg">${count}</span> 台鄰近空車可支援`;
-        } 
-        else if (state === 'C') {
-            btn.classList.add('btn-state-c');
-            title.innerHTML = '<i class="fa-solid fa-phone-volume text-rose-400 mr-1"></i> 撥打總台專線';
-            sub.innerText = `🔴 目前全線滿載，由總台人工為您派車`;
-            display.innerHTML = `<span class="text-rose-400 font-bold">目前現場車輛較多，建議使用預約功能</span>`;
-        }
-    }
-
-    async function triggerDispatch() {
-        if (currentState === 'DISABLED') return;
-        
-        if (currentState === 'C') {
-            window.location.href = 'tel:+886976981123';
-            return;
-        }
-
-        if (!passengerPhone) {
-            const { value: phone } = await Swal.fire({
-                title: '📱 輸入手機號碼',
-                text: '僅需填寫一次，方便司機抵達時聯繫您',
-                input: 'tel',
-                inputPlaceholder: '例如：0912345678',
-                confirmButtonColor: '#10b981',
-                confirmButtonText: '確定',
-                allowOutsideClick: false,
-                inputValidator: (value) => {
-                    if (!/^09\d{8}$/.test(value.replace(/\D/g, ''))) return '請輸入正確的 10 碼手機號碼';
-                }
-            });
-            if (phone) {
-                passengerPhone = phone.replace(/\D/g, '');
-                localStorage.setItem('passengerPhone', passengerPhone);
-            } else {
-                return; 
-            }
-        }
-
-        executeDispatchLoop();
-    }
-
-    let dispatchInterval;
-    let dispatchTimeout;
-    
-    function executeDispatchLoop() {
-        if (!bestDriver) {
-            Swal.fire({icon: 'warning', title: '目前無車', text: '請撥打總台專線調度', confirmButtonColor: '#10b981'});
-            return;
-        }
-
-        const targetId = bestDriver.id;
-        const requestRef = db.ref(`drivers/${targetId}/request`);
-
-        document.getElementById('lock-overlay').style.display = 'flex';
-        let sec = 15;
-        document.getElementById('lock-countdown').innerText = sec;
-        
-        dispatchInterval = setInterval(() => {
-            sec--;
-            document.getElementById('lock-countdown').innerText = sec;
-        }, 1000);
-
-        // 🚀 關鍵修復：完全對齊司機端 APP Firestore 需要的欄位 (確保不會因為 null 報錯)
-        requestRef.set({
-            lat: myLat, 
-            lng: myLng,
-            userId: passengerId, // 這是 Firestore 需要的 _passengerId
-            userName: "排班區乘客", // 這是 _passengerName
-            userPhone: passengerPhone, // 這是 _passengerPhone
-            pickup: myCurrentZone + " (排班叫車)", 
-            dropoff: "依乘客指示",
-            source: "web_app", // 增加來源標記
-            status: "pending", 
-            timestamp: firebase.database.ServerValue.TIMESTAMP
-        });
-
-        // 觸發 GAS 寫入預約總表
-        fetch(GAS_URL, { 
-            method: 'POST', 
-            mode: 'no-cors', 
-            headers: { 'Content-Type': 'application/json' }, 
-            body: JSON.stringify({ source: 'web_app', driverId: targetId }) 
-        }).catch(err => console.log('GAS Trigger Error:', err));
-
-        const driverRef = db.ref(`drivers/${targetId}`);
-        let requestSent = false;
-
-        driverRef.on('value', snap => {
-            const dData = snap.val();
-            if(!dData) return;
-
-            if (dData.workStatus === 'busy' || dData.workStatus === 'arrived') {
-                clearTimeout(dispatchTimeout);
-                clearInterval(dispatchInterval);
-                driverRef.off('value');
+                if(!userMarker) {
+                    userMarker = new google.maps.Marker({ position: p, map: map, icon: { path: google.maps.SymbolPath.CIRCLE, scale: 8, fillColor: "#4285F4", fillOpacity: 1, strokeColor: "white", strokeWeight: 2 }, title: "我" });
+                    map.panTo(p);
+                } else { userMarker.setPosition(p); }
                 
-                document.getElementById('lock-overlay').innerHTML = `
-                    <i class="fa-solid fa-circle-check text-emerald-400 text-7xl mb-4"></i>
-                    <div class="lock-text">司機已接單</div>
-                    <div class="text-white text-lg mt-2">車牌號碼：<b class="text-yellow-400 text-2xl ml-2">${dData.carNo || '專車'}</b></div>
-                    <div class="text-rose-400 font-bold mt-6 text-sm bg-rose-900/30 px-4 py-2 rounded-lg border border-rose-500/50">⚠️ 請在原地等候，勿關閉此網頁或離開現場</div>
-                `;
-            }
-            else {
-                // 如果 request 節點消失，代表司機按下了無法承接或被系統回收
-                if (requestSent && (!dData.request || dData.request.status === 'rejected')) {
-                    handleMissedOrder(targetId, requestRef, driverRef);
+                if (myTrackedDriverId) { updateStatusUI(); } else {
+                    const currentGooglePos = new google.maps.LatLng(myLat, myLng);
+                    if (!lastGeocodePos || google.maps.geometry.spherical.computeDistanceBetween(lastGeocodePos, currentGooglePos) > 100) {
+                        getAddress(myLat, myLng); lastGeocodePos = currentGooglePos;
+                    }
+                }
+                if (Object.keys(markers).length > 0) processDriversData(lastDriversData);
+            }, (err) => console.log(err), { enableHighAccuracy: true });
+        }
+    }
+
+    let lastDriversData = null; 
+
+    function startRealtimeRadar() {
+        db.ref('drivers').on('value', snapshot => {
+            const data = snapshot.val(); if (!data) return;
+            lastDriversData = data; processDriversData(data);
+        }, err => console.error("即時監聽失敗", err));
+    }
+
+    function handleOrderRejected() {
+        myTrackedDriverId = null; localStorage.removeItem('trackedDriverId'); localStorage.removeItem('wasBusy'); localStorage.removeItem('trackStep'); currentTrackStep = '1';
+        lastGeocodePos = null; if (myLat && myLng) getAddress(myLat, myLng); updateStatusUI();
+        Swal.fire({ icon: 'warning', title: '⚠️ 司機無法承接', text: '司機目前行程滿檔，請稍後再試。', confirmButtonColor: '#F97316', confirmButtonText: '我知道了' });
+        if (lastDriversData) processDriversData(lastDriversData); 
+    }
+
+    async function processDriversData(data) {
+        if (!data) return;
+        const activeIds = new Set();
+        let trackedDrivers = [];
+        let queueDrivers = [];
+        let emptyDrivers = [];
+
+        if (myTrackedDriverId) {
+            const trackedData = data[myTrackedDriverId];
+            if (!trackedData || trackedData.status !== 'online') {
+                exitTrackingMode(true, isAppJustLoaded); 
+            } else {
+                const req = trackedData.request; const wasBusy = localStorage.getItem('wasBusy') === 'true';
+                if (req && req.status === 'rejected') { handleOrderRejected(); return; }
+                if (!req || req.userId !== passengerId) {
+                    if (wasBusy) { 
+                        localStorage.removeItem('wasBusy'); 
+                        exitTrackingMode(true, isAppJustLoaded); 
+                    } else { 
+                        handleOrderRejected(); 
+                    }
+                    return; 
+                }
+                if (trackedData.workStatus === 'arrived') {
+                    if (currentTrackStep !== '1.5') { currentTrackStep = '1.5'; localStorage.setItem('trackStep', '1.5'); updateStatusUI(); }
+                } else if (trackedData.workStatus === 'busy') {
+                    localStorage.setItem('wasBusy', 'true');
+                    if (currentTrackStep === '1.5') { currentTrackStep = '2'; localStorage.setItem('trackStep', '2'); updateStatusUI(); }
                 }
             }
-            requestSent = true;
+        }
+
+        Object.keys(data).forEach(key => {
+            const d = data[key]; if (d.status !== 'online') return;
+            let isTracked = false;
+            
+            if (myTrackedDriverId) { 
+                if (key !== myTrackedDriverId) return; 
+                isTracked = true; 
+            } else { 
+                if (d.workStatus === 'busy' || d.workStatus === 'arrived') return; 
+            }
+
+            activeIds.add(key); const pos = { lat: d.lat, lng: d.lng };
+            const dLatLng = new google.maps.LatLng(d.lat, d.lng);
+            const iconType = d.workStatus === 'queue' ? 'queue' : 'empty';
+            let labelText = isTracked ? '專車' : (d.workStatus === 'queue' ? '排' : '空');
+            
+            if (isTracked) {
+                if (currentTrackStep === '1.5' || d.workStatus === 'arrived') labelText = '抵達';
+                else if (currentTrackStep === '2') labelText = '載客'; else labelText = '前往';
+            }
+
+            if (!markers[key]) {
+                markers[key] = new google.maps.Marker({ position: pos, map: map, icon: getPinIcon(iconType, isTracked, d.workStatus, currentTrackStep), label: { text: labelText, color: "white", fontSize: "14px", fontWeight: "bold" }, title: d.name, zIndex: isTracked ? 999 : 1 });
+                markers[key].addListener('click', () => { const card = document.getElementById(`card-${key}`); if(card) card.scrollIntoView({ behavior: 'smooth', inline: 'center' }); });
+            } else {
+                markers[key].setPosition(pos); markers[key].setIcon(getPinIcon(iconType, isTracked, d.workStatus, currentTrackStep)); markers[key].setLabel({ text: labelText, color: "white", fontSize: "14px", fontWeight: "bold" }); markers[key].setZIndex(isTracked ? 999 : 1);
+            }
+
+            let distUser = 999;
+            if(myLat && myLng) distUser = google.maps.geometry.spherical.computeDistanceBetween(new google.maps.LatLng(myLat, myLng), dLatLng) / 1000;
+            
+            d.id = key; d.distUser = distUser; d.isTracked = isTracked; 
+
+            // 🚀 核心更新：分流與強制鎖定邏輯
+            if (isTracked) {
+                trackedDrivers.push(d);
+            } else {
+                if (myCurrentZone && d.workStatus === 'queue') {
+                    if (zonePolygons[myCurrentZone] && google.maps.geometry.poly.containsLocation(dLatLng, zonePolygons[myCurrentZone])) {
+                        queueDrivers.push(d);
+                    }
+                } else if (d.workStatus === 'empty' && distUser <= 3) { // 3公里內空車備援
+                    emptyDrivers.push(d);
+                }
+            }
         });
 
-        dispatchTimeout = setTimeout(() => {
-            handleMissedOrder(targetId, requestRef, driverRef);
-        }, 15000);
-    }
+        // 🚀 核心更新：排班依時間排序，空車依距離排序
+        queueDrivers.sort((a, b) => {
+            let timeA = a.queueTime || a.lastUpdate || 0;
+            let timeB = b.queueTime || b.lastUpdate || 0;
+            return timeA - timeB;
+        });
+        emptyDrivers.sort((a, b) => a.distUser - b.distUser);
 
-    function handleMissedOrder(targetId, requestRef, driverRef) {
-        clearTimeout(dispatchTimeout);
-        clearInterval(dispatchInterval);
-        driverRef.off('value');
-        
-        requestRef.remove();
-        
-        db.ref(`drivers/${targetId}`).update({ workStatus: 'offline', status: 'offline' });
-        ignoredDrivers.push(targetId);
-
-        setTimeout(() => {
-            if (currentState === 'C' || !bestDriver) {
-                document.getElementById('lock-overlay').style.display = 'none';
-                Swal.fire({
-                    icon: 'warning', 
-                    title: '現場車輛忙碌中', 
-                    html: '目前前線車輛皆未能及時接單<br>建議您撥打總台專線由人工調派。',
-                    confirmButtonColor: '#10b981',
-                    confirmButtonText: '撥打總機'
-                }).then(() => { window.location.href = 'tel:+886976981123'; });
-            } else {
-                executeDispatchLoop();
+        let finalDrivers = [];
+        if (queueDrivers.length > 0) {
+            // 加入順位標記
+            for (let i = 0; i < queueDrivers.length; i++) {
+                queueDrivers[i].queueRank = i + 1;
+                queueDrivers[i].ratingStr = await fetchDriverRating(queueDrivers[i].id);
+                finalDrivers.push(queueDrivers[i]);
             }
-        }, 1000); 
+        } else {
+            // 無排班車，啟動智能降級使用附近空車
+            for (let d of emptyDrivers) {
+                d.ratingStr = await fetchDriverRating(d.id);
+                finalDrivers.push(d);
+            }
+        }
+
+        // 追蹤中的司機優先加入
+        for (let d of trackedDrivers) {
+            d.ratingStr = await fetchDriverRating(d.id);
+            finalDrivers.unshift(d);
+        }
+
+        for(let k in markers) { if(!activeIds.has(k)) { markers[k].setMap(null); delete markers[k]; } }
+        
+        updateCarousel(finalDrivers);
+        isAppJustLoaded = false;
     }
 
-    window.addEventListener('load', () => {
-        if(typeof google !== 'undefined') {
-            processPolygons();
-            locateUser();
+    function updateCarousel(drivers) {
+        const container = document.getElementById('driver-carousel');
+        const currentScroll = container.scrollLeft;
+        
+        if (drivers.length === 0) {
+            container.innerHTML = `<div style="width:100%; text-align:center; padding:20px; background:white; border-radius:24px; box-shadow:0 10px 30px rgba(0,0,0,0.15); border:2px solid #ddd;"><div style="color:#666; font-size:18px; font-weight:bold; margin-bottom:15px;">司機目前服務中或暫時離線</div><button class="btn-call-full" onclick="window.location.href='https://lin.ee/9Davl6e'"><i class="fa-brands fa-line"></i> 直接聯絡專屬司機</button></div>`;
+            return;
         }
-    });
 
+        let newHTML = '';
+        drivers.forEach(d => {
+            let statusTag = '';
+            let cardClass = "driver-card";
+            
+            // 🚀 核心更新：標籤顯示變更
+            if (d.workStatus === 'queue') {
+                statusTag = `<span class="tag tag-queue">📍 ${myCurrentZone || '排班區'}排班中</span>`;
+            } else {
+                statusTag = '<span class="tag tag-empty">🟢 鄰近支援空車</span>';
+            }
+
+            if (!d.isTracked && d.workStatus === 'queue') cardClass += " queue-mode";
+
+            if (d.isTracked) {
+                if (currentTrackStep === '1.5' || d.workStatus === 'arrived') { statusTag = '<span class="tag tag-arrived">已抵達</span>'; cardClass = "driver-card arrived-mode"; } 
+                else if (currentTrackStep === '2') { statusTag = ''; cardClass = "driver-card busy-mode"; } 
+                else { statusTag = '<span class="tag tag-tracking">前往中</span>'; cardClass = "driver-card tracking-mode"; }
+            }
+
+            const distText = d.distUser < 1 ? (d.distUser*1000).toFixed(0)+' 公尺' : d.distUser.toFixed(1)+' 公里';
+            const avatar = d.photo || 'https://cdn-icons-png.flaticon.com/512/3237/3237472.png';
+            const displayCarNo = d.carNo || d.car || '車輛';
+            let ratingUI = d.ratingStr === "NEW" ? `<span class="tag tag-star">✨ 新手司機</span>` : `<span class="tag tag-star">⭐ ${d.ratingStr}</span>`;
+            
+            if (d.isTracked && currentTrackStep === '2') {
+                newHTML += `<div class="${cardClass}" id="card-${d.id}"><div class="driver-card-top" style="justify-content: center;"><div class="d-avatar"><img src="${avatar}"></div><div class="d-info" style="justify-content: center; text-align: center;"><div style="color: #2E7D32; font-weight: 900; font-size: 18px; margin-bottom: 2px;">✅ 您已在車上</div><div style="font-size: 13px; color: #555; font-weight: bold;"><i class="fa-solid fa-flag-checkered"></i> 祝您旅途愉快</div></div></div></div>`;
+            } else {
+                // 🚀 核心更新：按鈕公平性防呆鎖定
+                let actionButtons = '';
+                if (d.isTracked) {
+                    actionButtons = `<div class="driver-card-actions"><button class="btn-cancel-action" onclick="exitTrackingMode(false, false); event.stopPropagation();"><i class="fa-solid fa-xmark"></i> 取消叫車</button><button class="btn-call-action" onclick="window.location.href='tel:${d.phone}'"><i class="fa-solid fa-phone"></i> 聯絡司機</button></div>`;
+                } else {
+                    if (d.workStatus === 'queue') {
+                        if (d.queueRank === 1) {
+                            actionButtons = `<div class="driver-card-actions"><button class="btn-call-action" onclick="callDriver('${d.id}', '${d.phone}', this); event.stopPropagation();"><i class="fa-solid fa-bolt"></i> ⚡ 呼叫首位排班車</button></div>`;
+                        } else {
+                            actionButtons = `<div class="driver-card-actions"><button class="btn-call-action" disabled><i class="fa-solid fa-hourglass-half"></i> ⏳ 依序排班中 (第 ${d.queueRank} 順位)</button></div>`;
+                        }
+                    } else {
+                        // 備援空車按鈕
+                        actionButtons = `<div class="driver-card-actions"><button class="btn-call-action" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8); border-color: #3b82f6;" onclick="callDriver('${d.id}', '${d.phone}', this); event.stopPropagation();"><i class="fa-solid fa-truck-fast"></i> 呼叫鄰近支援車</button></div>`;
+                    }
+                }
+                newHTML += `<div class="${cardClass}" id="card-${d.id}" onclick="map.panTo({lat:${d.lat}, lng:${d.lng}})"><div class="driver-card-top"><div class="d-avatar"><img src="${avatar}"></div><div class="d-info"><div class="d-name">${d.name} ${statusTag} ${ratingUI}</div><div class="d-meta"><span><i class="fa-solid fa-taxi"></i> ${displayCarNo}</span><span><i class="fa-solid fa-location-arrow"></i> 距離 ${distText}</span></div></div></div>${actionButtons}</div>`;
+            }
+        });
+        
+        container.innerHTML = newHTML; container.scrollLeft = currentScroll; 
+    }
+
+    async function callDriver(driverId, phone, btn) {
+        if (!myLat || !myLng) {
+            Swal.fire({
+                icon: 'warning',
+                title: '⚠️ 無法取得位置',
+                html: '系統目前抓不到您的所在位置。<br><br>請前往手機設定，確認 LINE 或瀏覽器的<b>【位置資訊 (GPS)】</b>已設為<b>「使用期間允許」</b>，否則司機無法找到您喔！<br><br>設定完成後請重新整理網頁。',
+                confirmButtonColor: '#00C853',
+                confirmButtonText: '我知道了'
+            });
+            return;
+        }
+
+        let passengerPhone = localStorage.getItem('passengerPhone');
+        if (!passengerPhone) {
+            const { value: formValues } = await Swal.fire({
+                title: '📱 首次叫車綁定', html: '<p style="color:#555;font-size:14px;margin-bottom:15px;text-align:left;">為了讓司機在找不到人時能主動聯繫您，請輸入您的手機號碼。<br><strong style="color:#d32f2f;">(僅需輸入一次，未來叫車免重填)</strong></p><input id="swal-input-phone" class="swal2-input" placeholder="例如：0912345678" type="tel">',
+                focusConfirm: false, confirmButtonText: '確定綁定', confirmButtonColor: '#00C853', allowOutsideClick: false,
+                preConfirm: () => { const val = document.getElementById('swal-input-phone').value.replace(/\D/g, ''); if (!/^09\d{8}$/.test(val)) Swal.showValidationMessage('請輸入正確的手機號碼'); return val; }
+            });
+            if (formValues) { passengerPhone = formValues; localStorage.setItem('passengerPhone', passengerPhone); Swal.fire({ icon: 'success', title: '綁定成功！', text: '即將為您派車...', timer: 1500, showConfirmButton: false }); await new Promise(r => setTimeout(r, 1500)); } else return; 
+        }
+
+        const originalContent = btn.innerHTML; btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin" style="font-size:20px;"></i>'; btn.disabled = true;
+
+        const currentAddress = document.getElementById('loc-text').innerText;
+        localStorage.setItem('lastPickupAddress', currentAddress);
+        const timeObj = getTaipeiTime();
+
+        const makeCallAndTrack = () => {
+            myTrackedDriverId = driverId; localStorage.setItem('trackedDriverId', driverId); localStorage.setItem('wasBusy', 'false'); localStorage.setItem('trackStep', '1'); currentTrackStep = '1';
+            updateStatusUI(); if (lastDriversData) processDriversData(lastDriversData); 
+            btn.innerHTML = originalContent; btn.disabled = false;
+            Swal.fire({ icon: 'success', title: '✅ 叫車成功！', text: '司機已收到通知，將為您切換至雷達追蹤。', timer: 2000, showConfirmButton: false });
+
+            if (liff.isInClient()) {
+                const orderFlexMessage = {
+                    "type": "flex",
+                    "altText": "🚕 一鍵叫車確認",
+                    "contents": {
+                        "type": "bubble",
+                        "size": "kilo",
+                        "body": {
+                            "type": "box",
+                            "layout": "vertical",
+                            "contents": [
+                                {
+                                    "type": "text",
+                                    "text": "🚕 呼叫排班車",
+                                    "weight": "bold",
+                                    "color": "#1976D2",
+                                    "size": "sm"
+                                },
+                                {
+                                    "type": "text",
+                                    "text": timeObj.full,
+                                    "weight": "bold",
+                                    "size": "xl",
+                                    "margin": "sm"
+                                },
+                                {
+                                    "type": "separator",
+                                    "margin": "md"
+                                },
+                                {
+                                    "type": "box",
+                                    "layout": "vertical",
+                                    "margin": "md",
+                                    "spacing": "sm",
+                                    "contents": [
+                                        {
+                                            "type": "box",
+                                            "layout": "horizontal",
+                                            "spacing": "md",
+                                            "contents": [
+                                                { "type": "text", "text": "👤 乘客", "color": "#888888", "size": "sm", "flex": 3 },
+                                                { "type": "text", "text": passengerName, "color": "#111111", "size": "sm", "flex": 7, "weight": "bold" }
+                                            ]
+                                        },
+                                        {
+                                            "type": "box",
+                                            "layout": "horizontal",
+                                            "spacing": "md",
+                                            "contents": [
+                                                { "type": "text", "text": "🟢 上車", "color": "#888888", "size": "sm", "flex": 3 },
+                                                { "type": "text", "text": currentAddress, "color": "#111111", "size": "sm", "flex": 7, "weight": "bold", "wrap": true }
+                                            ]
+                                        },
+                                        {
+                                            "type": "box",
+                                            "layout": "horizontal",
+                                            "spacing": "md",
+                                            "contents": [
+                                                { "type": "text", "text": "📞 電話", "color": "#888888", "size": "sm", "flex": 3 },
+                                                { "type": "text", "text": passengerPhone, "color": "#111111", "size": "sm", "flex": 7, "weight": "bold" }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                };
+                liff.sendMessages([orderFlexMessage]).catch(err => console.log('LIFF 置頂訊息發送失敗', err));
+            }
+        };
+
+        try {
+            const writePromise = db.ref('drivers/' + driverId + '/request').set({ 
+                lat: myLat, lng: myLng, userId: passengerId, userName: passengerName, userPhone: passengerPhone, 
+                pickup: currentAddress, dropoff: "依乘客指示", timestamp: firebase.database.ServerValue.TIMESTAMP 
+            });
+            const pushPromise = fetch(GAS_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ source: 'web_app', driverId: driverId }) });
+            await Promise.race([Promise.all([writePromise, pushPromise]), new Promise(r => setTimeout(r, 2000))]);
+        } catch (error) {} finally { makeCallAndTrack(); }
+    }
+
+    async function exitTrackingMode(isAuto, skipRating = false) {
+        if (!isAuto && myTrackedDriverId) {
+            const confirm = await Swal.fire({ title: '確定要取消叫車嗎？', text: "取消後將立即通知司機", icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', cancelButtonColor: '#3085d6', confirmButtonText: '是的，取消叫車', cancelButtonText: '按錯了' });
+            if (!confirm.isConfirmed) return; 
+            try { await db.ref('drivers/' + myTrackedDriverId + '/request').remove(); } catch (e) {}
+            
+            if (liff.isInClient()) {
+                const lockedAddress = localStorage.getItem('lastPickupAddress') || document.getElementById('loc-text').innerText;
+                const timeObj = getTaipeiTime();
+                const cancelTextMsg = {
+                    "type": "text",
+                    "text": `❌ 已取消叫車\n(時間：${timeObj.short})\n📍 上車點：${lockedAddress}`
+                };
+                liff.sendMessages([cancelTextMsg]).catch(err => console.log('LIFF 取消訊息發送失敗', err));
+            }
+
+            resetTrackingState();
+            Swal.fire({ icon: 'info', title: '已取消叫車', text: '已同步通知司機', timer: 2000, showConfirmButton: false });
+            
+            if (liff.isInClient()) {
+                setTimeout(() => { liff.closeWindow(); }, 1500);
+            }
+            return;
+        }
+
+        if (isAuto) {
+            if (skipRating) {
+                resetTrackingState();
+                return;
+            }
+
+            Swal.fire({ title: '同步行程資料中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
+            let targetTripId = null;
+            try {
+                const snapshot = await firestoreDb.collection('trips')
+                    .where('passengerId', '==', passengerId).orderBy('timestamp', 'desc').limit(1).get();
+                if (!snapshot.empty) targetTripId = snapshot.docs[0].id;
+            } catch(e) { console.error(e); }
+
+            resetTrackingState();
+
+            let selectedRating = 0;
+            const { isConfirmed } = await Swal.fire({
+                title: '行程已結束',
+                html: `
+                    <p style="color:#666; margin-bottom:15px; font-weight:bold;">感謝您的搭乘！請為司機打個分數：</p>
+                    <div id="star-rating-container" style="display:flex; justify-content:center; gap:10px; font-size:40px; color:#ddd; cursor:pointer;">
+                        <i class="fa-solid fa-star star-btn" data-val="1"></i>
+                        <i class="fa-solid fa-star star-btn" data-val="2"></i>
+                        <i class="fa-solid fa-star star-btn" data-val="3"></i>
+                        <i class="fa-solid fa-star star-btn" data-val="4"></i>
+                        <i class="fa-solid fa-star star-btn" data-val="5"></i>
+                    </div>
+                `,
+                showCancelButton: true, confirmButtonColor: '#00C853', cancelButtonColor: '#94a3b8', confirmButtonText: '送出評價', cancelButtonText: '略過並關閉', allowOutsideClick: false,
+                didOpen: () => {
+                    const stars = document.querySelectorAll('.star-btn');
+                    stars.forEach(star => {
+                        star.addEventListener('click', function() {
+                            selectedRating = parseInt(this.getAttribute('data-val'));
+                            stars.forEach(s => { s.style.color = parseInt(s.getAttribute('data-val')) <= selectedRating ? '#FFC107' : '#ddd'; });
+                        });
+                    });
+                },
+                preConfirm: () => { if (selectedRating === 0) { Swal.showValidationMessage('請點擊星星進行評分喔！'); return false; } return selectedRating; }
+            });
+
+            if (isConfirmed && selectedRating > 0) {
+                Swal.fire({ title: '送出中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
+                try {
+                    if (targetTripId) {
+                        await firestoreDb.collection('trips').doc(targetTripId).update({ rating: selectedRating, ratingTime: firebase.firestore.FieldValue.serverTimestamp() });
+                    }
+                } catch(e) {}
+            }
+
+            if (liff.isInClient()) { liff.closeWindow(); } else { Swal.fire({ icon: 'success', title: '感謝搭乘', text: '您可以關閉此網頁了', showConfirmButton: false }); }
+        }
+    }
+
+    function resetTrackingState() {
+        myTrackedDriverId = null; localStorage.removeItem('trackedDriverId'); localStorage.removeItem('wasBusy'); localStorage.removeItem('trackStep'); currentTrackStep = '1';
+        lastGeocodePos = null; if (myLat && myLng) getAddress(myLat, myLng); updateStatusUI();
+        if (lastDriversData) processDriversData(lastDriversData); 
+    }
+
+    function centerMap(){ if(userMarker) { map.panTo(userMarker.getPosition()); map.setZoom(15); } }
+    
+    function getAddress(lat, lng) {
+        document.getElementById('loc-text').innerText = "定位中...";
+        const geocoder = new google.maps.Geocoder();
+        geocoder.geocode({ location: { lat: lat, lng: lng } }, (results, status) => {
+            if (myTrackedDriverId) return;
+            if (status === "OK" && results[0]) {
+                const route = results[0].address_components.find(c => c.types.includes('route'))?.short_name || "";
+                const streetNum = results[0].address_components.find(c => c.types.includes('street_number'))?.short_name || "";
+                let addr = (route + " " + streetNum).trim();
+                if (!addr) addr = results[0].address_components.find(c => c.types.includes('neighborhood'))?.short_name || "您的位置";
+                document.getElementById('loc-text').innerText = addr;
+            } else { document.getElementById('loc-text').innerText = "請稍候..."; }
+        });
+    }
   </script>
 </body>
 </html>
