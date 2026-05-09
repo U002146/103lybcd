@@ -56,7 +56,6 @@
 </head>
 <body>
 
-  <!-- 防放鴿子全螢幕鎖定 -->
   <div id="lock-overlay">
       <i class="fa-solid fa-car-side fa-bounce text-emerald-400 text-6xl"></i>
       <div class="lock-text">配對中，請勿關閉網頁</div>
@@ -95,12 +94,14 @@
   </div>
 
   <script>
-    const VERSION = "v1.1_Passenger_AntiGhosting";
+    const VERSION = "v1.2_Passenger_FullLink";
     const firebaseConfig = { databaseURL: "https://hualientaxi-bb32f-default-rtdb.asia-southeast1.firebasedatabase.app/" };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
+    
+    // 🚀 關鍵修復：補回 GAS Webhook 引擎 (負責寫入乘車紀錄與預約總表)
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbzjWZ8j394jfKoMVbPWGvHJHqwF7RBCQxnxyju1ifWKoKdM7RE512F7qrhUsQqQGoWg/exec";
 
-    // 建立乘客 Session ID (免登入機制)
     let passengerId = localStorage.getItem('guest_pid');
     if (!passengerId) {
         passengerId = 'GUEST-' + Math.random().toString(36).substr(2, 9).toUpperCase();
@@ -149,7 +150,7 @@
     
     let currentState = 'DISABLED'; 
     let bestDriver = null; 
-    let ignoredDrivers = []; // 漏單/拒接的司機黑名單
+    let ignoredDrivers = []; 
 
     function processPolygons() {
         const points = [];
@@ -202,7 +203,6 @@
         );
     }
 
-    // 核心引擎：掃描全域司機狀態，判斷 A / B / C
     function startListeningDrivers() {
         if (!myCurrentZone) return;
 
@@ -222,44 +222,37 @@
                 d.id = key;
                 const dLatLng = new google.maps.LatLng(d.lat, d.lng);
 
-                // 找本區排班車
                 if (d.workStatus === 'queue') {
                     if (zonePolygons[myCurrentZone] && google.maps.geometry.poly.containsLocation(dLatLng, zonePolygons[myCurrentZone])) {
                         zoneQueueCars.push(d);
                     }
                 }
-                // 找鄰近空車
                 else if (d.workStatus === 'empty') {
                     let dist = google.maps.geometry.spherical.computeDistanceBetween(userLatLng, dLatLng);
-                    if (dist <= 3000) { // 3公里內
+                    if (dist <= 3000) { 
                         d.dist = dist;
                         nearbyEmptyCars.push(d);
                     }
                 }
             });
 
-            // 狀態判定邏輯
             if (zoneQueueCars.length > 0) {
-                // 狀態 A：本區有排班車 (照 queueTime 排序，抓第一名)
                 zoneQueueCars.sort((a, b) => (a.queueTime || Date.now()) - (b.queueTime || Date.now()));
                 bestDriver = zoneQueueCars[0];
                 updateUI('A', zoneQueueCars.length);
             } 
             else if (nearbyEmptyCars.length > 0) {
-                // 狀態 B：本區無車，抓鄰近最近的空車
                 nearbyEmptyCars.sort((a, b) => a.dist - b.dist);
                 bestDriver = nearbyEmptyCars[0];
                 updateUI('B', nearbyEmptyCars.length);
             } 
             else {
-                // 狀態 C：全區皆沒車
                 bestDriver = null;
                 updateUI('C', 0);
             }
         });
     }
 
-    // 三段變形介面
     function updateUI(state, count) {
         currentState = state;
         const btn = document.getElementById('main-btn');
@@ -267,7 +260,7 @@
         const sub = document.getElementById('btn-subtitle');
         const display = document.getElementById('vehicle-count-display');
         
-        btn.className = 'btn-call'; // Reset
+        btn.className = 'btn-call'; 
 
         if (state === 'A') {
             btn.classList.add('btn-state-a');
@@ -289,17 +282,14 @@
         }
     }
 
-    // 啟動派單 (借殼上市)
     async function triggerDispatch() {
         if (currentState === 'DISABLED') return;
         
-        // 狀態C：無車直接打電話
         if (currentState === 'C') {
             window.location.href = 'tel:+886976981123';
             return;
         }
 
-        // 首次使用需輸入電話 (方便司機聯絡)
         if (!passengerPhone) {
             const { value: phone } = await Swal.fire({
                 title: '📱 輸入手機號碼',
@@ -317,14 +307,13 @@
                 passengerPhone = phone.replace(/\D/g, '');
                 localStorage.setItem('passengerPhone', passengerPhone);
             } else {
-                return; // 取消填寫則終止
+                return; 
             }
         }
 
         executeDispatchLoop();
     }
 
-    // 15秒自動防呆派車迴圈
     let dispatchInterval;
     let dispatchTimeout;
     
@@ -337,7 +326,6 @@
         const targetId = bestDriver.id;
         const requestRef = db.ref(`drivers/${targetId}/request`);
 
-        // 1. 開啟防放鴿子鎖定層
         document.getElementById('lock-overlay').style.display = 'flex';
         let sec = 15;
         document.getElementById('lock-countdown').innerText = sec;
@@ -347,7 +335,7 @@
             document.getElementById('lock-countdown').innerText = sec;
         }, 1000);
 
-        // 2. 借殼寫入一鍵叫車格式
+        // 寫入任務
         requestRef.set({
             lat: myLat, lng: myLng,
             userId: passengerId,
@@ -358,19 +346,28 @@
             timestamp: firebase.database.ServerValue.TIMESTAMP
         });
 
-        // 3. 監聽該司機狀態 (看他有沒有接單)
+        // 🚀 關鍵修復 A：補回 GAS 觸發器，讓後台知道有這筆單，負責建立 Firestore 乘車紀錄與預約總表
+        fetch(GAS_URL, { 
+            method: 'POST', 
+            mode: 'no-cors', 
+            headers: { 'Content-Type': 'application/json' }, 
+            body: JSON.stringify({ source: 'web_app', driverId: targetId }) 
+        }).catch(err => console.log('GAS Trigger Error:', err));
+
         const driverRef = db.ref(`drivers/${targetId}`);
+        let requestSent = false;
+
+        // 監聽司機動態
         driverRef.on('value', snap => {
             const dData = snap.val();
             if(!dData) return;
 
-            // 司機按下「前往/接單」(他的狀態會變成 busy 或 arrived，或進入 trackStep)
+            // 司機接單
             if (dData.workStatus === 'busy' || dData.workStatus === 'arrived') {
                 clearTimeout(dispatchTimeout);
                 clearInterval(dispatchInterval);
                 driverRef.off('value');
                 
-                // 接單成功，鎖定層變更為成功狀態
                 document.getElementById('lock-overlay').innerHTML = `
                     <i class="fa-solid fa-circle-check text-emerald-400 text-7xl mb-4"></i>
                     <div class="lock-text">司機已接單</div>
@@ -378,37 +375,32 @@
                     <div class="text-rose-400 font-bold mt-6 text-sm bg-rose-900/30 px-4 py-2 rounded-lg border border-rose-500/50">⚠️ 請在原地等候，勿關閉此網頁或離開現場</div>
                 `;
             }
-            // 司機手動拒接 (rejected)
-            else if (dData.request && dData.request.status === 'rejected') {
-                handleMissedOrder(targetId, requestRef, driverRef);
+            // 🚀 關鍵修復 B：防呆拒接判定。當司機按下「無法承接」時，request 節點會直接消失。
+            else {
+                if (requestSent && (!dData.request || dData.request.status === 'rejected')) {
+                    handleMissedOrder(targetId, requestRef, driverRef);
+                }
             }
+            requestSent = true;
         });
 
-        // 4. 設定 15 秒超時未接遞補機制
         dispatchTimeout = setTimeout(() => {
             handleMissedOrder(targetId, requestRef, driverRef);
         }, 15000);
     }
 
-    // 處理漏單/拒接
     function handleMissedOrder(targetId, requestRef, driverRef) {
         clearTimeout(dispatchTimeout);
         clearInterval(dispatchInterval);
         driverRef.off('value');
         
-        // 刪除該次請求
         requestRef.remove();
         
-        // 【防呆懲罰機制】: 踢出排班隊伍，避免佔著茅坑不拉屎
         db.ref(`drivers/${targetId}`).update({ workStatus: 'offline', status: 'offline' });
-
-        // 加入黑名單，避免迴圈再次找上他
         ignoredDrivers.push(targetId);
 
-        // 重新掃描並派給下一位 (系統會自動因 db.on 而更新 bestDriver)
         setTimeout(() => {
             if (currentState === 'C' || !bestDriver) {
-                // 如果已經沒車了
                 document.getElementById('lock-overlay').style.display = 'none';
                 Swal.fire({
                     icon: 'warning', 
@@ -418,10 +410,9 @@
                     confirmButtonText: '撥打總機'
                 }).then(() => { window.location.href = 'tel:+886976981123'; });
             } else {
-                // 還有下一位，繼續迴圈
                 executeDispatchLoop();
             }
-        }, 1000); // 給1秒緩衝時間讓 Firebase 更新資料
+        }, 1000); 
     }
 
     window.addEventListener('load', () => {
