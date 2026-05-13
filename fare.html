@@ -151,7 +151,7 @@
   <div id="map"></div>
 
   <script>
-    const VERSION = "v3.5"; 
+    const VERSION = "v3.6"; 
     const LIFF_ID = "2008907691-Faf4aET8"; 
     const DAILY_LIMIT = 5;
     
@@ -162,7 +162,7 @@
     let map, directionsService, directionsRenderer;
     let dropoffAutocomplete; 
     let passengerId = "unknown";
-    let userName = "乘客"; // 🚀 獲取乘客名稱
+    let userName = "乘客"; 
     let isPickupValid = false; 
     let currentRouteBounds = null; 
 
@@ -183,7 +183,7 @@
             if(!liff.isLoggedIn()) { liff.login(); return; }
             const profile = await liff.getProfile();
             passengerId = profile.userId;
-            userName = profile.displayName; // 🚀 更新乘客名稱
+            userName = profile.displayName; 
 
             const blockDoc = await firestoreDb.collection('blacklists').doc(passengerId).get();
             if (blockDoc.exists) { 
@@ -392,7 +392,7 @@
         });
     }
 
-    // 🚀 一鍵發送叫車單功能 (已升級為 Flex Message)
+    // 🚀 一鍵發送叫車單功能 (升級為獨立紫羅蘭色標籤)
     function sendOrderMessage() {
         if (!liff.isInClient()) {
             Swal.fire('無法傳送', '請在 LINE APP 中使用此功能發送叫車單。', 'warning');
@@ -417,7 +417,8 @@
                         {
                             type: "box", layout: "vertical", flex: 1, spacing: "xs",
                             contents: [
-                                { type: "text", text: "🚕 預估車資叫車", weight: "bold", size: "sm", color: "#10b981" },
+                                // 🚀 將字體顏色改為紫羅蘭色 (#8B5CF6)，與排班(藍)及名片(綠)產生視覺區隔
+                                { type: "text", text: "🚕 預估車資叫車", weight: "bold", size: "sm", color: "#8B5CF6" },
                                 { type: "text", text: `即時單 ${nowTimeStr}`, weight: "bold", size: "xl", color: "#111111", adjustMode: "shrink-to-fit" }
                             ]
                         }
