@@ -152,7 +152,7 @@
 
     <script>
         // ========= CONFIG 設定區 =========
-        const VERSION = "v8.20"; 
+        const VERSION = "v8.21"; 
         const LIFF_ID = '2008907691-1mAjwojZ'; 
         const GAS_URL = "https://script.google.com/macros/s/AKfycbzjWZ8j394jfKoMVbPWGvHJHqwF7RBCQxnxyju1ifWKoKdM7RE512F7qrhUsQqQGoWg/exec"; 
         
@@ -301,7 +301,6 @@
         function updateDriverUI(data) {
             let status = 'offline'; 
             
-            // 🚀 核心更新：加入防呆狀態攔截器
             const req = data && data.request ? data.request : null;
             let previousTracking = localStorage.getItem('isTrackingDriver') === 'true';
             let wasBusy = localStorage.getItem('wasBusy') === 'true';
@@ -520,7 +519,6 @@
             }
         }
 
-        // 🚀 新增：地址反查
         async function getAddressFromLatLng(lat, lng) {
             return new Promise((resolve) => {
                 const geocoder = new google.maps.Geocoder();
@@ -538,7 +536,6 @@
             });
         }
 
-        // 🚀 新增：控制叫車與取消按鈕邏輯
         function handleOrderAction() {
             if (isTracking) {
                 cancelOrder();
@@ -547,7 +544,6 @@
             }
         }
 
-        // 🚀 新增：一鍵叫車邏輯
         async function placeOrder() {
             if (!passengerLatLng) {
                 showGpsInstruction();
@@ -585,7 +581,6 @@
                 
                 await Promise.race([Promise.all([writePromise, pushPromise]), new Promise(r => setTimeout(r, 2000))]);
                 
-                // 🚀 寫入追蹤 flag，開啟防呆機制
                 localStorage.setItem('isTrackingDriver', 'true');
                 localStorage.removeItem('wasBusy');
             } catch (error) {
@@ -595,9 +590,10 @@
             Swal.fire({ icon: 'success', title: '✅ 叫車成功！', text: '司機已收到通知，請稍候。', timer: 2000, showConfirmButton: false });
 
             if (liff.isInClient()) {
+                // 🚀 核心更新：將名片叫車的標題改為「🚕 專屬名片叫車」，並套用翡翠綠顏色
                 const orderFlexMessage = {
                     "type": "flex",
-                    "altText": "🚕 一鍵叫車確認",
+                    "altText": "🚕 專屬名片叫車",
                     "contents": {
                         "type": "bubble",
                         "size": "kilo",
@@ -605,7 +601,7 @@
                             "type": "box",
                             "layout": "vertical",
                             "contents": [
-                                { "type": "text", "text": "🚕 一鍵叫車", "weight": "bold", "color": "#1976D2", "size": "sm" },
+                                { "type": "text", "text": "🚕 專屬名片叫車", "weight": "bold", "color": "#00C853", "size": "sm" },
                                 { "type": "text", "text": timeObj.full, "weight": "bold", "size": "xl", "margin": "sm" },
                                 { "type": "separator", "margin": "md" },
                                 {
@@ -624,12 +620,10 @@
             }
         }
 
-        // 🚀 新增：取消叫車邏輯
         async function cancelOrder() {
             const confirm = await Swal.fire({ title: '確定要取消叫車嗎？', text: "取消後將立即通知司機", icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', cancelButtonColor: '#3085d6', confirmButtonText: '是的，取消叫車', cancelButtonText: '按錯了' });
             if (!confirm.isConfirmed) return; 
             
-            // 🚀 關鍵：自己取消時先清掉 flag，就不會觸發防呆警告
             localStorage.removeItem('isTrackingDriver');
             localStorage.removeItem('wasBusy');
 
