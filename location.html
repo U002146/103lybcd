@@ -152,7 +152,7 @@
 
     <script>
         // ========= CONFIG 設定區 =========
-        const VERSION = "v8.19"; 
+        const VERSION = "v8.20"; 
         const LIFF_ID = '2008907691-1mAjwojZ'; 
         const GAS_URL = "https://script.google.com/macros/s/AKfycbzjWZ8j394jfKoMVbPWGvHJHqwF7RBCQxnxyju1ifWKoKdM7RE512F7qrhUsQqQGoWg/exec"; 
         
@@ -301,15 +301,45 @@
         function updateDriverUI(data) {
             let status = 'offline'; 
             
-            // 🚀 核心更新：判斷叫車追蹤狀態
-            isTracking = false;
+            // 🚀 核心更新：加入防呆狀態攔截器
+            const req = data && data.request ? data.request : null;
+            let previousTracking = localStorage.getItem('isTrackingDriver') === 'true';
+            let wasBusy = localStorage.getItem('wasBusy') === 'true';
+
+            // 防呆處理：當我們以為還在追蹤，但訂單狀態改變或消失時
+            if (previousTracking) {
+                if (req && req.userId === passengerId) {
+                    if (data.workStatus === 'busy') localStorage.setItem('wasBusy', 'true');
+                    
+                    // 攔截司機的拒絕與放鳥
+                    if (req.status === 'rejected') {
+                        localStorage.removeItem('isTrackingDriver');
+                        localStorage.removeItem('wasBusy');
+                        Swal.fire({ icon: 'warning', title: '⚠️ 司機無法承接', text: '司機目前行程滿檔，請稍後再試。', confirmButtonColor: '#F97316' });
+                    } else if (req.status === 'noshow') {
+                        localStorage.removeItem('isTrackingDriver');
+                        localStorage.removeItem('wasBusy');
+                        Swal.fire({ icon: 'error', title: '⚠️ 任務取消', text: '由於逾時未上車，司機已取消此任務。', confirmButtonColor: '#EF4444' });
+                    }
+                } else {
+                    // 訂單節點突然消失 (被刪除或覆蓋)
+                    localStorage.removeItem('isTrackingDriver');
+                    if (wasBusy) {
+                        localStorage.removeItem('wasBusy');
+                        Swal.fire({ icon: 'success', title: '感謝搭乘', text: '行程已順利結束，期待下次為您服務！', confirmButtonColor: '#00C853' });
+                    } else {
+                        // 沒上車就消失 -> 拒單
+                        Swal.fire({ icon: 'warning', title: '⚠️ 司機無法承接', text: '司機目前行程滿檔，請稍後再試。', confirmButtonColor: '#F97316' });
+                    }
+                }
+            }
+
+            // 更新按鈕追蹤狀態
+            isTracking = (req && req.userId === passengerId && req.status !== 'rejected' && req.status !== 'noshow');
+            
             const orderBtn = document.getElementById('btn-order');
             const orderIcon = document.getElementById('order-icon');
             const orderText = document.getElementById('order-text');
-
-            if (data && data.request && data.request.userId === passengerId) {
-                isTracking = true;
-            }
 
             if (isTracking) {
                 orderBtn.className = "cancel-mode";
@@ -554,6 +584,10 @@
                 const pushPromise = fetch(GAS_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ source: 'web_app', driverId: DRIVER_USER_ID }) });
                 
                 await Promise.race([Promise.all([writePromise, pushPromise]), new Promise(r => setTimeout(r, 2000))]);
+                
+                // 🚀 寫入追蹤 flag，開啟防呆機制
+                localStorage.setItem('isTrackingDriver', 'true');
+                localStorage.removeItem('wasBusy');
             } catch (error) {
                 console.error(error);
             }
@@ -595,6 +629,10 @@
             const confirm = await Swal.fire({ title: '確定要取消叫車嗎？', text: "取消後將立即通知司機", icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', cancelButtonColor: '#3085d6', confirmButtonText: '是的，取消叫車', cancelButtonText: '按錯了' });
             if (!confirm.isConfirmed) return; 
             
+            // 🚀 關鍵：自己取消時先清掉 flag，就不會觸發防呆警告
+            localStorage.removeItem('isTrackingDriver');
+            localStorage.removeItem('wasBusy');
+
             try { await db.ref('drivers/' + DRIVER_USER_ID + '/request').remove(); } catch (e) {}
             
             if (liff.isInClient()) {
