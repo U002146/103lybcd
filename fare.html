@@ -151,7 +151,7 @@
   <div id="map"></div>
 
   <script>
-    const VERSION = "v3.4"; 
+    const VERSION = "v3.5"; 
     const LIFF_ID = "2008907691-Faf4aET8"; 
     const DAILY_LIMIT = 5;
     
@@ -162,6 +162,7 @@
     let map, directionsService, directionsRenderer;
     let dropoffAutocomplete; 
     let passengerId = "unknown";
+    let userName = "乘客"; // 🚀 獲取乘客名稱
     let isPickupValid = false; 
     let currentRouteBounds = null; 
 
@@ -182,6 +183,7 @@
             if(!liff.isLoggedIn()) { liff.login(); return; }
             const profile = await liff.getProfile();
             passengerId = profile.userId;
+            userName = profile.displayName; // 🚀 更新乘客名稱
 
             const blockDoc = await firestoreDb.collection('blacklists').doc(passengerId).get();
             if (blockDoc.exists) { 
@@ -390,22 +392,70 @@
         });
     }
 
-    // 一鍵發送叫車單功能
+    // 🚀 一鍵發送叫車單功能 (已升級為 Flex Message)
     function sendOrderMessage() {
         if (!liff.isInClient()) {
             Swal.fire('無法傳送', '請在 LINE APP 中使用此功能發送叫車單。', 'warning');
             return;
         }
 
-        // 組裝包含免責聲明的標準叫車字串
-        const msgText = `🚕 【預估車資叫車】\n📍 上車：${currentOrderData.pickup}\n🏁 下車：${currentOrderData.dropoff}\n⏱️ 預估時間：${currentOrderData.duration}\n💰 預估小黃：約 NT$ ${currentOrderData.yellowFare}\n(註：實際車資依跳表為準)`;
-
         Swal.fire({ title: '發送叫車單中...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
 
-        liff.sendMessages([{
-            type: 'text',
-            text: msgText
-        }]).then(() => {
+        const nowTimeStr = new Date().toLocaleTimeString('zh-TW', {hour:'2-digit', minute:'2-digit', hour12:false});
+        const pickupMapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(currentOrderData.pickup)}`;
+        const dropoffMapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(currentOrderData.dropoff)}`;
+
+        const flexMsg = {
+            type: "flex",
+            altText: "🚕 預估車資叫車",
+            contents: {
+                type: "bubble",
+                styles: { header: { backgroundColor: "#FFFFFF" }, body: { backgroundColor: "#FFFFFF" } },
+                header: {
+                    type: "box", layout: "horizontal", spacing: "sm", alignItems: "center", paddingAll: "15px",
+                    contents: [
+                        {
+                            type: "box", layout: "vertical", flex: 1, spacing: "xs",
+                            contents: [
+                                { type: "text", text: "🚕 預估車資叫車", weight: "bold", size: "sm", color: "#10b981" },
+                                { type: "text", text: `即時單 ${nowTimeStr}`, weight: "bold", size: "xl", color: "#111111", adjustMode: "shrink-to-fit" }
+                            ]
+                        }
+                    ]
+                },
+                body: {
+                    type: "box", layout: "vertical",
+                    contents: [
+                        {
+                            type: "box", layout: "horizontal", margin: "md",
+                            contents: [ { type: "text", text: "👤 乘客", flex: 2, color: "#888888", size: "md" }, { type: "text", text: userName, flex: 5, color: "#111111", size: "md", weight: "bold" } ]
+                        },
+                        { type: "separator", margin: "md", color: "#EEEEEE" },
+                        {
+                            type: "box", layout: "horizontal", margin: "md",
+                            contents: [ { type: "text", text: "🟢 上車", flex: 2, color: "#888888", size: "md" }, { type: "text", text: currentOrderData.pickup, flex: 5, color: "#111111", size: "md", wrap: true, action: { type: "uri", label: "導航", uri: pickupMapUrl } } ]
+                        },
+                        { type: "separator", margin: "md", color: "#EEEEEE" },
+                        {
+                            type: "box", layout: "horizontal", margin: "md",
+                            contents: [ { type: "text", text: "🔴 下車", flex: 2, color: "#888888", size: "md" }, { type: "text", text: currentOrderData.dropoff, flex: 5, color: "#111111", size: "md", wrap: true, action: { type: "uri", label: "導航", uri: dropoffMapUrl } } ]
+                        },
+                        { type: "separator", margin: "lg", color: "#EEEEEE" },
+                        {
+                            type: "box", layout: "horizontal", margin: "lg",
+                            contents: [ { type: "text", text: "⏱️ 預估", flex: 2, color: "#888888", size: "md" }, { type: "text", text: currentOrderData.duration, flex: 5, color: "#111111", size: "md", weight: "bold" } ]
+                        },
+                        { type: "separator", margin: "lg", color: "#EEEEEE" },
+                        {
+                            type: "box", layout: "horizontal", margin: "lg",
+                            contents: [ { type: "text", text: "💰 車資", flex: 2, color: "#888888", size: "md" }, { type: "text", text: `約 NT$ ${currentOrderData.yellowFare}`, flex: 5, color: "#F59E0B", size: "md", weight: "bold" } ]
+                        }
+                    ]
+                }
+            }
+        };
+
+        liff.sendMessages([flexMsg]).then(() => {
             Swal.close();
             liff.closeWindow(); // 傳送成功後立即關閉網頁，退回聊天室
         }).catch((err) => {
