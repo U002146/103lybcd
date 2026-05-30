@@ -30,6 +30,8 @@
         .loader { border: 3px solid #f3f3f3; border-top: 3px solid #3b82f6; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         
+        /* 🚀 核心修復：強制所有 Swal 彈窗顯示在最上層 */
+        .swal2-container { z-index: 99999 !important; }
         .swal2-popup { border-radius: 24px !important; font-family: 'Noto Sans TC', sans-serif !important; padding-bottom: 20px !important;}
         .location-grid { max-height: 50vh; overflow-y: auto; padding: 4px; }
 
@@ -58,7 +60,7 @@
 </head>
 <body>
 
-    <div id="loading-overlay" class="fixed inset-0 bg-white z-[9999] flex flex-col items-center justify-center">
+    <div id="loading-overlay" class="fixed inset-0 bg-white z-[9000] flex flex-col items-center justify-center">
         <div class="loader mb-4 w-12 h-12 border-4 text-blue-500"></div>
         <p id="loading-text" class="text-slate-600 font-bold text-lg tracking-widest animate-pulse">系統連線中...</p>
     </div>
@@ -220,10 +222,9 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script>
-        const VERSION = "v4.9"; 
+        const VERSION = "v4.10"; 
         const LIFF_ID = '2008907691-3P676tTN'; 
         
-        // 🚀 初始化 Firebase 與 Firestore (補齊遺漏的配置)
         const firebaseConfig = { projectId: "hualientaxi-bb32f" };
         firebase.initializeApp(firebaseConfig);
         const firestoreDb = firebase.firestore();
@@ -273,8 +274,8 @@
                 // 🚀 核心更新：預約前先檢查黑名單防線
                 const blockDoc = await firestoreDb.collection('blacklists').doc(passengerId).get();
                 if (blockDoc.exists) { 
-                    document.getElementById('loading-overlay').style.backgroundColor = '#fee2e2'; // 淺紅色底
-                    document.getElementById('loading-text').innerText = '帳號驗證中...';
+                    // 🚀 強制隱藏全螢幕遮罩，確保 Swal 正常顯示
+                    document.getElementById('loading-overlay').style.display = 'none';
                     
                     Swal.fire({
                         icon: 'error',
@@ -285,7 +286,7 @@
                         allowOutsideClick: false
                     }).then(() => {
                         if (liff.isInClient()) liff.closeWindow();
-                        else document.body.innerHTML = '';
+                        else document.body.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;height:100vh;color:#e74c3c;font-weight:bold;background:#fee2e2;">您的帳號已被停權。</div>';
                     });
                     return; 
                 }
