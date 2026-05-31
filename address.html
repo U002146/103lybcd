@@ -30,8 +30,6 @@
         .loader { border: 3px solid #f3f3f3; border-top: 3px solid #3b82f6; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         
-        /* 🚀 核心修復：強制所有 Swal 彈窗顯示在最上層 */
-        .swal2-container { z-index: 99999 !important; }
         .swal2-popup { border-radius: 24px !important; font-family: 'Noto Sans TC', sans-serif !important; padding-bottom: 20px !important;}
         .location-grid { max-height: 50vh; overflow-y: auto; padding: 4px; }
 
@@ -60,7 +58,7 @@
 </head>
 <body>
 
-    <div id="loading-overlay" class="fixed inset-0 bg-white z-[9000] flex flex-col items-center justify-center">
+    <div id="loading-overlay" class="fixed inset-0 bg-white z-[9999] flex flex-col items-center justify-center">
         <div class="loader mb-4 w-12 h-12 border-4 text-blue-500"></div>
         <p id="loading-text" class="text-slate-600 font-bold text-lg tracking-widest animate-pulse">系統連線中...</p>
     </div>
@@ -218,17 +216,13 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script>
-        const VERSION = "v4.10"; 
+        const VERSION = "v4.8"; 
         const LIFF_ID = '2008907691-3P676tTN'; 
+        const PROJECT_B_URL = 'https://liff.line.me/2008907691-1mAjwojZ'; 
         
-        const firebaseConfig = { projectId: "hualientaxi-bb32f" };
-        firebase.initializeApp(firebaseConfig);
-        const firestoreDb = firebase.firestore();
-
+        // 對接最新的 GAS 後端大腦
         const BOOKING_GAS_URL = 'https://script.google.com/macros/s/AKfycbzVTtBzYxPy9g-WnaJPS_Q_8GnzmWDf4Kaw7nA8VeDfe6ykM5rV3C2MmMddMh3AG6c9/exec'; 
 
         const PRESET_LOCATIONS = [
@@ -252,7 +246,7 @@
         const urlParams = new URLSearchParams(window.location.search);
         const editOrderId = urlParams.get('orderId');
 
-        window.onload = async function() {
+        window.onload = function() {
             const savedPhone = localStorage.getItem('taxi_user_phone');
             if(savedPhone) document.getElementById('phone').value = savedPhone;
             const savedPayment = localStorage.getItem('taxi_selected_payment');
@@ -261,41 +255,19 @@
                 if(method) updatePaymentUI(method.label, method.icon, method.color); 
             }
 
-            try {
-                await liff.init({ liffId: LIFF_ID });
+            liff.init({ liffId: LIFF_ID }).then(() => {
                 if (!liff.isLoggedIn()) {
                     liff.login({ redirectUri: window.location.href });
                     return; 
                 }
-                const profile = await liff.getProfile();
-                userName = profile.displayName;
-                passengerId = profile.userId;
-
-                // 🚀 核心更新：預約前先檢查黑名單防線
-                const blockDoc = await firestoreDb.collection('blacklists').doc(passengerId).get();
-                if (blockDoc.exists) { 
-                    // 🚀 強制隱藏全螢幕遮罩，確保 Swal 正常顯示
-                    document.getElementById('loading-overlay').style.display = 'none';
-                    
-                    Swal.fire({
-                        icon: 'error',
-                        title: '服務暫停',
-                        html: '您的帳號目前<b>無法使用車隊預約系統</b>。<br><br>請聯繫總部查明原因。',
-                        confirmButtonText: '確定',
-                        confirmButtonColor: '#e74c3c',
-                        allowOutsideClick: false
-                    }).then(() => {
-                        if (liff.isInClient()) liff.closeWindow();
-                        else document.body.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;height:100vh;color:#e74c3c;font-weight:bold;background:#fee2e2;">您的帳號已被停權。</div>';
-                    });
-                    return; 
-                }
-
-                checkEditModeAndLoad();
-            } catch (err) {
-                console.error(err);
-                checkEditModeAndLoad();
-            }
+                liff.getProfile().then(profile => {
+                    userName = profile.displayName;
+                    passengerId = profile.userId;
+                    checkEditModeAndLoad();
+                }).catch(err => { checkEditModeAndLoad(); });
+            }).catch(err => {
+                Swal.fire({ icon: 'error', title: '連線失敗', text: '無法連結 LINE 伺服器，請重新開啟。' });
+            });
         };
 
         function checkEditModeAndLoad() {
@@ -537,6 +509,13 @@
             document.getElementById('time-icon').className = "fa-solid fa-calendar-check input-icon text-blue-600 text-xl"; 
         }
 
+        function generateOrderId() {
+            const now = new Date();
+            const md = String(now.getMonth()+1).padStart(2,'0') + String(now.getDate()).padStart(2,'0');
+            const rnd = Math.floor(1000 + Math.random() * 9000);
+            return `TDP-${md}-${rnd}`;
+        }
+
         function cancelOrder() {
             const displayTimeNode = document.getElementById('time-display').innerText;
             Swal.fire({
@@ -552,7 +531,10 @@
                         body: JSON.stringify({ orderId: editOrderId, status: 'cancelled', timestamp: new Date().toISOString() })
                     }).then(() => {
                         if(liff.isInClient()) {
-                            liff.sendMessages([{ type: 'text', text: `❌ 已取消預約\n(原定時間：${displayTimeNode})` }]).then(() => {
+                            liff.sendMessages([{
+                                type: 'text',
+                                text: `❌ 已取消預約\n(原定時間：${displayTimeNode})`
+                            }]).then(() => {
                                 Swal.fire('已取消', '預約已成功取消。', 'success').then(() => liff.closeWindow());
                             });
                         } else {
@@ -601,6 +583,7 @@
             const mapBaseUrl = "https://www.google.com/maps/search/?api=1&query=";
             const googleMapUrl = mapBaseUrl + encodeURIComponent(pickup);
             const dropoffMapUrl = mapBaseUrl + encodeURIComponent(dropoff);
+            
             const displayTimeNode = document.getElementById('time-display').innerText;
 
             const flexMsg = {
@@ -622,7 +605,9 @@
                             {
                                 type: "box", layout: "vertical", flex: 0, paddingAll: "8px", cornerRadius: "8px", backgroundColor: "#f1f5f9",
                                 action: { type: "uri", label: "修改", uri: `https://liff.line.me/${LIFF_ID}?orderId=${currentOrderId}` },
-                                contents: [ { type: "text", text: "⚙️ 修改", size: "xs", color: "#64748b", weight: "bold", align: "center" } ]
+                                contents: [
+                                    { type: "text", text: "⚙️ 修改", size: "xs", color: "#64748b", weight: "bold", align: "center" }
+                                ]
                             }
                         ],
                         paddingAll: "15px"
