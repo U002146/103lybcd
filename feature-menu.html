@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    
+    <title>功能選單</title> 
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        body { 
+            font-family: 'Noto Sans TC', -apple-system, sans-serif; 
+            overflow-x: hidden; 
+            user-select: none; 
+            /* 曜石黑漸層底色 */
+            background: linear-gradient(180deg, #0f172a 0%, #000000 100%);
+            min-height: 100vh;
+        }
+
+        /* 頂部下拉指示條 (防呆暗示) */
+        .drag-handle {
+            width: 48px;
+            height: 6px;
+            background-color: rgba(255, 255, 255, 0.2);
+            border-radius: 9999px;
+            margin: 12px auto 20px auto;
+        }
+
+        /* 流光耀金字體 */
+        .gold-gradient-text {
+            background: linear-gradient(to right, #FDE047, #F59E0B);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* 玻璃透視質感按鈕 */
+        .glass-btn {
+            background: linear-gradient(145deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 100%);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            width: 100%;
+            border-radius: 20px;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            cursor: pointer;
+            margin-bottom: 16px;
+        }
+
+        .glass-btn:active {
+            transform: scale(0.96);
+            border-color: rgba(245, 158, 11, 0.8);
+            background: rgba(245, 158, 11, 0.15);
+            box-shadow: 0 4px 16px 0 rgba(245, 158, 11, 0.2);
+        }
+
+        /* 按鈕左側大圖示的發光底座 */
+        .icon-glow-base {
+            width: 54px;
+            height: 54px;
+            border-radius: 50%;
+            background: rgba(245, 158, 11, 0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            border: 1px solid rgba(245, 158, 11, 0.5);
+            box-shadow: inset 0 0 10px rgba(245, 158, 11, 0.2);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="drag-handle"></div>
+
+    <div class="w-full max-w-[600px] mx-auto px-5 pb-10">
+        
+        <div class="text-center mb-6">
+            <h1 class="text-2xl font-black tracking-widest gold-gradient-text mb-2">
+                <i class="fa-solid fa-layer-group mr-2"></i>功能選單
+            </h1>
+            <p class="text-xs text-slate-400 font-bold tracking-widest">請選擇您需要的專屬服務</p>
+        </div>
+
+        <div class="flex flex-col">
+            
+            <button onclick="openLink('https://liff.line.me/2008907691-2kLW9C5h')" class="glass-btn">
+                <div class="icon-glow-base">
+                    <i class="fa-solid fa-ticket text-amber-400 text-2xl"></i>
+                </div>
+                <div class="flex flex-col items-start text-left flex-1">
+                    <span class="text-lg font-bold text-slate-100 tracking-wide">使用乘車券</span>
+                    <span class="text-xs font-medium text-amber-500/70 mt-1">LINE GO 專屬優惠兌換</span>
+                </div>
+                <i class="fa-solid fa-chevron-right text-slate-600 text-lg"></i>
+            </button>
+
+            <button onclick="openLink('https://liff.line.me/2008907691-0XpyD6q7')" class="glass-btn">
+                <div class="icon-glow-base">
+                    <i class="fa-solid fa-train-subway text-amber-400 text-2xl"></i>
+                </div>
+                <div class="flex flex-col items-start text-left flex-1">
+                    <span class="text-lg font-bold text-slate-100 tracking-wide">台鐵時刻表</span>
+                    <span class="text-xs font-medium text-amber-500/70 mt-1">Live TRA 即時動態查詢</span>
+                </div>
+                <i class="fa-solid fa-chevron-right text-slate-600 text-lg"></i>
+            </button>
+
+            <button onclick="openLink('https://liff.line.me/2008907691-pFpIp3W1')" class="glass-btn">
+                <div class="icon-glow-base">
+                    <i class="fa-solid fa-map-location-dot text-amber-400 text-2xl"></i>
+                </div>
+                <div class="flex flex-col items-start text-left flex-1">
+                    <span class="text-lg font-bold text-slate-100 tracking-wide">路名快速對照</span>
+                    <span class="text-xs font-medium text-amber-500/70 mt-1">v1.7 快速翻譯與地圖定位</span>
+                </div>
+                <i class="fa-solid fa-chevron-right text-slate-600 text-lg"></i>
+            </button>
+
+            <button onclick="openLink('https://liff.line.me/2008907691-ZDbNStCT')" class="glass-btn">
+                <div class="icon-glow-base">
+                    <i class="fa-solid fa-book-open text-amber-400 text-2xl"></i>
+                </div>
+                <div class="flex flex-col items-start text-left flex-1">
+                    <span class="text-lg font-bold text-slate-100 tracking-wide">系統使用說明</span>
+                    <span class="text-xs font-medium text-amber-500/70 mt-1">智慧派車系統操作指南</span>
+                </div>
+                <i class="fa-solid fa-chevron-right text-slate-600 text-lg"></i>
+            </button>
+
+            <button onclick="openLink('https://liff.line.me/2008907691-7ntMtfbA')" class="glass-btn !mb-2">
+                <div class="icon-glow-base">
+                    <i class="fa-solid fa-id-card text-amber-400 text-2xl"></i>
+                </div>
+                <div class="flex flex-col items-start text-left flex-1">
+                    <span class="text-lg font-bold text-slate-100 tracking-wide">司機個人網站</span>
+                    <span class="text-xs font-medium text-amber-500/70 mt-1">服務介紹與車輛資訊</span>
+                </div>
+                <i class="fa-solid fa-chevron-right text-slate-600 text-lg"></i>
+            </button>
+
+        </div>
+    </div>
+
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <script>
+        // ⚠️ 這裡填入功能選單專用的 LIFF ID (建議設定為 Size: TALL)
+        const LIFF_ID = '2008907691-5xNNEa7U'; 
+
+        window.onload = function() {
+            liff.init({ liffId: LIFF_ID }).catch(err => {
+                console.error('LIFF Init Error', err);
+            });
+        };
+
+        function openLink(url) {
+            if (liff.isInClient()) {
+                // 使用 external: false 讓網頁直接在目前的 LIFF 視窗內跳轉
+                // 若想跳出外部瀏覽器 (例如開 Safari/Chrome)，則改為 external: true
+                liff.openWindow({ url: url, external: false });
+            } else {
+                window.location.href = url;
+            }
+        }
+    </script>
+</body>
+</html>
