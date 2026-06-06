@@ -133,13 +133,11 @@
         <i class="fa-solid fa-crosshairs text-2xl"></i>
     </button>
 
-    <!-- 🚀 移至右上的分享按鈕 -->
     <div id="btn-share" onclick="shareToFriends()">
         <i class="fa-solid fa-share-nodes"></i>
         <span>分享給好友</span>
     </div>
 
-    <!-- 🚀 新增：左下角直接叫車按鈕 -->
     <div id="btn-order" onclick="handleOrderAction()">
         <i id="order-icon" class="fa-solid fa-bolt"></i>
         <span id="order-text">一鍵叫車</span>
@@ -152,7 +150,7 @@
 
     <script>
         // ========= CONFIG 設定區 =========
-        const VERSION = "v8.21"; 
+        const VERSION = "v8.22"; 
         const LIFF_ID = '2008907691-1mAjwojZ'; 
         const GAS_URL = "https://script.google.com/macros/s/AKfycbzjWZ8j394jfKoMVbPWGvHJHqwF7RBCQxnxyju1ifWKoKdM7RE512F7qrhUsQqQGoWg/exec"; 
         
@@ -590,7 +588,6 @@
             Swal.fire({ icon: 'success', title: '✅ 叫車成功！', text: '司機已收到通知，請稍候。', timer: 2000, showConfirmButton: false });
 
             if (liff.isInClient()) {
-                // 🚀 核心更新：將名片叫車的標題改為「🚕 專屬名片叫車」，並套用翡翠綠顏色
                 const orderFlexMessage = {
                     "type": "flex",
                     "altText": "🚕 專屬名片叫車",
@@ -664,7 +661,7 @@
                     type: "bubble",
                     hero: {
                         type: "image",
-                        url: "https://u002146.github.io/103lybcd/photos/TDP-1123.jpg", 
+                        url: dynamicDriverInfo.photo, 
                         size: "full",
                         aspectRatio: "20:13", 
                         aspectMode: "cover"
