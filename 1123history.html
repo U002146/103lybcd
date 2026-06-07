@@ -76,7 +76,7 @@
 
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script>
-        const VERSION = "v6.9 [預約專屬手帳] 隱形濾網版"; 
+        const VERSION = "v7.0 [預約專屬手帳] 自動過期隱形濾網版"; 
         
         const LIFF_ID = '2008907691-WHXiIAeb'; 
         const BOOKING_LIFF_URL = 'https://liff.line.me/2008907691-3P676tTN'; 
@@ -116,19 +116,48 @@
                     document.getElementById('loading-state').classList.add('hidden');
                     
                     if (result.status === 'success' && result.data && result.data.length > 0) {
-                        // 🚀 核心濾網：徹底剔除「即時單」、「已取消」、「未到」的廢棄或非預約紀錄
+                        // 🚀 核心濾網：剔除「即時單」、「已取消」、「未到」，並加入「自動過期」防呆機制
                         const validTrips = result.data.filter(item => {
                             const s = item.status || '';
                             const t = item.bookingTime || '';
                             if (s.includes('即時單') || t.includes('即時單')) return false;
                             if (s.includes('取消') || s.includes('未到')) return false;
+
+                            // 🚀 時間過期判斷：超過預約時間 3 小時自動從手帳隱藏
+                            try {
+                                const match = t.match(/(\d{1,2})[\/\u6708](\d{1,2})[^\d]*(\d{1,2}):(\d{1,2})/);
+                                if (match) {
+                                    const now = new Date();
+                                    const currentYear = now.getFullYear();
+                                    let month = parseInt(match[1], 10) - 1;
+                                    let day = parseInt(match[2], 10);
+                                    let hour = parseInt(match[3], 10);
+                                    let min = parseInt(match[4], 10);
+
+                                    let tripDate = new Date(currentYear, month, day, hour, min);
+
+                                    // 跨年防呆修正 (現在12月但預約明年1月)
+                                    if (now.getMonth() === 11 && month === 0) {
+                                        tripDate.setFullYear(currentYear + 1);
+                                    } else if (now.getMonth() === 0 && month === 11) {
+                                        tripDate.setFullYear(currentYear - 1);
+                                    }
+
+                                    // 判斷是否過期 (超過 3 小時 = 3 * 60 * 60 * 1000 毫秒)
+                                    if (now.getTime() - tripDate.getTime() > 10800000) {
+                                        return false; // 過期，徹底隱藏
+                                    }
+                                }
+                            } catch(e) {
+                                console.error("時間過濾解析錯誤:", e);
+                            }
+
                             return true;
                         });
 
                         if (validTrips.length > 0) {
                             renderHistory(validTrips);
                         } else {
-                            // 過濾後若無有效預約單，直接顯示空狀態
                             document.getElementById('empty-state').classList.remove('hidden');
                             document.getElementById('empty-state').classList.add('flex');
                         }
@@ -150,7 +179,6 @@
             
             listContainer.innerHTML = '';
             
-            // 由於上面已經過濾乾淨了，這邊直接取陣列長度即可
             countText.innerText = data.length;
             countBadge.classList.remove('hidden');
             countBadge.classList.add('flex');
