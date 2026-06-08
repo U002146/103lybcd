@@ -156,7 +156,7 @@
     </div>
 
     <script>
-        const VERSION = "v4.11"; // 🚀 拔除所有醜陋原生 alert，升級為百萬級教學彈窗
+        const VERSION = "v4.12 [視覺化地圖派單版]"; 
         const API_KEY = 'AIzaSyAIxc6PEhHgUs_A9lyRUg8dNbmwOpSamY8'; 
         const LIFF_ID = '2008907691-MAdAtfyf'; 
         const PROJECT_B_URL = 'https://liff.line.me/2008907691-1mAjwojZ'; 
@@ -207,12 +207,10 @@
         }
 
         function loadGoogleMaps() {
-            // 🚀 升級彈窗
             if (API_KEY.includes('請在此填入') || API_KEY === '') { Swal.fire({ icon: 'error', title: '系統設定錯誤', text: '請填入 API KEY', confirmButtonColor: '#10b981' }); forceRemoveLoading(); return; }
             const mapScript = document.createElement('script');
             mapScript.src = `https://maps.googleapis.com/maps/api/js?key=${API_KEY}&language=zh-TW&callback=initMap`;
             mapScript.async = true; mapScript.defer = true;
-            // 🚀 升級彈窗
             mapScript.onerror = () => { Swal.fire({ icon: 'error', title: '連線錯誤', text: '地圖載入失敗，請檢查網路連線', confirmButtonColor: '#10b981' }); forceRemoveLoading(); };
             document.head.appendChild(mapScript);
         }
@@ -233,13 +231,16 @@
         function geocodePosition(pos) {
             geocoder.geocode({ location: pos }, (results, status) => {
                 if (status === "OK" && results[0]) {
-                    let addr = results[0].formatted_address.replace(/^\d+\s*/, '').replace(/台灣/, '').replace(/.*?區/, (m) => m + ' ');
+                    // 🚀 核心優化：地址極限淨化 (去除郵遞區號與冗長行政區)
+                    let addr = results[0].formatted_address
+                        .replace(/^\d{3,5}\s*/, '') 
+                        .replace(/台灣|花蓮縣|花蓮市|吉安鄉|新城鄉|秀林鄉|壽豐鄉/g, '') 
+                        .trim();
                     document.getElementById('address-text').innerText = addr;
                 }
             });
         }
 
-        // 🚀 核心升級：拔除 alert，加上詳細教學彈窗
         function panToCurrentLocation() {
             const icon = document.getElementById('icon-my-loc'); icon.classList.add('fa-spin-fast');
             if (navigator.geolocation) {
@@ -469,6 +470,10 @@
 
             const googleMapUrl = "https://www.google.com/maps/search/?api=1&query=" + currentCenter.lat + "," + currentCenter.lng;
             const dropoffMapUrl = "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(dropoff);
+            
+            // 🚀 生成 Google Static Map 圖片網址 (帶紅色圖釘)
+            const staticMapUrl = `https://maps.googleapis.com/maps/api/staticmap?center=${currentCenter.lat},${currentCenter.lng}&zoom=16&size=800x400&markers=color:red%7C${currentCenter.lat},${currentCenter.lng}&key=${API_KEY}`;
+            
             const nowTimeStr = new Date().toLocaleTimeString('zh-TW', {hour:'2-digit', minute:'2-digit', hour12:false});
             
             const currentOrderId = editOrderId || generateOrderId();
@@ -522,11 +527,20 @@
                 });
             }
 
+            // 🚀 將靜態地圖加入 Flex Message 的 Hero 區塊
             const flexMsg = {
                 type: "flex",
                 altText: bookingMode === 'NOW' ? "🚕 即時叫車" : `預約通知：${displayTime}`,
                 contents: {
                     type: "bubble",
+                    hero: {
+                        type: "image",
+                        url: staticMapUrl,
+                        size: "full",
+                        aspectRatio: "20:13",
+                        aspectMode: "cover",
+                        action: { type: "uri", label: "導航", uri: googleMapUrl }
+                    },
                     styles: { header: { backgroundColor: "#FFFFFF" }, body: { backgroundColor: "#FFFFFF" } },
                     header: {
                         type: "box", layout: "horizontal", spacing: "sm", alignItems: "center",
