@@ -156,7 +156,7 @@
     </div>
 
     <script>
-        const VERSION = "v4.13 [手動上車輸入同步地圖版]"; 
+        const VERSION = "v4.15 [手動輸入絕對時間鎖版]"; 
         const API_KEY = 'AIzaSyAIxc6PEhHgUs_A9lyRUg8dNbmwOpSamY8'; 
         const LIFF_ID = '2008907691-MAdAtfyf'; 
         const PROJECT_B_URL = 'https://liff.line.me/2008907691-1mAjwojZ'; 
@@ -173,8 +173,9 @@
         let userName = "乘客"; 
         let passengerId = "unknown";
         
-        // 🚀 全域狀態鎖：阻斷手動輸入引起的 idle 反向地理解析回填
+        // 🚀 全域狀態鎖：絕對時間鎖防護機制
         let isManualSearch = false; 
+        let manualSearchTimeout = null;
 
         const urlParams = new URLSearchParams(window.location.search);
         const editOrderId = urlParams.get('orderId');
@@ -227,7 +228,6 @@
                 if (!cachedPosition) panToCurrentLocation(); else { geocodePosition(startPos); forceRemoveLoading(); }
             }
 
-            // 🚀 掛載上車輸入框事件監聽：手動輸入地址按 Enter 或失焦時自動同步地圖
             const addrInput = document.getElementById('address-input');
             addrInput.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter') {
@@ -239,6 +239,13 @@
             });
 
             map.addListener('dragstart', () => { 
+                // 🚀 拖曳強制介入：一旦偵測到人類拖曳手指，立刻解除時間鎖
+                isManualSearch = false;
+                if (manualSearchTimeout) {
+                    clearTimeout(manualSearchTimeout);
+                    manualSearchTimeout = null;
+                }
+                
                 document.getElementById('center-marker').classList.add('lifting'); 
                 document.getElementById('marker-label').style.opacity = '0'; 
                 document.getElementById('address-input').value = '定位中...'; 
@@ -252,9 +259,8 @@
                 const center = map.getCenter(); 
                 currentCenter = { lat: center.lat(), lng: center.lng() }; 
                 
-                // 🚀 核心防禦：如果這趟移動是手動輸入地址造成的，阻斷地理解析回填，並解除狀態鎖
+                // 🚀 絕對時間鎖防護：若在手動搜尋的保護期內，無情拒絕反向解析覆蓋
                 if (isManualSearch) {
-                    isManualSearch = false; 
                     return;
                 }
                 
@@ -274,7 +280,6 @@
             });
         }
 
-        // 🚀 核心升級：將手動輸入的文字地標或地址轉為座標，並將地圖滑移聚焦過去
         function codeAddress(address) {
             if (!address || address === '定位中...') return;
             let searchStr = address;
@@ -285,19 +290,19 @@
                 if (status === "OK" && results[0]) {
                     const newPos = results[0].geometry.location;
                     
-                    // 🚀 觸發地圖滑移前，先行上鎖，防止接下來觸發的 idle 事件覆蓋掉欄位文字
+                    // 🚀 啟動絕對時間鎖：2 秒鐘之內，完全阻絕地圖動畫導致的 idle 覆蓋事件
                     isManualSearch = true; 
+                    if (manualSearchTimeout) clearTimeout(manualSearchTimeout);
+                    manualSearchTimeout = setTimeout(() => {
+                        isManualSearch = false;
+                    }, 2000);
                     
                     map.panTo(newPos);
                     map.setZoom(17);
                     currentCenter = { lat: newPos.lat(), lng: newPos.lng() };
                     
-                    // 同步將淨化後的標準地址填入框內
-                    let cleanAddr = results[0].formatted_address
-                        .replace(/^\d{3,5}\s*/, '') 
-                        .replace(/台灣|花蓮縣|花蓮市|吉安鄉|新城鄉|秀林鄉|壽豐鄉/g, '') 
-                        .trim();
-                    document.getElementById('address-input').value = cleanAddr;
+                    // 🚀 尊重使用者：既然他自己手動打字了，只要解析成功，我們就不再去蓋掉他的輸入框字眼
+                    // 保持原封不動，讓體驗最自然
                 } else {
                     Swal.fire({
                         icon: 'error',
@@ -504,7 +509,7 @@
 
         async function submitOrder() {
             if (!liff.isLoggedIn() && !liff.isInClient()) {
-                return Swal.fire({ icon: 'error', title: '尚未連線', text: '請重新整理頁面或在 LINE 內開啟', confirmButtonColor: '#10b981' });
+                return Swal.fire({ icon: 'error', title: '尚未連線', text: '請重新整理頁面或在 LINE 內部開啟', confirmButtonColor: '#10b981' });
             }
 
             const phone = document.getElementById('phone').value;
