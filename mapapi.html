@@ -156,7 +156,7 @@
     </div>
 
     <script>
-        const VERSION = "v4.15 [手動輸入絕對時間鎖版]"; 
+        const VERSION = "v4.16 [手動輸入地址完美修正版]"; 
         const API_KEY = 'AIzaSyAIxc6PEhHgUs_A9lyRUg8dNbmwOpSamY8'; 
         const LIFF_ID = '2008907691-MAdAtfyf'; 
         const PROJECT_B_URL = 'https://liff.line.me/2008907691-1mAjwojZ'; 
@@ -173,9 +173,8 @@
         let userName = "乘客"; 
         let passengerId = "unknown";
         
-        // 🚀 全域狀態鎖：絕對時間鎖防護機制
-        let isManualSearch = false; 
-        let manualSearchTimeout = null;
+        // 🚀 核心機制：只有當使用者親自「拖曳地圖」或「點擊定位按鈕」時，才允許自動解碼更新地址文字
+        let shouldUpdateAddressFromMap = false; 
 
         const urlParams = new URLSearchParams(window.location.search);
         const editOrderId = urlParams.get('orderId');
@@ -239,12 +238,8 @@
             });
 
             map.addListener('dragstart', () => { 
-                // 🚀 拖曳強制介入：一旦偵測到人類拖曳手指，立刻解除時間鎖
-                isManualSearch = false;
-                if (manualSearchTimeout) {
-                    clearTimeout(manualSearchTimeout);
-                    manualSearchTimeout = null;
-                }
+                // 🚀 使用者親手拖曳滑動地圖時，代表明確需要進行地標位置自動反查更新
+                shouldUpdateAddressFromMap = true;
                 
                 document.getElementById('center-marker').classList.add('lifting'); 
                 document.getElementById('marker-label').style.opacity = '0'; 
@@ -259,12 +254,11 @@
                 const center = map.getCenter(); 
                 currentCenter = { lat: center.lat(), lng: center.lng() }; 
                 
-                // 🚀 絕對時間鎖防護：若在手動搜尋的保護期內，無情拒絕反向解析覆蓋
-                if (isManualSearch) {
-                    return;
+                // 🚀 核心防線：只有使用者拖曳地圖或點擊 GPS 定位按鈕引發的 idle 才能回填地址，手動搜尋引發的移動一律不執行
+                if (shouldUpdateAddressFromMap) {
+                    geocodePosition(map.getCenter()); 
+                    shouldUpdateAddressFromMap = false; // 完單隨即鎖上，防止異步重複觸發
                 }
-                
-                geocodePosition(map.getCenter()); 
             });
         };
 
@@ -290,19 +284,19 @@
                 if (status === "OK" && results[0]) {
                     const newPos = results[0].geometry.location;
                     
-                    // 🚀 啟動絕對時間鎖：2 秒鐘之內，完全阻絕地圖動畫導致的 idle 覆蓋事件
-                    isManualSearch = true; 
-                    if (manualSearchTimeout) clearTimeout(manualSearchTimeout);
-                    manualSearchTimeout = setTimeout(() => {
-                        isManualSearch = false;
-                    }, 2000);
+                    // 🚀 重點：手動搜尋引發地圖 Programmatic 滑移，關閉反向地理解析回填
+                    shouldUpdateAddressFromMap = false; 
                     
                     map.panTo(newPos);
                     map.setZoom(17);
                     currentCenter = { lat: newPos.lat(), lng: newPos.lng() };
                     
-                    // 🚀 尊重使用者：既然他自己手動打字了，只要解析成功，我們就不再去蓋掉他的輸入框字眼
-                    // 保持原封不動，讓體驗最自然
+                    // 🚀 保持使用者原始輸入或填入經 Google 語意淨化後的漂亮格式地址
+                    let cleanAddr = results[0].formatted_address
+                        .replace(/^\d{3,5}\s*/, '') 
+                        .replace(/台灣|花蓮縣|花蓮市|吉安鄉|新城鄉|秀林鄉|壽豐鄉/g, '') 
+                        .trim();
+                    document.getElementById('address-input').value = cleanAddr;
                 } else {
                     Swal.fire({
                         icon: 'error',
@@ -319,6 +313,10 @@
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition((pos) => {
                     const newPos = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+                    
+                    // 🚀 使用者點擊 GPS 準心定位按鈕，允許地圖停止後自動回填最新地址
+                    shouldUpdateAddressFromMap = true;
+                    
                     if(map) { map.panTo(newPos); map.setZoom(17); }
                     currentCenter = newPos;
                     icon.classList.remove('fa-spin-fast'); if (navigator.vibrate) navigator.vibrate([20, 50, 20]);
@@ -334,7 +332,7 @@
                 }, { enableHighAccuracy: true, timeout: 5000 });
             } else { 
                 icon.classList.remove('fa-spin-fast');
-                Swal.fire({ icon: 'error', title: '不支援 GPS', text: '您的裝置不支援 GPS 定位功能。', confirmButtonColor: '#10b981' }); 
+                Swal.fire({ icon: 'error', title: '不支援 GPS', text: '您的裝置不支援 GPS 定位功能', confirmButtonColor: '#10b981' }); 
             }
         }
 
@@ -509,7 +507,7 @@
 
         async function submitOrder() {
             if (!liff.isLoggedIn() && !liff.isInClient()) {
-                return Swal.fire({ icon: 'error', title: '尚未連線', text: '請重新整理頁面或在 LINE 內部開啟', confirmButtonColor: '#10b981' });
+                return Swal.fire({ icon: 'error', title: '尚未連線', text: '請重新整理頁面或在 LINE 內開啟', confirmButtonColor: '#10b981' });
             }
 
             const phone = document.getElementById('phone').value;
