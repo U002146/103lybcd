@@ -172,6 +172,9 @@
         
         let userName = "乘客"; 
         let passengerId = "unknown";
+        
+        // 🚀 全域狀態鎖：阻斷手動輸入引起的 idle 反向地理解析回填
+        let isManualSearch = false; 
 
         const urlParams = new URLSearchParams(window.location.search);
         const editOrderId = urlParams.get('orderId');
@@ -224,7 +227,7 @@
                 if (!cachedPosition) panToCurrentLocation(); else { geocodePosition(startPos); forceRemoveLoading(); }
             }
 
-            // 🚀 掛載輸入框事件監聽：手動輸入地址按 Enter 或失焦時自動同步地圖
+            // 🚀 掛載上車輸入框事件監聽：手動輸入地址按 Enter 或失焦時自動同步地圖
             const addrInput = document.getElementById('address-input');
             addrInput.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter') {
@@ -248,6 +251,13 @@
                 if (navigator.vibrate) navigator.vibrate(10); 
                 const center = map.getCenter(); 
                 currentCenter = { lat: center.lat(), lng: center.lng() }; 
+                
+                // 🚀 核心防禦：如果這趟移動是手動輸入地址造成的，阻斷地理解析回填，並解除狀態鎖
+                if (isManualSearch) {
+                    isManualSearch = false; 
+                    return;
+                }
+                
                 geocodePosition(map.getCenter()); 
             });
         };
@@ -264,24 +274,35 @@
             });
         }
 
-        // 🚀 全新函數：將手動輸入的文字地址轉為座標並讓地圖滑移過去
+        // 🚀 核心升級：將手動輸入的文字地標或地址轉為座標，並將地圖滑移聚焦過去
         function codeAddress(address) {
             if (!address || address === '定位中...') return;
             let searchStr = address;
-            if (!searchStr.contains('花蓮')) {
+            if (!searchStr.includes('花蓮')) {
                 searchStr = "花蓮 " + searchStr;
             }
             geocoder.geocode({ address: searchStr }, (results, status) => {
                 if (status === "OK" && results[0]) {
                     const newPos = results[0].geometry.location;
+                    
+                    // 🚀 觸發地圖滑移前，先行上鎖，防止接下來觸發的 idle 事件覆蓋掉欄位文字
+                    isManualSearch = true; 
+                    
                     map.panTo(newPos);
                     map.setZoom(17);
                     currentCenter = { lat: newPos.lat(), lng: newPos.lng() };
+                    
+                    // 同步將淨化後的標準地址填入框內
+                    let cleanAddr = results[0].formatted_address
+                        .replace(/^\d{3,5}\s*/, '') 
+                        .replace(/台灣|花蓮縣|花蓮市|吉安鄉|新城鄉|秀林鄉|壽豐鄉/g, '') 
+                        .trim();
+                    document.getElementById('address-input').value = cleanAddr;
                 } else {
                     Swal.fire({
                         icon: 'error',
-                        title: '找不到該地址',
-                        text: '請確認輸入的地點或地標是否正確，或直接拖曳地圖定位。',
+                        title: '找不到該地點',
+                        text: '請確認輸入的地標或路名是否正確，或直接手動拖曳地圖進行微調。',
                         confirmButtonColor: '#10b981'
                     });
                 }
@@ -392,7 +413,6 @@
             }
         }
 
-        // --- UI 元件功能 ---
         function openPresetLocations() { let html = '<div class="grid grid-cols-2 gap-3 mt-2 location-grid">'; PRESET_LOCATIONS.forEach(loc => { let bgClass = (loc.value && loc.value.includes('FAV')) ? 'bg-yellow-50 hover:bg-yellow-100 border border-yellow-200' : 'bg-gray-50 hover:bg-slate-100'; html += `<button type="button" onclick="selectPreset('${loc.value || loc.name}', '${loc.name}')" class="flex flex-col items-center justify-center p-3 border border-gray-100 rounded-xl transition-all active:scale-95 ${bgClass}"><span class="text-2xl mb-1">${loc.icon}</span><span class="text-sm font-bold text-slate-700">${loc.name}</span></button>`; }); html += '</div>'; Swal.fire({ title: '選擇下車地點', html: html, showConfirmButton: false, showCloseButton: true, customClass: {popup: 'rounded-[24px]'} }); }
         window.selectPreset = function(val, label) { const input = document.getElementById('dropoff'); if (val.includes('FAV')) { const key = val === 'FAV_ADDR_A' ? 'taxi_fav_a' : 'taxi_fav_b'; const savedAddr = localStorage.getItem(key); if (savedAddr) { Swal.fire({ title: `📍 使用${label}？`, text: savedAddr, showDenyButton: true, confirmButtonText: '填入', denyButtonText: '修改', confirmButtonColor: '#10b981', denyButtonColor: '#ef4444' }).then((r) => { if (r.isConfirmed) { input.value = savedAddr; Swal.close(); } else if (r.isDenied) { promptSave(key, label, input); } }); } else { promptSave(key, label, input); } } else { input.value = val; Swal.close(); } };
         function promptSave(key, label, input) { Swal.fire({ title: `設定${label}`, input: 'text', inputPlaceholder: '輸入地址...', showCancelButton: true, confirmButtonText: '儲存', confirmButtonColor: '#0f172a' }).then((r) => { if (r.isConfirmed && r.value) { localStorage.setItem(key, r.value); input.value = r.value; Swal.fire({ icon: 'success', title: '已記憶！', timer: 1000, showConfirmButton: false }); } }); }
@@ -488,7 +508,7 @@
             }
 
             const phone = document.getElementById('phone').value;
-            const pickup = document.getElementById('address-input').value; // 🚀 讀取輸入框值
+            const pickup = document.getElementById('address-input').value; 
             let dropoff = document.getElementById('dropoff').value.trim();
             if (!dropoff) dropoff = "上車告知 / 未指定";
 
