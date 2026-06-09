@@ -156,7 +156,7 @@
 
     <script>
         // ========= CONFIG 設定區 =========
-        const VERSION = "v8.24"; 
+        const VERSION = "v8.23"; 
         const LIFF_ID = '2008907691-1mAjwojZ'; 
         const GAS_URL = "https://script.google.com/macros/s/AKfycbzjWZ8j394jfKoMVbPWGvHJHqwF7RBCQxnxyju1ifWKoKdM7RE512F7qrhUsQqQGoWg/exec"; 
         
@@ -660,49 +660,55 @@
                 return;
             }
 
-const flexMsg = {
+            const flexMsg = {
                 type: "flex",
                 altText: `🚕 推薦您的專屬司機：${dynamicDriverInfo.name}`,
                 contents: {
                     type: "bubble",
-                    // 為了提高分享成功率，移除 hero 區塊或確保該 URL 是 HTTPS 且公開可存取
+                    hero: {
+                        type: "image",
+                        url: dynamicDriverInfo.photo, 
+                        size: "full",
+                        aspectRatio: "20:13", 
+                        aspectMode: "cover"
+                    },
                     body: {
                         type: "box", layout: "vertical",
                         contents: [
-                            { type: "text", text: "🚕 專屬司機推薦", weight: "bold", size: "xl", color: "#1B5E20" },
+                            { type: "text", text: "🚕 數位名片", weight: "bold", size: "xl", color: "#1B5E20" },
                             {
-                                type: "box", layout: "horizontal", margin: "md", alignItems: "center",
+                                type: "box", layout: "baseline", margin: "md",
                                 contents: [ 
-                                    { type: "image", url: dynamicDriverInfo.photo, size: "sm", aspectRatio: "1:1", aspectMode: "cover" }, 
-                                    { type: "text", text: `${dynamicDriverInfo.name} ${dynamicDriverInfo.carNo}`, weight: "bold", size: "md", margin: "md", color: "#333333", flex: 1, wrap: true }
+                                    { type: "icon", size: "sm", url: dynamicDriverInfo.photo }, 
+                                    { type: "text", text: `${dynamicDriverInfo.name} ${dynamicDriverInfo.carNo}`, weight: "bold", size: "md", margin: "sm", color: "#333333" } 
                                 ]
                             },
                             { type: "separator", margin: "md" },
-                            { type: "text", text: "您的專屬司機，提供最高規格服務：", size: "sm", color: "#555555", weight: "bold", margin: "md", wrap: true },
+                            { type: "text", text: "您的專屬司機，提供最高規格數位服務：", size: "sm", color: "#555555", weight: "bold", margin: "md", wrap: true },
                             {
                                 type: "box", layout: "vertical", margin: "sm", spacing: "sm",
                                 contents: [
-                                    { type: "box", layout: "baseline", spacing: "sm", contents: [{ type: "text", text: "✔", color: "#00C853", size: "sm", flex: 0 }, { type: "text", text: "預估車資，透明不喊價", size: "sm", color: "#333333" }] },
-                                    { type: "box", layout: "baseline", spacing: "sm", contents: [{ type: "text", text: "✔", color: "#00C853", size: "sm", flex: 0 }, { type: "text", text: "數位收據，乘車報帳方便", size: "sm", color: "#333333" }] }
+                                    { type: "box", layout: "baseline", spacing: "sm", contents: [{ type: "text", text: "✔", color: "#00C853", size: "sm", flex: 0 }, { type: "text", text: "預估車資 (透明化不喊價)", size: "sm", color: "#333333", weight: "bold" }] },
+                                    { type: "box", layout: "baseline", spacing: "sm", contents: [{ type: "text", text: "✔", color: "#00C853", size: "sm", flex: 0 }, { type: "text", text: "行車軌跡 (安全把關有保障)", size: "sm", color: "#333333", weight: "bold" }] },
+                                    { type: "box", layout: "baseline", spacing: "sm", contents: [{ type: "text", text: "✔", color: "#00C853", size: "sm", flex: 0 }, { type: "text", text: "數位收據 (乘車報帳超方便)", size: "sm", color: "#333333", weight: "bold" }] },
+                                    { type: "box", layout: "baseline", spacing: "sm", contents: [{ type: "text", text: "✔", color: "#00C853", size: "sm", flex: 0 }, { type: "text", text: "乘車記錄 (評價與歷史查詢)", size: "sm", color: "#333333", weight: "bold" }] }
                                 ]
-                            }
+                            },
+                            { type: "text", text: "點擊下方按鈕，查看我的即時營業狀態，一鍵呼叫專車！", size: "xs", color: "#999999", wrap: true, margin: "md" }
                         ]
                     },
                     footer: {
                         type: "box", layout: "vertical", spacing: "sm",
                         contents: [
                             {
-                                type: "button", style: "primary", color: "#0D47A1", height: "sm",
-                                action: { type: "uri", label: "➕ 加好友預約", uri: OFFICIAL_LINE_URL }
-                            },
-                            {
                                 type: "button", style: "primary", color: "#00C853", height: "sm",
-                                action: { type: "uri", label: "📍 查看司機即時位置", uri: MY_LIFF_URL }
+                                action: { type: "uri", label: "📍 查看司機位置", uri: MY_LIFF_URL }
                             }
                         ]
                     }
                 }
             };
+
             try {
                 const res = await liff.shareTargetPicker([flexMsg]);
                 if (res) {
