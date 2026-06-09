@@ -156,7 +156,7 @@
 
     <script>
         // ========= CONFIG 設定區 =========
-        const VERSION = "v8.23"; 
+        const VERSION = "v8.24"; 
         const LIFF_ID = '2008907691-1mAjwojZ'; 
         const GAS_URL = "https://script.google.com/macros/s/AKfycbzjWZ8j394jfKoMVbPWGvHJHqwF7RBCQxnxyju1ifWKoKdM7RE512F7qrhUsQqQGoWg/exec"; 
         
@@ -677,10 +677,11 @@
                         contents: [
                             { type: "text", text: "🚕 數位名片", weight: "bold", size: "xl", color: "#1B5E20" },
                             {
-                                type: "box", layout: "baseline", margin: "md",
+                                type: "box", layout: "horizontal", margin: "md", alignItems: "center",
                                 contents: [ 
-                                    { type: "icon", size: "sm", url: dynamicDriverInfo.photo }, 
-                                    { type: "text", text: `${dynamicDriverInfo.name} ${dynamicDriverInfo.carNo}`, weight: "bold", size: "md", margin: "sm", color: "#333333" } 
+                                    { type: "icon", size: "xl", url: dynamicDriverInfo.photo }, 
+                                    { type: "text", text: `${dynamicDriverInfo.name} ${dynamicDriverInfo.carNo}`, weight: "bold", size: "md", margin: "md", color: "#333333", flex: 1, wrap: true },
+                                    { type: "button", style: "primary", color: "#0D47A1", height: "sm", flex: 0, action: { type: "uri", label: "➕加LINE", uri: OFFICIAL_LINE_URL } }
                                 ]
                             },
                             { type: "separator", margin: "md" },
