@@ -1,3 +1,4 @@
+// v1.1 新增 UBER 註冊外部連結與 Swal 防呆跳轉
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
@@ -9,6 +10,7 @@
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     
     <style>
         body { 
@@ -74,6 +76,12 @@
             border: 1px solid rgba(245, 158, 11, 0.5);
             box-shadow: inset 0 0 10px rgba(245, 158, 11, 0.2);
         }
+
+        /* SweetAlert2 自訂彈窗樣式微調 */
+        .swal2-popup {
+            border-radius: 20px !important;
+            border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        }
     </style>
 </head>
 <body>
@@ -91,6 +99,17 @@
 
         <div class="flex flex-col">
             
+            <button onclick="openUberInvite()" class="glass-btn">
+                <div class="icon-glow-base">
+                    <i class="fa-solid fa-taxi text-amber-400 text-2xl"></i>
+                </div>
+                <div class="flex flex-col items-start text-left flex-1">
+                    <span class="text-lg font-bold text-slate-100 tracking-wide">加入 UBER 領獎金</span>
+                    <span class="text-xs font-medium text-amber-500/70 mt-1">花蓮專屬：完成首趟即賺 NT$3,000 獎勵</span>
+                </div>
+                <i class="fa-solid fa-chevron-right text-slate-600 text-lg"></i>
+            </button>
+
             <button onclick="openLink('https://liff.line.me/2008907691-2kLW9C5h')" class="glass-btn">
                 <div class="icon-glow-base">
                     <i class="fa-solid fa-ticket text-amber-400 text-2xl"></i>
@@ -160,14 +179,40 @@
             });
         };
 
+        // 一般內部連結跳轉
         function openLink(url) {
             if (liff.isInClient()) {
                 // 使用 external: false 讓網頁直接在目前的 LIFF 視窗內跳轉
-                // 若想跳出外部瀏覽器 (例如開 Safari/Chrome)，則改為 external: true
                 liff.openWindow({ url: url, external: false });
             } else {
                 window.location.href = url;
             }
+        }
+
+        // UBER 專屬外部跳轉防呆
+        function openUberInvite() {
+            Swal.fire({
+                title: '<span style="color:#ffffff; font-size:24px; font-weight:bold; letter-spacing: 1px;">即將前往 UBER 官方</span>',
+                html: '<span style="color:#cbd5e1; font-size:18px; line-height: 1.5; display: block;">提醒您：透過此連結註冊並完成首趟行程，即可獲得 <b style="color:#f59e0b; font-size: 22px;">$3,000</b> 獎勵！</span>',
+                background: '#1e293b',
+                showCancelButton: true,
+                confirmButtonColor: '#10b981', // 高轉換率的綠色按鈕
+                cancelButtonColor: '#475569',  // 低調的灰色取消按鈕
+                confirmButtonText: '<span style="font-size:18px; font-weight:bold; padding: 5px 15px;">立即前往領取</span>',
+                cancelButtonText: '<span style="font-size:18px; font-weight:bold; padding: 5px 15px;">先不用</span>',
+                allowOutsideClick: false,
+                reverseButtons: true // 讓確認按鈕靠右符合常理
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    const uberUrl = 'https://drivers.uber.com/i/wqsqj7m';
+                    if (liff.isInClient()) {
+                        // 強制使用 external: true 跳出 LINE，避免註冊中斷
+                        liff.openWindow({ url: uberUrl, external: true });
+                    } else {
+                        window.location.href = uberUrl;
+                    }
+                }
+            });
         }
     </script>
 </body>
